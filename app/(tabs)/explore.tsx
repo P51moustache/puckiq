@@ -270,18 +270,13 @@ export default function ExploreScreen() {
 		return `${ft}' ${inch}\"`;
 	}
 
-	function playerHeadshot(pd: any): string | undefined {
-		// Prefer provided headshot if exists, else fallback to known CDN pattern
-		const fromApi = pd?.headshot ?? pd?.imageUrl ?? pd?.heroImage; // may be object or string
-		if (typeof fromApi === 'string' && fromApi) return fromApi;
-		if (fromApi?.default) return String(fromApi.default);
-		const id = pd?.playerId || pd?.id;
-		if (id) {
-			// 168x168 headshot pattern (works for most players)
-			return `https://cms.nhl.bamgrid.com/images/headshots/current/168x168/${id}.jpg`;
+		function playerHeadshot(pd: any): string | undefined {
+			// Only use values provided by API, no synthetic fallbacks
+			const fromApi = pd?.headshot ?? pd?.imageUrl ?? pd?.heroImage; // may be object or string
+			if (typeof fromApi === 'string' && fromApi) return fromApi;
+			if (fromApi?.default) return String(fromApi.default);
+			return undefined;
 		}
-		return undefined;
-	}
 
 	const now = new Date();
 
@@ -350,7 +345,7 @@ export default function ExploreScreen() {
 				</View>
 
 				{/* Player Card */}
-				<View style={[styles.card, { marginTop: 18, alignSelf: 'stretch', width: '100%' }]}>
+				<View style={[styles.card, { marginTop: 18, marginBottom: 24, alignSelf: 'stretch', width: '100%' }]}>
 					<Text style={styles.greeting}>Player Details</Text>
 					{loadingPlayer && (
 						<ActivityIndicator size="small" color={scheme === 'dark' ? '#fff' : '#000'} style={{ marginTop: 12 }} />
@@ -390,11 +385,11 @@ export default function ExploreScreen() {
 											Number(playerData?.heightInInches ?? playerData?.heightInInches1 ?? playerData?.height)
 										),
 									},
-									{ label: 'Weight', value: playerData?.weightInLbs ? `${playerData.weightInLbs} lb` : undefined },
+									{ label: 'Weight', value: playerData?.weightInPounds ? `${playerData.weightInPounds} lbs` : '' },
 									{ label: 'Age', value: playerData?.age ? String(playerData.age) : undefined },
 									{
 										label: 'Born',
-										value: [playerData?.birthDate, playerData?.birthCity, playerData?.birthCountry]
+										value: [playerData?.birthDate, playerData?.birthCity.default, playerData?.birthCountry]
 											.filter(Boolean)
 											.join(' · '),
 									},
@@ -408,6 +403,16 @@ export default function ExploreScreen() {
 										</View>
 									))}
 							</View>
+
+								{/* Draft details (moved first) */}
+								{playerData?.draftDetails && (
+									<View style={{ marginTop: 12 }}>
+										<Text style={[styles.subtitle, { marginBottom: 6 }]}>Draft</Text>
+										<Text style={{ color: styles.greeting.color, fontWeight: '600' }}>
+											{playerData.draftDetails.year} · Round {playerData.draftDetails.round}, Pick {playerData.draftDetails.pickInRound} (#{playerData.draftDetails.overallPick}) · {playerData.draftDetails.teamAbbrev}
+										</Text>
+									</View>
+								)}
 
 							{/* Featured stats if present */}
 							{playerData?.featuredStats?.regularSeason?.subSeason && (
@@ -431,6 +436,161 @@ export default function ExploreScreen() {
 													<Text style={{ color: styles.nameAccent.color, fontWeight: '800' }}>{String(v)}</Text>
 												</View>
 											))}
+									</View>
+								</View>
+							)}
+							
+							{/* Playoffs (this year) */}
+							{playerData?.featuredStats?.playoffs?.subSeason && (
+								<View style={{ marginTop: 12 }}>
+									<Text style={[styles.subtitle, { marginBottom: 6 }]}>This Playoffs</Text>
+									<View
+										style={{
+											flexDirection: 'row',
+											justifyContent: 'space-between',
+											paddingVertical: 8,
+											borderTopWidth: 1,
+											borderBottomWidth: 1,
+											borderColor: scheme === 'dark' ? '#081726' : '#f1f5f9',
+										}}
+									>
+										{Object.entries(playerData.featuredStats.playoffs.subSeason)
+											.filter(([k]) => ['gamesPlayed', 'goals', 'assists', 'points', 'wins', 'savePct', 'gaa'].includes(k))
+											.map(([k, v]) => (
+												<View key={k} style={{ alignItems: 'center', flex: 1 }}>
+													<Text style={[styles.subtitle, { fontSize: 12 }]}>{k}</Text>
+													<Text style={{ color: styles.nameAccent.color, fontWeight: '800' }}>{String(v)}</Text>
+												</View>
+											))}
+									</View>
+								</View>
+							)}
+							{/* Career totals (from API only) */}
+							{(() => {
+								// Prefer more complete fields first
+								const candidateList: any[] = [
+									playerData?.careerTotals?.regularSeason,
+									playerData?.featuredStats?.regularSeason?.career,
+									playerData?.regularSeasonCareer,
+									playerData?.stats?.career,
+									playerData?.career,
+									playerData?.featuredStats?.career?.subSeason,
+								];
+								const career = candidateList.find((c) => c && typeof c === 'object');
+								if (!career) return null;
+
+								function fmtNum(n: any) {
+									const num = Number(n);
+									if (Number.isFinite(num)) return num.toLocaleString();
+									return String(n ?? '');
+								}
+
+								function fmtPct(p: any) {
+									const num = Number(p);
+									if (!Number.isFinite(num)) return '';
+									const percent = num > 1 ? num : num * 100;
+									return `${percent.toFixed(1)}%`;
+								}
+
+								return (
+									<View style={{ marginTop: 12 }}>
+										<Text style={[styles.subtitle, { marginBottom: 6 }]}>Career</Text>
+										<View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+											{[
+												{ label: 'GP', value: fmtNum(career.gamesPlayed) },
+												{ label: 'G', value: fmtNum(career.goals) },
+												{ label: 'A', value: fmtNum(career.assists) },
+												{ label: 'P', value: fmtNum(career.points) },
+												{ label: '+/-', value: fmtNum(career.plusMinus) },
+												{ label: 'PIM', value: fmtNum(career.pim) },
+												{ label: 'S', value: fmtNum(career.shots) },
+												{ label: 'S%', value: fmtPct(career.shootingPctg) },
+												{ label: 'GWG', value: fmtNum(career.gameWinningGoals) },
+												{ label: 'OTG', value: fmtNum(career.otGoals) },
+												{ label: 'PPG', value: fmtNum(career.powerPlayGoals) },
+												{ label: 'PPP', value: fmtNum(career.powerPlayPoints) },
+												{ label: 'SHG', value: fmtNum(career.shorthandedGoals) },
+												{ label: 'SHP', value: fmtNum(career.shorthandedPoints) },
+												{ label: 'FO%', value: fmtPct(career.faceoffWinningPctg) },
+												{ label: 'ATOI', value: career.avgToi as string },
+											]
+												.filter((x) => x.value !== '' && x.value !== undefined)
+												.map((x) => (
+													<View key={x.label} style={{ width: '25%', paddingVertical: 6 }}>
+														<Text style={[styles.subtitle, { fontSize: 12, textAlign: 'center' }]}>{x.label}</Text>
+														<Text style={{ color: styles.greeting.color, fontWeight: '700', textAlign: 'center' }}>{x.value}</Text>
+													</View>
+												))}
+										</View>
+									</View>
+								);
+							})()}
+
+							{/* Career playoffs (API only) – moved after Career */}
+							{(() => {
+								const cp = playerData?.careerTotals?.playoffs || playerData?.featuredStats?.playoffs?.career;
+								if (!cp) return null;
+								function fmt(n: any) {
+									const x = Number(n);
+									return Number.isFinite(x) ? x.toLocaleString() : String(n ?? '');
+								}
+								function pct(p: any) {
+									const x = Number(p);
+									if (!Number.isFinite(x)) return '';
+									const percent = x > 1 ? x : x * 100;
+									return `${percent.toFixed(1)}%`;
+								}
+								return (
+									<View style={{ marginTop: 12 }}>
+										<Text style={[styles.subtitle, { marginBottom: 6 }]}>Career Playoffs</Text>
+										<View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+											{[
+												{ label: 'GP', value: fmt(cp.gamesPlayed) },
+												{ label: 'G', value: fmt(cp.goals) },
+												{ label: 'A', value: fmt(cp.assists) },
+												{ label: 'P', value: fmt(cp.points) },
+												{ label: '+/-', value: fmt(cp.plusMinus) },
+												{ label: 'PIM', value: fmt(cp.pim) },
+												{ label: 'S', value: fmt(cp.shots) },
+												{ label: 'S%', value: pct(cp.shootingPctg) },
+												{ label: 'GWG', value: fmt(cp.gameWinningGoals) },
+												{ label: 'OTG', value: fmt(cp.otGoals) },
+												{ label: 'PPG', value: fmt(cp.powerPlayGoals) },
+												{ label: 'PPP', value: fmt(cp.powerPlayPoints) },
+											]
+												.filter((x) => x.value !== '' && x.value !== undefined)
+												.map((x) => (
+													<View key={x.label} style={{ width: '25%', paddingVertical: 6 }}>
+														<Text style={[styles.subtitle, { fontSize: 12, textAlign: 'center' }]}>{x.label}</Text>
+														<Text style={{ color: styles.greeting.color, fontWeight: '700', textAlign: 'center' }}>{x.value}</Text>
+													</View>
+												))}
+										</View>
+									</View>
+								);
+							})()}
+
+							{/* Last 5 games – moved to end */}
+							{Array.isArray(playerData?.last5Games) && playerData.last5Games.length > 0 && (
+								<View style={{ marginTop: 12 }}>
+									<Text style={[styles.subtitle, { marginBottom: 6 }]}>Last 5 Games</Text>
+									<View style={{ borderWidth: 1, borderColor: scheme === 'dark' ? '#081726' : '#e2e8f0', borderRadius: 10, overflow: 'hidden' }}>
+										<View style={{ flexDirection: 'row', backgroundColor: scheme === 'dark' ? '#071a36' : '#f8fafc' }}>
+											{['Date', 'Opp', 'G', 'A', 'P', 'S', 'TOI'].map((h) => (
+												<Text key={h} style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 8, color: styles.subtitle.color, fontSize: 12 }}>{h}</Text>
+											))}
+										</View>
+										{playerData.last5Games.map((g: any, i: number) => (
+											<View key={`${g.gameId}-${i}`} style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: scheme === 'dark' ? '#081726' : '#e2e8f0' }}>
+												<Text style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 8, color: styles.greeting.color }}>{new Date(g.gameDate).toLocaleDateString()}</Text>
+												<Text style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 8, color: styles.greeting.color }}>{g.opponentAbbrev}</Text>
+												<Text style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 8, color: styles.greeting.color }}>{g.goals}</Text>
+												<Text style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 8, color: styles.greeting.color }}>{g.assists}</Text>
+												<Text style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 8, color: styles.greeting.color }}>{g.points}</Text>
+												<Text style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 8, color: styles.greeting.color }}>{g.shots}</Text>
+												<Text style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 8, color: styles.greeting.color }}>{g.toi || g.avgToi}</Text>
+											</View>
+										))}
 									</View>
 								</View>
 							)}
