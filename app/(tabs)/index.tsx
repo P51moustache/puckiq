@@ -222,11 +222,11 @@ export default function HomeScreen() {
 
         {/* Team Filter Card */}
         <View style={[styles.card, { width: '100%', alignSelf: 'stretch' }]}>
-          <View style={{ alignSelf: 'center' }}>
+          <View style={{ alignSelf: 'flex-start' }}>
             {teamsError ? (
               <Text style={{ color: 'red', paddingBottom: 6 }}>{teamsError}</Text>
             ) : null}
-            <Text style={styles.greeting}>Your Team:</Text>
+            <Text style={[styles.greeting, { alignSelf: 'flex-start' }]}>Team</Text>
             <Dropdown
               placeholder="Filter by team (optional)"
               options={[

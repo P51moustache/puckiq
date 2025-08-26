@@ -45,7 +45,7 @@ export default function Dropdown({
           borderRadius: 12,
           borderWidth: 0,
           //borderColor: border,
-          paddingVertical: 12,
+          paddingVertical: 8,
           paddingHorizontal: 0,
           opacity: disabled || loading ? 0.6 : 1,
         }}
@@ -53,7 +53,7 @@ export default function Dropdown({
         {loading ? (
           <ActivityIndicator size="small" color={scheme === 'dark' ? '#fff' : '#000'} />
         ) : (
-          <Text style={{ color: textColor, alignSelf: 'center' }}>{selectedLabel || placeholder}</Text>
+          <Text style={{ color: textColor }}>{selectedLabel || placeholder}</Text>
         )}
       </Pressable>
       <Modal visible={open} animationType="fade" transparent onRequestClose={() => setOpen(false)}>
