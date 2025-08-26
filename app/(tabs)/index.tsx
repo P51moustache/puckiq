@@ -1,118 +1,85 @@
 import React, { useEffect, useState } from 'react';
 import { Image } from 'expo-image';
-import { Platform, StyleSheet, useColorScheme, Pressable, ScrollView, ActivityIndicator, Modal } from 'react-native';
+import { Platform, StyleSheet, useColorScheme, Pressable, ScrollView, ActivityIndicator, Modal, Animated } from 'react-native';
 import { View, Text } from 'react-native';
 import { ThemedView } from '@/components/ThemedView'; 
+import { LinearGradient } from 'expo-linear-gradient';
+import { makeStyles } from '@/constants/theme';
+import Dropdown, { type Option } from '@/components/Dropdown';
 
 const name = 'Zach'
 const now = new Date();
 
-const themes = {
-  light: {
-    background: '#f6f8fb',
-    card: '#ffffff',
-    text: '#0f172a',
-    subtext: '#64748b',
-    accent: '#2563eb',
-    subtle: '#e6eefb',
-  },
-  dark: {
-    background: '#071023',
-    card: '#0b1630',
-    text: '#e6eef8',
-    subtext: '#98a6bf',
-    accent: '#60a5fa',
-    subtle: '#071a36',
-  },
-};
+// Preload local top images (must use static requires for Metro bundler)
+const TOP_IMAGES = [
+  require('../../assets/images/topimages/image1.jpg'),
+  require('../../assets/images/topimages/image2.jpg'),
+  require('../../assets/images/topimages/image3.jpg'),
+  require('../../assets/images/topimages/image4.jpg'),
+  require('../../assets/images/topimages/image5.jpg'),
+  require('../../assets/images/topimages/image6.jpg'),
+  require('../../assets/images/topimages/image7.jpg'),
+  require('../../assets/images/topimages/image8.jpg'),
+] as const;
 
-export const makeStyles = (scheme: 'light' | 'dark' = 'light') => {
-  const t = scheme === 'dark' ? themes.dark : themes.light;
-
-  return StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: t.background,
-      paddingTop: Platform.OS === 'ios' ? 60 : 30,
-      alignItems: 'center',
-    },
-    scrollContainer: {
-      alignItems: 'center',
-      paddingBottom: 40,
-      paddingHorizontal: 16, // add horizontal padding (gutters)
-      width: '100%',
-    },
-    header: {
-      width: '100%',
-      alignItems: 'center',
-      marginBottom: 18,
-    },
-    mainpic: {
-      width: '100%',           // fill available horizontal space (matches card width)
-      aspectRatio: 16 / 9,    // keep natural proportion while filling width
-      borderRadius: 14,
-      borderWidth: 2,
-      borderColor: t.subtle,
-      marginBottom: 8,
-      marginTop: 12,
-      backgroundColor: t.subtle,
-    },
-    title: {
-      fontSize: 20,
-      fontWeight: '700',
-      color: t.text,
-      fontFamily: Platform.select({ ios: 'System', android: 'Roboto' }),
-    },
-    subtitle: {
-      fontSize: 13,
-      color: t.subtext,
-      marginTop: 4,
-    },
-    card: {
-      alignSelf: 'stretch',
-      backgroundColor: t.card,
-      padding: 20,
-      borderRadius: 14,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.08,
-      shadowRadius: 12,
-      elevation: 6,
-      alignItems: 'center',
-    },
-    greeting: {
-      fontSize: 18,
-      color: t.text,
-      marginBottom: 8,
-      fontWeight: '600',
-      alignSelf: 'center',
-    },
-    nameAccent: {
-      color: t.accent,
-      fontWeight: '800',
-    },
-    lead: {
-      color: t.subtext,
-      marginBottom: 12,
-      fontSize: 13,
-    },
-    cta: {
-      marginTop: 8,
-      backgroundColor: t.accent,
-      paddingVertical: 10,
-      paddingHorizontal: 14,
-      borderRadius: 10,
-    },
-    ctaText: {
-      color: '#fff',
-      fontWeight: '700',
-    },
-  });
-}
+// Styles now come from the shared theme module
 
 export default function HomeScreen() {
   const scheme = useColorScheme() || 'light';
   const styles = makeStyles(scheme);
+
+  // Pick a random top image on initial mount (app open)
+  const topImage = React.useMemo(() => {
+    const i = Math.floor(Math.random() * TOP_IMAGES.length);
+    return TOP_IMAGES[i];
+  }, []);
+
+  // Countdown to Sep 20th 4:00 PM PT (Pacific Time). On Sep 20, PT is UTC-7.
+  const targetDate = React.useMemo(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    // 16:00 PT = 23:00 UTC (UTC-7) on Sep 20
+    const targetUtc = Date.UTC(year, 8, 20, 23, 0, 0, 0);
+    return new Date(targetUtc);
+  }, []);
+
+  const [msLeft, setMsLeft] = React.useState<number | null>(null);
+
+  // Subtle pulse animation to draw attention
+  const pulse = React.useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (msLeft == null) return; // stop anim when hidden
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 700, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0, duration: 700, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [msLeft, pulse]);
+
+  const scale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.03] });
+
+  useEffect(() => {
+    const update = () => {
+      const diff = targetDate.getTime() - Date.now();
+      setMsLeft(diff > 0 ? diff : null);
+    };
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [targetDate]);
+
+  const fmtCountdown = React.useMemo(() => {
+    if (msLeft == null) return null;
+    const totalSec = Math.floor(msLeft / 1000);
+    const days = Math.floor(totalSec / 86400);
+    const hours = Math.floor((totalSec % 86400) / 3600);
+    const minutes = Math.floor((totalSec % 3600) / 60);
+    const seconds = totalSec % 60;
+    return `${days}d ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
+  }, [msLeft]);
 
   // Types (shared with Explore)
   type Team = {
@@ -120,89 +87,6 @@ export default function HomeScreen() {
     name: string;
     abbrev: string;
   };
-
-  type Option = { label: string; value: string | null };
-
-  // Local dropdown (same UX as Explore)
-  function Dropdown({
-    label,
-    placeholder,
-    options,
-    value,
-    onChange,
-    disabled,
-    loading,
-  }: {
-    label?: string;
-    placeholder: string;
-    options: Option[];
-    value: string | null;
-    onChange: (val: string | null) => void;
-    disabled?: boolean;
-    loading?: boolean;
-  }) {
-    const [open, setOpen] = React.useState(false);
-    const textColor = (scheme as 'light' | 'dark') === 'dark' ? '#e6eef8' : '#0f172a';
-    const border = (scheme as 'light' | 'dark') === 'dark' ? '#081726' : '#e2e8f0';
-    const bg = (scheme as 'light' | 'dark') === 'dark' ? '#0b1630' : '#fff';
-    const backdrop = 'rgba(0,0,0,0.4)';
-    const selectedLabel = options.find((o) => o.value === value)?.label;
-    return (
-      <View style={{ alignSelf: 'stretch' }}>
-        {label ? <Text style={{ color: (scheme as 'light' | 'dark') === 'dark' ? '#98a6bf' : '#64748b', marginBottom: 6 }}>{label}</Text> : null}
-        <Pressable
-          disabled={disabled || loading}
-          onPress={() => setOpen(true)}
-          style={{
-            backgroundColor: bg,
-            borderRadius: 12,
-            borderWidth: 1,
-            borderColor: border,
-            paddingVertical: 12,
-            paddingHorizontal: 0,
-            opacity: disabled || loading ? 0.6 : 1,
-          }}
-        >
-          {loading ? (
-            <ActivityIndicator size="small" color={(scheme as 'light' | 'dark') === 'dark' ? '#fff' : '#000'} />
-          ) : (
-            <Text style={{ color: textColor }}>
-              {selectedLabel || placeholder}
-            </Text>
-          )}
-        </Pressable>
-        <Modal visible={open} animationType="fade" transparent onRequestClose={() => setOpen(false)}>
-          <Pressable style={{ flex: 1, backgroundColor: backdrop, justifyContent: 'center', paddingHorizontal: 24 }} onPress={() => setOpen(false)}>
-            <Pressable
-              onPress={() => {}}
-              style={{ backgroundColor: bg, borderRadius: 14, paddingVertical: 8, maxHeight: 420, borderWidth: 1, borderColor: border }}
-            >
-              <View style={{ paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: border }}>
-                <Text style={{ color: textColor, fontWeight: '700' }}>{label || 'Select'}</Text>
-              </View>
-              <ScrollView>
-                {options.map((opt) => (
-                  <Pressable
-                    key={`${opt.label}-${opt.value}`}
-                    onPress={() => {
-                      onChange(opt.value);
-                      setOpen(false);
-                    }}
-                    style={({ pressed }) => ({ paddingVertical: 12, paddingHorizontal: 14, backgroundColor: pressed ? ((scheme as 'light' | 'dark') === 'dark' ? '#0e223f' : '#f8fafc') : 'transparent' })}
-                  >
-                    <Text style={{ color: textColor }}>{opt.label}</Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-              <Pressable onPress={() => setOpen(false)} style={{ paddingVertical: 12, alignItems: 'center', borderTopWidth: 1, borderTopColor: border }}>
-                <Text style={{ color: (scheme as 'light' | 'dark') === 'dark' ? '#98a6bf' : '#64748b' }}>Cancel</Text>
-              </Pressable>
-            </Pressable>
-          </Pressable>
-        </Modal>
-      </View>
-    );
-  }
 
   type Game = {
     id: string;
@@ -314,38 +198,56 @@ export default function HomeScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <Text style={styles.title}>Hockey Stats</Text>
+          <Text style={styles.title}>PuckIQ</Text>
+          {fmtCountdown && (
+            <View style={[styles.countdownBox, { marginTop: 10 }]}> 
+              <LinearGradient
+                colors={['#60a5fa', '#7c3aed', '#f43f5e']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{ paddingVertical: 16, paddingHorizontal: 16 }}
+              >
+                <Text style={styles.countdownLabel}>Countdown to Preseason</Text>
+                <Text style={styles.countdownTimer}>{fmtCountdown}</Text>
+              </LinearGradient>
+            </View>
+          )}
           <Image
-            source={{ uri: 'https://s3951.pcdn.co/wp-content/uploads/2015/09/Connor-McDavid-CP-1-575x388.jpg' }}
+            source={topImage}
             style={styles.mainpic}
             contentFit="cover"
             accessibilityLabel="User avatar"
           />
         </View>
 
-  <View style={[styles.card, { width: '100%', alignSelf: 'stretch' }]}>
-          {/* Team filter dropdown */}
-          <View style={{ alignSelf: 'stretch' }}>
+        {/* Team Filter Card */}
+        <View style={[styles.card, { width: '100%', alignSelf: 'stretch' }]}>
+          <View style={{ alignSelf: 'center' }}>
             {teamsError ? (
               <Text style={{ color: 'red', paddingBottom: 6 }}>{teamsError}</Text>
             ) : null}
+            <Text style={styles.greeting}>Your Team:</Text>
             <Dropdown
-              label="Team"
               placeholder="Filter by team (optional)"
-              options={(teams ?? []).map((t) => ({ label: `${t.name} (${t.abbrev})`, value: t.abbrev }))}
+              options={[
+                { label: 'All Teams', value: null },
+                ...((teams ?? []).map((t) => ({ label: `${t.name} (${t.abbrev})`, value: t.abbrev })))
+              ]}
               value={selectedTeam}
               onChange={setSelectedTeam}
               disabled={!teams || teams.length === 0}
               loading={loadingTeams}
+              scheme={scheme as 'light' | 'dark'}
             />
           </View>
+        </View>
 
-          <Text style={[styles.greeting, { marginTop: 12 }]}>
-            Today's Schedule
-          </Text>
+        {/* Today's Schedule Card */}
+        <View style={[styles.card, { width: '100%', alignSelf: 'stretch', marginTop: 16 }]}>
+          <Text style={[styles.greeting, { alignSelf: 'flex-start', marginBottom: 4 }]}>Today's Schedule</Text>
 
           {/* API data section */}
-          <View style={{ marginTop: 16, width: '100%', alignItems: 'center' }}>
+          <View style={{ marginTop: 8, width: '100%' }}>
             {loading && <ActivityIndicator size="small" color={scheme === 'dark' ? '#fff' : '#000'} />}
             {error && <Text style={{ color: 'red', marginTop: 8 }}>{error}</Text>}
             {!loading && !error && schedule && schedule.length === 0 && (

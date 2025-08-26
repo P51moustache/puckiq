@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, ActivityIndicator, View, Text, useColorScheme, Modal, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import { ThemedView } from '@/components/ThemedView';
-import { makeStyles } from './index';
+import { makeStyles, tokens } from '@/constants/theme';
+import Dropdown from '@/components/Dropdown';
 
 type Team = {
 	id: string;
@@ -24,87 +25,7 @@ type PlayerLanding = any; // loose type – API fields vary; we'll guard accesse
 
 type Option = { label: string; value: string | null };
 
-function Dropdown({
-	label,
-	placeholder,
-	options,
-	value,
-	onChange,
-	disabled,
-	loading,
-	scheme,
-}: {
-	label?: string;
-	placeholder: string;
-	options: Option[];
-	value: string | null;
-	onChange: (val: string | null) => void;
-	disabled?: boolean;
-	loading?: boolean;
-	scheme: 'light' | 'dark';
-}) {
-	const [open, setOpen] = useState(false);
-	const textColor = scheme === 'dark' ? '#e6eef8' : '#0f172a';
-	const border = scheme === 'dark' ? '#081726' : '#e2e8f0';
-	const bg = scheme === 'dark' ? '#0b1630' : '#fff';
-	const backdrop = 'rgba(0,0,0,0.4)';
-	const selectedLabel = options.find((o) => o.value === value)?.label;
-	return (
-		<View style={{ alignSelf: 'stretch' }}>
-			{label ? <Text style={{ color: scheme === 'dark' ? '#98a6bf' : '#64748b', marginBottom: 6 }}>{label}</Text> : null}
-			  <Pressable
-				disabled={disabled || loading}
-				onPress={() => setOpen(true)}
-				style={{
-					backgroundColor: bg,
-					borderRadius: 12,
-					borderWidth: 1,
-					borderColor: border,
-				  paddingVertical: 12,
-				  paddingHorizontal: 0,
-					opacity: disabled || loading ? 0.6 : 1,
-				}}
-			>
-				{loading ? (
-					<ActivityIndicator size="small" color={scheme === 'dark' ? '#fff' : '#000'} />
-				) : (
-				  <Text style={{ color: textColor }}>
-						{selectedLabel || placeholder}
-					</Text>
-				)}
-			</Pressable>
-			<Modal visible={open} animationType="fade" transparent onRequestClose={() => setOpen(false)}>
-				<Pressable style={{ flex: 1, backgroundColor: backdrop, justifyContent: 'center', paddingHorizontal: 24 }} onPress={() => setOpen(false)}>
-					<Pressable
-						onPress={() => {}}
-						style={{ backgroundColor: bg, borderRadius: 14, paddingVertical: 8, maxHeight: 420, borderWidth: 1, borderColor: border }}
-					>
-						<View style={{ paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: border }}>
-							<Text style={{ color: textColor, fontWeight: '700' }}>{label || 'Select'}</Text>
-						</View>
-						<ScrollView>
-							{options.map((opt) => (
-								<Pressable
-									key={`${opt.label}-${opt.value}`}
-									onPress={() => {
-										onChange(opt.value);
-										setOpen(false);
-									}}
-									style={({ pressed }) => ({ paddingVertical: 12, paddingHorizontal: 14, backgroundColor: pressed ? (scheme === 'dark' ? '#0e223f' : '#f8fafc') : 'transparent' })}
-								>
-									<Text style={{ color: textColor }}>{opt.label}</Text>
-								</Pressable>
-							))}
-						</ScrollView>
-						<Pressable onPress={() => setOpen(false)} style={{ paddingVertical: 12, alignItems: 'center', borderTopWidth: 1, borderTopColor: border }}>
-							<Text style={{ color: scheme === 'dark' ? '#98a6bf' : '#64748b' }}>Cancel</Text>
-						</Pressable>
-					</Pressable>
-				</Pressable>
-			</Modal>
-		</View>
-	);
-}
+// Local Dropdown replaced by shared Dropdown component
 
 export default function ExploreScreen() {
 	const scheme = useColorScheme() || 'light';
@@ -289,7 +210,7 @@ export default function ExploreScreen() {
 				keyboardShouldPersistTaps="handled"
 			>
 				<View style={styles.header}>
-					<Text style={styles.title}>Explore Player Stats</Text>
+					<Text style={styles.title}>Player Stats</Text>
 				</View>
 
 				{/* Selection Card */}
@@ -308,7 +229,7 @@ export default function ExploreScreen() {
 							onChange={setSelectedTeam}
 							disabled={!teams || teams.length === 0}
 							loading={loadingTeams}
-							scheme={scheme as 'light' | 'dark'}
+							scheme={scheme as 'dark'}
 						/>
 					</View>
 
