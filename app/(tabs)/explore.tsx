@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, ActivityIndicator, View, Text, useColorScheme, Modal, Pressable } from 'react-native';
 import { Image } from 'expo-image';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemedView } from '@/components/ThemedView';
 import { makeStyles, tokens } from '@/constants/theme';
 import Dropdown from '@/components/Dropdown';
@@ -36,6 +37,35 @@ export default function ExploreScreen() {
 	const [loadingTeams, setLoadingTeams] = useState(true);
 	const [teamsError, setTeamsError] = useState<string | null>(null);
 	const [selectedTeam, setSelectedTeam] = useState<string | null>(null); // abbrev
+
+	// Load saved team preference on app start
+	useEffect(() => {
+		async function loadSavedTeam() {
+			try {
+				const savedTeam = await AsyncStorage.getItem('selectedTeam');
+				if (savedTeam) {
+					setSelectedTeam(savedTeam);
+				}
+			} catch (error) {
+				console.warn('Failed to load saved team preference:', error);
+			}
+		}
+		loadSavedTeam();
+	}, []);
+
+	// Save team preference whenever it changes
+	const handleTeamChange = async (teamAbbrev: string | null) => {
+		setSelectedTeam(teamAbbrev);
+		try {
+			if (teamAbbrev) {
+				await AsyncStorage.setItem('selectedTeam', teamAbbrev);
+			} else {
+				await AsyncStorage.removeItem('selectedTeam');
+			}
+		} catch (error) {
+			console.warn('Failed to save team preference:', error);
+		}
+	};
 
 	// Roster
 	const [roster, setRoster] = useState<RosterPlayer[] | null>(null);
@@ -205,7 +235,7 @@ export default function ExploreScreen() {
 		<ThemedView style={styles.container}>
 			<ScrollView
 				style={{ alignSelf: 'stretch', width: '100%' }}
-				contentContainerStyle={styles.scrollContainer}
+				contentContainerStyle={[styles.scrollContainer, { paddingBottom: 100 }]}
 				showsVerticalScrollIndicator={false}
 				keyboardShouldPersistTaps="handled"
 			>
@@ -226,7 +256,7 @@ export default function ExploreScreen() {
 							placeholder="Select a team"
 							options={(teams ?? []).map((t) => ({ label: `${t.name} (${t.abbrev})`, value: t.abbrev }))}
 							value={selectedTeam}
-							onChange={setSelectedTeam}
+							onChange={handleTeamChange}
 							disabled={!teams || teams.length === 0}
 							loading={loadingTeams}
 							scheme={scheme as 'dark'}

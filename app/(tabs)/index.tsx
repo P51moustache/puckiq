@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Image } from 'expo-image';
 import { Platform, StyleSheet, useColorScheme, Pressable, ScrollView, ActivityIndicator, Modal, Animated } from 'react-native';
 import { View, Text } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemedView } from '@/components/ThemedView'; 
 import { LinearGradient } from 'expo-linear-gradient';
 import { makeStyles } from '@/constants/theme';
@@ -33,6 +34,8 @@ export default function HomeScreen() {
     const i = Math.floor(Math.random() * TOP_IMAGES.length);
     return TOP_IMAGES[i];
   }, []);
+
+  
 
   // Countdown to Sep 20th 4:00 PM PT (Pacific Time). On Sep 20, PT is UTC-7.
   const targetDate = React.useMemo(() => {
@@ -108,6 +111,35 @@ export default function HomeScreen() {
   const [loadingTeams, setLoadingTeams] = useState(true);
   const [teamsError, setTeamsError] = useState<string | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null); // abbrev
+
+  // Load saved team preference on app start
+  useEffect(() => {
+    async function loadSavedTeam() {
+      try {
+        const savedTeam = await AsyncStorage.getItem('selectedTeam');
+        if (savedTeam) {
+          setSelectedTeam(savedTeam);
+        }
+      } catch (error) {
+        console.warn('Failed to load saved team preference:', error);
+      }
+    }
+    loadSavedTeam();
+  }, []);
+
+  // Save team preference whenever it changes
+  const handleTeamChange = async (teamAbbrev: string | null) => {
+    setSelectedTeam(teamAbbrev);
+    try {
+      if (teamAbbrev) {
+        await AsyncStorage.setItem('selectedTeam', teamAbbrev);
+      } else {
+        await AsyncStorage.removeItem('selectedTeam');
+      }
+    } catch (error) {
+      console.warn('Failed to save team preference:', error);
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -189,11 +221,114 @@ export default function HomeScreen() {
     return () => { mounted = false; };
   }, []);
 
+  // Upcoming schedule for the selected team (current + next month if needed)
+  const [monthSchedule, setMonthSchedule] = useState<any[] | null>(null);
+  const [loadingMonthSchedule, setLoadingMonthSchedule] = useState(false);
+  const [monthScheduleError, setMonthScheduleError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    if (!selectedTeam) {
+      setMonthSchedule(null);
+      setMonthScheduleError(null);
+      setLoadingMonthSchedule(false);
+      return () => { mounted = false; };
+    }
+
+    async function loadUpcomingGames() {
+      setLoadingMonthSchedule(true);
+      setMonthScheduleError(null);
+      try {
+        const now = new Date();
+        const teamCode = (selectedTeam ?? '').toUpperCase();
+        
+        // Helper function to fetch and parse games for a given month
+        async function fetchMonthGames(year: number, month: number) {
+          const monthStr = `${year}-${String(month).padStart(2, '0')}`;
+          const url = `https://api-web.nhle.com/v1/club-schedule/${teamCode}/month/${monthStr}`;
+          const res = await fetch(url);
+          if (!res.ok) throw new Error(`HTTP ${res.status} for ${monthStr}`);
+          const json = await res.json();
+          
+          const gamesRaw: any[] = Array.isArray(json?.games) ? json.games : [];
+          return gamesRaw.map((g: any) => {
+            const id = String(g.id ?? Math.random());
+            const date = g.gameDate ?? '';
+            const start = g.startTimeUTC ?? g.gameDate ?? '';
+            
+            const homeTeam = g.homeTeam ?? {};
+            const awayTeam = g.awayTeam ?? {};
+            
+            const home = `${homeTeam.placeName?.default ?? ''} ${homeTeam.commonName?.default ?? ''}`.trim() || 'Home';
+            const away = `${awayTeam.placeName?.default ?? ''} ${awayTeam.commonName?.default ?? ''}`.trim() || 'Away';
+            const homeAbbrev = (homeTeam.abbrev ?? '').toUpperCase();
+            const awayAbbrev = (awayTeam.abbrev ?? '').toUpperCase();
+            
+            const status = g.gameState ?? g.gameScheduleState ?? '';
+            
+            return { id, date, start, home, away, homeAbbrev, awayAbbrev, status };
+          });
+        }
+
+        let allUpcomingGames: any[] = [];
+        let currentYear = now.getFullYear();
+        let currentMonth = now.getMonth() + 1; // JS months are 0-indexed
+        let monthsChecked = 0;
+        const maxMonthsToCheck = 6; // Don't check more than 6 months ahead
+
+        // Keep fetching months until we have 10 games or hit the limit
+        while (allUpcomingGames.length < 10 && monthsChecked < maxMonthsToCheck) {
+          try {
+            const monthGames = await fetchMonthGames(currentYear, currentMonth);
+            
+            // Filter to upcoming games only for the current month
+            const upcomingGames = monthsChecked === 0 
+              ? monthGames.filter(g => {
+                  if (!g.start) return false;
+                  const gameDate = new Date(g.start);
+                  return gameDate >= now;
+                })
+              : monthGames; // For future months, all games are upcoming
+            
+            // Sort games by date and add to our collection
+            const sortedGames = upcomingGames.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+            allUpcomingGames = [...allUpcomingGames, ...sortedGames];
+            
+          } catch (e) {
+            console.warn(`Failed to fetch ${currentYear}-${String(currentMonth).padStart(2,'0')}:`, e);
+          }
+          
+          // Move to next month
+          monthsChecked++;
+          currentMonth++;
+          if (currentMonth > 12) {
+            currentMonth = 1;
+            currentYear++;
+          }
+        }
+
+        // Take first 10 games and sort them chronologically
+        const finalGames = allUpcomingGames
+          .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
+          .slice(0, 10);
+
+        if (mounted) setMonthSchedule(finalGames);
+      } catch (e: any) {
+        if (mounted) setMonthScheduleError(e?.message ?? 'Failed to load upcoming games');
+      } finally {
+        if (mounted) setLoadingMonthSchedule(false);
+      }
+    }
+
+    loadUpcomingGames();
+    return () => { mounted = false; };
+  }, [selectedTeam]);
+
   return (
     <ThemedView style={styles.container}>
       <ScrollView
         style={{ alignSelf: 'stretch', width: '100%' }}
-        contentContainerStyle={styles.scrollContainer}
+        contentContainerStyle={[styles.scrollContainer, { paddingBottom: 100 }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -220,6 +355,10 @@ export default function HomeScreen() {
           />
         </View>
 
+        <Text style={styles.subsection}>
+          Games
+        </Text>
+
         {/* Team Filter Card */}
         <View style={[styles.card, { width: '100%', alignSelf: 'stretch' }]}>
           <View style={{ alignSelf: 'flex-start' }}>
@@ -230,11 +369,11 @@ export default function HomeScreen() {
             <Dropdown
               placeholder="Filter by team (optional)"
               options={[
-                { label: 'All Teams', value: null },
+                { label: 'Choose a Team', value: null },
                 ...((teams ?? []).map((t) => ({ label: `${t.name} (${t.abbrev})`, value: t.abbrev })))
               ]}
               value={selectedTeam}
-              onChange={setSelectedTeam}
+              onChange={handleTeamChange}
               disabled={!teams || teams.length === 0}
               loading={loadingTeams}
               scheme={scheme as 'light' | 'dark'}
@@ -243,11 +382,11 @@ export default function HomeScreen() {
         </View>
 
         {/* Today's Schedule Card */}
-        <View style={[styles.card, { width: '100%', alignSelf: 'stretch', marginTop: 16 }]}>
-          <Text style={[styles.greeting, { alignSelf: 'flex-start', marginBottom: 4 }]}>Today's Schedule</Text>
+        <View style={[styles.card, { width: '100%', alignSelf: 'stretch' }]}>
+          <Text style={[styles.greeting, { alignSelf: 'flex-start', marginBottom: 4 }]}>Schedule for Today</Text>
 
           {/* API data section */}
-          <View style={{ marginTop: 8, width: '100%' }}>
+          <View style={{ marginTop: 0, width: '100%' }}>
             {loading && <ActivityIndicator size="small" color={scheme === 'dark' ? '#fff' : '#000'} />}
             {error && <Text style={{ color: 'red', marginTop: 8 }}>{error}</Text>}
             {!loading && !error && schedule && schedule.length === 0 && (
@@ -288,6 +427,45 @@ export default function HomeScreen() {
                 </View>
               );
             })}
+          </View>
+        </View>
+
+        {/* Upcoming Games Card */}
+        <View style={[styles.card, { width: '100%', alignSelf: 'stretch' }]}>
+          <Text style={[styles.greeting, { alignSelf: 'flex-start', marginBottom: 6 }]}>Upcoming Games</Text>
+          <View style={{ marginTop: 4, width: '100%' }}>
+            {monthScheduleError ? <Text style={{ color: 'red' }}>{monthScheduleError}</Text> : null}
+            {loadingMonthSchedule && <ActivityIndicator size="small" color={scheme === 'dark' ? '#fff' : '#000'} />}
+            {!selectedTeam && <Text style={{ color: styles.lead.color }}>Select a team to view upcoming games.</Text>}
+            {selectedTeam && !loadingMonthSchedule && monthSchedule && monthSchedule.length === 0 && (
+              <Text style={{ color: styles.lead.color }}>No upcoming games found.</Text>
+            )}
+            {selectedTeam && monthSchedule && monthSchedule.length > 0 && (
+              <View style={{ width: '100%' }}>
+                {monthSchedule.map((g: any) => {
+                  const dateStr = g.date ? new Date(g.date).toLocaleDateString([], { month: 'short', day: 'numeric' }) : (g.start ? new Date(g.start).toLocaleDateString([], { month: 'short', day: 'numeric' }) : 'TBD');
+                  const timeStr = g.start ? new Date(g.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+                  const sel = (selectedTeam ?? '').toUpperCase();
+                  const homeAbbrev = (g.homeAbbrev ?? '').toUpperCase();
+                  // Determine if the selected team is home; fall back to name comparison if abbrev missing
+                  const isHome = homeAbbrev ? homeAbbrev === sel : (g.home ?? '').toUpperCase().includes(sel);
+                  const opponentName = isHome ? (g.away ?? '') : (g.home ?? '');
+                  const opponentAbbrev = isHome ? (g.awayAbbrev ?? '') : (g.homeAbbrev ?? '');
+                  const opponentDisplay = opponentAbbrev ? opponentAbbrev : opponentName || 'TBD';
+                  return (
+                    <View key={g.id} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: scheme === 'dark' ? '#081726' : '#f1f5f9' }}>
+                      <View>
+                        <Text style={{ color: styles.greeting.color }}>{dateStr} • {isHome ? 'vs' : '@'} {opponentDisplay}</Text>
+                        <Text style={{ color: styles.lead.color, fontSize: 12 }}>{g.status}</Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={{ color: styles.nameAccent.color }}>{timeStr}</Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
           </View>
         </View>
       </ScrollView>
