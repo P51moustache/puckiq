@@ -1,37 +1,22 @@
 import { Platform, StyleSheet } from 'react-native';
 
-export const themes = {
-  light: {
-    background: '#f6f8fb',
-    card: '#ffffff',
-    factbox: '#334e8dff',
-    text: '#0f172a',
-    subtext: '#64748b',
-    accent: '#2563eb',
-    subtle: '#e6eefb',
-    modalBorder: '#e2e8f0',
-    modalBg: '#fff',
-    pressed: '#f8fafc',
-  },
-  dark: {
-    background: '#071023',
-    card: '#192e5eff',
-    factbox: '#334e8dff',
-    text: '#e6eef8',
-    subtext: '#98a6bf',
-    accent: '#60a5fa',
-    subtle: '#071a36',
-    modalBorder: '#081726',
-    modalBg: '#192e5eff',
-    pressed: '#0e223f',
-  },
+export const theme = {
+  background: '#071023',
+  card: '#192e5eff',
+  factbox: '#334e8dff',
+  text: '#e6eef8',
+  subtext: '#98a6bf',
+  accent: '#60a5fa',
+  subtle: '#071a36',
+  modalBorder: '#081726',
+  modalBg: '#192e5eff',
+  pressed: '#0e223f',
 };
 
-export type Scheme = 'light' | 'dark';
-export const getTheme = (scheme: Scheme = 'light') => (scheme === 'dark' ? themes.dark : themes.light);
+export const getTheme = () => theme;
 
-export const makeStyles = (scheme: Scheme = 'light') => {
-  const t = getTheme(scheme);
+export const makeStyles = () => {
+  const t = getTheme();
   return StyleSheet.create({
     container: {
       flex: 1,
@@ -49,6 +34,9 @@ export const makeStyles = (scheme: Scheme = 'light') => {
       width: '100%',
       alignItems: 'center',
       marginBottom: 18,
+    },
+    spacer: {
+      margin: 10
     },
     mainpic: {
       width: '100%',
@@ -107,6 +95,24 @@ export const makeStyles = (scheme: Scheme = 'light') => {
       minHeight: 80,
       marginHorizontal: 2,
     },
+    factboxOne: {
+      backgroundColor: t.factbox,
+  paddingVertical: 15,
+  paddingHorizontal: 18,
+      borderRadius: 14,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.08,
+      shadowRadius: 12,
+      elevation: 6,
+      alignItems: 'stretch',
+      justifyContent: 'flex-start',
+      marginTop: 8,
+  marginBottom: 10,
+      marginHorizontal: 2,
+      width: '100%',
+      flexShrink: 1,
+    },
     factboxTwo: {
       backgroundColor: t.factbox,
       padding: 8,
@@ -141,14 +147,16 @@ export const makeStyles = (scheme: Scheme = 'light') => {
       fontSize: 14,
       color: t.text,
       fontWeight: '500',
-      alignSelf: 'center',
+  alignSelf: 'center',
+  textAlign: 'center',
       justifyContent: 'flex-start',
     },
     boxvalue: {
-      fontSize: 22,
+      fontSize: 18,
       color: t.text,
       fontWeight: '800',
       alignSelf: 'center',
+      textAlign: 'center',
       marginTop: 4,
     },
     factboxrow: {
@@ -174,6 +182,29 @@ export const makeStyles = (scheme: Scheme = 'light') => {
       color: t.subtext,
       marginBottom: 12,
       fontSize: 13,
+    },
+    subtext: {
+      color: t.subtext,
+      fontSize: 13,
+      fontWeight: '400',
+    },
+    subtextSmall: {
+      color: t.subtext,
+      fontSize: 10,
+      fontWeight: '400',
+      textAlign: 'center',
+    },
+    subtextCentered: {
+      color: t.subtext,
+      fontSize: 12,
+      fontWeight: '400',
+      textAlign: 'center',
+    },
+    subtextLarge: {
+      color: t.subtext,
+      fontSize: 14,
+      fontWeight: '400',
+      lineHeight: 20,
     },
     cta: {
       marginTop: 8,
