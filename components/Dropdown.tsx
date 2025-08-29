@@ -12,7 +12,7 @@ export default function Dropdown({
   onChange,
   disabled,
   loading,
-  scheme,
+  selectedTextStyle,
 }: {
   label?: string;
   placeholder: string;
@@ -21,10 +21,10 @@ export default function Dropdown({
   onChange: (val: string | null) => void;
   disabled?: boolean;
   loading?: boolean;
-  scheme: 'light' | 'dark';
+  selectedTextStyle?: object;
 }) {
   const [open, setOpen] = useState(false);
-  const t = tokens.get(scheme);
+  const t = tokens.get();
   const textColor = t.text;
   //const border = t.modalBorder;
   const bg = t.modalBg;
@@ -35,7 +35,7 @@ export default function Dropdown({
   return (
     <View style={{ alignSelf: 'stretch' }}>
       {label ? (
-        <Text style={{ color: scheme === 'dark' ? '#98a6bf' : '#64748b', marginBottom: 6 }}>{label}</Text>
+        <Text style={{ color: '#98a6bf', marginBottom: 6 }}>{label}</Text>
       ) : null}
       <Pressable
         disabled={disabled || loading}
@@ -51,9 +51,9 @@ export default function Dropdown({
         }}
       >
         {loading ? (
-          <ActivityIndicator size="small" color={scheme === 'dark' ? '#fff' : '#000'} />
+          <ActivityIndicator size="small" color="#fff" />
         ) : (
-          <Text style={{ color: textColor }}>{selectedLabel || placeholder}</Text>
+          <Text style={[{ color: textColor }, selectedTextStyle]}>{selectedLabel || placeholder}</Text>
         )}
       </Pressable>
       <Modal visible={open} animationType="fade" transparent onRequestClose={() => setOpen(false)}>
@@ -83,7 +83,7 @@ export default function Dropdown({
               ))}
             </ScrollView>
             <Pressable onPress={() => setOpen(false)} style={{ paddingVertical: 12, alignItems: 'center', borderTopWidth: 0 }}>
-              <Text style={{ color: scheme === 'dark' ? '#e13939ff' : '#d94a4aff' }}>Cancel</Text>
+              <Text style={{ color: '#e13939ff' }}>Cancel</Text>
             </Pressable>
           </Pressable>
         </Pressable>

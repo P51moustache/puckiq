@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, ActivityIndicator, View, Text, useColorScheme, Modal, Pressable } from 'react-native';
+import { ScrollView, ActivityIndicator, View, Text, Modal, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemedView } from '@/components/ThemedView';
@@ -29,8 +29,7 @@ type Option = { label: string; value: string | null };
 // Local Dropdown replaced by shared Dropdown component
 
 export default function ExploreScreen() {
-	const scheme = useColorScheme() || 'light';
-	const styles = makeStyles(scheme as 'light' | 'dark');
+	const styles = makeStyles();
 
 	// Teams
 	const [teams, setTeams] = useState<Team[] | null>(null);
@@ -259,7 +258,7 @@ export default function ExploreScreen() {
 							onChange={handleTeamChange}
 							disabled={!teams || teams.length === 0}
 							loading={loadingTeams}
-							scheme={scheme as 'dark'}
+							selectedTextStyle={{ fontWeight: '900', fontSize: 18, letterSpacing: 0.5 }}
 						/>
 					</View>
 
@@ -276,7 +275,7 @@ export default function ExploreScreen() {
 							onChange={(v) => setSelectedPos((v as PositionKey) || null)}
 							disabled={!roster || loadingRoster}
 							loading={loadingRoster}
-							scheme={scheme as 'light' | 'dark'}
+							selectedTextStyle={{ fontWeight: '900', fontSize: 18, letterSpacing: 0.5 }}
 						/>
 					</View>
 
@@ -290,7 +289,7 @@ export default function ExploreScreen() {
 							onChange={setSelectedPlayerId}
 							disabled={playersForPos.length === 0}
 							loading={false}
-							scheme={scheme as 'light' | 'dark'}
+							selectedTextStyle={{ fontWeight: '900', fontSize: 18, letterSpacing: 0.5 }}
 						/>
 					</View>
 				</View>
@@ -299,7 +298,7 @@ export default function ExploreScreen() {
 				<View style={[styles.card, { marginTop: 18, marginBottom: 24, alignSelf: 'stretch', width: '100%' }]}>
 					<Text style={styles.greeting}>Player Details</Text>
 					{loadingPlayer && (
-						<ActivityIndicator size="small" color={scheme === 'dark' ? '#fff' : '#000'} style={{ marginTop: 12 }} />
+						<ActivityIndicator size="small" color="#fff" style={{ marginTop: 12 }} />
 					)}
 					{playerError && <Text style={{ color: 'red', marginTop: 12 }}>{playerError}</Text>}
 					{!selectedPlayerId && !loadingPlayer && (
@@ -311,7 +310,7 @@ export default function ExploreScreen() {
 							<View style={{ flexDirection: 'row', alignItems: 'center' }}>
 								<Image
 									source={{ uri: playerHeadshot(playerData) }}
-									style={{ width: 84, height: 84, borderRadius: 42, marginRight: 14, backgroundColor: scheme === 'dark' ? '#071a36' : '#e6eefb' }}
+									style={{ width: 84, height: 84, borderRadius: 42, marginRight: 14, backgroundColor: '#071a36' }}
 									contentFit="cover"
 									accessibilityLabel="Player headshot"
 								/>
@@ -376,7 +375,7 @@ export default function ExploreScreen() {
 											paddingVertical: 8,
 											borderTopWidth: 1,
 											borderBottomWidth: 1,
-											borderColor: scheme === 'dark' ? '#081726' : '#f1f5f9',
+											borderColor: '#081726',
 										}}
 									>
 										{Object.entries(playerData.featuredStats.regularSeason.subSeason)
@@ -402,7 +401,7 @@ export default function ExploreScreen() {
 											paddingVertical: 8,
 											borderTopWidth: 1,
 											borderBottomWidth: 1,
-											borderColor: scheme === 'dark' ? '#081726' : '#f1f5f9',
+											borderColor: '#081726',
 										}}
 									>
 										{Object.entries(playerData.featuredStats.playoffs.subSeason)
@@ -525,14 +524,14 @@ export default function ExploreScreen() {
 							{Array.isArray(playerData?.last5Games) && playerData.last5Games.length > 0 && (
 								<View style={{ marginTop: 12 }}>
 									<Text style={[styles.subtitle, { marginBottom: 6 }]}>Last 5 Games</Text>
-									<View style={{ borderWidth: 1, borderColor: scheme === 'dark' ? '#081726' : '#e2e8f0', borderRadius: 10, overflow: 'hidden' }}>
-										<View style={{ flexDirection: 'row', backgroundColor: scheme === 'dark' ? '#071a36' : '#f8fafc' }}>
+									<View style={{ borderWidth: 1, borderColor: '#081726', borderRadius: 10, overflow: 'hidden' }}>
+										<View style={{ flexDirection: 'row', backgroundColor: '#071a36' }}>
 											{['Date', 'Opp', 'G', 'A', 'P', 'S', 'TOI'].map((h) => (
 												<Text key={h} style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 8, color: styles.subtitle.color, fontSize: 12 }}>{h}</Text>
 											))}
 										</View>
 										{playerData.last5Games.map((g: any, i: number) => (
-											<View key={`${g.gameId}-${i}`} style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: scheme === 'dark' ? '#081726' : '#e2e8f0' }}>
+											<View key={`${g.gameId}-${i}`} style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#081726' }}>
 												<Text style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 8, color: styles.greeting.color }}>{new Date(g.gameDate).toLocaleDateString()}</Text>
 												<Text style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 8, color: styles.greeting.color }}>{g.opponentAbbrev}</Text>
 												<Text style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 8, color: styles.greeting.color }}>{g.goals}</Text>
