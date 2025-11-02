@@ -2,9 +2,9 @@
 
 import React from 'react';
 import { ScrollView, View } from 'react-native';
-import { Typography } from '../components/design-system/Typography';
-import { Card } from '../components/design-system/Card';
 import { Button } from '../components/design-system/Button';
+import { Card } from '../components/design-system/Card';
+import { Typography } from '../components/design-system/Typography';
 import { makeStyles } from '../constants/theme';
 
 export function ExampleRefactoredScreen() {
