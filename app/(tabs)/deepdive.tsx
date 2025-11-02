@@ -1,11 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { ScrollView, View, Text, Modal, Pressable, Dimensions, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { makeStyles } from '@/constants/theme';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import Dropdown from '@/components/Dropdown';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Dimensions, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
-import { Line as SvgLine } from 'react-native-svg';
+import Dropdown from '../../components/Dropdown';
+import { IconSymbol } from '../../components/ui/IconSymbol';
+import { makeStyles } from '../../constants/theme';
 
 type Team = {
   id: string;
@@ -501,6 +500,7 @@ export default function DeepDiveScreen() {
               onChange={handleTeamChange}
               disabled={!teams || teams.length === 0}
               loading={loadingTeams}
+              selectedTextStyle={{ fontWeight: '900', fontSize: 18, letterSpacing: 0.5 }}
             />
           </View>
         </View>

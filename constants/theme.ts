@@ -1,6 +1,8 @@
 import { Platform, StyleSheet } from 'react-native';
 
+// Dark Mode Hockey Theme
 export const theme = {
+  // Original colors that work with your dark mode app
   background: '#071023',
   card: '#192e5eff',
   factbox: '#334e8dff',
@@ -11,6 +13,55 @@ export const theme = {
   modalBorder: '#081726',
   modalBg: '#192e5eff',
   pressed: '#0e223f',
+  
+  // Professional additions while keeping your working colors
+  colors: {
+    // Your existing colors but organized
+    primary: '#60a5fa', // Your accent color
+    primaryDark: '#334e8dff',
+    secondary: '#334e8dff', // Your factbox color
+    
+    // Backgrounds
+    background: '#071023',
+    surface: '#192e5eff', // Your card color
+    elevated: '#334e8dff', // Your factbox color
+    
+    // Text
+    textPrimary: '#e6eef8', // Your text color
+    textSecondary: '#98a6bf', // Your subtext color
+    
+    // Interactive
+    hover: '#0e223f',
+    border: '#081726',
+  },
+  
+  // Typography scale for professional consistency
+  typography: {
+    sizes: {
+      xs: 12,
+      sm: 14,
+      base: 16,
+      lg: 18,
+      xl: 20,
+      '2xl': 24,
+      '3xl': 32,
+    },
+    weights: {
+      normal: '400',
+      medium: '500',
+      semibold: '600',
+      bold: '700',
+    },
+  },
+  
+  // Spacing system (8pt grid)
+  spacing: {
+    xs: 4,
+    sm: 8,
+    md: 16,
+    lg: 24,
+    xl: 32,
+  },
 };
 
 export const getTheme = () => theme;
@@ -289,6 +340,15 @@ export const makeStyles = () => {
     infoIconButton: {
       marginLeft: 8,
       padding: 4,
+    },
+    playerCard: {
+      width: '100%',
+      backgroundColor: t.card,
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: t.subtle,
     },
   });
 };

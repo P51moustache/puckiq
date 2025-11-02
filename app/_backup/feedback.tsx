@@ -1,8 +1,8 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ThemedView } from '@/components/ThemedView';
-import { makeStyles } from '@/constants/theme';
+import React, { useRef, useState } from 'react';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ThemedView } from '../../components/ThemedView';
+import { makeStyles } from '../../constants/theme';
 
 type FeedbackType = 'feature' | 'bug' | 'comment';
 

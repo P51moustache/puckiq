@@ -1,12 +1,17 @@
-import React, { useEffect, useState } from 'react';
-import { Image } from 'expo-image';
-import { Platform, StyleSheet, Pressable, ScrollView, ActivityIndicator, Modal, Animated, Dimensions } from 'react-native';
-import { View, Text } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ThemedView } from '@/components/ThemedView'; 
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { makeStyles } from '@/constants/theme';
-import Dropdown, { type Option } from '@/components/Dropdown';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, RefreshControl, ScrollView, Text, View } from 'react-native';
+import Dropdown from '../../components/Dropdown';
+import GameDeepDiveModal from '../../components/GameDeepDiveModal';
+import LockOfTheDayCard from '../../components/LockOfTheDayCard';
+import PowerRankingsWidget from '../../components/PowerRankingsWidget';
+import SmartPickCard from '../../components/SmartPickCard';
+import StreakTracker from '../../components/StreakTracker';
+import { ThemedView } from '../../components/ThemedView';
+import { makeStyles } from '../../constants/theme';
+import { useAnalytics, useTrackUserInteraction } from '../../hooks/useAnalytics';
 
 const name = 'Zach'
 const now = new Date();
@@ -27,12 +32,18 @@ const TOP_IMAGES = [
 
 export default function HomeScreen() {
   const styles = makeStyles();
+  
+  // Initialize analytics for this screen
+  const analytics = useAnalytics('HomeScreen');
+  const { trackButtonPress, trackTeamSelection, trackImageView } = useTrackUserInteraction('HomeScreen');
 
   // Pick a random top image on initial mount (app open)
   const topImage = React.useMemo(() => {
     const i = Math.floor(Math.random() * TOP_IMAGES.length);
+    // Track which image was selected
+    trackImageView(i, `top_image_${i + 1}`);
     return TOP_IMAGES[i];
-  }, []);
+  }, [trackImageView]);
 
   
 
@@ -94,22 +105,22 @@ export default function HomeScreen() {
     id: string;
     home: string;
     away: string;
-  homeAbbrev?: string;
-  awayAbbrev?: string;
-    start: string;    // ISO timestamp from API
+    homeAbbrev?: string;
+    awayAbbrev?: string;
+    start: string;
     status: string;
     venue?: string;
   };
-
-  const [schedule, setSchedule] = useState<Game[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   // Teams state for dropdown
   const [teams, setTeams] = useState<Team[] | null>(null);
   const [loadingTeams, setLoadingTeams] = useState(true);
   const [teamsError, setTeamsError] = useState<string | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null); // abbrev
+
+  // Deep dive modal state
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedGame, setSelectedGame] = useState<any>(null);
 
   // Load saved team preference on app start
   useEffect(() => {
@@ -129,6 +140,13 @@ export default function HomeScreen() {
   // Save team preference whenever it changes
   const handleTeamChange = async (teamAbbrev: string | null) => {
     setSelectedTeam(teamAbbrev);
+
+    // Track team selection
+    if (teamAbbrev) {
+      const teamName = teams?.find(t => t.abbrev === teamAbbrev)?.name || teamAbbrev;
+      trackTeamSelection(teamName, teamAbbrev);
+    }
+
     try {
       if (teamAbbrev) {
         await AsyncStorage.setItem('selectedTeam', teamAbbrev);
@@ -140,47 +158,11 @@ export default function HomeScreen() {
     }
   };
 
-  useEffect(() => {
-    let mounted = true;
-
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    const dateStr = `${yyyy}-${mm}-${dd}`; // YYYY-MM-DD
-
-    async function fetchSchedule() {
-      try {
-        const url = `https://api-web.nhle.com/v1/schedule/${dateStr}`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-
-        // NHL schedule shape: { dates: [ { date: 'YYYY-MM-DD', games: [ ... ] } ] }
-        const gamesRaw = Array.isArray(json?.dates) && json.dates[0]?.games ? json.dates[0].games : [];
-
-        const parsed: Game[] = gamesRaw.map((g: any) => ({
-          id: String(g.gamePk ?? g.gamePk ?? Math.random()),
-          home: g.teams?.home?.team?.name ?? g.teams?.home?.team?.shortName ?? 'Home',
-          away: g.teams?.away?.team?.name ?? g.teams?.away?.team?.shortName ?? 'Away',
-          homeAbbrev: g.teams?.home?.team?.abbrev ?? g.teams?.home?.team?.triCode ?? g.teams?.home?.team?.teamAbbrev,
-          awayAbbrev: g.teams?.away?.team?.abbrev ?? g.teams?.away?.team?.triCode ?? g.teams?.away?.team?.teamAbbrev,
-          start: g.gameDate ?? g.scheduleDate ?? '',
-          status: g.status?.detailedState ?? g.status?.abstractGameState ?? '',
-          venue: g.venue?.name ?? undefined,
-        }));
-
-        if (mounted) setSchedule(parsed);
-      } catch (e: any) {
-        if (mounted) setError(e?.message ?? 'Failed to load schedule');
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    }
-
-    fetchSchedule();
-    return () => { mounted = false; };
-  }, []);
+  // Handle opening deep dive modal
+  const handleOpenDeepDive = (game: any) => {
+    setSelectedGame(game);
+    setModalVisible(true);
+  };
 
   // Load teams (same as Explore, with exclusions)
   useEffect(() => {
@@ -221,63 +203,78 @@ export default function HomeScreen() {
   }, []);
 
   // Load NHL data from tested endpoints
-  useEffect(() => {
+  const loadNHLData = React.useCallback(async (isRefresh = false) => {
     let mounted = true;
-    async function loadNHLData() {
-      setLoadingLeagueData(true);
-      try {
-        // Fetch multiple endpoints in parallel
-        const today = new Date();
-        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-        
-        const [gamesRes, standingsRes, skatersRes, goaliesRes, spotlightRes] = await Promise.allSettled([
-          fetch(`https://api-web.nhle.com/v1/score/${todayStr}`), // Use actual today's date
-          fetch('https://api-web.nhle.com/v1/standings/now'),
-          fetch('https://api-web.nhle.com/v1/skater-stats-leaders/current?categories=points,goals,assists&limit=5'),
-          fetch('https://api-web.nhle.com/v1/goalie-stats-leaders/current?categories=wins&limit=3'),
-          fetch('https://api-web.nhle.com/v1/player-spotlight')
-        ]);
+    if (isRefresh) setRefreshing(true);
+    else setLoadingLeagueData(true);
 
-        // Process today's games
-        if (gamesRes.status === 'fulfilled' && gamesRes.value.ok) {
-          const gamesData = await gamesRes.value.json();
-          if (mounted) setTodaysGames(gamesData);
+    try {
+      // Fetch multiple endpoints in parallel
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      console.log('[NHL Data] Fetching games for date:', todayStr);
+
+      const [gamesRes, standingsRes, skatersRes, goaliesRes, spotlightRes] = await Promise.allSettled([
+        fetch(`https://api-web.nhle.com/v1/score/${todayStr}`), // Use actual today's date
+        fetch('https://api-web.nhle.com/v1/standings/now'),
+        fetch('https://api-web.nhle.com/v1/skater-stats-leaders/current?categories=points,goals,assists&limit=5'),
+        fetch('https://api-web.nhle.com/v1/goalie-stats-leaders/current?categories=wins&limit=3'),
+        fetch('https://api-web.nhle.com/v1/player-spotlight')
+      ]);
+
+      // Process today's games
+      if (gamesRes.status === 'fulfilled' && gamesRes.value.ok) {
+        const gamesData = await gamesRes.value.json();
+        console.log('[NHL Data] Games loaded:', gamesData?.games?.length || 0, 'games');
+        if (mounted) setTodaysGames(gamesData);
+      } else {
+        console.log('[NHL Data] Failed to load games:', gamesRes.status);
+      }
+
+      // Process current standings
+      if (standingsRes.status === 'fulfilled' && standingsRes.value.ok) {
+        const standingsData = await standingsRes.value.json();
+        if (mounted) setCurrentStandings(standingsData);
+      }
+
+      // Process stat leaders
+      if (skatersRes.status === 'fulfilled' && skatersRes.value.ok && goaliesRes.status === 'fulfilled' && goaliesRes.value.ok) {
+        const skatersData = await skatersRes.value.json();
+        const goaliesData = await goaliesRes.value.json();
+        if (mounted) {
+          setStatLeaders({
+            skaters: skatersData,
+            goalies: goaliesData
+          });
         }
+      }
 
-        // Process current standings
-        if (standingsRes.status === 'fulfilled' && standingsRes.value.ok) {
-          const standingsData = await standingsRes.value.json();
-          if (mounted) setCurrentStandings(standingsData);
-        }
+      // Process player spotlight
+      if (spotlightRes.status === 'fulfilled' && spotlightRes.value.ok) {
+        const spotlightData = await spotlightRes.value.json();
+        if (mounted) setPlayerSpotlight(spotlightData);
+      }
 
-        // Process stat leaders
-        if (skatersRes.status === 'fulfilled' && skatersRes.value.ok && goaliesRes.status === 'fulfilled' && goaliesRes.value.ok) {
-          const skatersData = await skatersRes.value.json();
-          const goaliesData = await goaliesRes.value.json();
-          if (mounted) {
-            setStatLeaders({
-              skaters: skatersData,
-              goalies: goaliesData
-            });
-          }
-        }
-
-        // Process player spotlight
-        if (spotlightRes.status === 'fulfilled' && spotlightRes.value.ok) {
-          const spotlightData = await spotlightRes.value.json();
-          if (mounted) setPlayerSpotlight(spotlightData);
-        }
-
-      } catch (e) {
-        console.warn('Failed to load NHL data:', e);
-      } finally {
-        if (mounted) setLoadingLeagueData(false);
+    } catch (e) {
+      console.warn('Failed to load NHL data:', e);
+    } finally {
+      if (mounted) {
+        setLoadingLeagueData(false);
+        setRefreshing(false);
       }
     }
-    
-    loadNHLData();
+
     return () => { mounted = false; };
   }, []);
+
+  useEffect(() => {
+    loadNHLData();
+  }, []);
+
+  // Pull-to-refresh handler
+  const onRefresh = React.useCallback(() => {
+    loadNHLData(true);
+  }, [loadNHLData]);
 
   // Upcoming schedule for the selected team (current + next month if needed)
   const [monthSchedule, setMonthSchedule] = useState<any[] | null>(null);
@@ -290,6 +287,330 @@ export default function HomeScreen() {
   const [currentStandings, setCurrentStandings] = useState<any>(null);
   const [playerSpotlight, setPlayerSpotlight] = useState<any>(null);
   const [loadingLeagueData, setLoadingLeagueData] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Animated Probability Bar Component
+  const AnimatedProbabilityBar = ({ awayProb, homeProb }: { awayProb: number; homeProb: number }) => {
+    const awayWidth = useRef(new Animated.Value(0)).current;
+    const homeWidth = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+      // Animate bars with a staggered effect
+      Animated.sequence([
+        Animated.delay(100),
+        Animated.parallel([
+          Animated.timing(awayWidth, {
+            toValue: awayProb,
+            duration: 800,
+            useNativeDriver: false,
+          }),
+          Animated.timing(homeWidth, {
+            toValue: homeProb,
+            duration: 800,
+            useNativeDriver: false,
+          }),
+        ]),
+      ]).start();
+    }, [awayProb, homeProb]);
+
+    return (
+      <View style={{
+        height: 8,
+        backgroundColor: '#192e5e44',
+        borderRadius: 4,
+        overflow: 'hidden',
+        flexDirection: 'row',
+      }}>
+        <Animated.View style={{
+          width: awayWidth.interpolate({
+            inputRange: [0, 100],
+            outputRange: ['0%', '100%'],
+          }),
+          backgroundColor: '#60a5fa',
+          height: '100%',
+        }} />
+        <Animated.View style={{
+          width: homeWidth.interpolate({
+            inputRange: [0, 100],
+            outputRange: ['0%', '100%'],
+          }),
+          backgroundColor: '#f59e0b',
+          height: '100%',
+        }} />
+      </View>
+    );
+  };
+
+  // Helper function to calculate win probability based on standings
+  const calculateWinProbability = (homeTeamAbbrev: string, awayTeamAbbrev: string) => {
+    if (!currentStandings?.standings) return { homeWinProb: 50, awayWinProb: 50, confidence: 'medium' };
+
+    const homeTeam = currentStandings.standings.find((t: any) =>
+      (t.teamAbbrev?.default || t.teamAbbrev) === homeTeamAbbrev
+    );
+    const awayTeam = currentStandings.standings.find((t: any) =>
+      (t.teamAbbrev?.default || t.teamAbbrev) === awayTeamAbbrev
+    );
+
+    if (!homeTeam || !awayTeam) return { homeWinProb: 50, awayWinProb: 50, confidence: 'medium' };
+
+    // Calculate based on points percentage and home ice advantage
+    const homeWinPct = homeTeam.pointPctg || 0.5;
+    const awayWinPct = awayTeam.pointPctg || 0.5;
+    const HOME_ICE_ADVANTAGE = 0.10; // 10% boost for home team
+
+    // Adjust probabilities
+    let homeProb = homeWinPct + HOME_ICE_ADVANTAGE;
+    let awayProb = awayWinPct;
+
+    // Normalize to 100%
+    const total = homeProb + awayProb;
+    homeProb = (homeProb / total) * 100;
+    awayProb = (awayProb / total) * 100;
+
+    // Determine confidence level
+    const diff = Math.abs(homeProb - awayProb);
+    let confidence = 'medium';
+    if (diff > 25) confidence = 'high';
+    else if (diff < 10) confidence = 'low';
+
+    return {
+      homeWinProb: Math.round(homeProb),
+      awayWinProb: Math.round(awayProb),
+      confidence,
+      homePoints: homeTeam.points,
+      awayPoints: awayTeam.points,
+      homeRecord: `${homeTeam.wins}-${homeTeam.losses}-${homeTeam.otLosses || 0}`,
+      awayRecord: `${awayTeam.wins}-${awayTeam.losses}-${awayTeam.otLosses || 0}`,
+      homeStreak: homeTeam.streakCode || '',
+      awayStreak: awayTeam.streakCode || '',
+    };
+  };
+
+  // Generate key factors for a matchup
+  const getKeyFactors = (homeTeamAbbrev: string, awayTeamAbbrev: string, prediction: any) => {
+    const factors = [];
+
+    // Home ice advantage
+    factors.push(`${homeTeamAbbrev} has home ice advantage`);
+
+    // Win streak analysis
+    if (prediction.homeStreak && prediction.homeStreak.startsWith('W')) {
+      const wins = parseInt(prediction.homeStreak.substring(1)) || 0;
+      if (wins >= 3) {
+        factors.push(`🔥 ${homeTeamAbbrev} on ${wins}-game win streak`);
+      }
+    }
+    if (prediction.awayStreak && prediction.awayStreak.startsWith('W')) {
+      const wins = parseInt(prediction.awayStreak.substring(1)) || 0;
+      if (wins >= 3) {
+        factors.push(`🔥 ${awayTeamAbbrev} on ${wins}-game win streak`);
+      }
+    }
+
+    // Points differential
+    const pointsDiff = Math.abs(prediction.homePoints - prediction.awayPoints);
+    if (pointsDiff > 15) {
+      const leader = prediction.homePoints > prediction.awayPoints ? homeTeamAbbrev : awayTeamAbbrev;
+      factors.push(`${leader} leads by ${pointsDiff} points in standings`);
+    } else {
+      factors.push(`Closely matched teams in standings`);
+    }
+
+    return factors.slice(0, 3); // Return top 3 factors
+  };
+
+  // ENHANCED SMART PICKS SYSTEM
+
+  // Calculate multi-factor confidence score (0-100)
+  const calculateConfidenceScore = (game: any, homeTeam: any, awayTeam: any) => {
+    let score = 50; // Base score
+
+    if (!homeTeam || !awayTeam) return score;
+
+    // Factor 1: Standings differential (max +/-15 points)
+    const pointDiff = (homeTeam.pointPctg || 0.5) - (awayTeam.pointPctg || 0.5);
+    score += pointDiff * 30;
+
+    // Factor 2: Home ice advantage (+5 points)
+    score += 5;
+
+    // Factor 3: Win streaks (+/-10 points)
+    const homeStreakValue = (homeTeam.streakCode?.startsWith('W') ? parseInt(homeTeam.streakCode.substring(1)) || 0 : 0) -
+                           (homeTeam.streakCode?.startsWith('L') ? parseInt(homeTeam.streakCode.substring(1)) || 0 : 0);
+    const awayStreakValue = (awayTeam.streakCode?.startsWith('W') ? parseInt(awayTeam.streakCode.substring(1)) || 0 : 0) -
+                           (awayTeam.streakCode?.startsWith('L') ? parseInt(awayTeam.streakCode.substring(1)) || 0 : 0);
+    score += (homeStreakValue - awayStreakValue) * 2;
+
+    // Factor 4: Recent performance (goal differential)
+    const homeGD = (homeTeam.goalFor || 0) - (homeTeam.goalAgainst || 0);
+    const awayGD = (awayTeam.goalFor || 0) - (awayTeam.goalAgainst || 0);
+    const gdDiff = (homeGD / (homeTeam.gamesPlayed || 1)) - (awayGD / (awayTeam.gamesPlayed || 1));
+    score += gdDiff * 3;
+
+    // Normalize to 0-100
+    return Math.max(0, Math.min(100, Math.round(score)));
+  };
+
+  // Get recent form summary
+  const getRecentForm = (team: any) => {
+    if (!team) return { record: '0-0-0', goalDiff: 0, form: 'neutral' };
+
+    const streak = team.streakCode || '';
+    const streakNum = parseInt(streak.substring(1)) || 0;
+
+    let form = 'neutral';
+    if (streak.startsWith('W') && streakNum >= 3) form = 'hot';
+    else if (streak.startsWith('L') && streakNum >= 3) form = 'cold';
+
+    const gamesPlayed = team.gamesPlayed || 1;
+    const goalDiff = (team.goalFor || 0) - (team.goalAgainst || 0);
+    const goalsPerGame = ((team.goalFor || 0) / gamesPlayed).toFixed(1);
+
+    return {
+      record: `${team.wins || 0}-${team.losses || 0}-${team.otLosses || 0}`,
+      streak: streak,
+      goalDiff: Math.round(goalDiff / gamesPlayed * 10) / 10,
+      goalsPerGame,
+      form
+    };
+  };
+
+  // Identify "Lock of the Day" - highest confidence game
+  const getLockOfTheDay = React.useCallback((games: any[], standings: any) => {
+    if (!games || games.length === 0 || !standings?.standings) return null;
+
+    let bestGame = null;
+    let highestScore = 0;
+
+    games.forEach((game) => {
+      const homeAbbrev = game.homeTeam?.abbrev || '';
+      const awayAbbrev = game.awayTeam?.abbrev || '';
+
+      const homeTeam = standings.standings.find((t: any) =>
+        (t.teamAbbrev?.default || t.teamAbbrev) === homeAbbrev
+      );
+      const awayTeam = standings.standings.find((t: any) =>
+        (t.teamAbbrev?.default || t.teamAbbrev) === awayAbbrev
+      );
+
+      if (homeTeam && awayTeam) {
+        const confidenceScore = calculateConfidenceScore(game, homeTeam, awayTeam);
+
+        if (confidenceScore > highestScore) {
+          highestScore = confidenceScore;
+          bestGame = {
+            ...game,
+            confidenceScore,
+            homeTeam: { ...homeTeam, abbrev: homeTeam.teamAbbrev?.default || homeTeam.teamAbbrev },
+            awayTeam: { ...awayTeam, abbrev: awayTeam.teamAbbrev?.default || awayTeam.teamAbbrev }
+          };
+        }
+      }
+    });
+
+    return bestGame;
+  }, []);
+
+  // Get top 3-4 smart picks (excluding lock of the day)
+  const getSmartPicks = React.useCallback((games: any[], lockGameId: string, standings: any) => {
+    if (!games || games.length === 0 || !standings?.standings) return [];
+
+    const scoredGames = games
+      .filter(g => g.id !== lockGameId)
+      .map((game) => {
+        const homeAbbrev = game.homeTeam?.abbrev || '';
+        const awayAbbrev = game.awayTeam?.abbrev || '';
+
+        const homeTeam = standings.standings.find((t: any) =>
+          (t.teamAbbrev?.default || t.teamAbbrev) === homeAbbrev
+        );
+        const awayTeam = standings.standings.find((t: any) =>
+          (t.teamAbbrev?.default || t.teamAbbrev) === awayAbbrev
+        );
+
+        if (homeTeam && awayTeam) {
+          const confidenceScore = calculateConfidenceScore(game, homeTeam, awayTeam);
+          return {
+            ...game,
+            confidenceScore,
+            homeTeam: { ...homeTeam, abbrev: homeTeam.teamAbbrev?.default || homeTeam.teamAbbrev },
+            awayTeam: { ...awayTeam, abbrev: awayTeam.teamAbbrev?.default || awayTeam.teamAbbrev }
+          };
+        }
+        return null;
+      })
+      .filter((g): g is NonNullable<typeof g> => g !== null)
+      .sort((a, b) => (b.confidenceScore || 0) - (a.confidenceScore || 0))
+      .slice(0, 4);
+
+    return scoredGames;
+  }, []);
+
+  // Get teams on hot/cold streaks
+  const getStreakingTeams = React.useCallback((standings: any) => {
+    if (!standings?.standings) return { hot: [], cold: [] };
+
+    const hot = standings.standings
+      .filter((t: any) => {
+        const streak = t.streakCode || '';
+        return streak.startsWith('W') && parseInt(streak.substring(1)) >= 3;
+      })
+      .sort((a: any, b: any) => {
+        const aStreak = parseInt((a.streakCode || '').substring(1)) || 0;
+        const bStreak = parseInt((b.streakCode || '').substring(1)) || 0;
+        return bStreak - aStreak;
+      })
+      .slice(0, 5);
+
+    const cold = standings.standings
+      .filter((t: any) => {
+        const streak = t.streakCode || '';
+        return streak.startsWith('L') && parseInt(streak.substring(1)) >= 3;
+      })
+      .sort((a: any, b: any) => {
+        const aStreak = parseInt((a.streakCode || '').substring(1)) || 0;
+        const bStreak = parseInt((b.streakCode || '').substring(1)) || 0;
+        return bStreak - aStreak;
+      })
+      .slice(0, 5);
+
+    return { hot, cold };
+  }, []);
+
+  // Calculate power rankings with momentum
+  const getPowerRankings = React.useCallback((standings: any) => {
+    if (!standings?.standings) return [];
+
+    return standings.standings
+      .map((team: any) => {
+        // Base score from points
+        let powerScore = team.points || 0;
+
+        // Add momentum bonus based on recent form
+        const streak = team.streakCode || '';
+        if (streak.startsWith('W')) {
+          const wins = parseInt(streak.substring(1)) || 0;
+          powerScore += wins * 1.5; // Bonus for win streaks
+        } else if (streak.startsWith('L')) {
+          const losses = parseInt(streak.substring(1)) || 0;
+          powerScore -= losses * 1.5; // Penalty for losing streaks
+        }
+
+        // Add goal differential factor
+        const gd = (team.goalFor || 0) - (team.goalAgainst || 0);
+        powerScore += gd * 0.1;
+
+        return {
+          ...team,
+          powerScore: Math.round(powerScore),
+          trend: streak.startsWith('W') && parseInt(streak.substring(1)) >= 2 ? 'up' :
+                 streak.startsWith('L') && parseInt(streak.substring(1)) >= 2 ? 'down' : 'neutral'
+        };
+      })
+      .sort((a: any, b: any) => b.powerScore - a.powerScore)
+      .slice(0, 10);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -389,6 +710,27 @@ export default function HomeScreen() {
     return () => { mounted = false; };
   }, [selectedTeam]);
 
+  // Calculate smart picks data using useMemo
+  const lockOfTheDay = useMemo<any>(() => {
+    if (!todaysGames?.games || !currentStandings?.standings) return null;
+    return getLockOfTheDay(todaysGames.games, currentStandings);
+  }, [todaysGames, currentStandings, getLockOfTheDay]);
+
+  const smartPicks = useMemo<any[]>(() => {
+    if (!todaysGames?.games || !currentStandings?.standings) return [];
+    return getSmartPicks(todaysGames.games, lockOfTheDay?.id || '', currentStandings);
+  }, [todaysGames, currentStandings, lockOfTheDay, getSmartPicks]);
+
+  const powerRankings = useMemo(() => {
+    if (!currentStandings?.standings) return [];
+    return getPowerRankings(currentStandings);
+  }, [currentStandings, getPowerRankings]);
+
+  const streakingTeams = useMemo(() => {
+    if (!currentStandings?.standings) return { hot: [], cold: [] };
+    return getStreakingTeams(currentStandings);
+  }, [currentStandings, getStreakingTeams]);
+
   return (
     <ThemedView style={styles.container}>
       <ScrollView
@@ -396,6 +738,16 @@ export default function HomeScreen() {
         contentContainerStyle={[styles.scrollContainer, { paddingBottom: 100 }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#60a5fa"
+            colors={['#60a5fa']}
+            title="Pull to refresh..."
+            titleColor="#98a6bf"
+          />
+        }
       >
         <View style={styles.header}>
           <Text style={styles.title}>PuckIQ</Text>
@@ -510,13 +862,100 @@ export default function HomeScreen() {
           </>
         )}
 
-        {/* Today's Games Section */}
-        <View style={{ width: '100%', alignItems: 'center', marginTop: 20, marginBottom: 8 }}>
-          <Text style={[styles.greeting, { fontSize: 24, fontWeight: '700', marginBottom: 0 }]}>Today's Games</Text>
+        {/* SMART PICKS SECTION */}
+        <View style={{ width: '100%', marginTop: 20 }}>
+          <Text style={[styles.subsection, { alignSelf: 'stretch', textAlign: 'center', marginBottom: 16 }]}>
+            Daily Smart Picks
+          </Text>
+
+          {loadingLeagueData ? (
+            <View style={[styles.card, { alignItems: 'center', padding: 30 }]}>
+              <ActivityIndicator size="large" color="#60a5fa" />
+              <Text style={[styles.subtext, { marginTop: 12 }]}>Analyzing today&apos;s games...</Text>
+            </View>
+          ) : (
+            <>
+              {/* Lock of the Day - Hero Card */}
+              {lockOfTheDay && (
+                <View style={{ marginBottom: 16 }}>
+                  <LockOfTheDayCard
+                    game={lockOfTheDay}
+                    confidenceScore={lockOfTheDay.confidenceScore || 0}
+                    prediction={calculateWinProbability(
+                      lockOfTheDay.homeTeam?.abbrev || '',
+                      lockOfTheDay.awayTeam?.abbrev || ''
+                    )}
+                    onPress={() => handleOpenDeepDive(lockOfTheDay)}
+                  />
+                </View>
+              )}
+
+              {/* Smart Picks Grid */}
+              {smartPicks && smartPicks.length > 0 && (
+                <View style={{ marginBottom: 20 }}>
+                  <Text style={{
+                    fontSize: 16,
+                    fontWeight: '800',
+                    color: '#e6eef8',
+                    marginBottom: 12,
+                    paddingHorizontal: 0,
+                  }}>
+                    More Smart Picks
+                  </Text>
+                  <View style={{
+                    flexDirection: 'row',
+                    flexWrap: 'wrap',
+                    justifyContent: 'space-between',
+                  }}>
+                    {smartPicks.map((pick: any) => (
+                      <SmartPickCard
+                        key={pick.id}
+                        game={pick}
+                        confidenceScore={pick.confidenceScore || 0}
+                        prediction={calculateWinProbability(
+                          pick.homeTeam?.abbrev || '',
+                          pick.awayTeam?.abbrev || ''
+                        )}
+                        onPress={() => handleOpenDeepDive(pick)}
+                      />
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              {/* No games message */}
+              {!lockOfTheDay && (!smartPicks || smartPicks.length === 0) && (
+                <View style={[styles.card, { padding: 20 }]}>
+                  <Text style={{
+                    fontSize: 16,
+                    fontWeight: '700',
+                    color: '#e6eef8',
+                    textAlign: 'center',
+                    marginBottom: 8,
+                  }}>
+                    No Games Today
+                  </Text>
+                  <Text style={[styles.subtextSmall, { textAlign: 'center', lineHeight: 18 }]}>
+                    Check back tomorrow for fresh picks and predictions!
+                  </Text>
+                </View>
+              )}
+            </>
+          )}
         </View>
 
+        {/* POWER RANKINGS */}
+        {powerRankings && powerRankings.length > 0 && (
+          <PowerRankingsWidget rankings={powerRankings} />
+        )}
+
+        {/* HOT/COLD STREAKS */}
+        {streakingTeams && (streakingTeams.hot.length > 0 || streakingTeams.cold.length > 0) && (
+          <StreakTracker streakingTeams={streakingTeams} />
+        )}
+
         {/* Team Filter Card */}
-        <View style={[styles.card, { width: '100%', alignSelf: 'stretch' }]}>
+        <View style={[styles.card, { width: '100%', alignSelf: 'stretch', marginTop: 8 }]}>
           <View style={{ alignSelf: 'flex-start' }}>
             {teamsError ? (
               <Text style={{ color: 'red', paddingBottom: 6 }}>{teamsError}</Text>
@@ -537,88 +976,165 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Today's Schedule Card - Enhanced */}
+        {/* All Today's Games - Detailed View */}
         <View style={[styles.card, { width: '100%', alignSelf: 'stretch' }]}>
           <Text style={[styles.greeting, { alignSelf: 'flex-start', marginBottom: 8 }]}>
-            {selectedTeam ? `${selectedTeam} Schedule Today` : 'Today\'s Schedule'}
+            {selectedTeam ? `${selectedTeam} Games Today` : 'All Today&apos;s Games'}
           </Text>
 
-          {/* API data section */}
           <View style={{ marginTop: 0, width: '100%' }}>
-            {loading && <ActivityIndicator size="small" color="#fff" />}
-            {error && <Text style={{ color: 'red', marginTop: 8 }}>{error}</Text>}
-            
-            {!loading && !error && schedule && schedule.length === 0 && (
+            {loadingLeagueData && <ActivityIndicator size="small" color="#60a5fa" />}
+
+            {!loadingLeagueData && (!todaysGames?.games || todaysGames.games.length === 0) && (
               <View style={{ width: '100%' }}>
-                {/* Off-season message with context */}
                 <View style={{ backgroundColor: styles.factbox.backgroundColor, borderRadius: 12, padding: 16, marginBottom: 12 }}>
                   <Text style={[styles.boxtitle, { marginBottom: 8, textAlign: 'center' }]}>
-                    🏒 NHL Off-Season
+                    🏒 No Games Today
                   </Text>
                   <Text style={[styles.subtextSmall, { lineHeight: 16, textAlign: 'center' }]}>
-                    No games scheduled today. The 2025-26 season begins October 7th with exciting matchups!
+                    No games scheduled today. Check back tomorrow for matchup predictions!
                   </Text>
                 </View>
-                
+
                 {selectedTeam && (
                   <Text style={[styles.subtextSmall, { textAlign: 'center', fontStyle: 'italic', opacity: 0.8 }]}>
-                    Check the upcoming games section below for {selectedTeam}'s season schedule.
+                    Check the upcoming games section below for {selectedTeam}&apos;s season schedule.
                   </Text>
                 )}
               </View>
             )}
-            
-            {!loading && schedule && schedule.length > 0 && (schedule
-              .filter((g) => {
-                if (!selectedTeam) return true;
-                const matchAbbrev = (g.homeAbbrev && g.homeAbbrev.toUpperCase() === selectedTeam) || (g.awayAbbrev && g.awayAbbrev.toUpperCase() === selectedTeam);
-                if (matchAbbrev) return true;
-                // Fallback: compare names if abbrev missing
-                const selName = teams?.find((t) => t.abbrev === selectedTeam)?.name?.toUpperCase();
-                if (!selName) return true;
-                return g.home.toUpperCase() === selName || g.away.toUpperCase() === selName;
-              })
-            ).map((g) => {
-              const localTime = g.start ? new Date(g.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'TBD';
-              const gameDate = g.start ? new Date(g.start).toLocaleDateString([], { month: 'short', day: 'numeric' }) : 'Today';
-              
-              // Convert game status to user-friendly text
-              let statusText = 'Scheduled';
-              if (g.status === 'FUT') statusText = 'Upcoming';
-              else if (g.status === 'LIVE') statusText = 'Live Now';
-              else if (g.status === 'FINAL') statusText = 'Final';
-              else if (g.status === 'PPD') statusText = 'Postponed';
-              else if (g.status === 'CRIT') statusText = 'Critical Moments';
-              else if (g.status) statusText = g.status;
-              
-              return (
-                <View
-                  key={g.id}
-                  style={{
-                    backgroundColor: styles.factbox.backgroundColor,
-                    borderRadius: 12,
-                    padding: 16,
-                    marginBottom: 12,
-                    width: '100%'
-                  }}
-                >
-                  <View style={{ alignItems: 'center', marginBottom: 8 }}>
-                    <Text style={[styles.boxtitle, { textAlign: 'center' }]}>
-                      {g.away} @ {g.home}
-                    </Text>
-                    <Text style={[styles.subtextSmall, { color: styles.nameAccent.color, marginTop: 4 }]}>{localTime}</Text>
-                  </View>
-                  <View style={{ alignItems: 'center' }}>
-                    {g.venue ? (
-                      <Text style={[styles.subtextSmall, { textAlign: 'center' }]}>{g.venue}</Text>
-                    ) : (
-                      <Text style={[styles.subtextSmall, { textAlign: 'center' }]}>{gameDate}</Text>
-                    )}
-                    <Text style={[styles.subtextSmall, { opacity: 0.8, marginTop: 2, textAlign: 'center' }]}>{statusText} • Regular Season</Text>
-                  </View>
-                </View>
-              );
-            })}
+
+            {!loadingLeagueData && todaysGames?.games && todaysGames.games.length > 0 && (
+              todaysGames.games
+                .filter((g: any) => {
+                  if (!selectedTeam) return true;
+                  const homeAbbrev = (g.homeTeam?.abbrev || '').toUpperCase();
+                  const awayAbbrev = (g.awayTeam?.abbrev || '').toUpperCase();
+                  return homeAbbrev === selectedTeam || awayAbbrev === selectedTeam;
+                })
+                .map((g: any) => {
+                  const homeAbbrev = g.homeTeam?.abbrev || 'HOME';
+                  const awayAbbrev = g.awayTeam?.abbrev || 'AWAY';
+
+                  const localTime = g.startTimeUTC ? new Date(g.startTimeUTC).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'TBD';
+                  const venue = g.venue?.default || 'TBD';
+
+                  // Calculate prediction
+                  const prediction = calculateWinProbability(homeAbbrev, awayAbbrev);
+                  const keyFactors = getKeyFactors(homeAbbrev, awayAbbrev, prediction);
+
+                  // Game status
+                  let statusText = 'Scheduled';
+                  const gameState = g.gameState || '';
+                  if (gameState === 'LIVE' || gameState === 'CRIT') statusText = '🔴 LIVE';
+                  else if (gameState === 'FUT' || gameState === 'PRE') statusText = 'Upcoming';
+                  else if (gameState === 'FINAL' || gameState === 'OFF') statusText = 'Final';
+
+                  return (
+                    <View
+                      key={g.id}
+                      style={{
+                        backgroundColor: styles.card.backgroundColor,
+                        borderRadius: 14,
+                        padding: 18,
+                        marginBottom: 16,
+                        width: '100%',
+                        borderWidth: 2,
+                        borderColor: prediction.confidence === 'high' ? '#10b98133' : '#334e8d66',
+                      }}
+                    >
+                      {/* Header - Teams & Time */}
+                      <View style={{ marginBottom: 12 }}>
+                        <Text style={[styles.boxtitle, { fontSize: 18, fontWeight: '800', textAlign: 'center', marginBottom: 4 }]}>
+                          {awayAbbrev} @ {homeAbbrev}
+                        </Text>
+                        <Text style={[styles.subtextSmall, { color: styles.nameAccent.color, textAlign: 'center', fontSize: 13, fontWeight: '600' }]}>
+                          {localTime} • {statusText}
+                        </Text>
+                      </View>
+
+                      {/* Win Probability Bar */}
+                      <View style={{ marginBottom: 14 }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                          <Text style={[styles.subtextSmall, { fontSize: 12, fontWeight: '600' }]}>
+                            {awayAbbrev}: {prediction.awayWinProb}%
+                          </Text>
+                          <Text style={[styles.subtextSmall, { fontSize: 12, fontWeight: '600' }]}>
+                            {homeAbbrev}: {prediction.homeWinProb}%
+                          </Text>
+                        </View>
+
+                        {/* Animated Probability Bar */}
+                        <AnimatedProbabilityBar
+                          awayProb={prediction.awayWinProb}
+                          homeProb={prediction.homeWinProb}
+                        />
+
+                        {/* Confidence Badge */}
+                        <View style={{ alignItems: 'center', marginTop: 8 }}>
+                          <View style={{
+                            paddingHorizontal: 12,
+                            paddingVertical: 4,
+                            borderRadius: 12,
+                            backgroundColor: prediction.confidence === 'high' ? '#10b98122' : prediction.confidence === 'medium' ? '#f59e0b22' : '#ef444422',
+                          }}>
+                            <Text style={[styles.subtextSmall, {
+                              fontSize: 11,
+                              fontWeight: '700',
+                              color: prediction.confidence === 'high' ? '#10b981' : prediction.confidence === 'medium' ? '#f59e0b' : '#ef4444',
+                              textTransform: 'uppercase',
+                              letterSpacing: 0.5,
+                            }]}>
+                              {prediction.confidence === 'high' ? '● Strong Pick' : prediction.confidence === 'medium' ? '● Moderate' : '● Toss-Up'}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+
+                      {/* Records */}
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12, paddingHorizontal: 8 }}>
+                        <View style={{ alignItems: 'center' }}>
+                          <Text style={[styles.subtextSmall, { fontSize: 11, marginBottom: 2 }]}>Record</Text>
+                          <Text style={[styles.boxtitle, { fontSize: 14, fontWeight: '700' }]}>{prediction.awayRecord}</Text>
+                        </View>
+                        <View style={{ alignItems: 'center' }}>
+                          <Text style={[styles.subtextSmall, { fontSize: 11, marginBottom: 2 }]}>Record</Text>
+                          <Text style={[styles.boxtitle, { fontSize: 14, fontWeight: '700' }]}>{prediction.homeRecord}</Text>
+                        </View>
+                      </View>
+
+                      {/* Key Factors */}
+                      <View style={{
+                        backgroundColor: '#071a3699',
+                        borderRadius: 10,
+                        padding: 12,
+                        marginTop: 8,
+                      }}>
+                        <Text style={[styles.boxtitle, { fontSize: 12, marginBottom: 8, fontWeight: '700', opacity: 0.9 }]}>
+                          Key Factors
+                        </Text>
+                        {keyFactors.map((factor, idx) => (
+                          <Text
+                            key={idx}
+                            style={[styles.subtextSmall, {
+                              fontSize: 11,
+                              lineHeight: 16,
+                              marginBottom: idx < keyFactors.length - 1 ? 4 : 0,
+                            }]}
+                          >
+                            • {factor}
+                          </Text>
+                        ))}
+                      </View>
+
+                      {/* Venue */}
+                      <Text style={[styles.subtextSmall, { textAlign: 'center', marginTop: 12, fontSize: 11, opacity: 0.7 }]}>
+                        {venue}
+                      </Text>
+                    </View>
+                  );
+                })
+            )}
           </View>
         </View>
 
@@ -757,6 +1273,20 @@ export default function HomeScreen() {
           </Text>
         </View>
       </ScrollView>
+
+      {/* Deep Dive Modal */}
+      {selectedGame && (
+        <GameDeepDiveModal
+          visible={modalVisible}
+          onClose={() => setModalVisible(false)}
+          game={selectedGame}
+          confidenceScore={selectedGame.confidenceScore || 0}
+          prediction={calculateWinProbability(
+            selectedGame.homeTeam?.abbrev || '',
+            selectedGame.awayTeam?.abbrev || ''
+          )}
+        />
+      )}
     </ThemedView>
   );
 }
