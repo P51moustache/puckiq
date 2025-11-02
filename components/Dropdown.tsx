@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, ActivityIndicator, Modal, ScrollView } from 'react-native';
-import { tokens } from '@/constants/theme';
+import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { tokens } from '../constants/theme';
 
 export type Option = { label: string; value: string | null };
 

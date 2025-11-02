@@ -12,7 +12,16 @@
       "distribution": "internal"
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "ios": {
+        "buildConfiguration": "Release",
+        "cache": {
+          "disabled": true
+        }
+      },
+      "env": {
+        "NODE_ENV": "production"
+      }
     }
   },
   "submit": {

@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, ActivityIndicator, View, Text, Modal, Pressable } from 'react-native';
-import { Image } from 'expo-image';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ThemedView } from '@/components/ThemedView';
-import { makeStyles, tokens } from '@/constants/theme';
-import Dropdown from '@/components/Dropdown';
+import { Image } from 'expo-image';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import Dropdown from '../../components/Dropdown';
+import { ThemedView } from '../../components/ThemedView';
+import { makeStyles } from '../../constants/theme';
+import { useAnalytics } from '../../hooks/useAnalytics';
 
 type Team = {
 	id: string;
@@ -30,6 +31,9 @@ type Option = { label: string; value: string | null };
 
 export default function ExploreScreen() {
 	const styles = makeStyles();
+	
+	// Initialize analytics for this screen (background tracking only)
+	const analytics = useAnalytics('ExploreScreen');
 
 	// Teams
 	const [teams, setTeams] = useState<Team[] | null>(null);
