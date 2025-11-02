@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
+import { Pressable, StyleSheet, Text, ViewStyle } from 'react-native';
 
 interface ButtonProps {
   title: string;
