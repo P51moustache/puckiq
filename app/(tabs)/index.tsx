@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, Modal, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import Dropdown from '../../components/Dropdown';
 import GameDeepDiveModal from '../../components/GameDeepDiveModal';
 import LockOfTheDayCard from '../../components/LockOfTheDayCard';
@@ -41,9 +41,30 @@ const TOP_IMAGES = [
 
 // Styles now come from the shared theme module
 
+// Helper function to get current season string
+const getCurrentSeason = () => {
+  const now = new Date();
+  const month = now.getMonth(); // 0-11
+  const year = now.getFullYear();
+
+  // NHL season runs from October (9) to June (5)
+  // If we're in June-September, show last season
+  // If we're in October-May, show current season
+  if (month >= 6 && month <= 8) {
+    // Off-season (June-September): show last season
+    return `${year - 1}-${String(year).slice(-2)}`;
+  } else if (month >= 0 && month <= 5) {
+    // Jan-June: show season that started last year
+    return `${year - 1}-${String(year).slice(-2)}`;
+  } else {
+    // Oct-Dec: show season that started this year
+    return `${year}-${String(year + 1).slice(-2)}`;
+  }
+};
+
 export default function HomeScreen() {
   const styles = makeStyles();
-  
+
   // Initialize analytics for this screen
   const analytics = useAnalytics('HomeScreen');
   const { trackButtonPress, trackTeamSelection, trackImageView } = useTrackUserInteraction('HomeScreen');
@@ -132,6 +153,9 @@ export default function HomeScreen() {
   // Deep dive modal state
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedGame, setSelectedGame] = useState<any>(null);
+
+  // Info modal state
+  const [activeModal, setActiveModal] = useState<string | null>(null);
 
   // Yesterday's results state
   const [yesterdaysResults, setYesterdaysResults] = useState<{
@@ -671,8 +695,7 @@ export default function HomeScreen() {
                  streak.startsWith('L') && parseInt(streak.substring(1)) >= 2 ? 'down' : 'neutral'
         };
       })
-      .sort((a: any, b: any) => b.powerScore - a.powerScore)
-      .slice(0, 10);
+      .sort((a: any, b: any) => b.powerScore - a.powerScore);
   }, []);
 
   useEffect(() => {
@@ -859,6 +882,191 @@ export default function HomeScreen() {
     }
   }, [lockOfTheDay, smartPicks]);
 
+  // Info Modal Component
+  const InfoModal = () => {
+    if (!activeModal) return null;
+
+    const renderModalContent = () => {
+      switch (activeModal) {
+        case 'teams':
+          return (
+            <>
+              <Text style={styles.modalTitle}>NHL Teams (32)</Text>
+              <ScrollView style={{ maxHeight: 400 }}>
+                {['Atlantic', 'Metropolitan', 'Central', 'Pacific'].map((division) => {
+                  const divisionTeams = {
+                    'Atlantic': ['BOS', 'BUF', 'DET', 'FLA', 'MTL', 'OTT', 'TBL', 'TOR'],
+                    'Metropolitan': ['CAR', 'CBJ', 'NJD', 'NYI', 'NYR', 'PHI', 'PIT', 'WSH'],
+                    'Central': ['ARI', 'CHI', 'COL', 'DAL', 'MIN', 'NSH', 'STL', 'WPG'],
+                    'Pacific': ['ANA', 'CGY', 'EDM', 'LAK', 'SEA', 'SJS', 'VAN', 'VGK']
+                  };
+                  return (
+                    <View key={division} style={{ marginBottom: 16 }}>
+                      <Text style={[styles.boxtitle, { fontSize: 16, marginBottom: 8 }]}>{division} Division</Text>
+                      <Text style={styles.subtextLarge}>{divisionTeams[division as keyof typeof divisionTeams].join(', ')}</Text>
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            </>
+          );
+
+        case 'games':
+          return (
+            <>
+              <Text style={styles.modalTitle}>Today&apos;s Schedule</Text>
+              <ScrollView style={{ maxHeight: 400 }}>
+                {todaysGames?.games && todaysGames.games.length > 0 ? (
+                  todaysGames.games.map((game: any) => {
+                    const time = game.startTimeUTC ? new Date(game.startTimeUTC).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'TBD';
+                    const venue = game.venue?.default || 'TBD';
+                    return (
+                      <View key={game.id} style={{ marginBottom: 12, padding: 12, backgroundColor: styles.factbox.backgroundColor, borderRadius: 8 }}>
+                        <Text style={[styles.boxtitle, { fontSize: 14, marginBottom: 4 }]}>
+                          {game.awayTeam?.abbrev} @ {game.homeTeam?.abbrev}
+                        </Text>
+                        <Text style={[styles.subtextSmall, { fontSize: 11 }]}>{time} • {venue}</Text>
+                      </View>
+                    );
+                  })
+                ) : (
+                  <Text style={styles.modalText}>No games scheduled today</Text>
+                )}
+              </ScrollView>
+            </>
+          );
+
+        case 'season':
+          return (
+            <>
+              <Text style={styles.modalTitle}>2025-26 Season Info</Text>
+              <View style={{ marginBottom: 16 }}>
+                <Text style={[styles.boxtitle, { fontSize: 14, marginBottom: 8 }]}>Regular Season</Text>
+                <Text style={styles.modalText}>October 7, 2025 - April 17, 2026</Text>
+              </View>
+              <View style={{ marginBottom: 16 }}>
+                <Text style={[styles.boxtitle, { fontSize: 14, marginBottom: 8 }]}>Playoffs</Text>
+                <Text style={styles.modalText}>Mid-April 2026 (16 teams)</Text>
+              </View>
+              <View style={{ marginBottom: 16 }}>
+                <Text style={[styles.boxtitle, { fontSize: 14, marginBottom: 8 }]}>Stanley Cup Finals</Text>
+                <Text style={styles.modalText}>June 2026</Text>
+              </View>
+              <View>
+                <Text style={[styles.boxtitle, { fontSize: 14, marginBottom: 8 }]}>Season Format</Text>
+                <Text style={styles.modalText}>• 82 games per team{'\n'}• 16 teams make playoffs{'\n'}• Best-of-7 series format</Text>
+              </View>
+            </>
+          );
+
+        case 'points':
+        case 'goals':
+        case 'assists': {
+          const leaderType = activeModal === 'points' ? 'points' : activeModal === 'goals' ? 'goals' : 'assists';
+          const leader = statLeaders?.skaters?.[leaderType]?.[0];
+
+          if (!leader) return <Text style={styles.modalText}>No data available</Text>;
+
+          const firstName = leader.firstName?.default || '';
+          const lastName = leader.lastName?.default || '';
+          const team = leader.teamAbbrev || 'N/A';
+          const teamName = leader.teamName?.default || team;
+          const position = leader.position || 'N/A';
+
+          return (
+            <>
+              <Text style={styles.modalTitle}>{firstName} {lastName}</Text>
+              <Text style={[styles.subtextLarge, { marginBottom: 8, textAlign: 'center' }]}>
+                {teamName} ({team}) • {position} • #{leader.sweaterNumber || '?'}
+              </Text>
+
+              <View style={{ marginBottom: 16 }}>
+                <Text style={[styles.boxtitle, { fontSize: 14, marginBottom: 8, textAlign: 'center' }]}>
+                  {getCurrentSeason()} Season Leader
+                </Text>
+                <Text style={[styles.boxvalue, { fontSize: 48, textAlign: 'center' }]}>{leader.value}</Text>
+                <Text style={[styles.boxtitle, { fontSize: 16, marginTop: 4, textAlign: 'center' }]}>
+                  {activeModal === 'points' ? 'Points' : activeModal === 'goals' ? 'Goals' : 'Assists'}
+                </Text>
+              </View>
+
+              <View style={{ backgroundColor: styles.factbox.backgroundColor, borderRadius: 8, padding: 12 }}>
+                <Text style={[styles.boxtitle, { marginBottom: 8 }]}>Player Info</Text>
+                <Text style={styles.modalText}>
+                  Position: {position}{'\n'}
+                  Team: {teamName} ({team}){'\n'}
+                  Jersey #: {leader.sweaterNumber || 'N/A'}{'\n'}
+                  {activeModal === 'points' && `League-leading ${leader.value} points`}
+                  {activeModal === 'goals' && `League-leading ${leader.value} goals`}
+                  {activeModal === 'assists' && `League-leading ${leader.value} assists`}
+                </Text>
+              </View>
+            </>
+          );
+        }
+
+        case 'record': {
+          const team = currentStandings?.standings?.[0];
+          if (!team) return <Text style={styles.modalText}>No data available</Text>;
+
+          const teamName = team.teamName?.default || team.teamAbbrev?.default || 'N/A';
+          const abbrev = team.teamAbbrev?.default || team.teamAbbrev || 'N/A';
+
+          return (
+            <>
+              <Text style={styles.modalTitle}>{teamName}</Text>
+              <Text style={[styles.subtextLarge, { marginBottom: 16, textAlign: 'center' }]}>{abbrev}</Text>
+
+              <View style={{ marginBottom: 12 }}>
+                <Text style={[styles.boxtitle, { fontSize: 14, marginBottom: 8, textAlign: 'center' }]}>Best Record</Text>
+                <Text style={[styles.boxvalue, { fontSize: 32, textAlign: 'center' }]}>{team.points} PTS</Text>
+              </View>
+
+              <View>
+                <Text style={styles.boxtitle}>Team Stats</Text>
+                <Text style={styles.modalText}>
+                  Record: {team.wins}-{team.losses}-{team.otLosses || 0}{'\n'}
+                  Points %: {((team.pointPctg || 0) * 100).toFixed(1)}%{'\n'}
+                  Goal Differential: +{(team.goalFor || 0) - (team.goalAgainst || 0)}{'\n'}
+                  Current Streak: {team.streakCode || 'N/A'}
+                </Text>
+              </View>
+            </>
+          );
+        }
+
+        default:
+          return <Text style={styles.modalText}>No content available</Text>;
+      }
+    };
+
+    return (
+      <Modal
+        visible={!!activeModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setActiveModal(null)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setActiveModal(null)}
+        >
+          <TouchableOpacity
+            style={[styles.modalContainer, { maxWidth: 400, maxHeight: '80%' }]}
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+          >
+            {renderModalContent()}
+            <TouchableOpacity style={[styles.modalButton, { marginTop: 16 }]} onPress={() => setActiveModal(null)}>
+              <Text style={styles.modalButtonText}>Close</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+    );
+  };
+
   return (
     <ThemedView style={styles.container}>
       <ScrollView
@@ -886,7 +1094,6 @@ export default function HomeScreen() {
               </Text>
             </View>
             <StreakBadge currentStreak={streakData.currentStreak} longestStreak={streakData.longestStreak} />
-            {console.log('[RENDER] StreakBadge props:', { currentStreak: streakData.currentStreak, longestStreak: streakData.longestStreak })}
           </View>
           {fmtCountdown && (
             <View style={[styles.countdownBox, { marginTop: 16 }]}> 
@@ -921,75 +1128,75 @@ export default function HomeScreen() {
           <>
             {/* NHL Overview Stats */}
             <View style={styles.factboxrow}>
-              <View style={styles.factboxThree}>
+              <TouchableOpacity style={styles.factboxThree} onPress={() => setActiveModal('teams')}>
                 <Text style={styles.boxtitle}>Teams</Text>
                 <Text style={styles.boxvalue}>
                   {currentStandings?.standings?.length || 32}
                 </Text>
                 <Text style={styles.subtextSmall}>Active NHL Teams</Text>
-              </View>
+              </TouchableOpacity>
 
-              <View style={styles.factboxThree}>
-                <Text style={styles.boxtitle}>Today's Games</Text>
+              <TouchableOpacity style={styles.factboxThree} onPress={() => setActiveModal('games')}>
+                <Text style={styles.boxtitle}>Today&apos;s Games</Text>
                 <Text style={styles.boxvalue}>
                   {todaysGames?.games?.length || 0}
                 </Text>
                 <Text style={styles.subtextSmall}>
                   {(todaysGames?.games?.length || 0) === 0 ? 'Off-Season' : 'Scheduled'}
                 </Text>
-              </View>
+              </TouchableOpacity>
 
-              <View style={styles.factboxThree}>
+              <TouchableOpacity style={styles.factboxThree} onPress={() => setActiveModal('season')}>
                 <Text style={styles.boxtitle}>Season</Text>
                 <Text style={styles.boxvalue}>
                   2025-26
                 </Text>
                 <Text style={styles.subtextSmall}>Starts Oct 7</Text>
-              </View>
+              </TouchableOpacity>
             </View>
 
             {/* Stat Leaders */}
             {statLeaders && (
               <>
-                <Text style={[styles.subsection, { alignSelf: 'stretch', textAlign: 'center', marginTop: 20, marginBottom: 8 }]}>2024-25 Season Leaders</Text>
+                <Text style={[styles.subsection, { alignSelf: 'stretch', textAlign: 'center', marginTop: 20, marginBottom: 8 }]}>{getCurrentSeason()} Season Leaders</Text>
                 <View style={styles.factboxrow}>
-                  <View style={styles.factboxTwo}>
+                  <TouchableOpacity style={styles.factboxTwo} onPress={() => setActiveModal('points')}>
                     <Text style={styles.boxtitle}>Points Leader</Text>
                     <Text style={styles.boxvalue}>
                       {statLeaders.skaters?.points?.[0]?.firstName?.default || statLeaders.skaters?.points?.[0]?.firstName} {statLeaders.skaters?.points?.[0]?.lastName?.default || statLeaders.skaters?.points?.[0]?.lastName}
                     </Text>
                     <Text style={styles.subtextSmall}>
-                      {statLeaders.skaters?.points?.[0]?.value} Points (2024-25)
+                      {statLeaders.skaters?.points?.[0]?.value} Points ({getCurrentSeason()})
                     </Text>
-                  </View>
+                  </TouchableOpacity>
 
-                  <View style={styles.factboxTwo}>
+                  <TouchableOpacity style={styles.factboxTwo} onPress={() => setActiveModal('goals')}>
                     <Text style={styles.boxtitle}>Goals Leader</Text>
                     <Text style={styles.boxvalue}>
                       {statLeaders.skaters?.goals?.[0]?.firstName?.default || statLeaders.skaters?.goals?.[0]?.firstName} {statLeaders.skaters?.goals?.[0]?.lastName?.default || statLeaders.skaters?.goals?.[0]?.lastName}
                     </Text>
                     <Text style={styles.subtextSmall}>
-                      {statLeaders.skaters?.goals?.[0]?.value} Goals (2024-25)
+                      {statLeaders.skaters?.goals?.[0]?.value} Goals ({getCurrentSeason()})
                     </Text>
-                  </View>
+                  </TouchableOpacity>
                 </View>
 
                 <View style={styles.factboxrow}>
-                  <View style={styles.factboxTwo}>
+                  <TouchableOpacity style={styles.factboxTwo} onPress={() => setActiveModal('assists')}>
                     <Text style={styles.boxtitle}>Assists Leader</Text>
                     <Text style={styles.boxvalue}>
                       {statLeaders.skaters?.assists?.[0]?.firstName?.default || statLeaders.skaters?.assists?.[0]?.firstName} {statLeaders.skaters?.assists?.[0]?.lastName?.default || statLeaders.skaters?.assists?.[0]?.lastName}
                     </Text>
-                    <Text style={styles.subtextSmall}>{statLeaders.skaters?.assists?.[0]?.value} Assists (2024-25)</Text>
-                  </View>
+                    <Text style={styles.subtextSmall}>{statLeaders.skaters?.assists?.[0]?.value} Assists ({getCurrentSeason()})</Text>
+                  </TouchableOpacity>
 
-                  <View style={styles.factboxTwo}>
+                  <TouchableOpacity style={styles.factboxTwo} onPress={() => setActiveModal('record')}>
                     <Text style={styles.boxtitle}>Best Record</Text>
                     <Text style={styles.boxvalue}>
                       {currentStandings?.standings?.[0]?.teamAbbrev?.default || 'WPG'}
                     </Text>
                     <Text style={styles.subtextSmall}>{currentStandings?.standings?.[0]?.points || 116} Points</Text>
-                  </View>
+                  </TouchableOpacity>
                 </View>
               </>
             )}
@@ -1408,15 +1615,6 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Call to Action - Enhanced */}
-        <View style={[styles.card, { width: '100%', alignSelf: 'stretch', marginTop: 20 }]}>
-          <Text style={[styles.greeting, { textAlign: 'center', marginBottom: 12 }]}>
-            Ready to Explore?
-          </Text>
-          <Text style={[styles.subtextLarge, { textAlign: 'center', lineHeight: 20, marginBottom: 16 }]}>
-            Head to the <Text style={styles.nameAccent}>Deep Dive</Text> tab to analyze your favorite team.
-          </Text>
-        </View>
       </ScrollView>
 
       {/* Deep Dive Modal */}
@@ -1432,6 +1630,9 @@ export default function HomeScreen() {
           )}
         />
       )}
+
+      {/* Info Modal */}
+      <InfoModal />
     </ThemedView>
   );
 }
