@@ -8,10 +8,21 @@ import GameDeepDiveModal from '../../components/GameDeepDiveModal';
 import LockOfTheDayCard from '../../components/LockOfTheDayCard';
 import PowerRankingsWidget from '../../components/PowerRankingsWidget';
 import SmartPickCard from '../../components/SmartPickCard';
+import StreakBadge from '../../components/StreakBadge';
 import StreakTracker from '../../components/StreakTracker';
+import YesterdayResultsCard from '../../components/YesterdayResultsCard';
 import { ThemedView } from '../../components/ThemedView';
 import { makeStyles } from '../../constants/theme';
 import { useAnalytics, useTrackUserInteraction } from '../../hooks/useAnalytics';
+import {
+  checkAndUpdateYesterdaysGames,
+  getYesterdaysResults,
+  saveLockOfTheDay,
+  saveSmartPicks,
+  Pick,
+  PickStats
+} from '../../services/pickTracking';
+import { checkAndUpdateStreak, StreakData } from '../../services/streakTracking';
 
 const name = 'Zach'
 const now = new Date();
@@ -122,6 +133,22 @@ export default function HomeScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedGame, setSelectedGame] = useState<any>(null);
 
+  // Yesterday's results state
+  const [yesterdaysResults, setYesterdaysResults] = useState<{
+    lock?: Pick;
+    smartPicks: Pick[];
+    lockStats: PickStats;
+    smartPickStats: PickStats;
+  } | null>(null);
+
+  // Streak tracking state
+  const [streakData, setStreakData] = useState<StreakData>({
+    currentStreak: 0,
+    longestStreak: 0,
+    lastVisitDate: '',
+    totalDays: 0,
+  });
+
   // Load saved team preference on app start
   useEffect(() => {
     async function loadSavedTeam() {
@@ -135,6 +162,42 @@ export default function HomeScreen() {
       }
     }
     loadSavedTeam();
+  }, []);
+
+  // Check and load yesterday's results on mount
+  useEffect(() => {
+    async function loadYesterdaysData() {
+      console.log('[PHASE 2] Starting to load yesterday\'s data...');
+      try {
+        // Check and update yesterday's game outcomes
+        await checkAndUpdateYesterdaysGames();
+        console.log('[PHASE 2] Updated yesterday\'s game outcomes');
+
+        // Load yesterday's results
+        const results = await getYesterdaysResults();
+        console.log('[PHASE 2] Yesterday\'s results:', results);
+        setYesterdaysResults(results);
+      } catch (error) {
+        console.error('[PHASE 2] Failed to load yesterday\'s results:', error);
+      }
+    }
+    loadYesterdaysData();
+  }, []);
+
+  // Check and update streak on mount
+  useEffect(() => {
+    async function loadStreakData() {
+      console.log('[PHASE 3] Starting to load streak data...');
+      try {
+        const streak = await checkAndUpdateStreak();
+        console.log('[PHASE 3] Streak data loaded:', streak);
+        setStreakData(streak);
+        console.log('[PHASE 3] Streak state updated successfully');
+      } catch (error) {
+        console.error('[PHASE 3] Failed to load streak data:', error);
+      }
+    }
+    loadStreakData();
   }, []);
 
   // Save team preference whenever it changes
@@ -731,6 +794,71 @@ export default function HomeScreen() {
     return getStreakingTeams(currentStandings);
   }, [currentStandings, getStreakingTeams]);
 
+  // Save today's picks when they're generated
+  useEffect(() => {
+    async function saveTodaysPicks() {
+      console.log('[PICK SAVING] Effect triggered. Lock:', !!lockOfTheDay, 'Smart picks:', smartPicks.length);
+      try {
+        // Save Lock of the Day
+        if (lockOfTheDay) {
+          const prediction = calculateWinProbability(
+            lockOfTheDay.homeTeam?.abbrev || '',
+            lockOfTheDay.awayTeam?.abbrev || ''
+          );
+          const predictedWinner = prediction.homeWinProb > prediction.awayWinProb
+            ? lockOfTheDay.homeTeam.abbrev
+            : lockOfTheDay.awayTeam.abbrev;
+
+          console.log('[PICK SAVING] Saving Lock of the Day:', {
+            gameId: String(lockOfTheDay.id),
+            predictedWinner,
+            homeTeam: lockOfTheDay.homeTeam.abbrev,
+            awayTeam: lockOfTheDay.awayTeam.abbrev,
+          });
+
+          await saveLockOfTheDay({
+            gameId: String(lockOfTheDay.id),
+            predictedWinner,
+            homeTeam: lockOfTheDay.homeTeam.abbrev,
+            awayTeam: lockOfTheDay.awayTeam.abbrev,
+            confidenceScore: lockOfTheDay.confidenceScore,
+          });
+          console.log('[PICK SAVING] Lock of the Day saved successfully');
+        }
+
+        // Save Smart Picks
+        if (smartPicks.length > 0) {
+          console.log('[PICK SAVING] Saving', smartPicks.length, 'smart picks');
+          await saveSmartPicks(
+            smartPicks.map(pick => {
+              // Determine predicted winner based on prediction logic
+              const homeWinProb = pick.prediction?.homeWinProb || 50;
+              const awayWinProb = pick.prediction?.awayWinProb || 50;
+              const predictedWinner = homeWinProb > awayWinProb
+                ? pick.homeTeam.abbrev
+                : pick.awayTeam.abbrev;
+
+              return {
+                gameId: String(pick.id),
+                predictedWinner,
+                homeTeam: pick.homeTeam.abbrev,
+                awayTeam: pick.awayTeam.abbrev,
+                confidenceScore: pick.confidenceScore,
+              };
+            })
+          );
+          console.log('[PICK SAVING] Smart picks saved successfully');
+        }
+      } catch (error) {
+        console.error('[PICK SAVING] Failed to save today\'s picks:', error);
+      }
+    }
+
+    if (lockOfTheDay || smartPicks.length > 0) {
+      saveTodaysPicks();
+    }
+  }, [lockOfTheDay, smartPicks]);
+
   return (
     <ThemedView style={styles.container}>
       <ScrollView
@@ -750,10 +878,16 @@ export default function HomeScreen() {
         }
       >
         <View style={styles.header}>
-          <Text style={styles.title}>PuckIQ</Text>
-          <Text style={[styles.subtitle, { textAlign: 'center', marginTop: 8, fontSize: 16 }]}>
-            Your Complete NHL Analytics Hub
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: 16 }}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.title}>PuckIQ</Text>
+              <Text style={[styles.subtitle, { marginTop: 8, fontSize: 16 }]}>
+                Your Complete NHL Analytics Hub
+              </Text>
+            </View>
+            <StreakBadge currentStreak={streakData.currentStreak} longestStreak={streakData.longestStreak} />
+            {console.log('[RENDER] StreakBadge props:', { currentStreak: streakData.currentStreak, longestStreak: streakData.longestStreak })}
+          </View>
           {fmtCountdown && (
             <View style={[styles.countdownBox, { marginTop: 16 }]}> 
               <LinearGradient
@@ -875,6 +1009,17 @@ export default function HomeScreen() {
             </View>
           ) : (
             <>
+              {/* Yesterday's Results */}
+              {console.log('[RENDER] Yesterday\'s results data:', yesterdaysResults)}
+              {yesterdaysResults && (
+                <YesterdayResultsCard
+                  lock={yesterdaysResults.lock}
+                  smartPicks={yesterdaysResults.smartPicks}
+                  lockStats={yesterdaysResults.lockStats}
+                  smartPickStats={yesterdaysResults.smartPickStats}
+                />
+              )}
+
               {/* Lock of the Day - Hero Card */}
               {lockOfTheDay && (
                 <View style={{ marginBottom: 16 }}>

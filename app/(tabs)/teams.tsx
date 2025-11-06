@@ -26,7 +26,7 @@ type TotalSet = { league: number; conf: number; div: number };
 type TeamInfo = { conference: string | null; division: string | null };
 type YearlyData = { year: string; league: number | null; conf: number | null; div: number | null };
 
-export default function DeepDiveScreen() {
+export default function TeamsScreen() {
   const styles = makeStyles();
   
   const [showInfoModal, setShowInfoModal] = useState(false);
@@ -440,7 +440,8 @@ export default function DeepDiveScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <Text style={styles.title}>Deep Dive</Text>
+          <Text style={styles.title}>Teams</Text>
+          <Text style={styles.subtitle}>Team stats and standings analysis</Text>
         </View>
 
         {/* Info Modal */}

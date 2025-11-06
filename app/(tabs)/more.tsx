@@ -29,11 +29,11 @@ type Option = { label: string; value: string | null };
 
 // Local Dropdown replaced by shared Dropdown component
 
-export default function ExploreScreen() {
+export default function MoreScreen() {
 	const styles = makeStyles();
-	
+
 	// Initialize analytics for this screen (background tracking only)
-	const analytics = useAnalytics('ExploreScreen');
+	const analytics = useAnalytics('MoreScreen');
 
 	// Teams
 	const [teams, setTeams] = useState<Team[] | null>(null);
