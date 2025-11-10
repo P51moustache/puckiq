@@ -33,7 +33,7 @@ export default function MoreScreen() {
 	const styles = makeStyles();
 
 	// Initialize analytics for this screen (background tracking only)
-	const analytics = useAnalytics('MoreScreen');
+	const analytics = useAnalytics('PlayersScreen');
 
 	// Teams
 	const [teams, setTeams] = useState<Team[] | null>(null);

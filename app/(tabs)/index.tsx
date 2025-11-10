@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Modal, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import Dropdown from '../../components/Dropdown';
@@ -23,6 +24,7 @@ import {
   PickStats
 } from '../../services/pickTracking';
 import { checkAndUpdateStreak, StreakData } from '../../services/streakTracking';
+import { initializeNotifications } from '../../services/notifications';
 
 const name = 'Zach'
 const now = new Date();
@@ -64,6 +66,7 @@ const getCurrentSeason = () => {
 
 export default function HomeScreen() {
   const styles = makeStyles();
+  const router = useRouter();
 
   // Initialize analytics for this screen
   const analytics = useAnalytics('HomeScreen');
@@ -356,6 +359,11 @@ export default function HomeScreen() {
 
   useEffect(() => {
     loadNHLData();
+  }, []);
+
+  // Initialize notifications
+  useEffect(() => {
+    initializeNotifications();
   }, []);
 
   // Pull-to-refresh handler
@@ -1245,15 +1253,25 @@ export default function HomeScreen() {
               {/* Smart Picks Grid */}
               {smartPicks && smartPicks.length > 0 && (
                 <View style={{ marginBottom: 20 }}>
-                  <Text style={{
-                    fontSize: 16,
-                    fontWeight: '800',
-                    color: '#e6eef8',
-                    marginBottom: 12,
-                    paddingHorizontal: 0,
-                  }}>
-                    More Smart Picks
-                  </Text>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <Text style={{
+                      fontSize: 16,
+                      fontWeight: '800',
+                      color: '#e6eef8',
+                      paddingHorizontal: 0,
+                    }}>
+                      More Smart Picks
+                    </Text>
+                    <TouchableOpacity onPress={() => router.push('/mypicks')}>
+                      <Text style={{
+                        fontSize: 11,
+                        color: '#60a5fa',
+                        fontWeight: '600',
+                      }}>
+                        All Smart Picks →
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                   <View style={{
                     flexDirection: 'row',
                     flexWrap: 'wrap',

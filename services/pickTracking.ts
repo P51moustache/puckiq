@@ -362,3 +362,142 @@ export async function getAllPicks(): Promise<Pick[]> {
 
   return allPicks;
 }
+
+// Get stats for user picks only
+export async function getUserPickStats(): Promise<PickStats> {
+  const allPicks = await getAllPicks();
+  const userPicks = allPicks.filter(p => p.type === 'user-pick');
+  return calculatePickStats(userPicks);
+}
+
+// Get stats for smart picks only
+export async function getSmartPickStats(): Promise<PickStats> {
+  const allPicks = await getAllPicks();
+  const smartPicks = allPicks.filter(p => p.type === 'smart-pick');
+  return calculatePickStats(smartPicks);
+}
+
+// Get stats for lock picks only
+export async function getLockStats(): Promise<PickStats> {
+  const allPicks = await getAllPicks();
+  const lockPicks = allPicks.filter(p => p.type === 'lock');
+  return calculatePickStats(lockPicks);
+}
+
+// Get streak information for user picks
+export async function getUserStreakInfo(): Promise<{
+  current: string;
+  currentCount: number;
+  bestWinStreak: number;
+  worstLossStreak: number;
+}> {
+  const allPicks = await getAllPicks();
+  const userPicks = allPicks
+    .filter(p => p.type === 'user-pick' && p.outcome)
+    .sort((a, b) => b.date.localeCompare(a.date)); // most recent first
+
+  if (userPicks.length === 0) {
+    return { current: '', currentCount: 0, bestWinStreak: 0, worstLossStreak: 0 };
+  }
+
+  // Calculate current streak
+  let currentStreak = 0;
+  let currentType: 'win' | 'loss' | null = null;
+
+  for (const pick of userPicks) {
+    if (pick.outcome === 'push') continue; // Skip pushes
+
+    if (currentType === null) {
+      currentType = pick.outcome as 'win' | 'loss';
+      currentStreak = 1;
+    } else if (pick.outcome === currentType) {
+      currentStreak++;
+    } else {
+      break; // Streak broken
+    }
+  }
+
+  const current = currentType ? `${currentType === 'win' ? 'W' : 'L'}${currentStreak}` : '';
+
+  // Calculate best win streak and worst loss streak
+  let bestWinStreak = 0;
+  let worstLossStreak = 0;
+  let tempStreak = 0;
+  let tempType: 'win' | 'loss' | null = null;
+
+  // Go through all picks in chronological order
+  const chronologicalPicks = [...userPicks].reverse();
+
+  for (const pick of chronologicalPicks) {
+    if (pick.outcome === 'push') continue;
+
+    if (tempType === null || tempType !== pick.outcome) {
+      // Save previous streak
+      if (tempType === 'win') {
+        bestWinStreak = Math.max(bestWinStreak, tempStreak);
+      } else if (tempType === 'loss') {
+        worstLossStreak = Math.max(worstLossStreak, tempStreak);
+      }
+
+      // Start new streak
+      tempType = pick.outcome as 'win' | 'loss';
+      tempStreak = 1;
+    } else {
+      tempStreak++;
+    }
+  }
+
+  // Check final streak
+  if (tempType === 'win') {
+    bestWinStreak = Math.max(bestWinStreak, tempStreak);
+  } else if (tempType === 'loss') {
+    worstLossStreak = Math.max(worstLossStreak, tempStreak);
+  }
+
+  return {
+    current,
+    currentCount: currentStreak,
+    bestWinStreak,
+    worstLossStreak,
+  };
+}
+
+// Clear all user pick history (preserves AI picks)
+export async function clearUserPickHistory(): Promise<void> {
+  try {
+    const allPicks = await getAllDailyPicks();
+
+    // Remove user picks from each day
+    Object.keys(allPicks).forEach(date => {
+      allPicks[date].userPicks = [];
+    });
+
+    await AsyncStorage.setItem(STORAGE_KEYS.DAILY_PICKS, JSON.stringify(allPicks));
+  } catch (error) {
+    console.error('Error clearing user pick history:', error);
+    throw error;
+  }
+}
+
+// Clear all AI pick history (smart picks and lock picks, preserves user picks)
+export async function clearAIPickHistory(): Promise<void> {
+  try {
+    const allPicks = await getAllDailyPicks();
+
+    // Remove AI picks from each day
+    Object.keys(allPicks).forEach(date => {
+      allPicks[date].smartPicks = [];
+      delete allPicks[date].lock;
+    });
+
+    await AsyncStorage.setItem(STORAGE_KEYS.DAILY_PICKS, JSON.stringify(allPicks));
+  } catch (error) {
+    console.error('Error clearing AI pick history:', error);
+    throw error;
+  }
+}
+
+// Get pick history organized by date
+export async function getPickHistoryByDate(): Promise<Record<string, DailyPicks>> {
+  return await getAllDailyPicks();
+}

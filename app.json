@@ -8,11 +8,16 @@
     "scheme": "learningproject",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "notification": {
+      "icon": "./assets/images/icon.png",
+      "color": "#60a5fa"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.zlce.hockeystats",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": ["remote-notification"]
       }
     },
     "android": {
@@ -20,6 +25,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
+      "permissions": ["RECEIVE_BOOT_COMPLETED", "POST_NOTIFICATIONS"],
       "edgeToEdgeEnabled": true
     },
     "web": {

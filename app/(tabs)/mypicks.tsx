@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import GameDeepDiveModal from '../../components/GameDeepDiveModal';
+import PickHistoryModal from '../../components/PickHistoryModal';
 import StreakBadge from '../../components/StreakBadge';
 import { ThemedView } from '../../components/ThemedView';
 import { makeStyles, theme } from '../../constants/theme';
@@ -21,6 +22,7 @@ import {
   Pick,
 } from '../../services/pickTracking';
 import { getStreakData, StreakData } from '../../services/streakTracking';
+import { addNotificationResponseListener } from '../../services/notifications';
 
 export default function MyPicksScreen() {
   const styles = makeStyles();
@@ -40,10 +42,23 @@ export default function MyPicksScreen() {
   const [modalGame, setModalGame] = useState<any>(null);
   const [standings, setStandings] = useState<any>(null);
   const [showInfoModal, setShowInfoModal] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
 
   // Load data
   useEffect(() => {
     loadData();
+  }, []);
+
+  // Listen for notification taps
+  useEffect(() => {
+    const subscription = addNotificationResponseListener((response) => {
+      const data = response.notification.request.content.data;
+      if (data?.screen === 'pickHistory') {
+        setShowHistoryModal(true);
+      }
+    });
+
+    return () => subscription.remove();
   }, []);
 
   const loadData = async (isRefresh = false) => {
@@ -191,7 +206,11 @@ export default function MyPicksScreen() {
         ) : (
           <>
             {/* Quick Stats */}
-            <View style={s.statsBar}>
+            <TouchableOpacity
+              style={s.statsBar}
+              onPress={() => setShowHistoryModal(true)}
+              activeOpacity={0.7}
+            >
               <View style={s.stat}>
                 <Text style={s.statValue}>{accuracy}%</Text>
                 <Text style={s.statLabel}>Accuracy</Text>
@@ -208,7 +227,7 @@ export default function MyPicksScreen() {
                 <Text style={s.statValue}>{completed.length}</Text>
                 <Text style={s.statLabel}>Total</Text>
               </View>
-            </View>
+            </TouchableOpacity>
 
             {/* Games List */}
             {games.length > 0 ? (
@@ -307,11 +326,18 @@ export default function MyPicksScreen() {
         const home = standings.standings?.find((t: any) => (t.teamAbbrev?.default || t.teamAbbrev) === modalGame.homeTeam?.abbrev);
         const away = standings.standings?.find((t: any) => (t.teamAbbrev?.default || t.teamAbbrev) === modalGame.awayTeam?.abbrev);
 
+        // Enrich game with standings data (same pattern as home page)
+        const enrichedGame = {
+          ...modalGame,
+          homeTeam: { ...home, abbrev: home?.teamAbbrev?.default || home?.teamAbbrev, ...modalGame.homeTeam },
+          awayTeam: { ...away, abbrev: away?.teamAbbrev?.default || away?.teamAbbrev, ...modalGame.awayTeam }
+        };
+
         return (
           <GameDeepDiveModal
             visible={!!modalGame}
             onClose={() => setModalGame(null)}
-            game={modalGame}
+            game={enrichedGame}
             confidenceScore={getConfidence(home, away)}
             prediction={getProbability(modalGame.homeTeam?.abbrev || '', modalGame.awayTeam?.abbrev || '')}
           />
@@ -347,6 +373,17 @@ export default function MyPicksScreen() {
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
+
+      {/* Pick History Modal */}
+      <PickHistoryModal
+        visible={showHistoryModal}
+        onClose={() => setShowHistoryModal(false)}
+        onHistoryCleared={async () => {
+          // Reload picks data after clearing history
+          const freshPicks = await getAllPicks();
+          setAllPicks(freshPicks);
+        }}
+      />
     </ThemedView>
   );
 }
