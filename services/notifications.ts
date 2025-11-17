@@ -10,6 +10,8 @@ Notifications.setNotificationHandler({
     shouldShowAlert: false, // Don't show alerts when app is in foreground
     shouldPlaySound: false,
     shouldSetBadge: false,
+    shouldShowBanner: false,
+    shouldShowList: false,
   }),
 });
 
@@ -172,6 +174,7 @@ export async function scheduleDailyNotification(time: string = '09:00'): Promise
         sound: 'default',
       },
       trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
         hour: hours,
         minute: minutes,
         repeats: true,
