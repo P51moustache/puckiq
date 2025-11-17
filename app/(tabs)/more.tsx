@@ -3,6 +3,7 @@ import { Image } from 'expo-image';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import Dropdown from '../../components/Dropdown';
+import AccuracyTrendsCard from '../../components/AccuracyTrendsCard';
 import { ThemedView } from '../../components/ThemedView';
 import { makeStyles } from '../../constants/theme';
 import { useAnalytics } from '../../hooks/useAnalytics';
@@ -245,6 +246,9 @@ export default function MoreScreen() {
 				<View style={styles.header}>
 					<Text style={styles.title}>Player Stats</Text>
 				</View>
+
+				{/* Accuracy Trends Card */}
+				<AccuracyTrendsCard />
 
 				{/* Selection Card */}
 				<View style={[styles.card, { alignSelf: 'stretch', width: '100%' }]}>

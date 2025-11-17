@@ -25,6 +25,7 @@ import {
 } from '../../services/pickTracking';
 import { checkAndUpdateStreak, StreakData } from '../../services/streakTracking';
 import { initializeNotifications } from '../../services/notifications';
+import { getLockOfTheDayEnhanced, getSmartPicksEnhanced } from '../../utils/predictionUtils';
 
 const name = 'Zach'
 const now = new Date();
@@ -384,6 +385,11 @@ export default function HomeScreen() {
   const [loadingLeagueData, setLoadingLeagueData] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Enhanced predictions state
+  const [lockOfTheDay, setLockOfTheDay] = useState<any>(null);
+  const [smartPicks, setSmartPicks] = useState<any[]>([]);
+  const [loadingPredictions, setLoadingPredictions] = useState(false);
+
   // Animated Probability Bar Component
   const AnimatedProbabilityBar = ({ awayProb, homeProb }: { awayProb: number; homeProb: number }) => {
     const awayWidth = useRef(new Animated.Value(0)).current;
@@ -571,76 +577,7 @@ export default function HomeScreen() {
     };
   };
 
-  // Identify "Lock of the Day" - highest confidence game
-  const getLockOfTheDay = React.useCallback((games: any[], standings: any) => {
-    if (!games || games.length === 0 || !standings?.standings) return null;
-
-    let bestGame = null;
-    let highestScore = 0;
-
-    games.forEach((game) => {
-      const homeAbbrev = game.homeTeam?.abbrev || '';
-      const awayAbbrev = game.awayTeam?.abbrev || '';
-
-      const homeTeam = standings.standings.find((t: any) =>
-        (t.teamAbbrev?.default || t.teamAbbrev) === homeAbbrev
-      );
-      const awayTeam = standings.standings.find((t: any) =>
-        (t.teamAbbrev?.default || t.teamAbbrev) === awayAbbrev
-      );
-
-      if (homeTeam && awayTeam) {
-        const confidenceScore = calculateConfidenceScore(game, homeTeam, awayTeam);
-
-        if (confidenceScore > highestScore) {
-          highestScore = confidenceScore;
-          bestGame = {
-            ...game,
-            confidenceScore,
-            homeTeam: { ...homeTeam, abbrev: homeTeam.teamAbbrev?.default || homeTeam.teamAbbrev },
-            awayTeam: { ...awayTeam, abbrev: awayTeam.teamAbbrev?.default || awayTeam.teamAbbrev }
-          };
-        }
-      }
-    });
-
-    return bestGame;
-  }, []);
-
-  // Get top 3-4 smart picks (excluding lock of the day)
-  const getSmartPicks = React.useCallback((games: any[], lockGameId: string, standings: any) => {
-    if (!games || games.length === 0 || !standings?.standings) return [];
-
-    const scoredGames = games
-      .filter(g => g.id !== lockGameId)
-      .map((game) => {
-        const homeAbbrev = game.homeTeam?.abbrev || '';
-        const awayAbbrev = game.awayTeam?.abbrev || '';
-
-        const homeTeam = standings.standings.find((t: any) =>
-          (t.teamAbbrev?.default || t.teamAbbrev) === homeAbbrev
-        );
-        const awayTeam = standings.standings.find((t: any) =>
-          (t.teamAbbrev?.default || t.teamAbbrev) === awayAbbrev
-        );
-
-        if (homeTeam && awayTeam) {
-          const confidenceScore = calculateConfidenceScore(game, homeTeam, awayTeam);
-          return {
-            ...game,
-            confidenceScore,
-            homeTeam: { ...homeTeam, abbrev: homeTeam.teamAbbrev?.default || homeTeam.teamAbbrev },
-            awayTeam: { ...awayTeam, abbrev: awayTeam.teamAbbrev?.default || awayTeam.teamAbbrev }
-          };
-        }
-        return null;
-      })
-      .filter((g): g is NonNullable<typeof g> => g !== null)
-      .sort((a, b) => (b.confidenceScore || 0) - (a.confidenceScore || 0))
-      .slice(0, 4);
-
-    return scoredGames;
-  }, []);
+  // Enhanced predictions are now calculated in useEffect below with async API calls
 
   // Get teams on hot/cold streaks
   const getStreakingTeams = React.useCallback((standings: any) => {
@@ -804,16 +741,58 @@ export default function HomeScreen() {
     return () => { mounted = false; };
   }, [selectedTeam]);
 
-  // Calculate smart picks data using useMemo
-  const lockOfTheDay = useMemo<any>(() => {
-    if (!todaysGames?.games || !currentStandings?.standings) return null;
-    return getLockOfTheDay(todaysGames.games, currentStandings);
-  }, [todaysGames, currentStandings, getLockOfTheDay]);
+  // Calculate enhanced predictions with recent form and situational factors
+  useEffect(() => {
+    let mounted = true;
 
-  const smartPicks = useMemo<any[]>(() => {
-    if (!todaysGames?.games || !currentStandings?.standings) return [];
-    return getSmartPicks(todaysGames.games, lockOfTheDay?.id || '', currentStandings);
-  }, [todaysGames, currentStandings, lockOfTheDay, getSmartPicks]);
+    async function loadEnhancedPredictions() {
+      if (!todaysGames?.games || !currentStandings?.standings) {
+        if (mounted) {
+          setLockOfTheDay(null);
+          setSmartPicks([]);
+        }
+        return;
+      }
+
+      setLoadingPredictions(true);
+      console.log('[Enhanced Predictions] Loading with recent form & situational factors...');
+
+      try {
+        // Fetch enhanced lock of the day (with recent form + situational factors)
+        const enhancedLock = await getLockOfTheDayEnhanced(todaysGames.games, currentStandings);
+
+        if (mounted) {
+          setLockOfTheDay(enhancedLock);
+          console.log('[Enhanced Predictions] Lock loaded with confidence:', enhancedLock?.confidenceScore);
+        }
+
+        // Fetch enhanced smart picks
+        if (enhancedLock && mounted) {
+          const enhancedPicks = await getSmartPicksEnhanced(
+            todaysGames.games,
+            enhancedLock.id,
+            currentStandings,
+            4
+          );
+
+          if (mounted) {
+            setSmartPicks(enhancedPicks);
+            console.log('[Enhanced Predictions] Smart picks loaded:', enhancedPicks.length);
+          }
+        }
+      } catch (error) {
+        console.error('[Enhanced Predictions] Error loading predictions:', error);
+        // Keep existing predictions on error
+      } finally {
+        if (mounted) {
+          setLoadingPredictions(false);
+        }
+      }
+    }
+
+    loadEnhancedPredictions();
+    return () => { mounted = false; };
+  }, [todaysGames, currentStandings]);
 
   const powerRankings = useMemo(() => {
     if (!currentStandings?.standings) return [];
