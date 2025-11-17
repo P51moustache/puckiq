@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createDailyAccuracyRecord, saveDailyAccuracy } from '../utils/accuracyTracking';
 
 export interface Pick {
   gameId: string;
@@ -325,6 +326,30 @@ export async function checkAndUpdateYesterdaysGames(): Promise<void> {
 
     await updatePickOutcomes(yesterday, results);
     await AsyncStorage.setItem(STORAGE_KEYS.LAST_CHECK_DATE, yesterday);
+
+    // Track daily accuracy after updating outcomes
+    try {
+      const updatedPicks = await getPicksForDate(yesterday);
+      if (updatedPicks) {
+        const lockCorrect = updatedPicks.lock?.outcome === 'win' ? true :
+                           updatedPicks.lock?.outcome === 'loss' ? false : null;
+        const smartPicksCorrect = updatedPicks.smartPicks.filter(p => p.outcome === 'win').length;
+        const smartPicksTotal = updatedPicks.smartPicks.filter(p => p.outcome && p.outcome !== 'push').length;
+
+        const dailyAccuracy = createDailyAccuracyRecord(
+          yesterday,
+          lockCorrect,
+          smartPicksCorrect,
+          smartPicksTotal
+        );
+
+        await saveDailyAccuracy(dailyAccuracy);
+        console.log(`[Pick Tracking] Accuracy tracked for ${yesterday}: ${dailyAccuracy.overallAccuracy}%`);
+      }
+    } catch (accuracyError) {
+      console.error('[Pick Tracking] Error tracking daily accuracy:', accuracyError);
+      // Don't throw - accuracy tracking failure shouldn't block main flow
+    }
   } catch (error) {
     console.error('Error checking yesterday\'s games:', error);
   }
