@@ -8,9 +8,16 @@ interface LockOfTheDayCardProps {
   confidenceScore: number;
   prediction: any;
   onPress?: () => void;
+  situationalFactors?: {
+    homeBackToBack: boolean;
+    awayBackToBack: boolean;
+    homeRestDays: number;
+    awayRestDays: number;
+    restAdvantage: 'home' | 'away' | 'neutral';
+  } | null;
 }
 
-export default function LockOfTheDayCard({ game, confidenceScore, prediction, onPress }: LockOfTheDayCardProps) {
+export default function LockOfTheDayCard({ game, confidenceScore, prediction, onPress, situationalFactors }: LockOfTheDayCardProps) {
   const styles = makeStyles();
 
   const homeAbbrev = game.homeTeam?.abbrev || 'HOME';
@@ -32,6 +39,13 @@ export default function LockOfTheDayCard({ game, confidenceScore, prediction, on
     confidenceColor = '#3b82f6';
   }
 
+  // Determine situational badges
+  const hasSituationalFactors = situationalFactors && (
+    situationalFactors.homeBackToBack ||
+    situationalFactors.awayBackToBack ||
+    situationalFactors.restAdvantage !== 'neutral'
+  );
+
   return (
     <Pressable onPress={onPress} style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}>
       <LinearGradient
@@ -49,26 +63,89 @@ export default function LockOfTheDayCard({ game, confidenceScore, prediction, on
           borderRadius: 16,
           padding: 20,
         }}>
-          {/* Confidence Badge */}
-          <View style={{
-            alignSelf: 'flex-start',
-            backgroundColor: `${confidenceColor}22`,
-            paddingHorizontal: 14,
-            paddingVertical: 6,
-            borderRadius: 20,
-            marginBottom: 16,
-            borderWidth: 1.5,
-            borderColor: confidenceColor,
-          }}>
-            <Text style={{
-              color: confidenceColor,
-              fontSize: 11,
-              fontWeight: '800',
-              letterSpacing: 0.8,
-              textTransform: 'uppercase',
+          {/* Badges Row */}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+            {/* Confidence Badge */}
+            <View style={{
+              backgroundColor: `${confidenceColor}22`,
+              paddingHorizontal: 14,
+              paddingVertical: 6,
+              borderRadius: 20,
+              borderWidth: 1.5,
+              borderColor: confidenceColor,
             }}>
-              {confidenceText}
-            </Text>
+              <Text style={{
+                color: confidenceColor,
+                fontSize: 11,
+                fontWeight: '800',
+                letterSpacing: 0.8,
+                textTransform: 'uppercase',
+              }}>
+                {confidenceText}
+              </Text>
+            </View>
+
+            {/* Back-to-Back Badges */}
+            {situationalFactors?.homeBackToBack && (
+              <View style={{
+                backgroundColor: '#ef444422',
+                paddingHorizontal: 10,
+                paddingVertical: 6,
+                borderRadius: 20,
+                borderWidth: 1.5,
+                borderColor: '#ef4444',
+              }}>
+                <Text style={{
+                  color: '#ef4444',
+                  fontSize: 10,
+                  fontWeight: '800',
+                  letterSpacing: 0.5,
+                }}>
+                  🔴 {homeAbbrev} B2B
+                </Text>
+              </View>
+            )}
+
+            {situationalFactors?.awayBackToBack && (
+              <View style={{
+                backgroundColor: '#ef444422',
+                paddingHorizontal: 10,
+                paddingVertical: 6,
+                borderRadius: 20,
+                borderWidth: 1.5,
+                borderColor: '#ef4444',
+              }}>
+                <Text style={{
+                  color: '#ef4444',
+                  fontSize: 10,
+                  fontWeight: '800',
+                  letterSpacing: 0.5,
+                }}>
+                  🔴 {awayAbbrev} B2B
+                </Text>
+              </View>
+            )}
+
+            {/* Rest Advantage Badge */}
+            {situationalFactors && situationalFactors.restAdvantage !== 'neutral' && (
+              <View style={{
+                backgroundColor: '#3b82f622',
+                paddingHorizontal: 10,
+                paddingVertical: 6,
+                borderRadius: 20,
+                borderWidth: 1.5,
+                borderColor: '#3b82f6',
+              }}>
+                <Text style={{
+                  color: '#3b82f6',
+                  fontSize: 10,
+                  fontWeight: '800',
+                  letterSpacing: 0.5,
+                }}>
+                  💤 {situationalFactors.restAdvantage === 'home' ? homeAbbrev : awayAbbrev} +{Math.abs(situationalFactors.homeRestDays - situationalFactors.awayRestDays)}d rest
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Matchup */}

@@ -7,9 +7,16 @@ interface SmartPickCardProps {
   confidenceScore: number;
   prediction: any;
   onPress?: () => void;
+  situationalFactors?: {
+    homeBackToBack: boolean;
+    awayBackToBack: boolean;
+    homeRestDays: number;
+    awayRestDays: number;
+    restAdvantage: 'home' | 'away' | 'neutral';
+  } | null;
 }
 
-export default function SmartPickCard({ game, confidenceScore, prediction, onPress }: SmartPickCardProps) {
+export default function SmartPickCard({ game, confidenceScore, prediction, onPress, situationalFactors }: SmartPickCardProps) {
   const styles = makeStyles();
 
   const homeAbbrev = game.homeTeam?.abbrev || 'HOME';
@@ -30,6 +37,10 @@ export default function SmartPickCard({ game, confidenceScore, prediction, onPre
     badgeColor = '#ef4444';
   }
 
+  // Check for situational factors
+  const hasBackToBack = situationalFactors?.homeBackToBack || situationalFactors?.awayBackToBack;
+  const hasRestAdvantage = situationalFactors && situationalFactors.restAdvantage !== 'neutral';
+
   return (
     <Pressable onPress={onPress} style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1, width: '48%' })}>
       <View style={{
@@ -40,26 +51,66 @@ export default function SmartPickCard({ game, confidenceScore, prediction, onPre
         borderWidth: 1.5,
         borderColor: '#334e8d66',
       }}>
-        {/* Confidence Badge */}
-        <View style={{
-          alignSelf: 'flex-start',
-          backgroundColor: `${badgeColor}22`,
-          paddingHorizontal: 8,
-          paddingVertical: 3,
-          borderRadius: 10,
-          marginBottom: 10,
-          borderWidth: 1,
-          borderColor: `${badgeColor}66`,
-        }}>
-          <Text style={{
-            color: badgeColor,
-            fontSize: 9,
-            fontWeight: '800',
-            letterSpacing: 0.5,
-            textTransform: 'uppercase',
+        {/* Badges Row */}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginBottom: 10 }}>
+          {/* Confidence Badge */}
+          <View style={{
+            backgroundColor: `${badgeColor}22`,
+            paddingHorizontal: 8,
+            paddingVertical: 3,
+            borderRadius: 10,
+            borderWidth: 1,
+            borderColor: `${badgeColor}66`,
           }}>
-            {confidenceBadge}
-          </Text>
+            <Text style={{
+              color: badgeColor,
+              fontSize: 9,
+              fontWeight: '800',
+              letterSpacing: 0.5,
+              textTransform: 'uppercase',
+            }}>
+              {confidenceBadge}
+            </Text>
+          </View>
+
+          {/* Situational Factor Badges (compact) */}
+          {hasBackToBack && (
+            <View style={{
+              backgroundColor: '#ef444422',
+              paddingHorizontal: 6,
+              paddingVertical: 3,
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor: '#ef444466',
+            }}>
+              <Text style={{
+                color: '#ef4444',
+                fontSize: 8,
+                fontWeight: '800',
+              }}>
+                🔴 B2B
+              </Text>
+            </View>
+          )}
+
+          {hasRestAdvantage && (
+            <View style={{
+              backgroundColor: '#3b82f622',
+              paddingHorizontal: 6,
+              paddingVertical: 3,
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor: '#3b82f666',
+            }}>
+              <Text style={{
+                color: '#3b82f6',
+                fontSize: 8,
+                fontWeight: '800',
+              }}>
+                💤 REST
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Matchup */}
