@@ -23,6 +23,7 @@ import {
 } from '../../services/pickTracking';
 import { getStreakData, StreakData } from '../../services/streakTracking';
 import { addNotificationResponseListener } from '../../services/notifications';
+import { getPredictedWinner } from '../../utils/predictionHelpers';
 
 export default function MyPicksScreen() {
   const styles = makeStyles();
@@ -148,6 +149,7 @@ export default function MyPicksScreen() {
     return Math.max(0, Math.min(100, Math.round(50 + diff * 30 + 5)));
   };
 
+
   const getProbability = (homeAbbrev: string, awayAbbrev: string) => {
     if (!standings?.standings) {
       return { homeWinProb: 50, awayWinProb: 50, confidence: 'medium' };
@@ -262,7 +264,11 @@ export default function MyPicksScreen() {
                         {isLive && <Text style={s.liveTag}>P{currentPeriod}</Text>}
                         {gameStarted && !isLive && <Text style={s.finalTag}>FINAL</Text>}
                         {!gameStarted && isLock && <Text style={s.lockTag}>LOCK</Text>}
-                        {!gameStarted && smartPick && !isLock && <Text style={s.smartTag}>AI: {smartPick.predictedWinner}</Text>}
+                        {!gameStarted && smartPick && !isLock && standings && (
+                          <Text style={s.smartTag}>
+                            AI: {getPredictedWinner(game.homeTeam?.abbrev || '', game.awayTeam?.abbrev || '', standings)}
+                          </Text>
+                        )}
                       </View>
 
                       {/* Matchup */}
