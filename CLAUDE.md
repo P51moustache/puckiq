@@ -28,6 +28,80 @@ eas build --platform ios   # Build for iOS (requires EAS)
 eas build --platform android # Build for Android
 ```
 
+## Custom Claude Code Commands
+
+PuckIQ has custom slash commands that follow a consistent TDD methodology. All commands use the pattern: **Explore → Plan → Test → Implement → Verify → Commit**.
+
+### Available Commands
+
+**Development Workflow:**
+- `/add-feature [feature description]` - Add new features using systematic TDD workflow
+  - Explores codebase → Creates plan → Writes tests → Implements → Verifies → Commits
+
+**Code Quality & Maintenance:**
+- `/fix-bug [bug description]` - Fix bugs with test-first approach
+  - Reproduces with test → Fixes → Verifies → Commits incrementally
+
+- `/improve-feature [feature/component name]` - Improve existing features AND suggest new capabilities
+  - Analyzes → Suggests improvements & new features → Prioritizes → Tests → Implements one at a time → Verifies
+  - Delegates substantial new features to `/add-feature` command
+
+- `/refactor [code/file to refactor]` - Safely refactor using tests as safety net
+  - Tests current behavior → Refactors → Ensures tests still pass
+
+**Testing:**
+- `/setup-tests` - Set up comprehensive testing infrastructure
+  - Installs dependencies → Configures Jest → Creates test utilities → Writes initial tests
+
+- `/test-service [service filename]` - Test a service file using TDD
+  - Reads service → Writes comprehensive tests → Runs tests → Reports coverage
+
+**Documentation & Understanding:**
+- `/explain-feature [feature/component name]` - Get detailed explanation of how something works
+  - Analyzes structure → Maps data flow → Identifies issues → Suggests improvements
+  - Creates visual diagrams and plain-language explanations
+
+### Command Best Practices
+
+**When to Use Which Command:**
+- 🆕 Adding new functionality → `/add-feature`
+- 🐛 Something is broken → `/fix-bug`
+- 🔧 Code works but needs improvement OR want suggestions for new features → `/improve-feature`
+- ♻️ Restructuring without changing behavior → `/refactor`
+- 🧪 Need to test existing code → `/test-service`
+- 📚 Don't understand how something works → `/explain-feature`
+- 🏗️ Setting up testing for first time → `/setup-tests`
+
+**All Commands Follow TDD:**
+- Tests are written BEFORE implementation changes
+- Each change is verified with tests
+- Commits are incremental and descriptive
+- No changes to critical paths without tests
+
+### Example Usage
+
+```bash
+# Explain how a complex component works
+/explain-feature MyPicks Screen
+
+# Fix a bug with TDD approach
+/fix-bug Predictions showing wrong teams in modal
+
+# Add a new feature systematically
+/add-feature User profile settings page
+
+# Improve existing feature with tests and get new feature suggestions
+/improve-feature Power Rankings Card
+# → Claude will suggest improvements AND new features to add
+# → If you approve a new feature, Claude runs /add-feature for it
+
+# Safely refactor with test coverage
+/refactor services/pickTracking.ts
+
+# Test an existing service
+/test-service analytics/AnalyticsService
+```
+
 ## Core Architecture
 
 ### Key Files to Always Check First
@@ -289,6 +363,6 @@ analytics.trackFeatureUsed('feature_name', { param: 'value' });
 
 ---
 
-**Last Updated**: 2025-11-16
+**Last Updated**: 2025-11-16 (Added custom command documentation)
 **Version**: 2.1.0
 **Maintained by**: Development Team
