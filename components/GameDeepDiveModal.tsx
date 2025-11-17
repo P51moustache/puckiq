@@ -117,7 +117,7 @@ export default function GameDeepDiveModal({
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: '' },
-    { id: 'stats', label: 'Stats', icon: '' },
+    // { id: 'stats', label: 'Stats', icon: '' }, // Disabled temporarily
     { id: 'recent', label: 'Recent Form', icon: '' },
     { id: 'h2h', label: 'Head-to-Head', icon: '' },
     { id: 'schedule', label: 'Schedule', icon: '' },
@@ -689,7 +689,7 @@ export default function GameDeepDiveModal({
                 awayRank={awayComparisonStats.offense.goalsPerGameRank}
                 homeRank={homeComparisonStats.offense.goalsPerGameRank}
                 format="decimal"
-                decimals={1}
+                decimals={2}
                 isFirst={true}
               />
               <StatComparisonRow
@@ -728,18 +728,6 @@ export default function GameDeepDiveModal({
                 format="percentage"
                 decimals={1}
               />
-              <StatComparisonRow
-                awayValue={awayComparisonStats.offense.powerPlayGoals}
-                awayAbbrev={awayAbbrev}
-                statLabel="PP Goals"
-                homeValue={homeComparisonStats.offense.powerPlayGoals}
-                homeAbbrev={homeAbbrev}
-                higherIsBetter={true}
-                awayRank={awayComparisonStats.offense.powerPlayGoalsRank}
-                homeRank={homeComparisonStats.offense.powerPlayGoalsRank}
-                format="number"
-                decimals={0}
-              />
             </>,
             'offense'
           )}
@@ -760,7 +748,7 @@ export default function GameDeepDiveModal({
                 awayRank={awayComparisonStats.defense.goalsAgainstPerGameRank}
                 homeRank={homeComparisonStats.defense.goalsAgainstPerGameRank}
                 format="decimal"
-                decimals={1}
+                decimals={2}
                 isFirst={true}
               />
               <StatComparisonRow
@@ -787,36 +775,97 @@ export default function GameDeepDiveModal({
                 format="percentage"
                 decimals={1}
               />
-              <StatComparisonRow
-                awayValue={awayComparisonStats.defense.blockedShots}
-                awayAbbrev={awayAbbrev}
-                statLabel="Blocked Shots"
-                homeValue={homeComparisonStats.defense.blockedShots}
-                homeAbbrev={homeAbbrev}
-                higherIsBetter={true}
-                awayRank={awayComparisonStats.defense.blockedShotsRank}
-                homeRank={homeComparisonStats.defense.blockedShotsRank}
-                format="number"
-                decimals={0}
-              />
-              <StatComparisonRow
-                awayValue={awayComparisonStats.defense.hits}
-                awayAbbrev={awayAbbrev}
-                statLabel="Hits"
-                homeValue={homeComparisonStats.defense.hits}
-                homeAbbrev={homeAbbrev}
-                higherIsBetter={true}
-                awayRank={awayComparisonStats.defense.hitsRank}
-                homeRank={homeComparisonStats.defense.hitsRank}
-                format="number"
-                decimals={0}
-              />
             </>,
             'defense'
           )}
         </View>
 
         {/* SPECIAL TEAMS */}
+        <View style={{ marginBottom: 12 }}>
+          {renderCategoryHeader('specialTeams', 'Special Teams', '⚡')}
+          {renderCategoryContent(
+            <>
+              <StatComparisonRow
+                awayValue={awayComparisonStats.specialTeams.powerPlayPct}
+                awayAbbrev={awayAbbrev}
+                statLabel="Power Play %"
+                homeValue={homeComparisonStats.specialTeams.powerPlayPct}
+                homeAbbrev={homeAbbrev}
+                higherIsBetter={true}
+                awayRank={awayComparisonStats.specialTeams.powerPlayPctRank}
+                homeRank={homeComparisonStats.specialTeams.powerPlayPctRank}
+                format="percentage"
+                decimals={1}
+                isFirst={true}
+              />
+              <StatComparisonRow
+                awayValue={awayComparisonStats.specialTeams.penaltyKillPct}
+                awayAbbrev={awayAbbrev}
+                statLabel="Penalty Kill %"
+                homeValue={homeComparisonStats.specialTeams.penaltyKillPct}
+                homeAbbrev={homeAbbrev}
+                higherIsBetter={true}
+                awayRank={awayComparisonStats.specialTeams.penaltyKillPctRank}
+                homeRank={homeComparisonStats.specialTeams.penaltyKillPctRank}
+                format="percentage"
+                decimals={1}
+              />
+              <StatComparisonRow
+                awayValue={awayComparisonStats.specialTeams.powerPlayGoalsFor}
+                awayAbbrev={awayAbbrev}
+                statLabel="PP Goals"
+                homeValue={homeComparisonStats.specialTeams.powerPlayGoalsFor}
+                homeAbbrev={homeAbbrev}
+                higherIsBetter={true}
+                awayRank={awayComparisonStats.specialTeams.powerPlayGoalsForRank}
+                homeRank={homeComparisonStats.specialTeams.powerPlayGoalsForRank}
+                format="number"
+                decimals={0}
+              />
+            </>,
+            'specialTeams'
+          )}
+        </View>
+
+        {/* GOALTENDING */}
+        <View style={{ marginBottom: 12 }}>
+          {renderCategoryHeader('goaltending', 'Goaltending', '🥅')}
+          {renderCategoryContent(
+            <>
+              <StatComparisonRow
+                awayValue={awayComparisonStats.goaltending.savePct * 100}
+                awayAbbrev={awayAbbrev}
+                statLabel="Save %"
+                homeValue={homeComparisonStats.goaltending.savePct * 100}
+                homeAbbrev={homeAbbrev}
+                higherIsBetter={true}
+                awayRank={awayComparisonStats.goaltending.savePctRank}
+                homeRank={homeComparisonStats.goaltending.savePctRank}
+                format="percentage"
+                decimals={1}
+                isFirst={true}
+              />
+              <StatComparisonRow
+                awayValue={awayComparisonStats.goaltending.goalsAgainstAverage}
+                awayAbbrev={awayAbbrev}
+                statLabel="GAA"
+                homeValue={homeComparisonStats.goaltending.goalsAgainstAverage}
+                homeAbbrev={homeAbbrev}
+                higherIsBetter={false}
+                awayRank={awayComparisonStats.goaltending.goalsAgainstAverageRank}
+                homeRank={homeComparisonStats.goaltending.goalsAgainstAverageRank}
+                format="decimal"
+                decimals={2}
+              />
+            </>,
+            'goaltending'
+          )}
+        </View>
+
+        {/* Note: Advanced and Discipline categories are hidden because the NHL API doesn't provide this data */}
+
+        {/* ADVANCED ANALYTICS - Hidden: No real data available */}
+        {false && (
         <View style={{ marginBottom: 12 }}>
           {renderCategoryHeader('specialTeams', 'Special Teams', '⚡')}
           {renderCategoryContent(
@@ -874,8 +923,10 @@ export default function GameDeepDiveModal({
             'specialTeams'
           )}
         </View>
+        )}
 
-        {/* ADVANCED ANALYTICS */}
+        {/* ADVANCED ANALYTICS - Hidden: No real data available */}
+        {false && (
         <View style={{ marginBottom: 12 }}>
           {renderCategoryHeader('advanced', 'Advanced Analytics', '🧠')}
           {renderCategoryContent(
@@ -945,8 +996,10 @@ export default function GameDeepDiveModal({
             'advanced'
           )}
         </View>
+        )}
 
-        {/* GOALTENDING */}
+        {/* GOALTENDING - Hidden: No real data available */}
+        {false && (
         <View style={{ marginBottom: 12 }}>
           {renderCategoryHeader('goaltending', 'Goaltending', '🥅')}
           {renderCategoryContent(
@@ -1004,8 +1057,10 @@ export default function GameDeepDiveModal({
             'goaltending'
           )}
         </View>
+        )}
 
-        {/* DISCIPLINE */}
+        {/* DISCIPLINE - Hidden: No real data available */}
+        {false && (
         <View style={{ marginBottom: 12 }}>
           {renderCategoryHeader('discipline', 'Discipline', '⚖️')}
           {renderCategoryContent(
@@ -1063,6 +1118,7 @@ export default function GameDeepDiveModal({
             'discipline'
           )}
         </View>
+        )}
       </View>
     );
   };
