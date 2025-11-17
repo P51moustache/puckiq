@@ -1,6 +1,7 @@
 /**
  * Consolidated prediction utilities with TypeScript types
  * Replaces duplicate logic from predictionHelpers.ts and index.tsx
+ * Enhanced with recent form and situational factors
  */
 
 import type {
@@ -10,17 +11,25 @@ import type {
   ConfidenceWeights,
   PredictionResult,
   EnrichedGame,
+  RecentFormStats,
+  SituationalFactors,
 } from '../types/predictions';
+import { getMatchupRecentForm } from './recentForm';
+import { calculateSituationalFactors } from './situationalFactors';
 
 /**
  * Confidence scoring weights - extracted as constants for easy tuning
  * These values can be adjusted based on historical accuracy data
+ * Updated to include recent form and situational factors
  */
 export const CONFIDENCE_WEIGHTS: ConfidenceWeights = {
-  standingsDifferential: 30,    // Impact of point% difference
+  standingsDifferential: 20,    // Impact of point% difference (reduced - season stats less important)
   homeIceAdvantage: 5,          // Fixed bonus for home team
   streakImpact: 2,              // Impact of win/loss streaks
-  goalDifferentialImpact: 3,    // Impact of goal differential per game
+  goalDifferentialImpact: 2,    // Impact of goal differential per game (reduced)
+  recentFormImpact: 25,         // Impact of recent form (L5/L10) - highest weight
+  backToBackPenalty: 10,        // Penalty for playing back-to-back games
+  restAdvantage: 5,             // Bonus per extra rest day
 };
 
 /**
@@ -97,18 +106,21 @@ export function getPredictedWinner(
 /**
  * Calculate confidence score (0-100) based on multiple factors
  * Higher score = higher confidence in prediction
+ * Enhanced with optional recent form and situational factors
  */
 export function calculateConfidenceScore(
   game: GameData,
   homeTeam: TeamStandings | null,
   awayTeam: TeamStandings | null,
-  weights: ConfidenceWeights = CONFIDENCE_WEIGHTS
+  weights: ConfidenceWeights = CONFIDENCE_WEIGHTS,
+  recentForm?: { home: RecentFormStats; away: RecentFormStats },
+  situationalFactors?: SituationalFactors
 ): number {
   let score = 50; // Base score
 
   if (!homeTeam || !awayTeam) return score;
 
-  // Factor 1: Standings differential
+  // Factor 1: Standings differential (season-long stats)
   const pointDiff = (homeTeam.pointPctg || 0.5) - (awayTeam.pointPctg || 0.5);
   score += pointDiff * weights.standingsDifferential;
 
@@ -124,6 +136,26 @@ export function calculateConfidenceScore(
   const homeGDPerGame = getGoalDifferentialPerGame(homeTeam);
   const awayGDPerGame = getGoalDifferentialPerGame(awayTeam);
   score += (homeGDPerGame - awayGDPerGame) * weights.goalDifferentialImpact;
+
+  // Factor 5: Recent form (L5/L10 games) - NEW
+  if (recentForm && recentForm.home.gamesPlayed > 0 && recentForm.away.gamesPlayed > 0) {
+    const recentFormDiff = recentForm.home.pointPctg - recentForm.away.pointPctg;
+    score += recentFormDiff * weights.recentFormImpact;
+  }
+
+  // Factor 6: Situational factors (back-to-back, rest days) - NEW
+  if (situationalFactors) {
+    // Apply back-to-back penalty
+    if (situationalFactors.homeBackToBack && !situationalFactors.awayBackToBack) {
+      score -= weights.backToBackPenalty;
+    } else if (situationalFactors.awayBackToBack && !situationalFactors.homeBackToBack) {
+      score += weights.backToBackPenalty;
+    }
+
+    // Apply rest advantage
+    const restDaysDiff = situationalFactors.homeRestDays - situationalFactors.awayRestDays;
+    score += Math.min(Math.max(restDaysDiff, -3), 3) * weights.restAdvantage; // Cap at ±3 days
+  }
 
   // Normalize to 0-100
   return Math.max(0, Math.min(100, Math.round(score)));
@@ -231,6 +263,7 @@ export function getLockOfTheDay(
 
 /**
  * Get top smart picks (excluding lock of the day)
+ * Legacy synchronous version (without recent form)
  */
 export function getSmartPicks(
   games: GameData[],
@@ -265,6 +298,155 @@ export function getSmartPicks(
         homeTeam: { ...homeTeam, abbrev: homeAbbrev },
         awayTeam: { ...awayTeam, abbrev: awayAbbrev },
       });
+    }
+  }
+
+  // Sort by confidence score and take top N
+  return scoredGames
+    .sort((a, b) => b.confidenceScore - a.confidenceScore)
+    .slice(0, count);
+}
+
+/**
+ * Get Lock of the Day with enhanced factors - ASYNC VERSION
+ * Fetches recent form and situational data for better predictions
+ */
+export async function getLockOfTheDayEnhanced(
+  games: GameData[],
+  standings: StandingsData | null
+): Promise<EnrichedGame | null> {
+  if (!games || games.length === 0 || !standings?.standings) {
+    return null;
+  }
+
+  const standingsMap = createStandingsMap(standings);
+  let bestGame: EnrichedGame | null = null;
+  let highestScore = 0;
+
+  for (const game of games) {
+    const homeAbbrev = game.homeTeam?.abbrev || '';
+    const awayAbbrev = game.awayTeam?.abbrev || '';
+    const gameDate = game.startTimeUTC?.split('T')[0] || '';
+
+    const homeTeam = standingsMap.get(homeAbbrev);
+    const awayTeam = standingsMap.get(awayAbbrev);
+
+    if (homeTeam && awayTeam && gameDate) {
+      try {
+        // Fetch recent form and situational factors
+        const recentFormData = await getMatchupRecentForm(homeAbbrev, awayAbbrev, 10);
+        const situationalData = calculateSituationalFactors(
+          gameDate,
+          recentFormData.homeGames,
+          recentFormData.awayGames
+        );
+
+        // Calculate enhanced confidence score
+        const confidenceScore = calculateConfidenceScore(
+          game,
+          homeTeam,
+          awayTeam,
+          CONFIDENCE_WEIGHTS,
+          recentFormData,
+          situationalData
+        );
+
+        if (confidenceScore > highestScore) {
+          highestScore = confidenceScore;
+          bestGame = {
+            ...game,
+            confidenceScore,
+            homeTeam: { ...homeTeam, abbrev: homeAbbrev },
+            awayTeam: { ...awayTeam, abbrev: awayAbbrev },
+          };
+        }
+      } catch (error) {
+        console.error(`[Enhanced Prediction] Error processing game ${game.id}:`, error);
+        // Fall back to basic calculation without recent form
+        const confidenceScore = calculateConfidenceScore(game, homeTeam, awayTeam);
+        if (confidenceScore > highestScore) {
+          highestScore = confidenceScore;
+          bestGame = {
+            ...game,
+            confidenceScore,
+            homeTeam: { ...homeTeam, abbrev: homeAbbrev },
+            awayTeam: { ...awayTeam, abbrev: awayAbbrev },
+          };
+        }
+      }
+    }
+  }
+
+  return bestGame;
+}
+
+/**
+ * Get top smart picks with enhanced factors - ASYNC VERSION
+ * Fetches recent form and situational data for better predictions
+ */
+export async function getSmartPicksEnhanced(
+  games: GameData[],
+  lockGameId: string | number | null,
+  standings: StandingsData | null,
+  count: number = 4
+): Promise<EnrichedGame[]> {
+  if (!games || games.length === 0 || !standings?.standings) {
+    return [];
+  }
+
+  const standingsMap = createStandingsMap(standings);
+  const scoredGames: EnrichedGame[] = [];
+
+  for (const game of games) {
+    // Skip the lock of the day
+    if (lockGameId && String(game.id) === String(lockGameId)) {
+      continue;
+    }
+
+    const homeAbbrev = game.homeTeam?.abbrev || '';
+    const awayAbbrev = game.awayTeam?.abbrev || '';
+    const gameDate = game.startTimeUTC?.split('T')[0] || '';
+
+    const homeTeam = standingsMap.get(homeAbbrev);
+    const awayTeam = standingsMap.get(awayAbbrev);
+
+    if (homeTeam && awayTeam && gameDate) {
+      try {
+        // Fetch recent form and situational factors
+        const recentFormData = await getMatchupRecentForm(homeAbbrev, awayAbbrev, 10);
+        const situationalData = calculateSituationalFactors(
+          gameDate,
+          recentFormData.homeGames,
+          recentFormData.awayGames
+        );
+
+        // Calculate enhanced confidence score
+        const confidenceScore = calculateConfidenceScore(
+          game,
+          homeTeam,
+          awayTeam,
+          CONFIDENCE_WEIGHTS,
+          recentFormData,
+          situationalData
+        );
+
+        scoredGames.push({
+          ...game,
+          confidenceScore,
+          homeTeam: { ...homeTeam, abbrev: homeAbbrev },
+          awayTeam: { ...awayTeam, abbrev: awayAbbrev },
+        });
+      } catch (error) {
+        console.error(`[Enhanced Prediction] Error processing game ${game.id}:`, error);
+        // Fall back to basic calculation
+        const confidenceScore = calculateConfidenceScore(game, homeTeam, awayTeam);
+        scoredGames.push({
+          ...game,
+          confidenceScore,
+          homeTeam: { ...homeTeam, abbrev: homeAbbrev },
+          awayTeam: { ...awayTeam, abbrev: awayAbbrev },
+        });
+      }
     }
   }
 

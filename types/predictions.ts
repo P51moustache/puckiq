@@ -38,6 +38,9 @@ export interface ConfidenceWeights {
   homeIceAdvantage: number;       // Fixed bonus for home team
   streakImpact: number;           // Multiplier for streak difference
   goalDifferentialImpact: number; // Multiplier for GD per game difference
+  recentFormImpact: number;       // Multiplier for recent form difference (L5/L10)
+  backToBackPenalty: number;      // Penalty for playing back-to-back games
+  restAdvantage: number;          // Bonus per extra rest day
 }
 
 export interface PredictionResult {
@@ -51,4 +54,64 @@ export interface EnrichedGame extends GameData {
   confidenceScore: number;
   homeTeam: TeamStandings & { abbrev: string };
   awayTeam: TeamStandings & { abbrev: string };
+}
+
+// Recent form tracking
+export interface RecentGame {
+  id: number;
+  gameDate: string;
+  isHomeGame: boolean;
+  opponent: string;
+  goalsFor: number;
+  goalsAgainst: number;
+  won: boolean;
+}
+
+export interface RecentFormStats {
+  wins: number;
+  losses: number;
+  pointPctg: number;
+  goalDifferential: number;
+  gamesPlayed: number;
+}
+
+// Situational factors
+export interface SituationalFactors {
+  homeBackToBack: boolean;
+  awayBackToBack: boolean;
+  homeRestDays: number;
+  awayRestDays: number;
+  restAdvantage: 'home' | 'away' | 'neutral';
+}
+
+// Accuracy tracking
+export interface DailyAccuracy {
+  date: string;
+  lockCorrect: boolean | null;
+  smartPicksCorrect: number;
+  smartPicksTotal: number;
+  overallAccuracy: number;
+}
+
+export interface AccuracyTrend {
+  currentAccuracy: number;
+  last7DaysAvg: number;
+  last30DaysAvg: number;
+  trend: 'improving' | 'declining' | 'stable';
+  history: DailyAccuracy[];
+}
+
+// Weight calibration
+export interface AccuracyByRange {
+  range: string;
+  predictions: number;
+  correct: number;
+  accuracy: number;
+}
+
+export interface WeightAnalysis {
+  currentWeights: ConfidenceWeights;
+  accuracyByRange: AccuracyByRange[];
+  suggestedWeights: ConfidenceWeights;
+  improvements: string[];
 }
