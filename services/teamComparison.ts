@@ -303,7 +303,7 @@ export function determineWinner(
 
   // Consider values within 0.5% as a tie
   const threshold = Math.max(homeValue, awayValue) * 0.005;
-  if (diff < threshold) return 'tie';
+  if (diff <= threshold) return 'tie'; // Changed from < to <= to handle 0 vs 0 correctly
 
   if (higherIsBetter) {
     return homeValue > awayValue ? 'home' : 'away';
@@ -343,16 +343,17 @@ export function calculateCategoryWinners(
   categories.offense = offenseHome > offenseAway ? 'home' : offenseAway > offenseHome ? 'away' : 'tie';
 
   // Defense: count wins for key stats (lower is better for GA)
+  // Only include stats with real data (exclude blockedShots, takeaways, hits - always 0)
   let defenseHome = 0;
   let defenseAway = 0;
   if (determineWinner(homeStats.defense.goalsAgainstPerGame, awayStats.defense.goalsAgainstPerGame, false) === 'home') defenseHome++;
   else if (determineWinner(homeStats.defense.goalsAgainstPerGame, awayStats.defense.goalsAgainstPerGame, false) === 'away') defenseAway++;
 
+  if (determineWinner(homeStats.defense.shotsAgainstPerGame, awayStats.defense.shotsAgainstPerGame, false) === 'home') defenseHome++;
+  else if (determineWinner(homeStats.defense.shotsAgainstPerGame, awayStats.defense.shotsAgainstPerGame, false) === 'away') defenseAway++;
+
   if (determineWinner(homeStats.defense.penaltyKillPct, awayStats.defense.penaltyKillPct, true) === 'home') defenseHome++;
   else if (determineWinner(homeStats.defense.penaltyKillPct, awayStats.defense.penaltyKillPct, true) === 'away') defenseAway++;
-
-  if (determineWinner(homeStats.defense.blockedShots, awayStats.defense.blockedShots, true) === 'home') defenseHome++;
-  else if (determineWinner(homeStats.defense.blockedShots, awayStats.defense.blockedShots, true) === 'away') defenseAway++;
 
   categories.defense = defenseHome > defenseAway ? 'home' : defenseAway > defenseHome ? 'away' : 'tie';
 
