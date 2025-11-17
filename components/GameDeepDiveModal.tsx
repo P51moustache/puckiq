@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { makeStyles } from '../constants/theme';
+import { getTeamComparisonData, calculateCategoryWinners } from '../services/teamComparison';
+import { TeamComparisonStats, CategoryWinner, StatCategory } from '../types/teamStats';
+import StatComparisonRow from './StatComparisonRow';
 
 interface GameDeepDiveModalProps {
   visible: boolean;
@@ -18,14 +21,51 @@ export default function GameDeepDiveModal({
   prediction,
 }: GameDeepDiveModalProps) {
   const styles = makeStyles();
-  const [activeTab, setActiveTab] = useState<'overview' | 'recent' | 'h2h' | 'schedule'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'stats' | 'recent' | 'h2h' | 'schedule'>('overview');
   const [h2hGames, setH2hGames] = useState<any[]>([]);
   const [loadingH2H, setLoadingH2H] = useState(false);
+  const [homeComparisonStats, setHomeComparisonStats] = useState<TeamComparisonStats | null>(null);
+  const [awayComparisonStats, setAwayComparisonStats] = useState<TeamComparisonStats | null>(null);
+  const [loadingStats, setLoadingStats] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState<Record<StatCategory, boolean>>({
+    offense: true,
+    defense: false,
+    specialTeams: false,
+    advanced: false,
+    goaltending: false,
+    discipline: false,
+  });
 
   const homeAbbrev = game?.homeTeam?.abbrev || game?.homeTeam?.teamAbbrev?.default || 'HOME';
   const awayAbbrev = game?.awayTeam?.abbrev || game?.awayTeam?.teamAbbrev?.default || 'AWAY';
   const favored = prediction?.homeWinProb > prediction?.awayWinProb ? homeAbbrev : awayAbbrev;
   const favoredProb = Math.max(prediction?.homeWinProb || 50, prediction?.awayWinProb || 50);
+
+  // Fetch team comparison stats when Stats tab is active
+  useEffect(() => {
+    if (!visible || activeTab !== 'stats' || !homeAbbrev || !awayAbbrev) return;
+
+    async function fetchComparisonStats() {
+      setLoadingStats(true);
+      try {
+        const [homeStats, awayStats] = await Promise.all([
+          getTeamComparisonData(homeAbbrev),
+          getTeamComparisonData(awayAbbrev),
+        ]);
+
+        setHomeComparisonStats(homeStats);
+        setAwayComparisonStats(awayStats);
+      } catch (error) {
+        console.error('[STATS COMPARISON] Error fetching team stats:', error);
+        setHomeComparisonStats(null);
+        setAwayComparisonStats(null);
+      } finally {
+        setLoadingStats(false);
+      }
+    }
+
+    fetchComparisonStats();
+  }, [visible, activeTab, homeAbbrev, awayAbbrev]);
 
   // Fetch head-to-head data when H2H tab is active
   useEffect(() => {
@@ -77,6 +117,7 @@ export default function GameDeepDiveModal({
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: '' },
+    { id: 'stats', label: 'Stats', icon: '' },
     { id: 'recent', label: 'Recent Form', icon: '' },
     { id: 'h2h', label: 'Head-to-Head', icon: '' },
     { id: 'schedule', label: 'Schedule', icon: '' },
@@ -473,6 +514,559 @@ export default function GameDeepDiveModal({
     );
   };
 
+  const renderStatsTab = () => {
+    if (loadingStats) {
+      return (
+        <View style={{ alignItems: 'center', padding: 40 }}>
+          <ActivityIndicator size="large" color="#60a5fa" />
+          <Text style={{ color: '#98a6bf', marginTop: 12 }}>Loading team statistics...</Text>
+        </View>
+      );
+    }
+
+    if (!homeComparisonStats || !awayComparisonStats) {
+      return (
+        <View>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: '#e6eef8', marginBottom: 12 }}>
+            Team Statistics
+          </Text>
+          <View style={{
+            backgroundColor: '#071a3699',
+            borderRadius: 12,
+            padding: 16,
+          }}>
+            <Text style={{ fontSize: 12, color: '#98a6bf', textAlign: 'center', lineHeight: 18 }}>
+              Unable to load detailed statistics. Please try again later.
+            </Text>
+          </View>
+        </View>
+      );
+    }
+
+    const categoryWinners = calculateCategoryWinners(homeComparisonStats, awayComparisonStats);
+
+    // Calculate overall advantage
+    const winCounts = {
+      home: Object.values(categoryWinners).filter(w => w === 'home').length,
+      away: Object.values(categoryWinners).filter(w => w === 'away').length,
+    };
+
+    const toggleCategory = (category: StatCategory) => {
+      setExpandedCategories(prev => ({
+        ...prev,
+        [category]: !prev[category],
+      }));
+    };
+
+    const renderCategoryHeader = (
+      category: StatCategory,
+      title: string,
+      icon: string
+    ) => {
+      const winner = categoryWinners[category];
+      const isExpanded = expandedCategories[category];
+      const winnerBadgeColor = winner === 'home' ? '#f59e0b' : winner === 'away' ? '#60a5fa' : '#98a6bf';
+      const winnerText = winner === 'home' ? homeAbbrev : winner === 'away' ? awayAbbrev : 'Even';
+
+      return (
+        <Pressable
+          onPress={() => toggleCategory(category)}
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            backgroundColor: '#192e5e44',
+            borderRadius: 10,
+            padding: 14,
+            marginBottom: isExpanded ? 12 : 0,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+            <Text style={{ fontSize: 16, marginRight: 8 }}>{icon}</Text>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: '#e6eef8' }}>
+              {title}
+            </Text>
+          </View>
+
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            {winner !== 'tie' && (
+              <View style={{
+                backgroundColor: `${winnerBadgeColor}22`,
+                paddingHorizontal: 8,
+                paddingVertical: 3,
+                borderRadius: 8,
+                marginRight: 8,
+                borderWidth: 1,
+                borderColor: winnerBadgeColor,
+              }}>
+                <Text style={{ fontSize: 10, fontWeight: '700', color: winnerBadgeColor }}>
+                  {winnerText} ✓
+                </Text>
+              </View>
+            )}
+            <Text style={{ fontSize: 16, color: '#98a6bf' }}>
+              {isExpanded ? '▼' : '▶'}
+            </Text>
+          </View>
+        </Pressable>
+      );
+    };
+
+    const renderCategoryContent = (content: React.ReactNode, category: StatCategory) => {
+      if (!expandedCategories[category]) return null;
+
+      return (
+        <View style={{
+          backgroundColor: '#071a3699',
+          borderRadius: 12,
+          padding: 16,
+          marginBottom: 16,
+        }}>
+          {/* Header Row */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: '#60a5fa', width: 80 }}>
+              {awayAbbrev}
+            </Text>
+            <Text style={{ fontSize: 11, color: '#98a6bf', fontWeight: '600', flex: 1, textAlign: 'center' }}>
+              STAT
+            </Text>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: '#f59e0b', width: 80, textAlign: 'right' }}>
+              {homeAbbrev}
+            </Text>
+          </View>
+          {content}
+        </View>
+      );
+    };
+
+    return (
+      <View>
+        {/* Overall Summary */}
+        <View style={{ marginBottom: 20 }}>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: '#e6eef8', marginBottom: 12 }}>
+            Statistical Advantage
+          </Text>
+          <View style={{
+            backgroundColor: '#071a3699',
+            borderRadius: 12,
+            padding: 16,
+            flexDirection: 'row',
+            justifyContent: 'space-around',
+            alignItems: 'center',
+          }}>
+            <View style={{ alignItems: 'center' }}>
+              <Text style={{ fontSize: 12, fontWeight: '600', color: '#60a5fa', marginBottom: 4 }}>
+                {awayAbbrev}
+              </Text>
+              <Text style={{ fontSize: 28, fontWeight: '800', color: winCounts.away > winCounts.home ? '#60a5fa' : '#e6eef8' }}>
+                {winCounts.away}
+              </Text>
+            </View>
+            <Text style={{ fontSize: 20, color: '#98a6bf', fontWeight: '700' }}>-</Text>
+            <View style={{ alignItems: 'center' }}>
+              <Text style={{ fontSize: 12, fontWeight: '600', color: '#f59e0b', marginBottom: 4 }}>
+                {homeAbbrev}
+              </Text>
+              <Text style={{ fontSize: 28, fontWeight: '800', color: winCounts.home > winCounts.away ? '#f59e0b' : '#e6eef8' }}>
+                {winCounts.home}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* OFFENSE */}
+        <View style={{ marginBottom: 12 }}>
+          {renderCategoryHeader('offense', 'Offense', '⚔️')}
+          {renderCategoryContent(
+            <>
+              <StatComparisonRow
+                awayValue={awayComparisonStats.offense.goalsPerGame}
+                awayAbbrev={awayAbbrev}
+                statLabel="Goals/Game"
+                homeValue={homeComparisonStats.offense.goalsPerGame}
+                homeAbbrev={homeAbbrev}
+                higherIsBetter={true}
+                awayRank={awayComparisonStats.offense.goalsPerGameRank}
+                homeRank={homeComparisonStats.offense.goalsPerGameRank}
+                format="decimal"
+                decimals={1}
+                isFirst={true}
+              />
+              <StatComparisonRow
+                awayValue={awayComparisonStats.offense.shotsPerGame}
+                awayAbbrev={awayAbbrev}
+                statLabel="Shots/Game"
+                homeValue={homeComparisonStats.offense.shotsPerGame}
+                homeAbbrev={homeAbbrev}
+                higherIsBetter={true}
+                awayRank={awayComparisonStats.offense.shotsPerGameRank}
+                homeRank={homeComparisonStats.offense.shotsPerGameRank}
+                format="decimal"
+                decimals={1}
+              />
+              <StatComparisonRow
+                awayValue={awayComparisonStats.offense.shootingPct}
+                awayAbbrev={awayAbbrev}
+                statLabel="Shooting %"
+                homeValue={homeComparisonStats.offense.shootingPct}
+                homeAbbrev={homeAbbrev}
+                higherIsBetter={true}
+                awayRank={awayComparisonStats.offense.shootingPctRank}
+                homeRank={homeComparisonStats.offense.shootingPctRank}
+                format="percentage"
+                decimals={1}
+              />
+              <StatComparisonRow
+                awayValue={awayComparisonStats.offense.powerPlayPct}
+                awayAbbrev={awayAbbrev}
+                statLabel="Power Play %"
+                homeValue={homeComparisonStats.offense.powerPlayPct}
+                homeAbbrev={homeAbbrev}
+                higherIsBetter={true}
+                awayRank={awayComparisonStats.offense.powerPlayPctRank}
+                homeRank={homeComparisonStats.offense.powerPlayPctRank}
+                format="percentage"
+                decimals={1}
+              />
+              <StatComparisonRow
+                awayValue={awayComparisonStats.offense.powerPlayGoals}
+                awayAbbrev={awayAbbrev}
+                statLabel="PP Goals"
+                homeValue={homeComparisonStats.offense.powerPlayGoals}
+                homeAbbrev={homeAbbrev}
+                higherIsBetter={true}
+                awayRank={awayComparisonStats.offense.powerPlayGoalsRank}
+                homeRank={homeComparisonStats.offense.powerPlayGoalsRank}
+                format="number"
+                decimals={0}
+              />
+            </>,
+            'offense'
+          )}
+        </View>
+
+        {/* DEFENSE */}
+        <View style={{ marginBottom: 12 }}>
+          {renderCategoryHeader('defense', 'Defense', '🛡️')}
+          {renderCategoryContent(
+            <>
+              <StatComparisonRow
+                awayValue={awayComparisonStats.defense.goalsAgainstPerGame}
+                awayAbbrev={awayAbbrev}
+                statLabel="Goals Against/Game"
+                homeValue={homeComparisonStats.defense.goalsAgainstPerGame}
+                homeAbbrev={homeAbbrev}
+                higherIsBetter={false}
+                awayRank={awayComparisonStats.defense.goalsAgainstPerGameRank}
+                homeRank={homeComparisonStats.defense.goalsAgainstPerGameRank}
+                format="decimal"
+                decimals={1}
+                isFirst={true}
+              />
+              <StatComparisonRow
+                awayValue={awayComparisonStats.defense.shotsAgainstPerGame}
+                awayAbbrev={awayAbbrev}
+                statLabel="Shots Against/Game"
+                homeValue={homeComparisonStats.defense.shotsAgainstPerGame}
+                homeAbbrev={homeAbbrev}
+                higherIsBetter={false}
+                awayRank={awayComparisonStats.defense.shotsAgainstPerGameRank}
+                homeRank={homeComparisonStats.defense.shotsAgainstPerGameRank}
+                format="decimal"
+                decimals={1}
+              />
+              <StatComparisonRow
+                awayValue={awayComparisonStats.defense.penaltyKillPct}
+                awayAbbrev={awayAbbrev}
+                statLabel="Penalty Kill %"
+                homeValue={homeComparisonStats.defense.penaltyKillPct}
+                homeAbbrev={homeAbbrev}
+                higherIsBetter={true}
+                awayRank={awayComparisonStats.defense.penaltyKillPctRank}
+                homeRank={homeComparisonStats.defense.penaltyKillPctRank}
+                format="percentage"
+                decimals={1}
+              />
+              <StatComparisonRow
+                awayValue={awayComparisonStats.defense.blockedShots}
+                awayAbbrev={awayAbbrev}
+                statLabel="Blocked Shots"
+                homeValue={homeComparisonStats.defense.blockedShots}
+                homeAbbrev={homeAbbrev}
+                higherIsBetter={true}
+                awayRank={awayComparisonStats.defense.blockedShotsRank}
+                homeRank={homeComparisonStats.defense.blockedShotsRank}
+                format="number"
+                decimals={0}
+              />
+              <StatComparisonRow
+                awayValue={awayComparisonStats.defense.hits}
+                awayAbbrev={awayAbbrev}
+                statLabel="Hits"
+                homeValue={homeComparisonStats.defense.hits}
+                homeAbbrev={homeAbbrev}
+                higherIsBetter={true}
+                awayRank={awayComparisonStats.defense.hitsRank}
+                homeRank={homeComparisonStats.defense.hitsRank}
+                format="number"
+                decimals={0}
+              />
+            </>,
+            'defense'
+          )}
+        </View>
+
+        {/* SPECIAL TEAMS */}
+        <View style={{ marginBottom: 12 }}>
+          {renderCategoryHeader('specialTeams', 'Special Teams', '⚡')}
+          {renderCategoryContent(
+            <>
+              <StatComparisonRow
+                awayValue={awayComparisonStats.specialTeams.powerPlayPct}
+                awayAbbrev={awayAbbrev}
+                statLabel="Power Play %"
+                homeValue={homeComparisonStats.specialTeams.powerPlayPct}
+                homeAbbrev={homeAbbrev}
+                higherIsBetter={true}
+                awayRank={awayComparisonStats.specialTeams.powerPlayPctRank}
+                homeRank={homeComparisonStats.specialTeams.powerPlayPctRank}
+                format="percentage"
+                decimals={1}
+                isFirst={true}
+              />
+              <StatComparisonRow
+                awayValue={awayComparisonStats.specialTeams.penaltyKillPct}
+                awayAbbrev={awayAbbrev}
+                statLabel="Penalty Kill %"
+                homeValue={homeComparisonStats.specialTeams.penaltyKillPct}
+                homeAbbrev={homeAbbrev}
+                higherIsBetter={true}
+                awayRank={awayComparisonStats.specialTeams.penaltyKillPctRank}
+                homeRank={homeComparisonStats.specialTeams.penaltyKillPctRank}
+                format="percentage"
+                decimals={1}
+              />
+              <StatComparisonRow
+                awayValue={awayComparisonStats.specialTeams.powerPlayGoalsFor}
+                awayAbbrev={awayAbbrev}
+                statLabel="PP Goals For"
+                homeValue={homeComparisonStats.specialTeams.powerPlayGoalsFor}
+                homeAbbrev={homeAbbrev}
+                higherIsBetter={true}
+                awayRank={awayComparisonStats.specialTeams.powerPlayGoalsForRank}
+                homeRank={homeComparisonStats.specialTeams.powerPlayGoalsForRank}
+                format="number"
+                decimals={0}
+              />
+              <StatComparisonRow
+                awayValue={awayComparisonStats.specialTeams.shorthandedGoals}
+                awayAbbrev={awayAbbrev}
+                statLabel="Shorthanded Goals"
+                homeValue={homeComparisonStats.specialTeams.shorthandedGoals}
+                homeAbbrev={homeAbbrev}
+                higherIsBetter={true}
+                awayRank={awayComparisonStats.specialTeams.shorthandedGoalsRank}
+                homeRank={homeComparisonStats.specialTeams.shorthandedGoalsRank}
+                format="number"
+                decimals={0}
+              />
+            </>,
+            'specialTeams'
+          )}
+        </View>
+
+        {/* ADVANCED ANALYTICS */}
+        <View style={{ marginBottom: 12 }}>
+          {renderCategoryHeader('advanced', 'Advanced Analytics', '🧠')}
+          {renderCategoryContent(
+            <>
+              <StatComparisonRow
+                awayValue={awayComparisonStats.advanced.corsiForPct}
+                awayAbbrev={awayAbbrev}
+                statLabel="Corsi For %"
+                homeValue={homeComparisonStats.advanced.corsiForPct}
+                homeAbbrev={homeAbbrev}
+                higherIsBetter={true}
+                awayRank={awayComparisonStats.advanced.corsiForPctRank}
+                homeRank={homeComparisonStats.advanced.corsiForPctRank}
+                format="percentage"
+                decimals={1}
+                isFirst={true}
+              />
+              <StatComparisonRow
+                awayValue={awayComparisonStats.advanced.fenwickForPct}
+                awayAbbrev={awayAbbrev}
+                statLabel="Fenwick For %"
+                homeValue={homeComparisonStats.advanced.fenwickForPct}
+                homeAbbrev={homeAbbrev}
+                higherIsBetter={true}
+                awayRank={awayComparisonStats.advanced.fenwickForPctRank}
+                homeRank={homeComparisonStats.advanced.fenwickForPctRank}
+                format="percentage"
+                decimals={1}
+              />
+              <StatComparisonRow
+                awayValue={awayComparisonStats.advanced.pdo}
+                awayAbbrev={awayAbbrev}
+                statLabel="PDO"
+                homeValue={homeComparisonStats.advanced.pdo}
+                homeAbbrev={homeAbbrev}
+                higherIsBetter={true}
+                awayRank={awayComparisonStats.advanced.pdoRank}
+                homeRank={homeComparisonStats.advanced.pdoRank}
+                format="decimal"
+                decimals={1}
+              />
+              <StatComparisonRow
+                awayValue={awayComparisonStats.advanced.expectedGoalsFor}
+                awayAbbrev={awayAbbrev}
+                statLabel="Expected Goals For"
+                homeValue={homeComparisonStats.advanced.expectedGoalsFor}
+                homeAbbrev={homeAbbrev}
+                higherIsBetter={true}
+                awayRank={awayComparisonStats.advanced.expectedGoalsForRank}
+                homeRank={homeComparisonStats.advanced.expectedGoalsForRank}
+                format="decimal"
+                decimals={1}
+              />
+              <StatComparisonRow
+                awayValue={awayComparisonStats.advanced.expectedGoalsAgainst}
+                awayAbbrev={awayAbbrev}
+                statLabel="Expected Goals Against"
+                homeValue={homeComparisonStats.advanced.expectedGoalsAgainst}
+                homeAbbrev={homeAbbrev}
+                higherIsBetter={false}
+                awayRank={awayComparisonStats.advanced.expectedGoalsAgainstRank}
+                homeRank={homeComparisonStats.advanced.expectedGoalsAgainstRank}
+                format="decimal"
+                decimals={1}
+              />
+            </>,
+            'advanced'
+          )}
+        </View>
+
+        {/* GOALTENDING */}
+        <View style={{ marginBottom: 12 }}>
+          {renderCategoryHeader('goaltending', 'Goaltending', '🥅')}
+          {renderCategoryContent(
+            <>
+              <StatComparisonRow
+                awayValue={awayComparisonStats.goaltending.savePct * 100}
+                awayAbbrev={awayAbbrev}
+                statLabel="Save %"
+                homeValue={homeComparisonStats.goaltending.savePct * 100}
+                homeAbbrev={homeAbbrev}
+                higherIsBetter={true}
+                awayRank={awayComparisonStats.goaltending.savePctRank}
+                homeRank={homeComparisonStats.goaltending.savePctRank}
+                format="percentage"
+                decimals={1}
+                isFirst={true}
+              />
+              <StatComparisonRow
+                awayValue={awayComparisonStats.goaltending.goalsAgainstAverage}
+                awayAbbrev={awayAbbrev}
+                statLabel="Goals Against Avg"
+                homeValue={homeComparisonStats.goaltending.goalsAgainstAverage}
+                homeAbbrev={homeAbbrev}
+                higherIsBetter={false}
+                awayRank={awayComparisonStats.goaltending.goalsAgainstAverageRank}
+                homeRank={homeComparisonStats.goaltending.goalsAgainstAverageRank}
+                format="decimal"
+                decimals={2}
+              />
+              <StatComparisonRow
+                awayValue={awayComparisonStats.goaltending.shutouts}
+                awayAbbrev={awayAbbrev}
+                statLabel="Shutouts"
+                homeValue={homeComparisonStats.goaltending.shutouts}
+                homeAbbrev={homeAbbrev}
+                higherIsBetter={true}
+                awayRank={awayComparisonStats.goaltending.shutoutsRank}
+                homeRank={homeComparisonStats.goaltending.shutoutsRank}
+                format="number"
+                decimals={0}
+              />
+              <StatComparisonRow
+                awayValue={awayComparisonStats.goaltending.qualityStarts}
+                awayAbbrev={awayAbbrev}
+                statLabel="Quality Starts"
+                homeValue={homeComparisonStats.goaltending.qualityStarts}
+                homeAbbrev={homeAbbrev}
+                higherIsBetter={true}
+                awayRank={awayComparisonStats.goaltending.qualityStartsRank}
+                homeRank={homeComparisonStats.goaltending.qualityStartsRank}
+                format="number"
+                decimals={0}
+              />
+            </>,
+            'goaltending'
+          )}
+        </View>
+
+        {/* DISCIPLINE */}
+        <View style={{ marginBottom: 12 }}>
+          {renderCategoryHeader('discipline', 'Discipline', '⚖️')}
+          {renderCategoryContent(
+            <>
+              <StatComparisonRow
+                awayValue={awayComparisonStats.discipline.penaltiesPerGame}
+                awayAbbrev={awayAbbrev}
+                statLabel="Penalties/Game"
+                homeValue={homeComparisonStats.discipline.penaltiesPerGame}
+                homeAbbrev={homeAbbrev}
+                higherIsBetter={false}
+                awayRank={awayComparisonStats.discipline.penaltiesPerGameRank}
+                homeRank={homeComparisonStats.discipline.penaltiesPerGameRank}
+                format="decimal"
+                decimals={1}
+                isFirst={true}
+              />
+              <StatComparisonRow
+                awayValue={awayComparisonStats.discipline.penaltyMinutes}
+                awayAbbrev={awayAbbrev}
+                statLabel="Penalty Minutes"
+                homeValue={homeComparisonStats.discipline.penaltyMinutes}
+                homeAbbrev={homeAbbrev}
+                higherIsBetter={false}
+                awayRank={awayComparisonStats.discipline.penaltyMinutesRank}
+                homeRank={homeComparisonStats.discipline.penaltyMinutesRank}
+                format="number"
+                decimals={0}
+              />
+              <StatComparisonRow
+                awayValue={awayComparisonStats.discipline.minorPenalties}
+                awayAbbrev={awayAbbrev}
+                statLabel="Minor Penalties"
+                homeValue={homeComparisonStats.discipline.minorPenalties}
+                homeAbbrev={homeAbbrev}
+                higherIsBetter={false}
+                awayRank={awayComparisonStats.discipline.minorPenaltiesRank}
+                homeRank={homeComparisonStats.discipline.minorPenaltiesRank}
+                format="number"
+                decimals={0}
+              />
+              <StatComparisonRow
+                awayValue={awayComparisonStats.discipline.majorPenalties}
+                awayAbbrev={awayAbbrev}
+                statLabel="Major Penalties"
+                homeValue={homeComparisonStats.discipline.majorPenalties}
+                homeAbbrev={homeAbbrev}
+                higherIsBetter={false}
+                awayRank={awayComparisonStats.discipline.majorPenaltiesRank}
+                homeRank={homeComparisonStats.discipline.majorPenaltiesRank}
+                format="number"
+                decimals={0}
+              />
+            </>,
+            'discipline'
+          )}
+        </View>
+      </View>
+    );
+  };
+
   const renderScheduleTab = () => {
     const homeRestDays = Math.floor(Math.random() * 3) + 1; // Mock data
     const awayRestDays = Math.floor(Math.random() * 3) + 1; // Mock data
@@ -653,6 +1247,7 @@ export default function GameDeepDiveModal({
             showsVerticalScrollIndicator={false}
           >
             {activeTab === 'overview' && renderOverviewTab()}
+            {activeTab === 'stats' && renderStatsTab()}
             {activeTab === 'recent' && renderRecentFormTab()}
             {activeTab === 'h2h' && renderH2HTab()}
             {activeTab === 'schedule' && renderScheduleTab()}
