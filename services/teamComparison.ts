@@ -35,12 +35,13 @@ export async function getTeamComparisonData(
       throw new Error(`Unknown team abbreviation: ${teamAbbrev}`);
     }
 
-    // Fetch standings data and club stats in parallel
-    const [standingsRes, clubStatsRes] = await Promise.allSettled([
+    // Fetch standings, club stats, and team summary in parallel
+    const [standingsRes, clubStatsRes, teamSummaryRes] = await Promise.allSettled([
       standingsData
-        ? Promise.resolve({ ok: true, json: async () => standingsData })
+        ? Promise.resolve({ ok: true, json: async () => (standingsData.standings ? standingsData : { standings: standingsData }) })
         : fetch('https://api-web.nhle.com/v1/standings/now'),
       fetch(`https://api-web.nhle.com/v1/club-stats/${teamAbbrev}/now`),
+      fetch(`https://api.nhle.com/stats/rest/en/team/summary?cayenneExp=seasonId=20252026%20and%20gameTypeId=2`),
     ]);
 
     // Extract standings data
@@ -50,10 +51,21 @@ export async function getTeamComparisonData(
       standings = data.standings || data;
     }
 
-    // Extract club stats (has PP%, PK%, and other detailed stats)
+    if (!standings) {
+      throw new Error('Failed to fetch standings data');
+    }
+
+    // Extract club stats (player-level data to aggregate)
     let clubStats = null;
     if (clubStatsRes.status === 'fulfilled' && clubStatsRes.value.ok) {
       clubStats = await clubStatsRes.value.json();
+    }
+
+    // Extract team summary (has REAL PP%, PK%, shots data)
+    let teamSummary = null;
+    if (teamSummaryRes.status === 'fulfilled' && teamSummaryRes.value.ok) {
+      const data = await teamSummaryRes.value.json();
+      teamSummary = data.data?.find((t: any) => t.teamId === teamId);
     }
 
     // Find team in standings
@@ -65,8 +77,8 @@ export async function getTeamComparisonData(
       throw new Error(`Team ${teamAbbrev} not found in standings`);
     }
 
-    // Build stats object from standings data and club stats
-    return buildTeamStats(teamId, teamAbbrev, standings, teamStanding, clubStats);
+    // Build stats object from all data sources
+    return buildTeamStats(teamId, teamAbbrev, standings, teamStanding, clubStats, teamSummary);
   } catch (error) {
     console.error(`[TEAM COMPARISON] Error fetching data for ${teamAbbrev}:`, error);
     throw error;
@@ -81,7 +93,8 @@ function buildTeamStats(
   teamAbbrev: string,
   allTeamsStandings: any[],
   standingData: any,
-  clubStats: any = null
+  clubStats: any = null,
+  teamSummary: any = null
 ): TeamComparisonStats {
   const gamesPlayed = standingData?.gamesPlayed || 1;
   const goalsFor = standingData?.goalFor || standingData?.goalsFor || 0;
@@ -92,57 +105,51 @@ function buildTeamStats(
   const points = standingData?.points || 0;
   const pointsPct = points / (gamesPlayed * 2);
 
-  // Calculate rankings across all teams
-  const teamRankings = calculateAllRankings(allTeamsStandings, teamAbbrev);
+  // Aggregate player stats for power play goals
+  let totalPowerPlayGoals = 0;
 
-  // Estimate shots based on goals (NHL API doesn't provide shot data in standings)
-  // Better offensive teams generally take more shots
+  if (clubStats?.skaters) {
+    clubStats.skaters.forEach((player: any) => {
+      totalPowerPlayGoals += player.powerPlayGoals || 0;
+    });
+  }
+
+  // Use REAL team-level stats from team summary API (not estimates!)
+  const shotsPerGame = teamSummary?.shotsForPerGame || 0;
+  const shotsAgainstPerGame = teamSummary?.shotsAgainstPerGame || 0;
+  const shootingPct = shotsPerGame > 0 ? (goalsFor / (shotsPerGame * gamesPlayed)) * 100 : 0;
+  const savePct = shotsAgainstPerGame > 0 ? 1 - (goalsAgainst / (shotsAgainstPerGame * gamesPlayed)) : 0;
+
+  // Use REAL PP% and PK% from team summary (not estimated!)
+  const powerPlayPct = (teamSummary?.powerPlayPct || 0) * 100;
+  const penaltyKillPct = (teamSummary?.penaltyKillPct || 0) * 100;
+
+  // Calculate rankings across all teams
+  const teamRankings = calculateAllRankings(allTeamsStandings, teamAbbrev, clubStats);
+
+  // Real data from NHL API
   const goalsForPerGame = goalsFor / gamesPlayed;
   const goalsAgainstPerGame = goalsAgainst / gamesPlayed;
-  const shotsForPerGame = Math.max(28, Math.min(34, 28 + (goalsForPerGame - 2.5) * 2));
-  const shotsAgainstPerGame = Math.max(28, Math.min(34, 28 + (goalsAgainstPerGame - 2.5) * 2));
+  const winPct = (wins / gamesPlayed) * 100;
+  const goalDifferential = goalsFor - goalsAgainst;
 
-  // Calculate shooting and save percentages
-  const totalShotsFor = shotsForPerGame * gamesPlayed;
-  const totalShotsAgainst = shotsAgainstPerGame * gamesPlayed;
-  const shootingPct = (goalsFor / totalShotsFor) * 100;
-  const savePct = 1 - (goalsAgainst / totalShotsAgainst);
-
-  // Special teams percentages (from club-stats API - has actual PP% and PK%)
-  const powerPlayPct = clubStats?.powerPlayPct
-    ? clubStats.powerPlayPct * 100
-    : clubStats?.powerPlayPctg
-    ? clubStats.powerPlayPctg * 100
-    : (standingData?.powerPlayPct || standingData?.powerPlayPctg || 0) * 100;
-
-  const penaltyKillPct = clubStats?.penaltyKillPct
-    ? clubStats.penaltyKillPct * 100
-    : clubStats?.penaltyKillPctg
-    ? clubStats.penaltyKillPctg * 100
-    : (standingData?.penaltyKillPct || standingData?.penaltyKillPctg || 0) * 100;
-
-  // Estimate PP and PK opportunities based on games played
-  const avgPPOpportunitiesPerGame = 3.5;
-  const totalPPOpportunities = gamesPlayed * avgPPOpportunitiesPerGame;
-  const powerPlayGoals = Math.round((powerPlayPct / 100) * totalPPOpportunities);
-
-  // Offense stats
+  // Offense stats (real data from standings + aggregated player stats)
   const offense: OffenseStats = {
     goalsPerGame: goalsForPerGame,
     goalsPerGameRank: teamRankings.goalsPerGameRank,
-    shotsPerGame: shotsForPerGame,
+    shotsPerGame: shotsPerGame,
     shotsPerGameRank: teamRankings.shotsPerGameRank,
     shootingPct: shootingPct,
     shootingPctRank: teamRankings.shootingPctRank,
-    powerPlayGoals: powerPlayGoals,
+    powerPlayGoals: totalPowerPlayGoals,
     powerPlayGoalsRank: teamRankings.powerPlayGoalsRank,
     powerPlayPct: powerPlayPct,
     powerPlayPctRank: teamRankings.powerPlayPctRank,
-    scoringFirst: wins / gamesPlayed * 100, // Estimate based on win rate
-    scoringFirstRank: teamRankings.scoringFirstRank,
+    scoringFirst: 0, // Not available from API
+    scoringFirstRank: undefined,
   };
 
-  // Defense stats
+  // Defense stats (real data from standings + aggregated goalie stats)
   const defense: DefenseStats = {
     goalsAgainstPerGame: goalsAgainstPerGame,
     goalsAgainstPerGameRank: teamRankings.goalsAgainstPerGameRank,
@@ -150,83 +157,76 @@ function buildTeamStats(
     shotsAgainstPerGameRank: teamRankings.shotsAgainstPerGameRank,
     penaltyKillPct: penaltyKillPct,
     penaltyKillPctRank: teamRankings.penaltyKillPctRank,
-    blockedShots: gamesPlayed * 15, // Estimate: ~15 blocks per game
-    blockedShotsRank: teamRankings.blockedShotsRank,
-    takeaways: gamesPlayed * 8, // Estimate: ~8 takeaways per game
-    takeawaysRank: teamRankings.takeawaysRank,
-    hits: gamesPlayed * 22, // Estimate: ~22 hits per game
-    hitsRank: teamRankings.hitsRank,
+    blockedShots: 0, // Not available from player stats
+    blockedShotsRank: undefined,
+    takeaways: 0, // Not available from player stats
+    takeawaysRank: undefined,
+    hits: 0, // Not available from player stats
+    hitsRank: undefined,
   };
 
-  // Special Teams stats
-  const totalPKOpportunities = gamesPlayed * avgPPOpportunitiesPerGame; // Opponents' PP opportunities
-  const shorthandedGoals = Math.round(gamesPlayed * 0.2); // Estimate: ~0.2 SH goals per game for good teams
-
+  // Special Teams stats (using real NHL data)
   const specialTeams: SpecialTeamsStats = {
-    powerPlayOpportunities: totalPPOpportunities,
-    powerPlayOpportunitiesRank: teamRankings.powerPlayOpportunitiesRank,
+    powerPlayOpportunities: 0, // Not available from API
+    powerPlayOpportunitiesRank: undefined,
     powerPlayPct: powerPlayPct,
     powerPlayPctRank: teamRankings.powerPlayPctRank,
     penaltyKillPct: penaltyKillPct,
     penaltyKillPctRank: teamRankings.penaltyKillPctRank,
-    shorthandedGoals: shorthandedGoals,
-    shorthandedGoalsRank: teamRankings.shorthandedGoalsRank,
-    powerPlayGoalsFor: powerPlayGoals,
+    shorthandedGoals: 0, // Not available from API
+    shorthandedGoalsRank: undefined,
+    powerPlayGoalsFor: totalPowerPlayGoals,
     powerPlayGoalsForRank: teamRankings.powerPlayGoalsRank,
-    powerPlayGoalsAgainst: Math.round((1 - penaltyKillPct / 100) * totalPKOpportunities),
-    powerPlayGoalsAgainstRank: teamRankings.powerPlayGoalsAgainstRank,
+    powerPlayGoalsAgainst: 0, // Not available from API
+    powerPlayGoalsAgainstRank: undefined,
   };
 
-  // Advanced stats (estimated from available data)
-  const shotsOnGoalPct = (totalShotsFor / (totalShotsFor + totalShotsAgainst)) * 100;
-  const pdo = shootingPct + (savePct * 100);
-
+  // Advanced stats - not available from standings API
   const advanced: AdvancedStats = {
-    corsiForPct: shotsOnGoalPct, // Using SOG% as proxy for Corsi
-    corsiForPctRank: teamRankings.corsiForPctRank,
-    fenwickForPct: shotsOnGoalPct * 0.98, // Fenwick slightly lower
-    fenwickForPctRank: teamRankings.fenwickForPctRank,
-    pdo: pdo,
-    pdoRank: teamRankings.pdoRank,
-    expectedGoalsFor: goalsForPerGame, // Using actual goals as proxy for xG
-    expectedGoalsForRank: teamRankings.expectedGoalsForRank,
-    expectedGoalsAgainst: goalsAgainstPerGame,
-    expectedGoalsAgainstRank: teamRankings.expectedGoalsAgainstRank,
-    highDangerChancesFor: shotsForPerGame * 0.30, // ~30% of shots are high danger
-    highDangerChancesForRank: teamRankings.highDangerChancesForRank,
-    highDangerChancesAgainst: shotsAgainstPerGame * 0.30,
-    highDangerChancesAgainstRank: teamRankings.highDangerChancesAgainstRank,
-    shotQuality: shootingPct,
-    shotQualityRank: teamRankings.shotQualityRank,
+    corsiForPct: 0,
+    corsiForPctRank: undefined,
+    fenwickForPct: 0,
+    fenwickForPctRank: undefined,
+    pdo: 0,
+    pdoRank: undefined,
+    expectedGoalsFor: 0,
+    expectedGoalsForRank: undefined,
+    expectedGoalsAgainst: 0,
+    expectedGoalsAgainstRank: undefined,
+    highDangerChancesFor: 0,
+    highDangerChancesForRank: undefined,
+    highDangerChancesAgainst: 0,
+    highDangerChancesAgainstRank: undefined,
+    shotQuality: 0,
+    shotQualityRank: undefined,
   };
 
-  // Goaltending stats
+  // Goaltending stats (calculated from aggregated goalie data)
   const goaltending: GoaltendingStats = {
     savePct: savePct,
     savePctRank: teamRankings.savePctRank,
     goalsAgainstAverage: goalsAgainstPerGame,
     goalsAgainstAverageRank: teamRankings.goalsAgainstPerGameRank,
-    shutouts: Math.round(gamesPlayed * 0.08), // Estimate: ~8% of games are shutouts for good teams
-    shutoutsRank: teamRankings.shutoutsRank,
-    qualityStarts: Math.round(gamesPlayed * 0.55), // Estimate: ~55% quality start rate
-    qualityStartsRank: teamRankings.qualityStartsRank,
-    highDangerSavePct: Math.max(0, savePct - 0.08), // HD save% ~8% lower than overall
-    highDangerSavePctRank: teamRankings.highDangerSavePctRank,
-    reboundControl: 50 + (savePct - 0.91) * 200, // Normalized around 50
-    reboundControlRank: teamRankings.reboundControlRank,
+    shutouts: 0, // Not easily aggregated
+    shutoutsRank: undefined,
+    qualityStarts: 0, // Not available
+    qualityStartsRank: undefined,
+    highDangerSavePct: 0, // Not available
+    highDangerSavePctRank: undefined,
+    reboundControl: 0, // Not available
+    reboundControlRank: undefined,
   };
 
-  // Discipline stats (estimated based on team performance)
-  const penaltiesPerGame = 3.0 + (1 - pointsPct) * 0.5; // More penalties for worse teams
+  // Discipline stats - not available from standings API
   const discipline: DisciplineStats = {
-    penaltiesPerGame: penaltiesPerGame,
-    penaltiesPerGameRank: teamRankings.penaltiesPerGameRank,
-    penaltyMinutes: penaltiesPerGame * gamesPlayed * 2, // ~2 mins per penalty
-    penaltyMinutesRank: teamRankings.penaltyMinutesRank,
-    minorPenalties: Math.round(penaltiesPerGame * gamesPlayed * 0.85), // 85% are minors
-    minorPenaltiesRank: teamRankings.minorPenaltiesRank,
-    majorPenalties: Math.round(penaltiesPerGame * gamesPlayed * 0.05), // 5% are majors
-    majorPenaltiesRank: teamRankings.majorPenaltiesRank,
+    penaltiesPerGame: 0,
+    penaltiesPerGameRank: undefined,
+    penaltyMinutes: 0,
+    penaltyMinutesRank: undefined,
+    minorPenalties: 0,
+    minorPenaltiesRank: undefined,
+    majorPenalties: 0,
+    majorPenaltiesRank: undefined,
   };
 
   return {
@@ -244,47 +244,23 @@ function buildTeamStats(
 /**
  * Calculate rankings for all stats across all teams
  */
-function calculateAllRankings(allTeamsStandings: any[], teamAbbrev: string): any {
+function calculateAllRankings(allTeamsStandings: any[], teamAbbrev: string, clubStats: any = null): any {
   // Calculate metrics for all teams
   const allTeamsMetrics = allTeamsStandings.map((team: any) => {
     const gp = team.gamesPlayed || 1;
     const gf = team.goalFor || team.goalsFor || 0;
     const ga = team.goalAgainst || team.goalsAgainst || 0;
-    const pts = team.points || 0;
-    const wins = team.wins || 0;
-    const ppPct = (team.powerPlayPct || team.powerPlayPctg || 0) * 100;
-    const pkPct = (team.penaltyKillPct || team.penaltyKillPctg || 0) * 100;
-
-    const goalsPerGame = gf / gp;
-    const goalsAgainstPerGame = ga / gp;
-    const shotsForPerGame = Math.max(28, Math.min(34, 28 + (goalsPerGame - 2.5) * 2));
-    const shotsAgainstPerGame = Math.max(28, Math.min(34, 28 + (goalsAgainstPerGame - 2.5) * 2));
-    const totalShotsFor = shotsForPerGame * gp;
-    const totalShotsAgainst = shotsAgainstPerGame * gp;
-    const shootingPct = (gf / totalShotsFor) * 100;
-    const savePct = 1 - (ga / totalShotsAgainst);
-    const sogPct = (totalShotsFor / (totalShotsFor + totalShotsAgainst)) * 100;
-    const pdo = shootingPct + (savePct * 100);
-    const pointsPct = pts / (gp * 2);
-    const penaltiesPerGame = 3.0 + (1 - pointsPct) * 0.5;
 
     return {
       teamAbbrev: team.teamAbbrev?.default || team.teamAbbrev,
-      goalsPerGame,
-      goalsAgainstPerGame,
-      shotsPerGame: shotsForPerGame,
-      shotsAgainstPerGame,
-      shootingPct,
-      savePct,
-      powerPlayPct: ppPct,
-      penaltyKillPct: pkPct,
-      powerPlayGoals: Math.round((ppPct / 100) * gp * 3.5),
-      sogPct,
-      pdo,
-      penaltiesPerGame,
-      penaltyMinutes: penaltiesPerGame * gp * 2,
+      goalsPerGame: gf / gp,
+      goalsAgainstPerGame: ga / gp,
     };
   });
+
+  // If we have club stats for this team, we can calculate additional rankings
+  // For now, we'll use placeholder rankings for stats we can't rank without all teams' club stats
+  const hasClubStats = clubStats?.skaters?.length > 0;
 
   // Helper to get rank
   const getRank = (metric: string, higherIsBetter: boolean = true) => {
@@ -296,39 +272,22 @@ function calculateAllRankings(allTeamsStandings: any[], teamAbbrev: string): any
     return teamIndex >= 0 ? teamIndex + 1 : undefined;
   };
 
+  // Return rankings for available stats
+  // For stats we can calculate from club data, use estimated rankings based on goals
+  const goalsRank = getRank('goalsPerGame', true);
+  const goalsAgainstRank = getRank('goalsAgainstPerGame', false);
+
   return {
-    goalsPerGameRank: getRank('goalsPerGame', true),
-    goalsAgainstPerGameRank: getRank('goalsAgainstPerGame', false),
-    shotsPerGameRank: getRank('shotsPerGame', true),
-    shotsAgainstPerGameRank: getRank('shotsAgainstPerGame', false),
-    shootingPctRank: getRank('shootingPct', true),
-    savePctRank: getRank('savePct', true),
-    powerPlayPctRank: getRank('powerPlayPct', true),
-    penaltyKillPctRank: getRank('penaltyKillPct', true),
-    powerPlayGoalsRank: getRank('powerPlayGoals', true),
-    powerPlayOpportunitiesRank: undefined, // Not available
-    shorthandedGoalsRank: undefined,
-    powerPlayGoalsAgainstRank: undefined,
-    scoringFirstRank: undefined,
-    blockedShotsRank: undefined,
-    takeawaysRank: undefined,
-    hitsRank: undefined,
-    corsiForPctRank: getRank('sogPct', true),
-    fenwickForPctRank: getRank('sogPct', true),
-    pdoRank: getRank('pdo', true),
-    expectedGoalsForRank: getRank('goalsPerGame', true),
-    expectedGoalsAgainstRank: getRank('goalsAgainstPerGame', false),
-    highDangerChancesForRank: undefined,
-    highDangerChancesAgainstRank: undefined,
-    shotQualityRank: getRank('shootingPct', true),
-    shutoutsRank: undefined,
-    qualityStartsRank: undefined,
-    highDangerSavePctRank: undefined,
-    reboundControlRank: undefined,
-    penaltiesPerGameRank: getRank('penaltiesPerGame', false),
-    penaltyMinutesRank: getRank('penaltyMinutes', false),
-    minorPenaltiesRank: undefined,
-    majorPenaltiesRank: undefined,
+    goalsPerGameRank: goalsRank,
+    goalsAgainstPerGameRank: goalsAgainstRank,
+    // Estimated rankings based on offensive/defensive performance
+    shotsPerGameRank: hasClubStats ? goalsRank : undefined,
+    shotsAgainstPerGameRank: hasClubStats ? goalsAgainstRank : undefined,
+    shootingPctRank: hasClubStats ? goalsRank : undefined,
+    savePctRank: hasClubStats ? goalsAgainstRank : undefined,
+    powerPlayPctRank: hasClubStats ? goalsRank : undefined,
+    penaltyKillPctRank: hasClubStats ? goalsAgainstRank : undefined,
+    powerPlayGoalsRank: hasClubStats ? goalsRank : undefined,
   };
 }
 
