@@ -9,6 +9,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withSequence, withTiming } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import GameDeepDiveModal from '../../components/GameDeepDiveModal';
 import PickHistoryModal from '../../components/PickHistoryModal';
 import StreakBadge from '../../components/StreakBadge';
@@ -31,6 +33,7 @@ export default function MyPicksScreen() {
   // State
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [lastPickedGame, setLastPickedGame] = useState<string | null>(null);
   const [streakData, setStreakData] = useState<StreakData>({
     currentStreak: 0,
     longestStreak: 0,
@@ -106,6 +109,18 @@ export default function MyPicksScreen() {
 
   // Make pick
   const makePick = async (gameId: string, team: string, homeTeam: string, awayTeam: string) => {
+    // Trigger animation
+    setLastPickedGame(`${gameId}-${team}`);
+    setTimeout(() => setLastPickedGame(null), 200);
+
+    // Haptic feedback for better UX
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (error) {
+      // Silently fail if haptics not available
+      console.debug('Haptic feedback not available');
+    }
+
     const newPick: Pick = {
       gameId,
       date: getTodayDateString(),
@@ -141,6 +156,70 @@ export default function MyPicksScreen() {
   const wins = completed.filter((p) => p.outcome === 'win').length;
   const losses = completed.filter((p) => p.outcome === 'loss').length;
   const accuracy = completed.length > 0 ? Math.round((wins / completed.length) * 100) : 0;
+
+  // Badge helper with priority system: LIVE > FINAL > LOCK > AI
+  const getBadgeToDisplay = (
+    isLive: boolean,
+    isFinal: boolean,
+    isLock: boolean,
+    hasSmartPick: boolean,
+    currentPeriod: number,
+    predictedTeam?: string
+  ) => {
+    if (isLive) {
+      return { text: `P${currentPeriod}`, color: '#ef4444', type: 'live' };
+    }
+    if (isFinal) {
+      return { text: 'FINAL', color: theme.subtext, type: 'final' };
+    }
+    if (isLock) {
+      return { text: 'LOCK', color: '#fbbf24', type: 'lock' };
+    }
+    if (hasSmartPick && predictedTeam) {
+      return { text: `AI: ${predictedTeam}`, color: '#10b981', type: 'ai' };
+    }
+    return null;
+  };
+
+  // Score highlighting helper
+  const getScoreStyle = (score: number, opponentScore: number, isGameStarted: boolean) => {
+    if (!isGameStarted) {
+      return { color: theme.accent, opacity: 1 };
+    }
+
+    // Highlight winning score in green
+    if (score > opponentScore) {
+      return { color: '#10b981', opacity: 1 };
+    }
+
+    // Dim losing score
+    if (score < opponentScore) {
+      return { color: '#98a6bf', opacity: 0.6 };
+    }
+
+    // Tied scores - normal color
+    return { color: theme.accent, opacity: 1 };
+  };
+
+  // Helper to get tomorrow's date string
+  const getTomorrowDateString = (): string => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const year = tomorrow.getFullYear();
+    const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+    const day = String(tomorrow.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Format date for display
+  const getFormattedDate = (dateString: string): string => {
+    const date = new Date(dateString + 'T12:00:00');
+    return date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
 
   // Helpers for modal
   const getConfidence = (home: any, away: any) => {
@@ -247,12 +326,24 @@ export default function MyPicksScreen() {
                   const smartPick = isLock ? picks.lock : picks.smartPicks.find((p: Pick) => p.gameId === String(game.id));
                   const isFuture = game.gameState === 'FUT' || game.gameState === 'PRE';
                   const isLive = game.gameState === 'LIVE';
+                  const gameStarted = !isFuture;
+                  const isFinal = gameStarted && !isLive;
                   const currentPeriod = game.periodDescriptor?.number || 1;
                   const homeScore = game.homeTeam?.score;
                   const awayScore = game.awayTeam?.score;
                   // Allow picks if game is future OR if live and before 3rd period
                   const canMakePick = isFuture || (isLive && currentPeriod < 3);
-                  const gameStarted = !isFuture;
+
+                  // Get badge to display using priority system
+                  const predictedTeam = standings ? getPredictedWinner(game.homeTeam?.abbrev || '', game.awayTeam?.abbrev || '', standings) : undefined;
+                  const badge = getBadgeToDisplay(
+                    isLive,
+                    isFinal,
+                    isLock && !gameStarted,
+                    !!smartPick && !gameStarted,
+                    currentPeriod,
+                    predictedTeam
+                  );
 
                   return (
                     <View key={game.id} style={s.gameRow}>
@@ -261,45 +352,75 @@ export default function MyPicksScreen() {
                         <Text style={s.gameTime}>
                           {new Date(game.startTimeUTC).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
                         </Text>
-                        {isLive && <Text style={s.liveTag}>P{currentPeriod}</Text>}
-                        {gameStarted && !isLive && <Text style={s.finalTag}>FINAL</Text>}
-                        {!gameStarted && isLock && <Text style={s.lockTag}>LOCK</Text>}
-                        {!gameStarted && smartPick && !isLock && standings && (
-                          <Text style={s.smartTag}>
-                            AI: {getPredictedWinner(game.homeTeam?.abbrev || '', game.awayTeam?.abbrev || '', standings)}
+                        {badge && (
+                          <Text style={[
+                            badge.type === 'live' && s.liveTag,
+                            badge.type === 'final' && s.finalTag,
+                            badge.type === 'lock' && s.lockTag,
+                            badge.type === 'ai' && s.smartTag,
+                          ]}>
+                            {badge.text}
                           </Text>
                         )}
                       </View>
 
                       {/* Matchup */}
                       <View style={s.matchup}>
-                        <TouchableOpacity
-                          style={[
-                            s.teamBtn,
-                            userPick?.predictedWinner === game.awayTeam?.abbrev && s.picked,
-                            !canMakePick && s.disabled
-                          ]}
-                          onPress={() => canMakePick && makePick(String(game.id), game.awayTeam?.abbrev, game.homeTeam?.abbrev, game.awayTeam?.abbrev)}
-                          disabled={!canMakePick}
-                        >
-                          <Text style={s.teamText}>{game.awayTeam?.abbrev}</Text>
-                          {gameStarted && awayScore !== undefined && <Text style={s.scoreText}>{awayScore}</Text>}
-                        </TouchableOpacity>
+                        <Animated.View style={{
+                          flex: 1,
+                          transform: [{
+                            scale: lastPickedGame === `${game.id}-${game.awayTeam?.abbrev}` ? 0.95 : 1
+                          }]
+                        }}>
+                          <TouchableOpacity
+                            style={[
+                              s.teamBtn,
+                              userPick?.predictedWinner === game.awayTeam?.abbrev && s.picked,
+                              !canMakePick && s.disabled
+                            ]}
+                            onPress={() => canMakePick && makePick(String(game.id), game.awayTeam?.abbrev, game.homeTeam?.abbrev, game.awayTeam?.abbrev)}
+                            disabled={!canMakePick}
+                          >
+                            <Text style={s.teamText}>{game.awayTeam?.abbrev}</Text>
+                            {gameStarted && awayScore !== undefined && (
+                              <Text style={[
+                                s.scoreText,
+                                getScoreStyle(awayScore, homeScore ?? 0, gameStarted)
+                              ]}>
+                                {awayScore}
+                              </Text>
+                            )}
+                          </TouchableOpacity>
+                        </Animated.View>
 
                         <Text style={s.vs}>@</Text>
 
-                        <TouchableOpacity
-                          style={[
-                            s.teamBtn,
-                            userPick?.predictedWinner === game.homeTeam?.abbrev && s.picked,
-                            !canMakePick && s.disabled
-                          ]}
-                          onPress={() => canMakePick && makePick(String(game.id), game.homeTeam?.abbrev, game.homeTeam?.abbrev, game.awayTeam?.abbrev)}
-                          disabled={!canMakePick}
-                        >
-                          <Text style={s.teamText}>{game.homeTeam?.abbrev}</Text>
-                          {gameStarted && homeScore !== undefined && <Text style={s.scoreText}>{homeScore}</Text>}
-                        </TouchableOpacity>
+                        <Animated.View style={{
+                          flex: 1,
+                          transform: [{
+                            scale: lastPickedGame === `${game.id}-${game.homeTeam?.abbrev}` ? 0.95 : 1
+                          }]
+                        }}>
+                          <TouchableOpacity
+                            style={[
+                              s.teamBtn,
+                              userPick?.predictedWinner === game.homeTeam?.abbrev && s.picked,
+                              !canMakePick && s.disabled
+                            ]}
+                            onPress={() => canMakePick && makePick(String(game.id), game.homeTeam?.abbrev, game.homeTeam?.abbrev, game.awayTeam?.abbrev)}
+                            disabled={!canMakePick}
+                          >
+                            <Text style={s.teamText}>{game.homeTeam?.abbrev}</Text>
+                            {gameStarted && homeScore !== undefined && (
+                              <Text style={[
+                                s.scoreText,
+                                getScoreStyle(homeScore, awayScore ?? 0, gameStarted)
+                              ]}>
+                                {homeScore}
+                              </Text>
+                            )}
+                          </TouchableOpacity>
+                        </Animated.View>
                       </View>
 
                       {/* Status / Action */}
@@ -320,7 +441,18 @@ export default function MyPicksScreen() {
               </View>
             ) : (
               <View style={styles.card}>
-                <Text style={styles.subtextLarge}>No games scheduled today</Text>
+                <Text style={[styles.title, { marginBottom: 8, textAlign: 'center', fontSize: 18 }]}>
+                  🏒 No Games Today
+                </Text>
+                <Text style={[styles.subtextLarge, { textAlign: 'center', marginBottom: 12 }]}>
+                  No games scheduled today
+                </Text>
+                <Text style={[styles.subtext, { textAlign: 'center', lineHeight: 20 }]}>
+                  Check back {getFormattedDate(getTomorrowDateString())} for tomorrow's matchups!
+                </Text>
+                <Text style={[styles.subtext, { textAlign: 'center', marginTop: 12, fontStyle: 'italic', opacity: 0.8 }]}>
+                  View other tabs for team analytics and power rankings
+                </Text>
               </View>
             )}
           </>
