@@ -35,16 +35,25 @@ export async function getTeamComparisonData(
       throw new Error(`Unknown team abbreviation: ${teamAbbrev}`);
     }
 
-    // Fetch standings data if not provided
+    // Fetch standings data and club stats in parallel
+    const [standingsRes, clubStatsRes] = await Promise.allSettled([
+      standingsData
+        ? Promise.resolve({ ok: true, json: async () => standingsData })
+        : fetch('https://api-web.nhle.com/v1/standings/now'),
+      fetch(`https://api-web.nhle.com/v1/club-stats/${teamAbbrev}/now`),
+    ]);
+
+    // Extract standings data
     let standings = null;
-    if (standingsData) {
-      standings = standingsData.standings || standingsData;
-    } else {
-      const standingsRes = await fetch('https://api-web.nhle.com/v1/standings/now');
-      if (standingsRes.ok) {
-        const data = await standingsRes.json();
-        standings = data.standings || [];
-      }
+    if (standingsRes.status === 'fulfilled' && standingsRes.value.ok) {
+      const data = await standingsRes.value.json();
+      standings = data.standings || data;
+    }
+
+    // Extract club stats (has PP%, PK%, and other detailed stats)
+    let clubStats = null;
+    if (clubStatsRes.status === 'fulfilled' && clubStatsRes.value.ok) {
+      clubStats = await clubStatsRes.value.json();
     }
 
     // Find team in standings
@@ -56,8 +65,8 @@ export async function getTeamComparisonData(
       throw new Error(`Team ${teamAbbrev} not found in standings`);
     }
 
-    // Build stats object from standings data (NHL API only provides basic stats)
-    return buildTeamStats(teamId, teamAbbrev, standings, teamStanding);
+    // Build stats object from standings data and club stats
+    return buildTeamStats(teamId, teamAbbrev, standings, teamStanding, clubStats);
   } catch (error) {
     console.error(`[TEAM COMPARISON] Error fetching data for ${teamAbbrev}:`, error);
     throw error;
@@ -71,7 +80,8 @@ function buildTeamStats(
   teamId: number,
   teamAbbrev: string,
   allTeamsStandings: any[],
-  standingData: any
+  standingData: any,
+  clubStats: any = null
 ): TeamComparisonStats {
   const gamesPlayed = standingData?.gamesPlayed || 1;
   const goalsFor = standingData?.goalFor || standingData?.goalsFor || 0;
@@ -98,9 +108,18 @@ function buildTeamStats(
   const shootingPct = (goalsFor / totalShotsFor) * 100;
   const savePct = 1 - (goalsAgainst / totalShotsAgainst);
 
-  // Special teams percentages (from standings API)
-  const powerPlayPct = (standingData?.powerPlayPct || standingData?.powerPlayPctg || 0) * 100;
-  const penaltyKillPct = (standingData?.penaltyKillPct || standingData?.penaltyKillPctg || 0) * 100;
+  // Special teams percentages (from club-stats API - has actual PP% and PK%)
+  const powerPlayPct = clubStats?.powerPlayPct
+    ? clubStats.powerPlayPct * 100
+    : clubStats?.powerPlayPctg
+    ? clubStats.powerPlayPctg * 100
+    : (standingData?.powerPlayPct || standingData?.powerPlayPctg || 0) * 100;
+
+  const penaltyKillPct = clubStats?.penaltyKillPct
+    ? clubStats.penaltyKillPct * 100
+    : clubStats?.penaltyKillPctg
+    ? clubStats.penaltyKillPctg * 100
+    : (standingData?.penaltyKillPct || standingData?.penaltyKillPctg || 0) * 100;
 
   // Estimate PP and PK opportunities based on games played
   const avgPPOpportunitiesPerGame = 3.5;
