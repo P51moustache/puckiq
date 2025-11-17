@@ -23,11 +23,10 @@ export function AnalyticsProvider({ children, config }: AnalyticsProviderProps) 
     // Initialize analytics service
     analytics.initialize(config);
 
-    // Cleanup on unmount
-    return () => {
-      analytics.destroy();
-    };
-  }, []);
+    // Note: No cleanup function needed for singleton analytics service
+    // The singleton persists across component mounts/unmounts
+    // This prevents crashes when app returns from background
+  }, [config]);
 
   return (
     <AnalyticsContext.Provider value={{ analytics }}>

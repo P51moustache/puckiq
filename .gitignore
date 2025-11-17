@@ -38,3 +38,10 @@ yarn-error.*
 
 app-example
 .env
+
+# Claude Code local files (personal preferences)
+CLAUDE.local.md
+
+# Test coverage
+coverage/
+*.lcov

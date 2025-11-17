@@ -1,0 +1,21 @@
+{
+  "allowedTools": [
+    "Read",
+    "Edit",
+    "Glob",
+    "Grep",
+    "TodoWrite",
+    "Bash(npm start)",
+    "Bash(npm test:*)",
+    "Bash(npm run *)",
+    "Bash(git add:*)",
+    "Bash(git commit:*)",
+    "Bash(git log:*)",
+    "Bash(git status)",
+    "Bash(git diff:*)",
+    "Bash(expo start:*)",
+    "Bash(ls:*)",
+    "Bash(npx tsc --noEmit)",
+    "mcp__ide__getDiagnostics"
+  ]
+}
