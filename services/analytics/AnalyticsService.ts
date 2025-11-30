@@ -21,6 +21,7 @@ class AnalyticsService {
   private eventQueue: AnalyticsEvent[] = [];
   private flushTimer?: number;
   private lastActivityTime: number = Date.now();
+  private initialized: boolean = false;
 
   private constructor() {
     this.sessionId = this.generateSessionId();
@@ -41,6 +42,10 @@ class AnalyticsService {
   }
 
   async initialize(config?: Partial<AnalyticsConfig>): Promise<void> {
+    if (this.initialized) {
+      return; // Already initialized, skip
+    }
+
     try {
       if (config) {
         this.config = { ...this.config, ...config };
@@ -63,6 +68,7 @@ class AnalyticsService {
       // Start flush timer
       this.startFlushTimer();
 
+      this.initialized = true;
       this.log('Analytics service initialized');
     } catch (error) {
       console.error('Failed to initialize analytics service:', error);

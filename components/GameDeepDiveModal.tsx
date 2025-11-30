@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from 'react-native';
-import { makeStyles } from '../constants/theme';
 import { getTeamComparisonData, calculateCategoryWinners } from '../services/teamComparison';
-import { TeamComparisonStats, CategoryWinner, StatCategory } from '../types/teamStats';
+import { TeamComparisonStats, StatCategory } from '../types/teamStats';
 import StatComparisonRow from './StatComparisonRow';
 
 interface GameDeepDiveModalProps {
@@ -20,7 +19,6 @@ export default function GameDeepDiveModal({
   confidenceScore,
   prediction,
 }: GameDeepDiveModalProps) {
-  const styles = makeStyles();
   const [activeTab, setActiveTab] = useState<'overview' | 'stats' | 'recent' | 'h2h' | 'schedule'>('overview');
   const [h2hGames, setH2hGames] = useState<any[]>([]);
   const [loadingH2H, setLoadingH2H] = useState(false);
@@ -39,7 +37,6 @@ export default function GameDeepDiveModal({
   const homeAbbrev = game?.homeTeam?.abbrev || game?.homeTeam?.teamAbbrev?.default || 'HOME';
   const awayAbbrev = game?.awayTeam?.abbrev || game?.awayTeam?.teamAbbrev?.default || 'AWAY';
   const favored = prediction?.homeWinProb > prediction?.awayWinProb ? homeAbbrev : awayAbbrev;
-  const favoredProb = Math.max(prediction?.homeWinProb || 50, prediction?.awayWinProb || 50);
 
   // Fetch team comparison stats when Stats tab is active
   useEffect(() => {
@@ -864,261 +861,6 @@ export default function GameDeepDiveModal({
 
         {/* Note: Advanced and Discipline categories are hidden because the NHL API doesn't provide this data */}
 
-        {/* ADVANCED ANALYTICS - Hidden: No real data available */}
-        {false && (
-        <View style={{ marginBottom: 12 }}>
-          {renderCategoryHeader('specialTeams', 'Special Teams', '⚡')}
-          {renderCategoryContent(
-            <>
-              <StatComparisonRow
-                awayValue={awayComparisonStats.specialTeams.powerPlayPct}
-                awayAbbrev={awayAbbrev}
-                statLabel="Power Play %"
-                homeValue={homeComparisonStats.specialTeams.powerPlayPct}
-                homeAbbrev={homeAbbrev}
-                higherIsBetter={true}
-                awayRank={awayComparisonStats.specialTeams.powerPlayPctRank}
-                homeRank={homeComparisonStats.specialTeams.powerPlayPctRank}
-                format="percentage"
-                decimals={1}
-                isFirst={true}
-              />
-              <StatComparisonRow
-                awayValue={awayComparisonStats.specialTeams.penaltyKillPct}
-                awayAbbrev={awayAbbrev}
-                statLabel="Penalty Kill %"
-                homeValue={homeComparisonStats.specialTeams.penaltyKillPct}
-                homeAbbrev={homeAbbrev}
-                higherIsBetter={true}
-                awayRank={awayComparisonStats.specialTeams.penaltyKillPctRank}
-                homeRank={homeComparisonStats.specialTeams.penaltyKillPctRank}
-                format="percentage"
-                decimals={1}
-              />
-              <StatComparisonRow
-                awayValue={awayComparisonStats.specialTeams.powerPlayGoalsFor}
-                awayAbbrev={awayAbbrev}
-                statLabel="PP Goals For"
-                homeValue={homeComparisonStats.specialTeams.powerPlayGoalsFor}
-                homeAbbrev={homeAbbrev}
-                higherIsBetter={true}
-                awayRank={awayComparisonStats.specialTeams.powerPlayGoalsForRank}
-                homeRank={homeComparisonStats.specialTeams.powerPlayGoalsForRank}
-                format="number"
-                decimals={0}
-              />
-              <StatComparisonRow
-                awayValue={awayComparisonStats.specialTeams.shorthandedGoals}
-                awayAbbrev={awayAbbrev}
-                statLabel="Shorthanded Goals"
-                homeValue={homeComparisonStats.specialTeams.shorthandedGoals}
-                homeAbbrev={homeAbbrev}
-                higherIsBetter={true}
-                awayRank={awayComparisonStats.specialTeams.shorthandedGoalsRank}
-                homeRank={homeComparisonStats.specialTeams.shorthandedGoalsRank}
-                format="number"
-                decimals={0}
-              />
-            </>,
-            'specialTeams'
-          )}
-        </View>
-        )}
-
-        {/* ADVANCED ANALYTICS - Hidden: No real data available */}
-        {false && (
-        <View style={{ marginBottom: 12 }}>
-          {renderCategoryHeader('advanced', 'Advanced Analytics', '🧠')}
-          {renderCategoryContent(
-            <>
-              <StatComparisonRow
-                awayValue={awayComparisonStats.advanced.corsiForPct}
-                awayAbbrev={awayAbbrev}
-                statLabel="Corsi For %"
-                homeValue={homeComparisonStats.advanced.corsiForPct}
-                homeAbbrev={homeAbbrev}
-                higherIsBetter={true}
-                awayRank={awayComparisonStats.advanced.corsiForPctRank}
-                homeRank={homeComparisonStats.advanced.corsiForPctRank}
-                format="percentage"
-                decimals={1}
-                isFirst={true}
-              />
-              <StatComparisonRow
-                awayValue={awayComparisonStats.advanced.fenwickForPct}
-                awayAbbrev={awayAbbrev}
-                statLabel="Fenwick For %"
-                homeValue={homeComparisonStats.advanced.fenwickForPct}
-                homeAbbrev={homeAbbrev}
-                higherIsBetter={true}
-                awayRank={awayComparisonStats.advanced.fenwickForPctRank}
-                homeRank={homeComparisonStats.advanced.fenwickForPctRank}
-                format="percentage"
-                decimals={1}
-              />
-              <StatComparisonRow
-                awayValue={awayComparisonStats.advanced.pdo}
-                awayAbbrev={awayAbbrev}
-                statLabel="PDO"
-                homeValue={homeComparisonStats.advanced.pdo}
-                homeAbbrev={homeAbbrev}
-                higherIsBetter={true}
-                awayRank={awayComparisonStats.advanced.pdoRank}
-                homeRank={homeComparisonStats.advanced.pdoRank}
-                format="decimal"
-                decimals={1}
-              />
-              <StatComparisonRow
-                awayValue={awayComparisonStats.advanced.expectedGoalsFor}
-                awayAbbrev={awayAbbrev}
-                statLabel="Expected Goals For"
-                homeValue={homeComparisonStats.advanced.expectedGoalsFor}
-                homeAbbrev={homeAbbrev}
-                higherIsBetter={true}
-                awayRank={awayComparisonStats.advanced.expectedGoalsForRank}
-                homeRank={homeComparisonStats.advanced.expectedGoalsForRank}
-                format="decimal"
-                decimals={1}
-              />
-              <StatComparisonRow
-                awayValue={awayComparisonStats.advanced.expectedGoalsAgainst}
-                awayAbbrev={awayAbbrev}
-                statLabel="Expected Goals Against"
-                homeValue={homeComparisonStats.advanced.expectedGoalsAgainst}
-                homeAbbrev={homeAbbrev}
-                higherIsBetter={false}
-                awayRank={awayComparisonStats.advanced.expectedGoalsAgainstRank}
-                homeRank={homeComparisonStats.advanced.expectedGoalsAgainstRank}
-                format="decimal"
-                decimals={1}
-              />
-            </>,
-            'advanced'
-          )}
-        </View>
-        )}
-
-        {/* GOALTENDING - Hidden: No real data available */}
-        {false && (
-        <View style={{ marginBottom: 12 }}>
-          {renderCategoryHeader('goaltending', 'Goaltending', '🥅')}
-          {renderCategoryContent(
-            <>
-              <StatComparisonRow
-                awayValue={awayComparisonStats.goaltending.savePct * 100}
-                awayAbbrev={awayAbbrev}
-                statLabel="Save %"
-                homeValue={homeComparisonStats.goaltending.savePct * 100}
-                homeAbbrev={homeAbbrev}
-                higherIsBetter={true}
-                awayRank={awayComparisonStats.goaltending.savePctRank}
-                homeRank={homeComparisonStats.goaltending.savePctRank}
-                format="percentage"
-                decimals={1}
-                isFirst={true}
-              />
-              <StatComparisonRow
-                awayValue={awayComparisonStats.goaltending.goalsAgainstAverage}
-                awayAbbrev={awayAbbrev}
-                statLabel="Goals Against Avg"
-                homeValue={homeComparisonStats.goaltending.goalsAgainstAverage}
-                homeAbbrev={homeAbbrev}
-                higherIsBetter={false}
-                awayRank={awayComparisonStats.goaltending.goalsAgainstAverageRank}
-                homeRank={homeComparisonStats.goaltending.goalsAgainstAverageRank}
-                format="decimal"
-                decimals={2}
-              />
-              <StatComparisonRow
-                awayValue={awayComparisonStats.goaltending.shutouts}
-                awayAbbrev={awayAbbrev}
-                statLabel="Shutouts"
-                homeValue={homeComparisonStats.goaltending.shutouts}
-                homeAbbrev={homeAbbrev}
-                higherIsBetter={true}
-                awayRank={awayComparisonStats.goaltending.shutoutsRank}
-                homeRank={homeComparisonStats.goaltending.shutoutsRank}
-                format="number"
-                decimals={0}
-              />
-              <StatComparisonRow
-                awayValue={awayComparisonStats.goaltending.qualityStarts}
-                awayAbbrev={awayAbbrev}
-                statLabel="Quality Starts"
-                homeValue={homeComparisonStats.goaltending.qualityStarts}
-                homeAbbrev={homeAbbrev}
-                higherIsBetter={true}
-                awayRank={awayComparisonStats.goaltending.qualityStartsRank}
-                homeRank={homeComparisonStats.goaltending.qualityStartsRank}
-                format="number"
-                decimals={0}
-              />
-            </>,
-            'goaltending'
-          )}
-        </View>
-        )}
-
-        {/* DISCIPLINE - Hidden: No real data available */}
-        {false && (
-        <View style={{ marginBottom: 12 }}>
-          {renderCategoryHeader('discipline', 'Discipline', '⚖️')}
-          {renderCategoryContent(
-            <>
-              <StatComparisonRow
-                awayValue={awayComparisonStats.discipline.penaltiesPerGame}
-                awayAbbrev={awayAbbrev}
-                statLabel="Penalties/Game"
-                homeValue={homeComparisonStats.discipline.penaltiesPerGame}
-                homeAbbrev={homeAbbrev}
-                higherIsBetter={false}
-                awayRank={awayComparisonStats.discipline.penaltiesPerGameRank}
-                homeRank={homeComparisonStats.discipline.penaltiesPerGameRank}
-                format="decimal"
-                decimals={1}
-                isFirst={true}
-              />
-              <StatComparisonRow
-                awayValue={awayComparisonStats.discipline.penaltyMinutes}
-                awayAbbrev={awayAbbrev}
-                statLabel="Penalty Minutes"
-                homeValue={homeComparisonStats.discipline.penaltyMinutes}
-                homeAbbrev={homeAbbrev}
-                higherIsBetter={false}
-                awayRank={awayComparisonStats.discipline.penaltyMinutesRank}
-                homeRank={homeComparisonStats.discipline.penaltyMinutesRank}
-                format="number"
-                decimals={0}
-              />
-              <StatComparisonRow
-                awayValue={awayComparisonStats.discipline.minorPenalties}
-                awayAbbrev={awayAbbrev}
-                statLabel="Minor Penalties"
-                homeValue={homeComparisonStats.discipline.minorPenalties}
-                homeAbbrev={homeAbbrev}
-                higherIsBetter={false}
-                awayRank={awayComparisonStats.discipline.minorPenaltiesRank}
-                homeRank={homeComparisonStats.discipline.minorPenaltiesRank}
-                format="number"
-                decimals={0}
-              />
-              <StatComparisonRow
-                awayValue={awayComparisonStats.discipline.majorPenalties}
-                awayAbbrev={awayAbbrev}
-                statLabel="Major Penalties"
-                homeValue={homeComparisonStats.discipline.majorPenalties}
-                homeAbbrev={homeAbbrev}
-                higherIsBetter={false}
-                awayRank={awayComparisonStats.discipline.majorPenaltiesRank}
-                homeRank={homeComparisonStats.discipline.majorPenaltiesRank}
-                format="number"
-                decimals={0}
-              />
-            </>,
-            'discipline'
-          )}
-        </View>
-        )}
       </View>
     );
   };

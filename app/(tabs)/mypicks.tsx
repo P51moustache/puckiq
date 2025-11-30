@@ -448,7 +448,7 @@ export default function MyPicksScreen() {
                   No games scheduled today
                 </Text>
                 <Text style={[styles.subtext, { textAlign: 'center', lineHeight: 20 }]}>
-                  Check back {getFormattedDate(getTomorrowDateString())} for tomorrow's matchups!
+                  Check back {getFormattedDate(getTomorrowDateString())} for tomorrow&apos;s matchups!
                 </Text>
                 <Text style={[styles.subtext, { textAlign: 'center', marginTop: 12, fontStyle: 'italic', opacity: 0.8 }]}>
                   View other tabs for team analytics and power rankings

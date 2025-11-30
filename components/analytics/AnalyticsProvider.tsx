@@ -1,4 +1,4 @@
-import React, { createContext, ReactNode, useContext, useEffect } from 'react';
+import React, { createContext, ReactNode, useContext, useEffect, useMemo } from 'react';
 import AnalyticsService from '../../services/analytics/AnalyticsService';
 
 interface AnalyticsContextType {
@@ -18,15 +18,19 @@ interface AnalyticsProviderProps {
 
 export function AnalyticsProvider({ children, config }: AnalyticsProviderProps) {
   const analytics = AnalyticsService.getInstance();
+  const normalizedConfig = useMemo(
+    () => (config ? { ...config } : undefined),
+    [config]
+  );
 
   useEffect(() => {
     // Initialize analytics service
-    analytics.initialize(config);
+    analytics.initialize(normalizedConfig);
 
     // Note: No cleanup function needed for singleton analytics service
     // The singleton persists across component mounts/unmounts
     // This prevents crashes when app returns from background
-  }, [config]);
+  }, [analytics, normalizedConfig]);
 
   return (
     <AnalyticsContext.Provider value={{ analytics }}>
