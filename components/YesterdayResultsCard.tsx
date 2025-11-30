@@ -35,7 +35,7 @@ export default function YesterdayResultsCard({ lock, smartPicks, lockStats, smar
           color: '#e6eef8',
           marginBottom: 8,
         }}>
-          Yesterday's Picks
+          Yesterday&apos;s Picks
         </Text>
         <Text style={{
           fontSize: 12,
@@ -83,7 +83,7 @@ export default function YesterdayResultsCard({ lock, smartPicks, lockStats, smar
           color: '#e6eef8',
           marginBottom: 4,
         }}>
-          Yesterday's Results
+          Yesterday&apos;s Results
         </Text>
         <Text style={{
           fontSize: 11,

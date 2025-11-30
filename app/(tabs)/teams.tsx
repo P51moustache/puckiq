@@ -1353,47 +1353,50 @@ export default function TeamsScreen() {
         </View>
 
         {/* Advanced Stats Comparison */}
-        {advancedStats.stats && (
-          <>
-            <Text style={[styles.greeting, { fontSize: 16, marginTop: 20, marginBottom: 12 }]}>
-              Advanced Stats Snapshot
-            </Text>
-            <View style={[styles.factbox, { padding: 16 }]}>
-              <BarChart
-                data={{
-                  labels: ['Corsi', 'Fenwick', 'xG', 'PDO'],
-                  datasets: [
-                    {
-                      data: [
-                        sanitizeValue(advancedStats.stats.corsiFor, 50),
-                        sanitizeValue(advancedStats.stats.fenwickFor, 50),
-                        sanitizeValue(advancedStats.stats.expectedGoals / 2, 50),
-                        sanitizeValue(advancedStats.stats.pdo - 900, 100),
-                      ],
-                    },
-                  ],
-                }}
-                width={screenWidth - 32}
-                height={220}
-                yAxisLabel=""
-                yAxisSuffix=""
-                chartConfig={{
-                  ...chartConfig,
-                  barPercentage: 0.7,
-                }}
-                style={{
-                  marginVertical: 8,
-                  borderRadius: 16,
-                }}
-                fromZero={true}
-                showValuesOnTopOfBars={true}
-              />
-              <Text style={[styles.subtext, { fontSize: 11, textAlign: 'center', marginTop: 8 }]}>
-                Key advanced metrics (values normalized for visualization)
+        {selectedTeam && advancedStats[selectedTeam]?.stats && (() => {
+          const advStats = advancedStats[selectedTeam]!.stats!;
+          return (
+            <>
+              <Text style={[styles.greeting, { fontSize: 16, marginTop: 20, marginBottom: 12 }]}>
+                Advanced Stats Snapshot
               </Text>
-            </View>
-          </>
-        )}
+              <View style={[styles.factbox, { padding: 16 }]}>
+                <BarChart
+                  data={{
+                    labels: ['Corsi', 'Fenwick', 'xG', 'PDO'],
+                    datasets: [
+                      {
+                        data: [
+                          sanitizeValue(advStats.corsiFor, 50),
+                          sanitizeValue(advStats.fenwickFor, 50),
+                          sanitizeValue(advStats.expectedGoals / 2, 50),
+                          sanitizeValue(advStats.pdo - 900, 100),
+                        ],
+                      },
+                    ],
+                  }}
+                  width={screenWidth - 32}
+                  height={220}
+                  yAxisLabel=""
+                  yAxisSuffix=""
+                  chartConfig={{
+                    ...chartConfig,
+                    barPercentage: 0.7,
+                  }}
+                  style={{
+                    marginVertical: 8,
+                    borderRadius: 16,
+                  }}
+                  fromZero={true}
+                  showValuesOnTopOfBars={true}
+                />
+                <Text style={[styles.subtext, { fontSize: 11, textAlign: 'center', marginTop: 8 }]}>
+                  Key advanced metrics (values normalized for visualization)
+                </Text>
+              </View>
+            </>
+          );
+        })()}
 
         {/* Conference Standing Visualization */}
         <Text style={[styles.greeting, { fontSize: 16, marginTop: 20, marginBottom: 12 }]}>

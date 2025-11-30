@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import Dropdown from '../../components/Dropdown';
 import { ThemedView } from '../../components/ThemedView';
 import { makeStyles, theme } from '../../constants/theme';
 import { useAnalytics } from '../../hooks/useAnalytics';
+// Auth disabled for now - uncomment when ready to implement user accounts
+// import { useAuth } from '../../hooks/useAuth';
 import {
   getNotificationSettings,
   NotificationSettings,
@@ -24,9 +27,12 @@ import {
 
 export default function SettingsScreen() {
   const styles = makeStyles();
+  const router = useRouter();
 
   // Initialize analytics for this screen
   const analytics = useAnalytics('SettingsScreen');
+  // Auth disabled for now - uncomment when ready to implement user accounts
+  // const { user, signOut, isDeveloper } = useAuth();
 
   // Notification settings
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
@@ -53,6 +59,58 @@ export default function SettingsScreen() {
         contentContainerStyle={[styles.scrollContainer, { paddingBottom: 100 }]}
         showsVerticalScrollIndicator={false}
       >
+        {/* Account Section - Disabled for now, uncomment when ready to implement user accounts */}
+        {/*
+        <View style={[styles.card, { alignSelf: 'stretch', width: '100%', marginBottom: 16 }]}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={{ color: theme.text, fontSize: 16, fontWeight: '700' }}>Account</Text>
+            {isDeveloper ? (
+              <Text style={{ color: '#22c55e', fontSize: 12, fontWeight: '700' }}>Developer Access</Text>
+            ) : null}
+          </View>
+
+          {user ? (
+            <>
+              <Text style={{ color: theme.subtext, marginTop: 6 }}>
+                {user.email || 'Signed in'}
+              </Text>
+              <TouchableOpacity
+                style={{
+                  marginTop: 12,
+                  alignSelf: 'flex-start',
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: theme.accent,
+                }}
+                onPress={signOut}
+              >
+                <Text style={{ color: theme.accent, fontWeight: '600' }}>Sign out</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <Text style={{ color: theme.subtext, marginTop: 6, marginBottom: 8 }}>
+                Guest Mode - Sign in to sync your picks across devices and enable cloud backup
+              </Text>
+              <TouchableOpacity
+                style={{
+                  alignSelf: 'flex-start',
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  borderRadius: 8,
+                  backgroundColor: theme.accent,
+                }}
+                onPress={() => router.push('/(auth)/sign-in')}
+              >
+                <Text style={{ color: '#fff', fontWeight: '600' }}>Sign in</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+        */}
+
         <View style={styles.header}>
           <Text style={styles.title}>Settings</Text>
         </View>
@@ -65,7 +123,7 @@ export default function SettingsScreen() {
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, paddingVertical: 8 }}>
             <View style={{ flex: 1 }}>
               <Text style={{ color: theme.text, fontSize: 15, fontWeight: '600' }}>Daily Pick Results</Text>
-              <Text style={{ color: theme.subtext, fontSize: 12, marginTop: 2 }}>Get notified about yesterday's picks</Text>
+              <Text style={{ color: theme.subtext, fontSize: 12, marginTop: 2 }}>Get notified about yesterday&apos;s picks</Text>
             </View>
             <Switch
               value={notificationSettings.enabled}

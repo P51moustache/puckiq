@@ -176,7 +176,7 @@ export default function PickHistoryModal({ visible, onClose, onHistoryCleared }:
         {/* Info Box */}
         <View style={styles.infoBox}>
           <Text style={styles.infoText}>
-            Cards are ranked by accuracy. 🥇🥈🥉 indicate top performers. Compare your picks against AI to see if you're beating the algorithm!
+            Cards are ranked by accuracy. 🥇🥈🥉 indicate top performers. Compare your picks against AI to see if you&apos;re beating the algorithm!
           </Text>
         </View>
 

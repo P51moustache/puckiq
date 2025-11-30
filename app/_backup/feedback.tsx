@@ -392,7 +392,7 @@ export default function FeedbackScreen() {
             autoCorrect={false}
           />
           <Text style={[styles.subtextSmall, { marginTop: 4 }]}>
-            We'll only use this to respond to your feedback if needed
+            We&apos;ll only use this to respond to your feedback if needed
           </Text>
         </View>
 
