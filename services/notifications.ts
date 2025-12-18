@@ -243,3 +243,128 @@ export async function triggerTestNotification(): Promise<void> {
     console.error('Error triggering test notification:', error);
   }
 }
+
+// Storage key for scheduled game notifications
+const GAME_NOTIFICATIONS_KEY = 'puckiq_scheduled_game_notifications';
+
+// Schedule a game start notification
+export async function scheduleGameStartNotification(
+  gameId: string,
+  homeTeam: string,
+  awayTeam: string,
+  startTimeUTC: string,
+  minutesBefore: number,
+  predictedWinner: string
+): Promise<string | null> {
+  try {
+    // Check if physical device
+    if (!Device.isDevice) {
+      console.log('[Game Notification] Skipping - not a physical device');
+      return null;
+    }
+
+    const settings = await getNotificationSettings();
+    if (!settings.notifyGameStart) {
+      console.log('[Game Notification] Game start notifications disabled');
+      return null;
+    }
+
+    const gameTime = new Date(startTimeUTC);
+    const notificationTime = new Date(gameTime.getTime() - minutesBefore * 60 * 1000);
+
+    // Don't schedule if notification time is in the past
+    if (notificationTime <= new Date()) {
+      console.log('[Game Notification] Notification time is in the past, skipping');
+      return null;
+    }
+
+    // Cancel any existing notification for this game
+    await cancelGameNotification(gameId);
+
+    // Configure Android channel for game alerts
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('game-alerts', {
+        name: 'Game Alerts',
+        importance: Notifications.AndroidImportance.HIGH,
+        sound: 'default',
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#10b981',
+      });
+    }
+
+    const notificationId = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: `${awayTeam} @ ${homeTeam} starting soon!`,
+        body: `Your pick: ${predictedWinner} - Game starts in ${minutesBefore} minutes`,
+        data: {
+          screen: 'home',
+          gameId,
+          type: 'game-start',
+        },
+        sound: 'default',
+        ...(Platform.OS === 'android' && { channelId: 'game-alerts' }),
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: notificationTime,
+      },
+    });
+
+    // Store the notification ID for later cancellation
+    await storeGameNotification(gameId, notificationId);
+
+    console.log(`[Game Notification] Scheduled for ${notificationTime.toLocaleString()}`);
+    return notificationId;
+  } catch (error) {
+    console.error('[Game Notification] Error scheduling:', error);
+    return null;
+  }
+}
+
+// Cancel a game notification by game ID
+export async function cancelGameNotification(gameId: string): Promise<void> {
+  try {
+    const notifications = await getStoredGameNotifications();
+    const notificationId = notifications[gameId];
+
+    if (notificationId) {
+      await Notifications.cancelScheduledNotificationAsync(notificationId);
+      delete notifications[gameId];
+      await saveGameNotifications(notifications);
+      console.log(`[Game Notification] Cancelled notification for game ${gameId}`);
+    }
+  } catch (error) {
+    console.error('[Game Notification] Error cancelling:', error);
+  }
+}
+
+// Helper functions for storing game notification IDs
+async function getStoredGameNotifications(): Promise<Record<string, string>> {
+  try {
+    const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+    const json = await AsyncStorage.getItem(GAME_NOTIFICATIONS_KEY);
+    return json ? JSON.parse(json) : {};
+  } catch (error) {
+    return {};
+  }
+}
+
+async function storeGameNotification(gameId: string, notificationId: string): Promise<void> {
+  try {
+    const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+    const notifications = await getStoredGameNotifications();
+    notifications[gameId] = notificationId;
+    await AsyncStorage.setItem(GAME_NOTIFICATIONS_KEY, JSON.stringify(notifications));
+  } catch (error) {
+    console.error('[Game Notification] Error storing notification ID:', error);
+  }
+}
+
+async function saveGameNotifications(notifications: Record<string, string>): Promise<void> {
+  try {
+    const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+    await AsyncStorage.setItem(GAME_NOTIFICATIONS_KEY, JSON.stringify(notifications));
+  } catch (error) {
+    console.error('[Game Notification] Error saving notifications:', error);
+  }
+}

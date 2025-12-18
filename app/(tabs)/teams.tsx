@@ -85,7 +85,11 @@ type StandingsData = {
   error: string | null;
 };
 
-export default function TeamsScreen() {
+type TeamsScreenProps = {
+  embedded?: boolean;
+};
+
+export default function TeamsScreen({ embedded = false }: TeamsScreenProps) {
   const styles = makeStyles();
 
   // Teams state
@@ -1430,13 +1434,8 @@ export default function TeamsScreen() {
     );
   };
 
-  return (
-    <ThemedView style={styles.container}>
-      <View style={[styles.header, { paddingHorizontal: 20 }]}>
-        <Text style={styles.title}>Teams</Text>
-        <Text style={styles.subtitle}>Explore NHL teams and analytics</Text>
-      </View>
-
+  const content = (
+    <>
       {/* Filters */}
       <View style={localStyles.filterSection}>
         {/* Conference Filter */}
@@ -1574,6 +1573,22 @@ export default function TeamsScreen() {
           }}
         />
       )}
+    </>
+  );
+
+  // When embedded in Explore tab, just return content without wrapper
+  if (embedded) {
+    return <View style={{ flex: 1, backgroundColor: theme.background }}>{content}</View>;
+  }
+
+  // Standalone mode: full screen with header
+  return (
+    <ThemedView style={styles.container}>
+      <View style={[styles.header, { paddingHorizontal: 20 }]}>
+        <Text style={styles.title}>Teams</Text>
+        <Text style={styles.subtitle}>Explore NHL teams and analytics</Text>
+      </View>
+      {content}
     </ThemedView>
   );
 }

@@ -30,35 +30,53 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Today',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="hockey.puck.fill" color={color} />,
         }}
       />
       <Tabs.Screen
+        name="picks"
+        options={{
+          title: 'Picks',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="checkmark.circle.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="explore"
+        options={{
+          title: 'Explore',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="magnifyingglass" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.circle.fill" color={color} />,
+        }}
+      />
+      {/* Hidden screens - kept for file-based routing but not shown in tab bar */}
+      <Tabs.Screen
         name="mypicks"
         options={{
-          title: 'My Picks',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="checklist" color={color} />,
+          href: null,
         }}
       />
       <Tabs.Screen
         name="teams"
         options={{
-          title: 'Teams',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="chart.dots.scatter" color={color} />,
+          href: null,
         }}
       />
       <Tabs.Screen
         name="more"
         options={{
-          title: 'Players',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.2.fill" color={color} />,
+          href: null,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
-          title: 'Settings',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="gearshape.fill" color={color} />,
+          href: null,
         }}
       />
     </Tabs>

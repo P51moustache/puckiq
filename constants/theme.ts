@@ -64,6 +64,58 @@ export const theme = {
   },
 };
 
+// Pre-built text style presets for consistent typography
+export const textStyles = StyleSheet.create({
+  h1: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: theme.text,
+    lineHeight: 40,
+  },
+  h2: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: theme.text,
+    lineHeight: 32,
+  },
+  h3: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: theme.text,
+    lineHeight: 26,
+  },
+  body: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: theme.text,
+    lineHeight: 22,
+  },
+  bodySmall: {
+    fontSize: 12,
+    fontWeight: '400',
+    color: theme.subtext,
+    lineHeight: 18,
+  },
+  caption: {
+    fontSize: 12,
+    fontWeight: '400',
+    color: theme.subtext,
+    lineHeight: 16,
+  },
+  label: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: theme.subtext,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  button: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.accent,
+  },
+});
+
 export const getTheme = () => theme;
 
 export const makeStyles = () => {
@@ -129,7 +181,7 @@ export const makeStyles = () => {
       shadowOpacity: 0.08,
       shadowRadius: 12,
       elevation: 6,
-      alignItems: 'center',
+      alignItems: 'stretch',
       marginTop: 14,
     },
     factbox: {
@@ -360,4 +412,65 @@ export const makeStyles = () => {
 
 export const tokens = {
   get: getTheme,
+};
+
+// Pick styling for engagement features
+export const pickTheme = {
+  // Card styling (removed classified/spy theme)
+  card: {
+    background: '#1a0a2e',
+    border: '#7c3aed',
+    text: '#a78bfa',
+    highlight: '#60a5fa',
+  },
+
+  // Confidence colors - renamed for clarity
+  confidence: {
+    bestBet: '#10b981',    // Best Bet - highest confidence
+    solid: '#3b82f6',      // Solid pick
+    good: '#f59e0b',       // Good pick
+    tossUp: '#ef4444',     // Toss-up
+  },
+
+  // Engagement/gamification colors
+  engagement: {
+    gold: '#fbbf24',
+    fire: '#f97316',
+    streak: '#ef4444',
+    xp: '#a78bfa',
+    pucks: '#60a5fa',
+  },
+
+  // Gradients for premium cards
+  gradients: {
+    topPick: ['#7c3aed', '#3b82f6', '#ec4899'],
+    card: ['#1e1b4b', '#312e81'],
+    celebration: ['#fbbf24', '#f59e0b'],
+  },
+};
+
+// Backwards compatibility alias (deprecated - use pickTheme instead)
+// Maps old property names to new ones for existing components
+export const insiderTheme = {
+  ...pickTheme,
+  // Old 'classified' section mapped to 'card'
+  classified: {
+    background: pickTheme.card.background,
+    border: pickTheme.card.border,
+    text: pickTheme.card.text,
+    stamp: '#ef4444', // Keep for backwards compat
+  },
+  // Old confidence names mapped to new ones
+  confidence: {
+    ...pickTheme.confidence,
+    lock: pickTheme.confidence.bestBet,
+    strong: pickTheme.confidence.solid,
+    moderate: pickTheme.confidence.good,
+  },
+  // Old gradient names
+  gradients: {
+    ...pickTheme.gradients,
+    lock: pickTheme.gradients.topPick,
+    insider: pickTheme.gradients.card,
+  },
 };

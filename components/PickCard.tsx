@@ -1,14 +1,16 @@
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { makeStyles, insiderTheme } from '../constants/theme';
+import { makeStyles, pickTheme } from '../constants/theme';
+import { mediumImpact } from '../utils/haptics';
 
-interface SmartPickCardProps {
+interface PickCardProps {
   game: any;
   confidenceScore: number;
   prediction: any;
   onPress?: () => void;
-  onLockIn?: () => void;
+  onConfirmPick?: () => void;
   isLocked?: boolean;
+  hasUserPick?: boolean;
   situationalFactors?: {
     homeBackToBack: boolean;
     awayBackToBack: boolean;
@@ -18,7 +20,7 @@ interface SmartPickCardProps {
   } | null;
 }
 
-export default function SmartPickCard({ game, confidenceScore, prediction, onPress, onLockIn, isLocked = false, situationalFactors }: SmartPickCardProps) {
+export default function PickCard({ game, confidenceScore, prediction, onPress, onConfirmPick, isLocked = false, hasUserPick = false, situationalFactors }: PickCardProps) {
   const styles = makeStyles();
 
   const homeAbbrev = game.homeTeam?.abbrev || 'HOME';
@@ -28,15 +30,15 @@ export default function SmartPickCard({ game, confidenceScore, prediction, onPre
   // Calculate which team is favored
   const favored = prediction.homeWinProb > prediction.awayWinProb ? homeAbbrev : awayAbbrev;
 
-  // Determine confidence badge - Insider language
-  let confidenceBadge = 'INTEL';
-  let badgeColor = insiderTheme.confidence.moderate;
+  // Determine confidence badge - Direct language
+  let confidenceBadge = 'GOOD PICK';
+  let badgeColor = pickTheme.confidence.good;
   if (confidenceScore >= 65) {
-    confidenceBadge = 'HOT TIP';
-    badgeColor = insiderTheme.confidence.strong;
+    confidenceBadge = 'TRENDING';
+    badgeColor = pickTheme.confidence.solid;
   } else if (confidenceScore < 55) {
-    confidenceBadge = 'COIN FLIP';
-    badgeColor = insiderTheme.confidence.tossUp;
+    confidenceBadge = 'TOSS-UP';
+    badgeColor = pickTheme.confidence.tossUp;
   }
 
   // Check for situational factors
@@ -90,7 +92,7 @@ export default function SmartPickCard({ game, confidenceScore, prediction, onPre
                 fontSize: 8,
                 fontWeight: '800',
               }}>
-                🔴 B2B
+                B2B
               </Text>
             </View>
           )}
@@ -109,7 +111,7 @@ export default function SmartPickCard({ game, confidenceScore, prediction, onPre
                 fontSize: 8,
                 fontWeight: '800',
               }}>
-                💤 REST
+                REST
               </Text>
             </View>
           )}
@@ -179,58 +181,59 @@ export default function SmartPickCard({ game, confidenceScore, prediction, onPre
             color: '#98a6bf',
             marginBottom: 3,
           }}>
-            • {prediction.homeStreak?.startsWith('W') ? `${homeAbbrev} hot` : 'Home ice'}
+            {'\u2022'} {prediction.homeStreak?.startsWith('W') ? `${homeAbbrev} hot` : 'Home ice'}
           </Text>
           <Text style={{
             fontSize: 10,
             lineHeight: 14,
             color: '#98a6bf',
           }}>
-            • {favored} favored
+            {'\u2022'} {favored} favored
           </Text>
         </View>
 
-        {/* Lock In Button or Status */}
-        {isLocked ? (
+        {/* Confirm Button or Status */}
+        {hasUserPick ? (
           <View style={{
-            backgroundColor: `${insiderTheme.confidence.lock}22`,
+            backgroundColor: `${pickTheme.confidence.bestBet}22`,
             borderRadius: 8,
             padding: 8,
             marginTop: 8,
             borderWidth: 1.5,
-            borderColor: insiderTheme.confidence.lock,
+            borderColor: pickTheme.confidence.bestBet,
             alignItems: 'center',
           }}>
             <Text style={{
               fontSize: 10,
               fontWeight: '800',
-              color: insiderTheme.confidence.lock,
+              color: pickTheme.confidence.bestBet,
             }}>
-              LOCKED ✓
+              PICK CONFIRMED
             </Text>
           </View>
-        ) : onLockIn ? (
+        ) : isLocked ? null : onConfirmPick ? (
           <Pressable
             onPress={(e) => {
               e.stopPropagation();
-              onLockIn();
+              mediumImpact();
+              onConfirmPick();
             }}
             style={({ pressed }) => ({
-              backgroundColor: pressed ? insiderTheme.confidence.lock : `${insiderTheme.confidence.lock}22`,
+              backgroundColor: pressed ? pickTheme.confidence.bestBet : `${pickTheme.confidence.bestBet}22`,
               borderRadius: 8,
               padding: 8,
               marginTop: 8,
               borderWidth: 1.5,
-              borderColor: insiderTheme.confidence.lock,
+              borderColor: pickTheme.confidence.bestBet,
               alignItems: 'center',
             })}
           >
             <Text style={{
               fontSize: 10,
               fontWeight: '800',
-              color: insiderTheme.confidence.lock,
+              color: pickTheme.confidence.bestBet,
             }}>
-              LOCK IN 🔒
+              CONFIRM
             </Text>
           </Pressable>
         ) : (
@@ -242,7 +245,7 @@ export default function SmartPickCard({ game, confidenceScore, prediction, onPre
             fontWeight: '600',
             opacity: 0.7,
           }}>
-            GET INTEL →
+            DETAILS
           </Text>
         )}
       </View>

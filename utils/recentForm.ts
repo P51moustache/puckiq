@@ -1,9 +1,17 @@
 /**
  * Recent form calculations for NHL teams
  * Analyzes last N games to determine current team performance
+ * Uses recency weighting so recent games matter more than older games
  */
 
 import type { RecentGame, RecentFormStats } from '../types/predictions';
+
+/**
+ * Decay factor for recency weighting
+ * Each game back is worth 85% of the previous game
+ * Game weights (most recent first): 1.0, 0.85, 0.72, 0.61, 0.52, 0.44, 0.38, 0.32, 0.27, 0.23
+ */
+const RECENCY_DECAY_FACTOR = 0.85;
 
 /**
  * Get current NHL season in format YYYYyyyy (e.g., 20242025)
@@ -86,7 +94,17 @@ export async function fetchTeamRecentGames(
 }
 
 /**
+ * Calculate the recency weight for a game based on its position
+ * Most recent game (index 0) = 1.0, each subsequent game decays by RECENCY_DECAY_FACTOR
+ */
+function getRecencyWeight(gameIndex: number): number {
+  return Math.pow(RECENCY_DECAY_FACTOR, gameIndex);
+}
+
+/**
  * Calculate recent form statistics from a list of games
+ * Uses recency weighting so recent games have more impact than older games
+ * Games should be sorted by date descending (most recent first)
  */
 export function calculateRecentForm(games: RecentGame[]): RecentFormStats {
   if (games.length === 0) {
@@ -99,19 +117,41 @@ export function calculateRecentForm(games: RecentGame[]): RecentFormStats {
     };
   }
 
+  // Calculate raw counts for display purposes
   const wins = games.filter(g => g.won).length;
   const losses = games.length - wins;
-  const pointPctg = Math.round((wins / games.length) * 1000) / 1000; // Round to 3 decimals
 
-  const goalDifferential = games.reduce((sum, game) => {
-    return sum + (game.goalsFor - game.goalsAgainst);
-  }, 0);
+  // Calculate weighted point percentage using recency weighting
+  // Recent games matter more than older games
+  let weightedWins = 0;
+  let totalWeight = 0;
+  let weightedGoalDiff = 0;
+
+  games.forEach((game, index) => {
+    const weight = getRecencyWeight(index);
+    totalWeight += weight;
+
+    if (game.won) {
+      weightedWins += weight;
+    }
+
+    // Also weight goal differential by recency
+    weightedGoalDiff += (game.goalsFor - game.goalsAgainst) * weight;
+  });
+
+  // Calculate weighted point percentage (this is what's used in predictions)
+  const pointPctg = totalWeight > 0
+    ? Math.round((weightedWins / totalWeight) * 1000) / 1000
+    : 0.5;
+
+  // Goal differential is the weighted sum (more recent games count more)
+  const goalDifferential = Math.round(weightedGoalDiff * 10) / 10;
 
   return {
     wins,
     losses,
-    pointPctg,
-    goalDifferential,
+    pointPctg,  // Now uses recency weighting
+    goalDifferential,  // Now uses recency weighting
     gamesPlayed: games.length,
   };
 }

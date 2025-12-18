@@ -8,7 +8,6 @@ interface GameDeepDiveModalProps {
   visible: boolean;
   onClose: () => void;
   game: any;
-  confidenceScore: number;
   prediction: any;
 }
 
@@ -16,7 +15,6 @@ export default function GameDeepDiveModal({
   visible,
   onClose,
   game,
-  confidenceScore,
   prediction,
 }: GameDeepDiveModalProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'stats' | 'recent' | 'h2h' | 'schedule'>('overview');
@@ -101,17 +99,6 @@ export default function GameDeepDiveModal({
     fetchH2HData();
   }, [visible, activeTab, homeAbbrev, awayAbbrev]);
 
-  // Determine confidence badge
-  let confidenceBadge = 'MODERATE';
-  let badgeColor = '#f59e0b';
-  if (confidenceScore >= 70) {
-    confidenceBadge = 'STRONG';
-    badgeColor = '#10b981';
-  } else if (confidenceScore < 55) {
-    confidenceBadge = 'TOSS-UP';
-    badgeColor = '#ef4444';
-  }
-
   const tabs = [
     { id: 'overview', label: 'Overview', icon: '' },
     // { id: 'stats', label: 'Stats', icon: '' }, // Disabled temporarily
@@ -159,41 +146,6 @@ export default function GameDeepDiveModal({
           </Text>
           <Text style={{ fontSize: 14, fontWeight: '700', color: '#f59e0b' }}>
             {prediction.homeWinProb}%
-          </Text>
-        </View>
-      </View>
-
-      {/* Confidence Analysis */}
-      <View style={{ marginBottom: 20 }}>
-        <Text style={{ fontSize: 16, fontWeight: '700', color: '#e6eef8', marginBottom: 12 }}>
-          Confidence Analysis
-        </Text>
-        <View style={{
-          backgroundColor: '#071a3699',
-          borderRadius: 12,
-          padding: 16,
-          borderWidth: 1.5,
-          borderColor: `${badgeColor}66`,
-        }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-            <View style={{
-              backgroundColor: `${badgeColor}22`,
-              paddingHorizontal: 12,
-              paddingVertical: 4,
-              borderRadius: 12,
-              borderWidth: 1,
-              borderColor: badgeColor,
-            }}>
-              <Text style={{ color: badgeColor, fontSize: 11, fontWeight: '800' }}>
-                {confidenceBadge}
-              </Text>
-            </View>
-            <Text style={{ fontSize: 20, fontWeight: '800', color: badgeColor, marginLeft: 12 }}>
-              {confidenceScore}%
-            </Text>
-          </View>
-          <Text style={{ fontSize: 12, color: '#98a6bf', lineHeight: 18 }}>
-            This confidence score is based on multiple factors including team standings, recent form, home ice advantage, and goal differential.
           </Text>
         </View>
       </View>

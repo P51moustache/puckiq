@@ -2,17 +2,19 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Modal, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { Animated, Modal, RefreshControl, ScrollView, Text, TouchableOpacity, View, Alert } from 'react-native';
 import Dropdown from '../../components/Dropdown';
 import GameDeepDiveModal from '../../components/GameDeepDiveModal';
-import LockOfTheDayCard from '../../components/LockOfTheDayCard';
+import ConfirmPickModal from '../../components/ConfirmPickModal';
+import TopPickCard from '../../components/TopPickCard';
 import PowerRankingsWidget from '../../components/PowerRankingsWidget';
-import SmartPickCard from '../../components/SmartPickCard';
+import PickCard from '../../components/PickCard';
 import StreakBadge from '../../components/StreakBadge';
 import StreakTracker from '../../components/StreakTracker';
 import YesterdayResultsCard from '../../components/YesterdayResultsCard';
 import { ThemedView } from '../../components/ThemedView';
+import { SkeletonPickCard, Skeleton } from '../../components/ui/SkeletonLoader';
 import { makeStyles } from '../../constants/theme';
 import { useAnalytics, useTrackUserInteraction } from '../../hooks/useAnalytics';
 import {
@@ -177,6 +179,10 @@ export default function HomeScreen() {
     totalDays: 0,
   });
 
+  // Lock in modal state
+  const [lockInModalVisible, setLockInModalVisible] = useState(false);
+  const [lockInGame, setLockInGame] = useState<any>(null);
+
   // Load saved team preference on app start
   useEffect(() => {
     async function loadSavedTeam() {
@@ -227,6 +233,46 @@ export default function HomeScreen() {
     }
     loadStreakData();
   }, []);
+
+  // Check if picks can be made for a game (before 3rd period)
+  const canMakePick = useCallback((game: any) => {
+    const gameState = game.gameState || '';
+    const isFuture = !gameState || gameState === 'FUT' || gameState === 'PRE';
+    const isLive = gameState === 'LIVE' || gameState === 'CRIT';
+    const isFinal = gameState === 'FINAL' || gameState === 'OFF';
+    const currentPeriod = game.periodDescriptor?.number || 1;
+
+    // Don't allow picks for finished games
+    if (isFinal) return false;
+    // Allow picks if game hasn't started
+    if (isFuture) return true;
+    // Allow picks if live but before 3rd period
+    if (isLive && currentPeriod < 3) return true;
+
+    return false;
+  }, []);
+
+  // Handle opening lock-in modal
+  const handleOpenLockIn = useCallback((game: any) => {
+    if (!canMakePick(game)) return; // Don't open if can't make pick
+    setLockInGame(game);
+    setLockInModalVisible(true);
+  }, [canMakePick]);
+
+  // Handle confirming a pick
+  const handleConfirmLockIn = useCallback(async (selectedTeam: string) => {
+    if (!lockInGame) return;
+
+    setLockInModalVisible(false);
+    setLockInGame(null);
+
+    // Show success feedback
+    Alert.alert(
+      'Pick Confirmed!',
+      `You picked ${selectedTeam} to win.`,
+      [{ text: 'Got it!' }]
+    );
+  }, [lockInGame]);
 
   // Save team preference whenever it changes
   const handleTeamChange = async (teamAbbrev: string | null) => {
@@ -443,8 +489,9 @@ export default function HomeScreen() {
   };
 
   // Helper function to calculate win probability based on standings
+  // BOOSTED: Amplifies differences to create more confident predictions
   const calculateWinProbability = (homeTeamAbbrev: string, awayTeamAbbrev: string) => {
-    if (!currentStandings?.standings) return { homeWinProb: 50, awayWinProb: 50, confidence: 'medium' };
+    if (!currentStandings?.standings) return { homeWinProb: 50, awayWinProb: 50 };
 
     const homeTeam = currentStandings.standings.find((t: any) =>
       (t.teamAbbrev?.default || t.teamAbbrev) === homeTeamAbbrev
@@ -453,32 +500,56 @@ export default function HomeScreen() {
       (t.teamAbbrev?.default || t.teamAbbrev) === awayTeamAbbrev
     );
 
-    if (!homeTeam || !awayTeam) return { homeWinProb: 50, awayWinProb: 50, confidence: 'medium' };
+    if (!homeTeam || !awayTeam) return { homeWinProb: 50, awayWinProb: 50 };
 
-    // Calculate based on points percentage and home ice advantage
+    // Base values from standings
     const homeWinPct = homeTeam.pointPctg || 0.5;
     const awayWinPct = awayTeam.pointPctg || 0.5;
-    const HOME_ICE_ADVANTAGE = 0.10; // 10% boost for home team
 
-    // Adjust probabilities
-    let homeProb = homeWinPct + HOME_ICE_ADVANTAGE;
-    let awayProb = awayWinPct;
+    // BOOSTED: Calculate multiple factors for wider spread
+    const HOME_ICE_BOOST = 8; // Home ice adds 8 points
+    const STANDINGS_MULTIPLIER = 80; // Amplify standings difference
+    const STREAK_MULTIPLIER = 12; // Streaks matter
+    const GOAL_DIFF_MULTIPLIER = 10; // Goal differential matters
 
-    // Normalize to 100%
-    const total = homeProb + awayProb;
-    homeProb = (homeProb / total) * 100;
-    awayProb = (awayProb / total) * 100;
+    // Start at 50-50
+    let homeProb = 50;
 
-    // Determine confidence level
-    const diff = Math.abs(homeProb - awayProb);
-    let confidence = 'medium';
-    if (diff > 25) confidence = 'high';
-    else if (diff < 10) confidence = 'low';
+    // Factor 1: Standings differential (biggest factor)
+    const standingsDiff = homeWinPct - awayWinPct;
+    homeProb += standingsDiff * STANDINGS_MULTIPLIER;
+
+    // Factor 2: Home ice advantage
+    homeProb += HOME_ICE_BOOST;
+
+    // Factor 3: Streak impact (with diminishing returns)
+    const getStreakValue = (code: string) => {
+      if (!code) return 0;
+      const isWin = code.startsWith('W');
+      const isLoss = code.startsWith('L');
+      const num = parseInt(code.substring(1)) || 0;
+      const cappedNum = Math.min(num, 10);
+      const scaled = Math.pow(cappedNum, 0.8);
+      return isWin ? scaled : isLoss ? -scaled : 0;
+    };
+    const homeStreakVal = getStreakValue(homeTeam.streakCode);
+    const awayStreakVal = getStreakValue(awayTeam.streakCode);
+    homeProb += (homeStreakVal - awayStreakVal) * STREAK_MULTIPLIER;
+
+    // Factor 4: Goal differential per game
+    const homeGamesPlayed = homeTeam.gamesPlayed || 1;
+    const awayGamesPlayed = awayTeam.gamesPlayed || 1;
+    const homeGD = ((homeTeam.goalFor || 0) - (homeTeam.goalAgainst || 0)) / homeGamesPlayed;
+    const awayGD = ((awayTeam.goalFor || 0) - (awayTeam.goalAgainst || 0)) / awayGamesPlayed;
+    homeProb += (homeGD - awayGD) * GOAL_DIFF_MULTIPLIER;
+
+    // Clamp to valid range
+    homeProb = Math.max(15, Math.min(85, homeProb));
+    const awayProb = 100 - homeProb;
 
     return {
       homeWinProb: Math.round(homeProb),
       awayWinProb: Math.round(awayProb),
-      confidence,
       homePoints: homeTeam.points,
       awayPoints: awayTeam.points,
       homeRecord: `${homeTeam.wins}-${homeTeam.losses}-${homeTeam.otLosses || 0}`,
@@ -901,7 +972,7 @@ export default function HomeScreen() {
         case 'games':
           return (
             <>
-              <Text style={styles.modalTitle}>Today&apos;s Schedule</Text>
+              <Text style={styles.modalTitle}>Today's Schedule</Text>
               <ScrollView style={{ maxHeight: 400 }}>
                 {todaysGames?.games && todaysGames.games.length > 0 ? (
                   todaysGames.games.map((game: any) => {
@@ -1077,10 +1148,12 @@ export default function HomeScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.title}>PuckIQ</Text>
               <Text style={[styles.subtitle, { marginTop: 8, fontSize: 16 }]}>
-                Your Complete NHL Analytics Hub
+                Smart NHL Picks
               </Text>
             </View>
-            <StreakBadge currentStreak={streakData.currentStreak} longestStreak={streakData.longestStreak} />
+            <View style={{ alignItems: 'flex-end' }}>
+              <StreakBadge currentStreak={streakData.currentStreak} longestStreak={streakData.longestStreak} />
+            </View>
           </View>
           {fmtCountdown && (
             <View style={[styles.countdownBox, { marginTop: 16 }]}> 
@@ -1103,103 +1176,24 @@ export default function HomeScreen() {
           />
         </View>
 
-        {/* League Overview */}
-        <Text style={[styles.subsection, { alignSelf: 'stretch', textAlign: 'center', marginTop: 20, marginBottom: 8 }]}>League Overview</Text>
-        
-        {loadingLeagueData ? (
-          <View style={[styles.card, { alignItems: 'center', padding: 30 }]}>
-            <ActivityIndicator size="large" color="#60a5fa" />
-            <Text style={[styles.subtext, { marginTop: 12 }]}>Loading league data...</Text>
-          </View>
-        ) : (
-          <>
-            {/* NHL Overview Stats */}
-            <View style={styles.factboxrow}>
-              <TouchableOpacity style={styles.factboxThree} onPress={() => setActiveModal('teams')}>
-                <Text style={styles.boxtitle}>Teams</Text>
-                <Text style={styles.boxvalue}>
-                  {currentStandings?.standings?.length || 32}
-                </Text>
-                <Text style={styles.subtextSmall}>Active NHL Teams</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.factboxThree} onPress={() => setActiveModal('games')}>
-                <Text style={styles.boxtitle}>Today&apos;s Games</Text>
-                <Text style={styles.boxvalue}>
-                  {todaysGames?.games?.length || 0}
-                </Text>
-                <Text style={styles.subtextSmall}>
-                  {(todaysGames?.games?.length || 0) === 0 ? 'Off-Season' : 'Scheduled'}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.factboxThree} onPress={() => setActiveModal('season')}>
-                <Text style={styles.boxtitle}>Season</Text>
-                <Text style={styles.boxvalue}>
-                  2025-26
-                </Text>
-                <Text style={styles.subtextSmall}>Starts Oct 7</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Stat Leaders */}
-            {statLeaders && (
-              <>
-                <Text style={[styles.subsection, { alignSelf: 'stretch', textAlign: 'center', marginTop: 20, marginBottom: 8 }]}>{getCurrentSeason()} Season Leaders</Text>
-                <View style={styles.factboxrow}>
-                  <TouchableOpacity style={styles.factboxTwo} onPress={() => setActiveModal('points')}>
-                    <Text style={styles.boxtitle}>Points Leader</Text>
-                    <Text style={styles.boxvalue}>
-                      {statLeaders.skaters?.points?.[0]?.firstName?.default || statLeaders.skaters?.points?.[0]?.firstName} {statLeaders.skaters?.points?.[0]?.lastName?.default || statLeaders.skaters?.points?.[0]?.lastName}
-                    </Text>
-                    <Text style={styles.subtextSmall}>
-                      {statLeaders.skaters?.points?.[0]?.value} Points ({getCurrentSeason()})
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity style={styles.factboxTwo} onPress={() => setActiveModal('goals')}>
-                    <Text style={styles.boxtitle}>Goals Leader</Text>
-                    <Text style={styles.boxvalue}>
-                      {statLeaders.skaters?.goals?.[0]?.firstName?.default || statLeaders.skaters?.goals?.[0]?.firstName} {statLeaders.skaters?.goals?.[0]?.lastName?.default || statLeaders.skaters?.goals?.[0]?.lastName}
-                    </Text>
-                    <Text style={styles.subtextSmall}>
-                      {statLeaders.skaters?.goals?.[0]?.value} Goals ({getCurrentSeason()})
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.factboxrow}>
-                  <TouchableOpacity style={styles.factboxTwo} onPress={() => setActiveModal('assists')}>
-                    <Text style={styles.boxtitle}>Assists Leader</Text>
-                    <Text style={styles.boxvalue}>
-                      {statLeaders.skaters?.assists?.[0]?.firstName?.default || statLeaders.skaters?.assists?.[0]?.firstName} {statLeaders.skaters?.assists?.[0]?.lastName?.default || statLeaders.skaters?.assists?.[0]?.lastName}
-                    </Text>
-                    <Text style={styles.subtextSmall}>{statLeaders.skaters?.assists?.[0]?.value} Assists ({getCurrentSeason()})</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity style={styles.factboxTwo} onPress={() => setActiveModal('record')}>
-                    <Text style={styles.boxtitle}>Best Record</Text>
-                    <Text style={styles.boxvalue}>
-                      {currentStandings?.standings?.[0]?.teamAbbrev?.default || 'WPG'}
-                    </Text>
-                    <Text style={styles.subtextSmall}>{currentStandings?.standings?.[0]?.points || 116} Points</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
-          </>
-        )}
-
-        {/* SMART PICKS SECTION */}
+        {/* TODAY'S PICKS SECTION */}
         <View style={{ width: '100%', marginTop: 20 }}>
           <Text style={[styles.subsection, { alignSelf: 'stretch', textAlign: 'center', marginBottom: 16 }]}>
-            Daily Smart Picks
+            Today's Picks
           </Text>
 
-          {loadingLeagueData ? (
-            <View style={[styles.card, { alignItems: 'center', padding: 30 }]}>
-              <ActivityIndicator size="large" color="#60a5fa" />
-              <Text style={[styles.subtext, { marginTop: 12 }]}>Analyzing today&apos;s games...</Text>
+          {(loadingLeagueData || loadingPredictions || (!lockOfTheDay && !smartPicks.length && todaysGames?.games?.length > 0)) ? (
+            <View style={{ width: '100%' }}>
+              {/* Skeleton for top pick */}
+              <SkeletonPickCard variant="top" />
+              {/* Skeleton for more picks */}
+              <View style={{ marginTop: 16 }}>
+                <Skeleton width={100} height={18} style={{ marginBottom: 12 }} />
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <SkeletonPickCard variant="normal" />
+                  <SkeletonPickCard variant="normal" />
+                </View>
+              </View>
             </View>
           ) : (
             <>
@@ -1214,10 +1208,10 @@ export default function HomeScreen() {
                 />
               )}
 
-              {/* Lock of the Day - Hero Card */}
+              {/* Top Pick of the Day - Hero Card */}
               {lockOfTheDay && (
                 <View style={{ marginBottom: 16 }}>
-                  <LockOfTheDayCard
+                  <TopPickCard
                     game={lockOfTheDay}
                     confidenceScore={lockOfTheDay.confidenceScore || 0}
                     prediction={calculateWinProbability(
@@ -1225,11 +1219,13 @@ export default function HomeScreen() {
                       lockOfTheDay.awayTeam?.abbrev || ''
                     )}
                     onPress={() => handleOpenDeepDive(lockOfTheDay)}
+                    onConfirmPick={() => handleOpenLockIn(lockOfTheDay)}
+                    isLocked={!canMakePick(lockOfTheDay)}
                   />
                 </View>
               )}
 
-              {/* Smart Picks Grid */}
+              {/* More Picks Grid */}
               {smartPicks && smartPicks.length > 0 && (
                 <View style={{ marginBottom: 20 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
@@ -1239,15 +1235,15 @@ export default function HomeScreen() {
                       color: '#e6eef8',
                       paddingHorizontal: 0,
                     }}>
-                      More Smart Picks
+                      More Picks
                     </Text>
-                    <TouchableOpacity onPress={() => router.push('/mypicks')}>
+                    <TouchableOpacity onPress={() => router.push('/picks')}>
                       <Text style={{
                         fontSize: 11,
                         color: '#60a5fa',
                         fontWeight: '600',
                       }}>
-                        All Smart Picks →
+                        View All Picks
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -1257,7 +1253,7 @@ export default function HomeScreen() {
                     justifyContent: 'space-between',
                   }}>
                     {smartPicks.map((pick: any) => (
-                      <SmartPickCard
+                      <PickCard
                         key={pick.id}
                         game={pick}
                         confidenceScore={pick.confidenceScore || 0}
@@ -1266,6 +1262,8 @@ export default function HomeScreen() {
                           pick.awayTeam?.abbrev || ''
                         )}
                         onPress={() => handleOpenDeepDive(pick)}
+                        onConfirmPick={() => handleOpenLockIn(pick)}
+                        isLocked={!canMakePick(pick)}
                       />
                     ))}
                   </View>
@@ -1309,7 +1307,7 @@ export default function HomeScreen() {
             {teamsError ? (
               <Text style={{ color: 'red', paddingBottom: 6 }}>{teamsError}</Text>
             ) : null}
-            <Text style={[styles.greeting, { alignSelf: 'flex-start' }]}>Follow Your Team</Text>
+            <Text style={[styles.greeting, { alignSelf: 'flex-start' }]}>Track Your Team</Text>
             <Dropdown
               placeholder="Select a team to track"
               options={[
@@ -1328,11 +1326,17 @@ export default function HomeScreen() {
         {/* All Today's Games - Detailed View */}
         <View style={[styles.card, { width: '100%', alignSelf: 'stretch' }]}>
           <Text style={[styles.greeting, { alignSelf: 'flex-start', marginBottom: 8 }]}>
-            {selectedTeam ? `${selectedTeam} Games Today` : 'All Today&apos;s Games'}
+            {selectedTeam ? `${selectedTeam} Games Today` : "Today's Action"}
           </Text>
 
           <View style={{ marginTop: 0, width: '100%' }}>
-            {loadingLeagueData && <ActivityIndicator size="small" color="#60a5fa" />}
+            {loadingLeagueData && (
+              <View style={{ padding: 16 }}>
+                <Skeleton width="100%" height={60} borderRadius={12} style={{ marginBottom: 8 }} />
+                <Skeleton width="100%" height={60} borderRadius={12} style={{ marginBottom: 8 }} />
+                <Skeleton width="100%" height={60} borderRadius={12} />
+              </View>
+            )}
 
             {!loadingLeagueData && (!todaysGames?.games || todaysGames.games.length === 0) && (
               <View style={{ width: '100%' }}>
@@ -1347,7 +1351,7 @@ export default function HomeScreen() {
 
                 {selectedTeam && (
                   <Text style={[styles.subtextSmall, { textAlign: 'center', fontStyle: 'italic', opacity: 0.8 }]}>
-                    Check the upcoming games section below for {selectedTeam}&apos;s season schedule.
+                    Check the upcoming games section below for {selectedTeam}'s season schedule.
                   </Text>
                 )}
               </View>
@@ -1487,130 +1491,6 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Upcoming Games Card - Enhanced */}
-        <View style={[styles.card, { width: '100%', alignSelf: 'stretch' }]}>
-          <Text style={[styles.greeting, { alignSelf: 'flex-start', marginBottom: 8 }]}>
-            {selectedTeam ? `Upcoming ${selectedTeam} Games` : 'Season Preview'}
-          </Text>
-          
-          {/* Off-season context */}
-          {!selectedTeam && (
-            <Text style={[styles.subtext, { marginBottom: 12, lineHeight: 18 }]}>
-              The 2025-26 NHL season begins October 7th with exciting matchups across the league.
-            </Text>
-          )}
-          
-          <View style={{ marginTop: 4, width: '100%' }}>
-            {monthScheduleError ? <Text style={{ color: 'red' }}>{monthScheduleError}</Text> : null}
-            {loadingMonthSchedule && <ActivityIndicator size="small" color="#fff" />}
-            
-            {/* Show upcoming season games if no team selected or if selected team has no games */}
-            {!selectedTeam && !loadingMonthSchedule && (
-              <View style={{ width: '100%' }}>
-                <Text style={[styles.greeting, { fontSize: 16, marginBottom: 12, color: styles.nameAccent.color }]}>
-                  Season Opener Games - October 7th
-                </Text>
-                
-                {/* Season opener games preview - Enhanced */}
-                <View style={styles.factboxOne}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <Text style={[styles.boxtitle, { fontSize: 16, fontWeight: '700' }]}>Chicago @ Florida</Text>
-                    <Text style={[styles.subtextSmall, { color: styles.nameAccent.color, fontSize: 12, fontWeight: '600' }]}>5:00 PM ET</Text>
-                  </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Text style={[styles.subtextSmall, { fontSize: 11 }]}>Amerant Bank Arena</Text>
-                    <Text style={[styles.subtextSmall, { fontSize: 11, opacity: 0.8 }]}>ESPN • Oct 7</Text>
-                  </View>
-                </View>
-                
-                <View style={styles.factboxOne}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <Text style={[styles.boxtitle, { fontSize: 16, fontWeight: '700' }]}>Pittsburgh @ NY Rangers</Text>
-                    <Text style={[styles.subtextSmall, { color: styles.nameAccent.color, fontSize: 12, fontWeight: '600' }]}>7:00 PM ET</Text>
-                  </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Text style={[styles.subtextSmall, { fontSize: 11 }]}>Madison Square Garden</Text>
-                    <Text style={[styles.subtextSmall, { fontSize: 11, opacity: 0.8 }]}>TNT • Oct 7</Text>
-                  </View>
-                </View>
-                
-                <View style={styles.factboxOne}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <Text style={[styles.boxtitle, { fontSize: 16, fontWeight: '700' }]}>Colorado @ Los Angeles</Text>
-                    <Text style={[styles.subtextSmall, { color: styles.nameAccent.color, fontSize: 12, fontWeight: '600' }]}>10:30 PM ET</Text>
-                  </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Text style={[styles.subtextSmall, { fontSize: 11 }]}>Crypto.com Arena</Text>
-                    <Text style={[styles.subtextSmall, { fontSize: 11, opacity: 0.8 }]}>Local TV • Oct 7</Text>
-                  </View>
-                </View>
-                
-                <View style={{ marginTop: 8 }}>
-                  <Text style={[styles.subtextSmall, { textAlign: 'center', fontStyle: 'italic', opacity: 0.8 }]}>
-                    Select a team above to see their complete schedule
-                  </Text>
-                </View>
-              </View>
-            )}
-            
-            {/* Team-specific upcoming games */}
-            {selectedTeam && !loadingMonthSchedule && monthSchedule && monthSchedule.length === 0 && (
-              <View style={{ width: '100%' }}>
-                <Text style={{ color: styles.lead.color, textAlign: 'center', marginBottom: 16 }}>
-                  No upcoming games found for {selectedTeam} during the off-season.
-                </Text>
-                <Text style={[styles.subtextSmall, { textAlign: 'center', fontStyle: 'italic' }]}>
-                  Check back when the 2025-26 season begins in October!
-                </Text>
-              </View>
-            )}
-            
-            {selectedTeam && monthSchedule && monthSchedule.length > 0 && (
-              <View style={{ width: '100%' }}>
-                {monthSchedule.slice(0, 4).map((g: any) => {
-                  const gameDate = g.date ? new Date(g.date) : (g.start ? new Date(g.start) : new Date());
-                  const dateStr = gameDate.toLocaleDateString([], { month: 'short', day: 'numeric', weekday: 'short' });
-                  const timeStr = g.start ? new Date(g.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'TBD';
-                  const sel = (selectedTeam ?? '').toUpperCase();
-                  const homeAbbrev = (g.homeAbbrev ?? '').toUpperCase();
-                  const isHome = homeAbbrev ? homeAbbrev === sel : (g.home ?? '').toUpperCase().includes(sel);
-                  const opponentName = isHome ? (g.away ?? '') : (g.home ?? '');
-                  const opponentAbbrev = isHome ? (g.awayAbbrev ?? '') : (g.homeAbbrev ?? '');
-                  const opponentDisplay = opponentAbbrev ? opponentAbbrev : opponentName || 'TBD';
-                  const venue = g.venue || (isHome ? `${selectedTeam} Home` : `${opponentDisplay} Home`);
-                  
-                  // Convert game status to user-friendly text
-                  let statusText = 'Scheduled';
-                  if (g.status === 'FUT') statusText = 'Upcoming';
-                  else if (g.status === 'LIVE') statusText = 'Live';
-                  else if (g.status === 'FINAL') statusText = 'Final';
-                  else if (g.status === 'PPD') statusText = 'Postponed';
-                  else if (g.status) statusText = g.status;
-                  
-                  return (
-                    <View key={g.id} style={styles.factboxOne}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                        <Text style={[styles.boxtitle, { fontSize: 16, fontWeight: '700' }]}>
-                          {isHome ? 'vs' : '@'} {opponentDisplay}
-                        </Text>
-                        <Text style={[styles.subtextSmall, { color: styles.nameAccent.color, fontSize: 12, fontWeight: '600' }]}>{timeStr}</Text>
-                      </View>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <Text style={[styles.subtextSmall, { fontSize: 11 }]}>{venue}</Text>
-                        <Text style={[styles.subtextSmall, { fontSize: 11, opacity: 0.8 }]}>{statusText} • {dateStr}</Text>
-                      </View>
-                    </View>
-                  );
-                })}
-                {monthSchedule.length > 4 && (
-                  <Text style={[styles.subtextSmall, { textAlign: 'center', marginTop: 8, fontStyle: 'italic', opacity: 0.8 }]}>
-                    Showing next 4 games
-                  </Text>
-                )}
-              </View>
-            )}
-          </View>
-        </View>
 
       </ScrollView>
 
@@ -1620,7 +1500,6 @@ export default function HomeScreen() {
           visible={modalVisible}
           onClose={() => setModalVisible(false)}
           game={selectedGame}
-          confidenceScore={selectedGame.confidenceScore || 0}
           prediction={calculateWinProbability(
             selectedGame.homeTeam?.abbrev || '',
             selectedGame.awayTeam?.abbrev || ''
@@ -1630,6 +1509,33 @@ export default function HomeScreen() {
 
       {/* Info Modal */}
       <InfoModal />
+
+      {/* Confirm Pick Modal */}
+      {lockInGame && (
+        <ConfirmPickModal
+          visible={lockInModalVisible}
+          onClose={() => {
+            setLockInModalVisible(false);
+            setLockInGame(null);
+          }}
+          onConfirm={handleConfirmLockIn}
+          homeTeam={lockInGame.homeTeam?.abbrev || 'HOME'}
+          awayTeam={lockInGame.awayTeam?.abbrev || 'AWAY'}
+          aiPick={
+            calculateWinProbability(
+              lockInGame.homeTeam?.abbrev || '',
+              lockInGame.awayTeam?.abbrev || ''
+            ).homeWinProb >
+            calculateWinProbability(
+              lockInGame.homeTeam?.abbrev || '',
+              lockInGame.awayTeam?.abbrev || ''
+            ).awayWinProb
+              ? lockInGame.homeTeam?.abbrev || 'HOME'
+              : lockInGame.awayTeam?.abbrev || 'AWAY'
+          }
+          aiConfidence={lockInGame.confidenceScore || 60}
+        />
+      )}
     </ThemedView>
   );
 }

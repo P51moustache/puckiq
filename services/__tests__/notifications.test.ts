@@ -79,6 +79,8 @@ describe('notifications', () => {
       notifyLockResults: true,
       notifySmartPickResults: true,
       notifyUserPickResults: true,
+      notifyGameStart: true,
+      gameStartMinutesBefore: 30,
     });
 
     // Default picks
@@ -266,6 +268,8 @@ describe('notifications', () => {
         notifyLockResults: true,
         notifySmartPickResults: true,
         notifyUserPickResults: true,
+        notifyGameStart: true,
+        gameStartMinutesBefore: 30,
       });
 
       await initializeNotifications();
@@ -306,6 +310,8 @@ describe('notifications', () => {
         notifyLockResults: true,
         notifySmartPickResults: true,
         notifyUserPickResults: true,
+        notifyGameStart: true,
+        gameStartMinutesBefore: 30,
       });
 
       await initializeNotifications();
@@ -379,6 +385,8 @@ describe('notifications', () => {
         notifyLockResults: true,
         notifySmartPickResults: false,
         notifyUserPickResults: false,
+        notifyGameStart: true,
+        gameStartMinutesBefore: 30,
       });
 
       mockGetYesterdaysResults.mockResolvedValue({
@@ -400,6 +408,8 @@ describe('notifications', () => {
         notifyLockResults: false,
         notifySmartPickResults: true,
         notifyUserPickResults: false,
+        notifyGameStart: true,
+        gameStartMinutesBefore: 30,
       });
 
       mockGetYesterdaysResults.mockResolvedValue({
@@ -421,6 +431,8 @@ describe('notifications', () => {
         notifyLockResults: false,
         notifySmartPickResults: false,
         notifyUserPickResults: true,
+        notifyGameStart: true,
+        gameStartMinutesBefore: 30,
       });
 
       mockGetYesterdaysResults.mockResolvedValue({

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Modal,
   RefreshControl,
   ScrollView,
@@ -8,13 +9,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withSequence, withTiming } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import GameDeepDiveModal from '../../components/GameDeepDiveModal';
 import PickHistoryModal from '../../components/PickHistoryModal';
 import StreakBadge from '../../components/StreakBadge';
 import { ThemedView } from '../../components/ThemedView';
-import { Skeleton } from '../../components/ui/SkeletonLoader';
 import { makeStyles, theme } from '../../constants/theme';
 import {
   addUserPick,
@@ -27,7 +27,7 @@ import { getStreakData, StreakData } from '../../services/streakTracking';
 import { addNotificationResponseListener } from '../../services/notifications';
 import { getPredictedWinner } from '../../utils/predictionHelpers';
 
-export default function MyPicksScreen() {
+export default function PicksScreen() {
   const styles = makeStyles();
 
   // State
@@ -85,22 +85,17 @@ export default function MyPicksScreen() {
 
       if (gamesRes.ok) {
         const data = await gamesRes.json();
-        console.log('[MY PICKS] Today date:', today);
-        console.log('[MY PICKS] Current date from API:', data.currentDate);
-        console.log('[MY PICKS] Total games from API:', data.games?.length);
         const todaysGames = (data.games || []).filter((game: any) => {
-          console.log('[MY PICKS] Game date:', game.gameDate, 'Match:', game.gameDate === today);
           return game.gameDate === today;
         });
-        console.log('[MY PICKS] Filtered games for today:', todaysGames.length);
         setGames(todaysGames);
       }
 
       if (standingsRes.ok) {
         setStandings(await standingsRes.json());
       }
-    } catch (error) {
-      console.error('Error:', error);
+    } catch (err) {
+      console.error('Error:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -157,11 +152,11 @@ export default function MyPicksScreen() {
   const losses = completed.filter((p) => p.outcome === 'loss').length;
   const accuracy = completed.length > 0 ? Math.round((wins / completed.length) * 100) : 0;
 
-  // Badge helper with priority system: LIVE > FINAL > LOCK > AI
+  // Badge helper with priority system: LIVE > FINAL > BEST BET > AI
   const getBadgeToDisplay = (
     isLive: boolean,
     isFinal: boolean,
-    isLock: boolean,
+    isBestBet: boolean,
     hasSmartPick: boolean,
     currentPeriod: number,
     predictedTeam?: string
@@ -172,8 +167,8 @@ export default function MyPicksScreen() {
     if (isFinal) {
       return { text: 'FINAL', color: theme.subtext, type: 'final' };
     }
-    if (isLock) {
-      return { text: 'LOCK', color: '#fbbf24', type: 'lock' };
+    if (isBestBet) {
+      return { text: 'TOP', color: '#fbbf24', type: 'bestbet' };
     }
     if (hasSmartPick && predictedTeam) {
       return { text: `AI: ${predictedTeam}`, color: '#10b981', type: 'ai' };
@@ -281,32 +276,8 @@ export default function MyPicksScreen() {
         </View>
 
         {loading ? (
-          <View style={{ width: '100%' }}>
-            {/* Stats skeleton */}
-            <View style={[s.statsBar, { marginBottom: 16 }]}>
-              {[1, 2, 3, 4].map((i) => (
-                <View key={i} style={s.stat}>
-                  <Skeleton width={40} height={28} style={{ marginBottom: 4 }} />
-                  <Skeleton width={50} height={12} />
-                </View>
-              ))}
-            </View>
-            {/* Games skeleton */}
-            <View style={[styles.card, { padding: 16 }]}>
-              <Skeleton width={140} height={20} style={{ marginBottom: 16 }} />
-              {[1, 2, 3].map((i) => (
-                <View key={i} style={{ marginBottom: 12 }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <Skeleton width={100} height={16} />
-                    <Skeleton width={60} height={16} />
-                  </View>
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
-                    <Skeleton width="48%" height={44} borderRadius={10} />
-                    <Skeleton width="48%" height={44} borderRadius={10} />
-                  </View>
-                </View>
-              ))}
-            </View>
+          <View style={[styles.card, s.loading]}>
+            <ActivityIndicator size="large" color={theme.accent} />
           </View>
         ) : (
           <>
@@ -346,8 +317,8 @@ export default function MyPicksScreen() {
 
                 {games.map((game) => {
                   const userPick = picks.userPicks.find((p: Pick) => p.gameId === String(game.id));
-                  const isLock = picks.lock?.gameId === String(game.id);
-                  const smartPick = isLock ? picks.lock : picks.smartPicks.find((p: Pick) => p.gameId === String(game.id));
+                  const isBestBet = picks.lock?.gameId === String(game.id);
+                  const smartPick = isBestBet ? picks.lock : picks.smartPicks.find((p: Pick) => p.gameId === String(game.id));
                   const isFuture = game.gameState === 'FUT' || game.gameState === 'PRE';
                   const isLive = game.gameState === 'LIVE';
                   const gameStarted = !isFuture;
@@ -363,7 +334,7 @@ export default function MyPicksScreen() {
                   const badge = getBadgeToDisplay(
                     isLive,
                     isFinal,
-                    isLock && !gameStarted,
+                    isBestBet && !gameStarted,
                     !!smartPick && !gameStarted,
                     currentPeriod,
                     predictedTeam
@@ -380,7 +351,7 @@ export default function MyPicksScreen() {
                           <Text style={[
                             badge.type === 'live' && s.liveTag,
                             badge.type === 'final' && s.finalTag,
-                            badge.type === 'lock' && s.lockTag,
+                            badge.type === 'bestbet' && s.bestBetTag,
                             badge.type === 'ai' && s.smartTag,
                           ]}>
                             {badge.text}
@@ -466,7 +437,7 @@ export default function MyPicksScreen() {
             ) : (
               <View style={styles.card}>
                 <Text style={[styles.title, { marginBottom: 8, textAlign: 'center', fontSize: 18 }]}>
-                  🏒 No Games Today
+                  No Games Today
                 </Text>
                 <Text style={[styles.subtextLarge, { textAlign: 'center', marginBottom: 12 }]}>
                   No games scheduled today
@@ -521,13 +492,13 @@ export default function MyPicksScreen() {
           <TouchableOpacity style={styles.modalContainer} activeOpacity={1} onPress={(e) => e.stopPropagation()}>
             <Text style={styles.modalTitle}>How to Make Picks</Text>
             <Text style={styles.modalText}>
-              • Tap on a team to make your pick{'\n'}
-              • You can change your pick anytime before the 3rd period starts{'\n'}
-              • Once the 3rd period begins, picks are locked{'\n'}
-              • Games marked LOCK are our highest confidence picks{'\n'}
-              • Games marked AI show our AI predictions{'\n'}
-              • Tap the i icon to view detailed game analysis{'\n'}
-              • Your pick history and accuracy are tracked above
+              {'\u2022'} Tap on a team to make your pick{'\n'}
+              {'\u2022'} You can change your pick anytime before the 3rd period starts{'\n'}
+              {'\u2022'} Once the 3rd period begins, picks are locked{'\n'}
+              {'\u2022'} Games marked TOP are our highest confidence picks{'\n'}
+              {'\u2022'} Games marked AI show our AI predictions{'\n'}
+              {'\u2022'} Tap the i icon to view detailed game analysis{'\n'}
+              {'\u2022'} Your pick history and accuracy are tracked above
             </Text>
             <TouchableOpacity style={styles.modalButton} onPress={() => setShowInfoModal(false)}>
               <Text style={styles.modalButtonText}>Got it</Text>
@@ -636,7 +607,7 @@ const s = StyleSheet.create({
     fontWeight: '700',
     color: theme.subtext,
   },
-  lockTag: {
+  bestBetTag: {
     fontSize: 10,
     color: '#fbbf24',
     fontWeight: '700',

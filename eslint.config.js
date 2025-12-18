@@ -7,4 +7,10 @@ module.exports = defineConfig([
   {
     ignores: ['dist/*'],
   },
+  {
+    rules: {
+      // Allow unescaped apostrophes in JSX text - they render fine in React Native
+      'react/no-unescaped-entities': 'off',
+    },
+  },
 ]);

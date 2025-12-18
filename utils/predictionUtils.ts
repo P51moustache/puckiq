@@ -13,23 +13,28 @@ import type {
   EnrichedGame,
   RecentFormStats,
   SituationalFactors,
+  TeamPredictionStats,
 } from '../types/predictions';
 import { getMatchupRecentForm } from './recentForm';
 import { calculateSituationalFactors } from './situationalFactors';
+import { fetchAllTeamStats } from './teamStatsForPrediction';
 
 /**
  * Confidence scoring weights - extracted as constants for easy tuning
  * These values can be adjusted based on historical accuracy data
  * Updated to include recent form and situational factors
+ * BOOSTED for more confident predictions with wider spread
  */
 export const CONFIDENCE_WEIGHTS: ConfidenceWeights = {
-  standingsDifferential: 20,    // Impact of point% difference (reduced - season stats less important)
-  homeIceAdvantage: 5,          // Fixed bonus for home team
-  streakImpact: 2,              // Impact of win/loss streaks
-  goalDifferentialImpact: 2,    // Impact of goal differential per game (reduced)
-  recentFormImpact: 25,         // Impact of recent form (L5/L10) - highest weight
-  backToBackPenalty: 10,        // Penalty for playing back-to-back games
-  restAdvantage: 5,             // Bonus per extra rest day
+  standingsDifferential: 80,    // Impact of point% difference - BOOSTED (0.2 diff = 16 points)
+  homeIceAdvantage: 8,          // Fixed bonus for home team - slightly increased
+  streakImpact: 12,             // Impact of win/loss streaks - DOUBLED for momentum
+  goalDifferentialImpact: 12,   // Impact of goal differential per game - BOOSTED
+  recentFormImpact: 40,         // Impact of recent form (L5/L10) - BOOSTED significantly
+  backToBackPenalty: 15,        // Penalty for playing back-to-back games - increased
+  restAdvantage: 8,             // Bonus per extra rest day - increased
+  specialTeamsImpact: 25,       // Impact of PP% + PK% combined differential - BOOSTED
+  shotDifferentialImpact: 10,   // Impact of net shots per game differential - DOUBLED
 };
 
 /**
@@ -106,7 +111,7 @@ export function getPredictedWinner(
 /**
  * Calculate confidence score (0-100) based on multiple factors
  * Higher score = higher confidence in prediction
- * Enhanced with optional recent form and situational factors
+ * Enhanced with optional recent form, situational factors, and team stats
  */
 export function calculateConfidenceScore(
   game: GameData,
@@ -114,7 +119,8 @@ export function calculateConfidenceScore(
   awayTeam: TeamStandings | null,
   weights: ConfidenceWeights = CONFIDENCE_WEIGHTS,
   recentForm?: { home: RecentFormStats; away: RecentFormStats },
-  situationalFactors?: SituationalFactors
+  situationalFactors?: SituationalFactors,
+  teamStats?: { home: TeamPredictionStats | null; away: TeamPredictionStats | null }
 ): number {
   let score = 50; // Base score
 
@@ -137,13 +143,13 @@ export function calculateConfidenceScore(
   const awayGDPerGame = getGoalDifferentialPerGame(awayTeam);
   score += (homeGDPerGame - awayGDPerGame) * weights.goalDifferentialImpact;
 
-  // Factor 5: Recent form (L5/L10 games) - NEW
+  // Factor 5: Recent form (L5/L10 games)
   if (recentForm && recentForm.home.gamesPlayed > 0 && recentForm.away.gamesPlayed > 0) {
     const recentFormDiff = recentForm.home.pointPctg - recentForm.away.pointPctg;
     score += recentFormDiff * weights.recentFormImpact;
   }
 
-  // Factor 6: Situational factors (back-to-back, rest days) - NEW
+  // Factor 6: Situational factors (back-to-back, rest days)
   if (situationalFactors) {
     // Apply back-to-back penalty
     if (situationalFactors.homeBackToBack && !situationalFactors.awayBackToBack) {
@@ -157,13 +163,35 @@ export function calculateConfidenceScore(
     score += Math.min(Math.max(restDaysDiff, -3), 3) * weights.restAdvantage; // Cap at ±3 days
   }
 
+  // Factor 7: Special Teams (PP% + PK%) - Real NHL data
+  if (teamStats?.home && teamStats?.away) {
+    // Combine PP% and PK% into single "special teams strength" metric
+    // PP% is typically 0.15-0.28, PK% is typically 0.75-0.88
+    const homeSpecialTeams = (teamStats.home.powerPlayPct + teamStats.home.penaltyKillPct) / 2;
+    const awaySpecialTeams = (teamStats.away.powerPlayPct + teamStats.away.penaltyKillPct) / 2;
+    const specialTeamsDiff = homeSpecialTeams - awaySpecialTeams;
+    score += specialTeamsDiff * weights.specialTeamsImpact;
+  }
+
+  // Factor 8: Shot Differential - Real NHL data
+  if (teamStats?.home && teamStats?.away) {
+    // Net shots = shots for - shots against (positive = outshoot opponents)
+    const homeNetShots = teamStats.home.shotsForPerGame - teamStats.home.shotsAgainstPerGame;
+    const awayNetShots = teamStats.away.shotsForPerGame - teamStats.away.shotsAgainstPerGame;
+    const shotDiff = homeNetShots - awayNetShots;
+    // Scale by 0.5 since shot diff can be large (e.g., +6 vs -4 = 10 point swing)
+    score += (shotDiff * 0.5) * weights.shotDifferentialImpact;
+  }
+
   // Normalize to 0-100
   return Math.max(0, Math.min(100, Math.round(score)));
 }
 
 /**
- * Extract numeric value from streak code
- * W5 = +5, L3 = -3, null/undefined = 0
+ * Extract numeric value from streak code with diminishing returns scaling
+ * W5 = +3.6, L3 = -2.4, null/undefined = 0
+ * Uses power scaling (0.8 exponent) so longer streaks have impact but don't dominate
+ * Capped at 10 games to prevent outlier streaks from overweighting
  */
 function getStreakValue(streakCode?: string): number {
   if (!streakCode) return 0;
@@ -172,8 +200,15 @@ function getStreakValue(streakCode?: string): number {
   const isLoss = streakCode.startsWith('L');
   const streakNum = parseInt(streakCode.substring(1)) || 0;
 
-  if (isWin) return streakNum;
-  if (isLoss) return -streakNum;
+  // Cap streak at 10 games to prevent outliers from dominating
+  const cappedStreak = Math.min(streakNum, 10);
+
+  // Apply diminishing returns scaling (0.8 exponent)
+  // W1 = 1.0, W2 = 1.7, W3 = 2.4, W5 = 3.6, W10 = 6.3
+  const scaledImpact = Math.pow(cappedStreak, 0.8);
+
+  if (isWin) return scaledImpact;
+  if (isLoss) return -scaledImpact;
   return 0;
 }
 
@@ -309,7 +344,7 @@ export function getSmartPicks(
 
 /**
  * Get Lock of the Day with enhanced factors - ASYNC VERSION
- * Fetches recent form and situational data for better predictions
+ * Fetches recent form, situational data, and team stats for better predictions
  */
 export async function getLockOfTheDayEnhanced(
   games: GameData[],
@@ -322,6 +357,9 @@ export async function getLockOfTheDayEnhanced(
   const standingsMap = createStandingsMap(standings);
   let bestGame: EnrichedGame | null = null;
   let highestScore = 0;
+
+  // Fetch team stats once for all games (cached for 1 hour)
+  const allTeamStats = await fetchAllTeamStats();
 
   for (const game of games) {
     const homeAbbrev = game.homeTeam?.abbrev || '';
@@ -341,14 +379,21 @@ export async function getLockOfTheDayEnhanced(
           recentFormData.awayGames
         );
 
-        // Calculate enhanced confidence score
+        // Get team stats for this matchup (real NHL data)
+        const teamStats = {
+          home: allTeamStats.get(homeAbbrev) || null,
+          away: allTeamStats.get(awayAbbrev) || null,
+        };
+
+        // Calculate enhanced confidence score with all factors
         const confidenceScore = calculateConfidenceScore(
           game,
           homeTeam,
           awayTeam,
           CONFIDENCE_WEIGHTS,
           recentFormData,
-          situationalData
+          situationalData,
+          teamStats
         );
 
         if (confidenceScore > highestScore) {
@@ -362,7 +407,7 @@ export async function getLockOfTheDayEnhanced(
         }
       } catch (error) {
         console.error(`[Enhanced Prediction] Error processing game ${game.id}:`, error);
-        // Fall back to basic calculation without recent form
+        // Fall back to basic calculation without enhanced factors
         const confidenceScore = calculateConfidenceScore(game, homeTeam, awayTeam);
         if (confidenceScore > highestScore) {
           highestScore = confidenceScore;
@@ -382,7 +427,7 @@ export async function getLockOfTheDayEnhanced(
 
 /**
  * Get top smart picks with enhanced factors - ASYNC VERSION
- * Fetches recent form and situational data for better predictions
+ * Fetches recent form, situational data, and team stats for better predictions
  */
 export async function getSmartPicksEnhanced(
   games: GameData[],
@@ -396,6 +441,9 @@ export async function getSmartPicksEnhanced(
 
   const standingsMap = createStandingsMap(standings);
   const scoredGames: EnrichedGame[] = [];
+
+  // Fetch team stats once for all games (cached for 1 hour)
+  const allTeamStats = await fetchAllTeamStats();
 
   for (const game of games) {
     // Skip the lock of the day
@@ -420,14 +468,21 @@ export async function getSmartPicksEnhanced(
           recentFormData.awayGames
         );
 
-        // Calculate enhanced confidence score
+        // Get team stats for this matchup (real NHL data)
+        const teamStats = {
+          home: allTeamStats.get(homeAbbrev) || null,
+          away: allTeamStats.get(awayAbbrev) || null,
+        };
+
+        // Calculate enhanced confidence score with all factors
         const confidenceScore = calculateConfidenceScore(
           game,
           homeTeam,
           awayTeam,
           CONFIDENCE_WEIGHTS,
           recentFormData,
-          situationalData
+          situationalData,
+          teamStats
         );
 
         scoredGames.push({

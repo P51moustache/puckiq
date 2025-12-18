@@ -5,7 +5,7 @@ import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import Dropdown from '../../components/Dropdown';
 import AccuracyTrendsCard from '../../components/AccuracyTrendsCard';
 import { ThemedView } from '../../components/ThemedView';
-import { makeStyles } from '../../constants/theme';
+import { makeStyles, theme } from '../../constants/theme';
 import { useAnalytics } from '../../hooks/useAnalytics';
 
 type Team = {
@@ -30,7 +30,11 @@ type Option = { label: string; value: string | null };
 
 // Local Dropdown replaced by shared Dropdown component
 
-export default function MoreScreen() {
+type MoreScreenProps = {
+	embedded?: boolean;
+};
+
+export default function MoreScreen({ embedded = false }: MoreScreenProps) {
 	const styles = makeStyles();
 
 	// Initialize analytics for this screen (background tracking only)
@@ -235,17 +239,18 @@ export default function MoreScreen() {
 
 	const now = new Date();
 
-	return (
-		<ThemedView style={styles.container}>
-			<ScrollView
-				style={{ alignSelf: 'stretch', width: '100%' }}
-				contentContainerStyle={[styles.scrollContainer, { paddingBottom: 100 }]}
-				showsVerticalScrollIndicator={false}
-				keyboardShouldPersistTaps="handled"
-			>
+	const content = (
+		<ScrollView
+			style={{ alignSelf: 'stretch', width: '100%' }}
+			contentContainerStyle={[styles.scrollContainer, { paddingBottom: 100, paddingTop: embedded ? 16 : 0 }]}
+			showsVerticalScrollIndicator={false}
+			keyboardShouldPersistTaps="handled"
+		>
+			{!embedded && (
 				<View style={styles.header}>
 					<Text style={styles.title}>Player Stats</Text>
 				</View>
+			)}
 
 				{/* Accuracy Trends Card */}
 				<AccuracyTrendsCard />
@@ -555,7 +560,18 @@ export default function MoreScreen() {
 						</View>
 					)}
 				</View>
-			</ScrollView>
+		</ScrollView>
+	);
+
+	// When embedded in Explore tab, just return content without wrapper
+	if (embedded) {
+		return <View style={{ flex: 1, backgroundColor: theme.background }}>{content}</View>;
+	}
+
+	// Standalone mode: full screen with wrapper
+	return (
+		<ThemedView style={styles.container}>
+			{content}
 		</ThemedView>
 	);
 }
