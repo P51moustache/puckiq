@@ -209,13 +209,15 @@ describe('weightCalibration', () => {
 
   describe('suggestWeightAdjustments', () => {
     const currentWeights: ConfidenceWeights = {
-      standingsDifferential: 20,
-      homeIceAdvantage: 5,
-      streakImpact: 2,
-      goalDifferentialImpact: 2,
-      recentFormImpact: 25,
-      backToBackPenalty: 10,
-      restAdvantage: 5,
+      standingsDifferential: 80,
+      homeIceAdvantage: 8,
+      streakImpact: 12,
+      goalDifferentialImpact: 12,
+      recentFormImpact: 40,
+      backToBackPenalty: 15,
+      restAdvantage: 8,
+      specialTeamsImpact: 25,
+      shotDifferentialImpact: 10,
     };
 
     it('should suggest increasing weights when overall accuracy is high', () => {

@@ -41,6 +41,8 @@ export default function SettingsScreen() {
     notifyLockResults: true,
     notifySmartPickResults: true,
     notifyUserPickResults: true,
+    notifyGameStart: true,
+    gameStartMinutesBefore: 30,
   });
 
   // Load notification settings on mount
@@ -123,7 +125,7 @@ export default function SettingsScreen() {
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, paddingVertical: 8 }}>
             <View style={{ flex: 1 }}>
               <Text style={{ color: theme.text, fontSize: 15, fontWeight: '600' }}>Daily Pick Results</Text>
-              <Text style={{ color: theme.subtext, fontSize: 12, marginTop: 2 }}>Get notified about yesterday&apos;s picks</Text>
+              <Text style={{ color: theme.subtext, fontSize: 12, marginTop: 2 }}>Get notified about yesterday's picks</Text>
             </View>
             <Switch
               value={notificationSettings.enabled}

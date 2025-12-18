@@ -41,6 +41,16 @@ export interface ConfidenceWeights {
   recentFormImpact: number;       // Multiplier for recent form difference (L5/L10)
   backToBackPenalty: number;      // Penalty for playing back-to-back games
   restAdvantage: number;          // Bonus per extra rest day
+  specialTeamsImpact: number;     // Multiplier for PP% + PK% combined differential
+  shotDifferentialImpact: number; // Multiplier for net shots per game differential
+}
+
+// Team stats for prediction (real NHL API data)
+export interface TeamPredictionStats {
+  powerPlayPct: number;        // Power play percentage (0-1, e.g., 0.22 = 22%)
+  penaltyKillPct: number;      // Penalty kill percentage (0-1, e.g., 0.82 = 82%)
+  shotsForPerGame: number;     // Average shots taken per game
+  shotsAgainstPerGame: number; // Average shots allowed per game
 }
 
 export interface PredictionResult {

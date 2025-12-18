@@ -1,15 +1,17 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { makeStyles, insiderTheme } from '../constants/theme';
+import { makeStyles, pickTheme } from '../constants/theme';
+import { mediumImpact } from '../utils/haptics';
 
-interface LockOfTheDayCardProps {
+interface TopPickCardProps {
   game: any;
   confidenceScore: number;
   prediction: any;
   onPress?: () => void;
-  onLockIn?: () => void;
+  onConfirmPick?: () => void;
   isLocked?: boolean;
+  hasUserPick?: boolean;
   situationalFactors?: {
     homeBackToBack: boolean;
     awayBackToBack: boolean;
@@ -19,7 +21,7 @@ interface LockOfTheDayCardProps {
   } | null;
 }
 
-export default function LockOfTheDayCard({ game, confidenceScore, prediction, onPress, onLockIn, isLocked = false, situationalFactors }: LockOfTheDayCardProps) {
+export default function TopPickCard({ game, confidenceScore, prediction, onPress, onConfirmPick, isLocked = false, hasUserPick = false, situationalFactors }: TopPickCardProps) {
   const styles = makeStyles();
 
   const homeAbbrev = game.homeTeam?.abbrev || 'HOME';
@@ -30,28 +32,21 @@ export default function LockOfTheDayCard({ game, confidenceScore, prediction, on
   const favored = prediction.homeWinProb > prediction.awayWinProb ? homeAbbrev : awayAbbrev;
   const favoredProb = Math.max(prediction.homeWinProb, prediction.awayWinProb);
 
-  // Determine confidence level text - Insider language
-  let confidenceText = 'ANALYST PICK';
-  let confidenceColor = insiderTheme.confidence.moderate;
+  // Determine confidence level text - Direct language
+  let confidenceText = 'GOOD PICK';
+  let confidenceColor = pickTheme.confidence.good;
   if (confidenceScore >= 70) {
-    confidenceText = 'THE LOCK';
-    confidenceColor = insiderTheme.confidence.lock;
+    confidenceText = 'BEST BET';
+    confidenceColor = pickTheme.confidence.bestBet;
   } else if (confidenceScore >= 60) {
-    confidenceText = 'STRONG INTEL';
-    confidenceColor = insiderTheme.confidence.strong;
+    confidenceText = 'SOLID PICK';
+    confidenceColor = pickTheme.confidence.solid;
   }
-
-  // Determine situational badges
-  const hasSituationalFactors = situationalFactors && (
-    situationalFactors.homeBackToBack ||
-    situationalFactors.awayBackToBack ||
-    situationalFactors.restAdvantage !== 'neutral'
-  );
 
   return (
     <Pressable onPress={onPress} style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}>
       <LinearGradient
-        colors={['#7c3aed', '#3b82f6']}
+        colors={pickTheme.gradients.topPick as [string, string, ...string[]]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={{
@@ -65,32 +60,6 @@ export default function LockOfTheDayCard({ game, confidenceScore, prediction, on
           borderRadius: 16,
           padding: 20,
         }}>
-          {/* CLASSIFIED Stamp */}
-          <View style={{
-            position: 'absolute',
-            top: 12,
-            right: 12,
-            transform: [{ rotate: '12deg' }],
-          }}>
-            <View style={{
-              borderWidth: 2,
-              borderColor: insiderTheme.classified.stamp,
-              paddingHorizontal: 8,
-              paddingVertical: 3,
-              borderRadius: 4,
-              opacity: 0.9,
-            }}>
-              <Text style={{
-                color: insiderTheme.classified.stamp,
-                fontSize: 9,
-                fontWeight: '900',
-                letterSpacing: 1.5,
-              }}>
-                CLASSIFIED
-              </Text>
-            </View>
-          </View>
-
           {/* Badges Row */}
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
             {/* Confidence Badge */}
@@ -129,7 +98,7 @@ export default function LockOfTheDayCard({ game, confidenceScore, prediction, on
                   fontWeight: '800',
                   letterSpacing: 0.5,
                 }}>
-                  🔴 {homeAbbrev} B2B
+                  {homeAbbrev} B2B
                 </Text>
               </View>
             )}
@@ -149,7 +118,7 @@ export default function LockOfTheDayCard({ game, confidenceScore, prediction, on
                   fontWeight: '800',
                   letterSpacing: 0.5,
                 }}>
-                  🔴 {awayAbbrev} B2B
+                  {awayAbbrev} B2B
                 </Text>
               </View>
             )}
@@ -170,7 +139,7 @@ export default function LockOfTheDayCard({ game, confidenceScore, prediction, on
                   fontWeight: '800',
                   letterSpacing: 0.5,
                 }}>
-                  💤 {situationalFactors.restAdvantage === 'home' ? homeAbbrev : awayAbbrev} +{Math.abs(situationalFactors.homeRestDays - situationalFactors.awayRestDays)}d rest
+                  {situationalFactors.restAdvantage === 'home' ? homeAbbrev : awayAbbrev} +{Math.abs(situationalFactors.homeRestDays - situationalFactors.awayRestDays)}d rest
                 </Text>
               </View>
             )}
@@ -212,7 +181,7 @@ export default function LockOfTheDayCard({ game, confidenceScore, prediction, on
               marginBottom: 6,
               fontWeight: '600',
             }}>
-              INSIDER INTEL
+              OUR PICK
             </Text>
             <Text style={{
               fontSize: 32,
@@ -285,7 +254,7 @@ export default function LockOfTheDayCard({ game, confidenceScore, prediction, on
               marginBottom: 10,
               opacity: 0.9,
             }}>
-              OUR ANALYSTS FOUND
+              WHY WE LIKE IT
             </Text>
             {['Strong position in standings', 'Recent form trending up', 'Home ice advantage'].map((factor, idx) => (
               <Text
@@ -297,36 +266,37 @@ export default function LockOfTheDayCard({ game, confidenceScore, prediction, on
                   marginBottom: idx < 2 ? 6 : 0,
                 }}
               >
-                • {factor}
+                {'\u2022'} {factor}
               </Text>
             ))}
           </View>
 
-          {/* Lock In Button or Locked Status */}
-          {isLocked ? (
+          {/* Confirm Pick Button or Status */}
+          {hasUserPick ? (
             <View style={{
-              backgroundColor: `${insiderTheme.confidence.lock}22`,
+              backgroundColor: `${pickTheme.confidence.bestBet}22`,
               borderRadius: 12,
               padding: 14,
               marginTop: 16,
               borderWidth: 2,
-              borderColor: insiderTheme.confidence.lock,
+              borderColor: pickTheme.confidence.bestBet,
               alignItems: 'center',
             }}>
               <Text style={{
                 fontSize: 14,
                 fontWeight: '900',
-                color: insiderTheme.confidence.lock,
+                color: pickTheme.confidence.bestBet,
                 letterSpacing: 0.5,
               }}>
-                LOCKED IN ✓
+                PICK CONFIRMED
               </Text>
             </View>
-          ) : onLockIn ? (
+          ) : isLocked ? null : onConfirmPick ? (
             <Pressable
               onPress={(e) => {
                 e.stopPropagation();
-                onLockIn();
+                mediumImpact();
+                onConfirmPick();
               }}
               style={({ pressed }) => ({
                 marginTop: 16,
@@ -336,7 +306,7 @@ export default function LockOfTheDayCard({ game, confidenceScore, prediction, on
               })}
             >
               <LinearGradient
-                colors={[insiderTheme.confidence.lock, '#059669']}
+                colors={[pickTheme.confidence.bestBet, '#059669']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={{
@@ -350,7 +320,7 @@ export default function LockOfTheDayCard({ game, confidenceScore, prediction, on
                   color: '#fff',
                   letterSpacing: 1,
                 }}>
-                  LOCK IT IN 🔒
+                  CONFIRM PICK
                 </Text>
               </LinearGradient>
             </Pressable>
@@ -363,7 +333,7 @@ export default function LockOfTheDayCard({ game, confidenceScore, prediction, on
               fontWeight: '600',
               opacity: 0.8,
             }}>
-              GET THE FULL INTEL →
+              SEE DETAILS
             </Text>
           )}
         </View>

@@ -35,14 +35,14 @@ export default function YesterdayResultsCard({ lock, smartPicks, lockStats, smar
           color: '#e6eef8',
           marginBottom: 8,
         }}>
-          Yesterday&apos;s Picks
+          Results Pending
         </Text>
         <Text style={{
           fontSize: 12,
           color: '#98a6bf',
           lineHeight: 18,
         }}>
-          Games still in progress. Check back soon for results.
+          Games still in progress. Your wins are coming soon.
         </Text>
       </View>
     );
@@ -83,7 +83,7 @@ export default function YesterdayResultsCard({ lock, smartPicks, lockStats, smar
           color: '#e6eef8',
           marginBottom: 4,
         }}>
-          Yesterday&apos;s Results
+          Your Wins Are In
         </Text>
         <Text style={{
           fontSize: 11,
@@ -111,7 +111,7 @@ export default function YesterdayResultsCard({ lock, smartPicks, lockStats, smar
               textTransform: 'uppercase',
               letterSpacing: 0.5,
             }}>
-              Lock of the Day
+              The Lock
             </Text>
             <View style={{
               backgroundColor: `${getOutcomeColor(lock.outcome)}22`,
@@ -171,7 +171,7 @@ export default function YesterdayResultsCard({ lock, smartPicks, lockStats, smar
             letterSpacing: 0.5,
             marginBottom: 8,
           }}>
-            Smart Picks
+            Insider Picks
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <View>

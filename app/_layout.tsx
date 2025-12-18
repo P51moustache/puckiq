@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo } from 'react';
 import 'react-native-reanimated';
 import { AnalyticsProvider } from '../components/analytics/AnalyticsProvider';
+import { initializeNotifications } from '../services/notifications';
 // Auth disabled for now - uncomment when ready to implement user accounts
 // import { AuthProvider } from '../components/auth/AuthProvider';
 // import { useAuth } from '../hooks/useAuth';
@@ -28,6 +29,10 @@ export default function RootLayout() {
   useEffect(() => {
     if (loaded) {
       SplashScreen.hideAsync();
+      // Initialize notifications (schedule daily results if enabled)
+      initializeNotifications().catch((error) => {
+        console.log('[Notifications] Failed to initialize:', error);
+      });
     }
   }, [loaded]);
 

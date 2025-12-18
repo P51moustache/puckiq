@@ -1,13 +1,16 @@
 /**
  * Accuracy Trends Card - Displays prediction accuracy over time
- * Shows current accuracy, 7-day and 30-day averages, and trend direction
+ * Shows current accuracy, 7-day and 30-day averages, trend direction, and a chart
  */
 
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
-import { makeStyles } from '../constants/theme';
+import { Dimensions, Text, View } from 'react-native';
+import { LineChart } from 'react-native-chart-kit';
+import { makeStyles, theme } from '../constants/theme';
 import { getAccuracyTrends } from '../utils/accuracyTracking';
 import type { AccuracyTrend } from '../types/predictions';
+import { Skeleton, SkeletonText } from './ui/SkeletonLoader';
+import { EmptyState } from './ui/EmptyState';
 
 export default function AccuracyTrendsCard() {
   const styles = makeStyles();
@@ -29,13 +32,41 @@ export default function AccuracyTrendsCard() {
     loadTrends();
   }, []);
 
+  // Chart configuration
+  const screenWidth = Dimensions.get('window').width - 72; // Account for card padding and margins
+  const chartConfig = {
+    backgroundColor: theme.card,
+    backgroundGradientFrom: theme.card,
+    backgroundGradientTo: theme.card,
+    decimalPlaces: 0,
+    color: (opacity = 1) => `rgba(96, 165, 250, ${opacity})`,
+    labelColor: (opacity = 1) => `rgba(152, 166, 191, ${opacity})`,
+    style: {
+      borderRadius: 12,
+    },
+    propsForDots: {
+      r: '4',
+      strokeWidth: '2',
+      stroke: theme.accent,
+    },
+    propsForBackgroundLines: {
+      strokeDasharray: '',
+      stroke: 'rgba(152, 166, 191, 0.1)',
+    },
+  };
+
   if (loading) {
     return (
-      <View style={[styles.card, { padding: 20, alignItems: 'center' }]}>
-        <ActivityIndicator size="small" color="#60a5fa" />
-        <Text style={{ color: '#98a6bf', marginTop: 10, fontSize: 13 }}>
-          Loading accuracy data...
-        </Text>
+      <View style={[styles.card, { padding: 16 }]}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
+          <Skeleton width={140} height={20} />
+          <Skeleton width={80} height={24} borderRadius={12} />
+        </View>
+        <Skeleton width="100%" height={80} borderRadius={12} style={{ marginBottom: 12 }} />
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <Skeleton width="48%" height={60} borderRadius={10} />
+          <Skeleton width="48%" height={60} borderRadius={10} />
+        </View>
       </View>
     );
   }
@@ -46,9 +77,11 @@ export default function AccuracyTrendsCard() {
         <Text style={{ fontSize: 16, fontWeight: '700', color: '#e6eef8', marginBottom: 8 }}>
           Prediction Accuracy
         </Text>
-        <Text style={{ color: '#98a6bf', fontSize: 13 }}>
-          No accuracy data yet. Predictions will be tracked automatically after games complete.
-        </Text>
+        <EmptyState
+          icon="📊"
+          title="No Data Yet"
+          message="Predictions will be tracked automatically after games complete. Make some picks to get started!"
+        />
       </View>
     );
   }
@@ -146,14 +179,57 @@ export default function AccuracyTrendsCard() {
         </View>
       </View>
 
-      {/* Mini History */}
-      {trends.history.length > 0 && (
+      {/* Accuracy Chart */}
+      {trends.history.length >= 3 && (
+        <View style={{ marginTop: 16 }}>
+          <Text style={{ fontSize: 11, color: '#98a6bf', marginBottom: 12, fontWeight: '600' }}>
+            ACCURACY TREND
+          </Text>
+          <View style={{ marginLeft: -16 }}>
+            <LineChart
+              data={{
+                labels: trends.history
+                  .slice(0, 10)
+                  .reverse()
+                  .map((d, i) => (i % 2 === 0 ? d.date.slice(-5) : '')), // Show every other label
+                datasets: [{
+                  data: trends.history
+                    .slice(0, 10)
+                    .reverse()
+                    .map(d => d.overallAccuracy),
+                  strokeWidth: 2,
+                }],
+              }}
+              width={screenWidth}
+              height={140}
+              chartConfig={chartConfig}
+              bezier
+              style={{
+                borderRadius: 12,
+              }}
+              withInnerLines={true}
+              withOuterLines={false}
+              withVerticalLabels={true}
+              withHorizontalLabels={true}
+              yAxisSuffix="%"
+              fromZero={false}
+              segments={4}
+            />
+          </View>
+          <Text style={{ fontSize: 10, color: '#60a5fa', marginTop: 4, textAlign: 'center' }}>
+            Last {Math.min(10, trends.history.length)} days of predictions
+          </Text>
+        </View>
+      )}
+
+      {/* Mini History (fallback for less than 3 days) */}
+      {trends.history.length > 0 && trends.history.length < 3 && (
         <View style={{ marginTop: 12 }}>
           <Text style={{ fontSize: 11, color: '#98a6bf', marginBottom: 8, fontWeight: '600' }}>
             RECENT PERFORMANCE
           </Text>
           <View style={{ flexDirection: 'row', gap: 4, flexWrap: 'wrap' }}>
-            {trends.history.slice(0, 10).map((day, index) => {
+            {trends.history.map((day) => {
               const dayAccuracy = day.overallAccuracy;
               let color = '#f59e0b'; // Moderate
               if (dayAccuracy >= 70) color = '#10b981'; // Good
@@ -181,7 +257,7 @@ export default function AccuracyTrendsCard() {
             })}
           </View>
           <Text style={{ fontSize: 10, color: '#60a5fa', marginTop: 6 }}>
-            Most recent {Math.min(10, trends.history.length)} days
+            Need 3+ days for chart visualization
           </Text>
         </View>
       )}

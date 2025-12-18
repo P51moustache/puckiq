@@ -6,6 +6,9 @@ export interface NotificationSettings {
   notifyLockResults: boolean;
   notifySmartPickResults: boolean;
   notifyUserPickResults: boolean;
+  // Game start alerts
+  notifyGameStart: boolean;
+  gameStartMinutesBefore: number; // 15, 30, or 60 minutes before
 }
 
 const STORAGE_KEY = 'puckiq_notification_settings';
@@ -16,6 +19,8 @@ const DEFAULT_SETTINGS: NotificationSettings = {
   notifyLockResults: true,
   notifySmartPickResults: true,
   notifyUserPickResults: true,
+  notifyGameStart: true,
+  gameStartMinutesBefore: 30,
 };
 
 // Get notification settings from storage
@@ -68,5 +73,18 @@ export async function updateNotificationTypes(
   settings.notifyLockResults = lock;
   settings.notifySmartPickResults = smartPicks;
   settings.notifyUserPickResults = userPicks;
+  await saveNotificationSettings(settings);
+}
+
+// Update game start notification settings
+export async function updateGameStartSettings(
+  enabled: boolean,
+  minutesBefore?: number
+): Promise<void> {
+  const settings = await getNotificationSettings();
+  settings.notifyGameStart = enabled;
+  if (minutesBefore !== undefined) {
+    settings.gameStartMinutesBefore = minutesBefore;
+  }
   await saveNotificationSettings(settings);
 }
