@@ -23,6 +23,8 @@ import {
   saveLockOfTheDay,
   saveSmartPicks,
   addUserPick,
+  getPicksForDate,
+  getTodayDateString,
   Pick,
   PickStats
 } from '../../services/pickTracking';
@@ -184,6 +186,9 @@ export default function HomeScreen() {
   const [lockInModalVisible, setLockInModalVisible] = useState(false);
   const [lockInGame, setLockInGame] = useState<any>(null);
 
+  // User picks state - tracks which games user has picked today
+  const [userPickedGameIds, setUserPickedGameIds] = useState<Set<string>>(new Set());
+
   // Load saved team preference on app start
   useEffect(() => {
     async function loadSavedTeam() {
@@ -235,6 +240,24 @@ export default function HomeScreen() {
     loadStreakData();
   }, []);
 
+  // Load today's user picks on mount
+  useEffect(() => {
+    async function loadTodaysUserPicks() {
+      try {
+        const today = getTodayDateString();
+        const todaysPicks = await getPicksForDate(today);
+        if (todaysPicks?.userPicks) {
+          const pickedIds = new Set(todaysPicks.userPicks.map(p => p.gameId));
+          setUserPickedGameIds(pickedIds);
+          console.log('[PICKS] Loaded user picks for today:', pickedIds.size, 'games');
+        }
+      } catch (error) {
+        console.error('[PICKS] Failed to load today\'s user picks:', error);
+      }
+    }
+    loadTodaysUserPicks();
+  }, []);
+
   // Check if picks can be made for a game (before 3rd period)
   const canMakePick = useCallback((game: any) => {
     const gameState = game.gameState || '';
@@ -279,6 +302,10 @@ export default function HomeScreen() {
         homeTeam,
         awayTeam,
       });
+
+      // Update local state to reflect the pick was made
+      setUserPickedGameIds(prev => new Set([...prev, gameId]));
+
       console.log(`[PICK SAVING] User pick saved: ${selectedTeam} for game ${gameId}`);
     } catch (error) {
       console.error('[PICK SAVING] Error saving user pick:', error);
@@ -1245,6 +1272,7 @@ export default function HomeScreen() {
                     onPress={() => handleOpenDeepDive(lockOfTheDay)}
                     onConfirmPick={() => handleOpenLockIn(lockOfTheDay)}
                     isLocked={!canMakePick(lockOfTheDay)}
+                    hasUserPick={userPickedGameIds.has(String(lockOfTheDay.id))}
                   />
                 </View>
               )}
@@ -1288,6 +1316,7 @@ export default function HomeScreen() {
                         onPress={() => handleOpenDeepDive(pick)}
                         onConfirmPick={() => handleOpenLockIn(pick)}
                         isLocked={!canMakePick(pick)}
+                        hasUserPick={userPickedGameIds.has(String(pick.id))}
                       />
                     ))}
                   </View>
