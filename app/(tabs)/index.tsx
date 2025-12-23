@@ -22,6 +22,7 @@ import {
   getYesterdaysResults,
   saveLockOfTheDay,
   saveSmartPicks,
+  addUserPick,
   Pick,
   PickStats
 } from '../../services/pickTracking';
@@ -263,8 +264,31 @@ export default function HomeScreen() {
   const handleConfirmLockIn = useCallback(async (selectedTeam: string) => {
     if (!lockInGame) return;
 
+    const homeTeam = lockInGame.homeTeam?.abbrev || '';
+    const awayTeam = lockInGame.awayTeam?.abbrev || '';
+    const gameId = String(lockInGame.id);
+
     setLockInModalVisible(false);
     setLockInGame(null);
+
+    // Save the user's pick to AsyncStorage
+    try {
+      await addUserPick({
+        gameId,
+        predictedWinner: selectedTeam,
+        homeTeam,
+        awayTeam,
+      });
+      console.log(`[PICK SAVING] User pick saved: ${selectedTeam} for game ${gameId}`);
+    } catch (error) {
+      console.error('[PICK SAVING] Error saving user pick:', error);
+      Alert.alert(
+        'Error',
+        'Failed to save your pick. Please try again.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
 
     // Show success feedback
     Alert.alert(
