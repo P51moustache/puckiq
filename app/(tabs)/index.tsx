@@ -1,10 +1,8 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { Animated, Modal, RefreshControl, ScrollView, Text, TouchableOpacity, View, Alert } from 'react-native';
-import Dropdown from '../../components/Dropdown';
 import GameDeepDiveModal from '../../components/GameDeepDiveModal';
 import ConfirmPickModal from '../../components/ConfirmPickModal';
 import TopPickCard from '../../components/TopPickCard';
@@ -29,8 +27,11 @@ import {
   PickStats
 } from '../../services/pickTracking';
 import { checkAndUpdateStreak, StreakData } from '../../services/streakTracking';
-import { initializeNotifications } from '../../services/notifications';
-import { getLockOfTheDayEnhanced, getSmartPicksEnhanced } from '../../utils/predictionUtils';
+import { initializeNotifications, scheduleGameStartNotification } from '../../services/notifications';
+import { getNotificationSettings } from '../../services/notificationSettings';
+import { getLockOfTheDayEnhanced, getSmartPicksEnhanced, calculateWinProbabilityEnhanced } from '../../utils/predictionUtils';
+import { getPlayerPredictionFactors } from '../../services/playerPrediction';
+import type { PlayerPredictionFactors } from '../../types/predictions';
 
 const name = 'Zach'
 const now = new Date();
@@ -135,30 +136,6 @@ export default function HomeScreen() {
     return `${days}d ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
   }, [msLeft]);
 
-  // Types (shared with Explore)
-  type Team = {
-    id: string;
-    name: string;
-    abbrev: string;
-  };
-
-  type Game = {
-    id: string;
-    home: string;
-    away: string;
-    homeAbbrev?: string;
-    awayAbbrev?: string;
-    start: string;
-    status: string;
-    venue?: string;
-  };
-
-  // Teams state for dropdown
-  const [teams, setTeams] = useState<Team[] | null>(null);
-  const [loadingTeams, setLoadingTeams] = useState(true);
-  const [teamsError, setTeamsError] = useState<string | null>(null);
-  const [selectedTeam, setSelectedTeam] = useState<string | null>(null); // abbrev
-
   // Deep dive modal state
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedGame, setSelectedGame] = useState<any>(null);
@@ -188,21 +165,6 @@ export default function HomeScreen() {
 
   // User picks state - tracks which games user has picked today
   const [userPickedGameIds, setUserPickedGameIds] = useState<Set<string>>(new Set());
-
-  // Load saved team preference on app start
-  useEffect(() => {
-    async function loadSavedTeam() {
-      try {
-        const savedTeam = await AsyncStorage.getItem('selectedTeam');
-        if (savedTeam) {
-          setSelectedTeam(savedTeam);
-        }
-      } catch (error) {
-        console.warn('Failed to load saved team preference:', error);
-      }
-    }
-    loadSavedTeam();
-  }, []);
 
   // Check and load yesterday's results on mount
   useEffect(() => {
@@ -307,6 +269,21 @@ export default function HomeScreen() {
       setUserPickedGameIds(prev => new Set([...prev, gameId]));
 
       console.log(`[PICK SAVING] User pick saved: ${selectedTeam} for game ${gameId}`);
+
+      // Schedule game start notification if enabled and game time is available
+      if (lockInGame.startTimeUTC) {
+        const settings = await getNotificationSettings();
+        if (settings.notifyGameStart) {
+          await scheduleGameStartNotification(
+            gameId,
+            homeTeam,
+            awayTeam,
+            lockInGame.startTimeUTC,
+            settings.gameStartMinutesBefore,
+            selectedTeam
+          );
+        }
+      }
     } catch (error) {
       console.error('[PICK SAVING] Error saving user pick:', error);
       Alert.alert(
@@ -325,70 +302,11 @@ export default function HomeScreen() {
     );
   }, [lockInGame]);
 
-  // Save team preference whenever it changes
-  const handleTeamChange = async (teamAbbrev: string | null) => {
-    setSelectedTeam(teamAbbrev);
-
-    // Track team selection
-    if (teamAbbrev) {
-      const teamName = teams?.find(t => t.abbrev === teamAbbrev)?.name || teamAbbrev;
-      trackTeamSelection(teamName, teamAbbrev);
-    }
-
-    try {
-      if (teamAbbrev) {
-        await AsyncStorage.setItem('selectedTeam', teamAbbrev);
-      } else {
-        await AsyncStorage.removeItem('selectedTeam');
-      }
-    } catch (error) {
-      console.warn('Failed to save team preference:', error);
-    }
-  };
-
   // Handle opening deep dive modal
   const handleOpenDeepDive = (game: any) => {
     setSelectedGame(game);
     setModalVisible(true);
   };
-
-  // Load teams (same as Explore, with exclusions)
-  useEffect(() => {
-    let mounted = true;
-    async function loadTeams() {
-      setLoadingTeams(true);
-      setTeamsError(null);
-      try {
-        const res = await fetch('https://api.nhle.com/stats/rest/en/team');
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        const rows = Array.isArray(json?.data) ? json.data : Array.isArray(json?.teams) ? json.teams : [];
-        const EXCLUDE_ABBREV = new Set([
-          'ATL', 'ARI', 'AFM', 'BRK', 'CGS', 'CLE', 'CLR', 'DCG', 'DFL', 'HAM', 'HFD', 'KCS', 'MNS', 'MMR', 'MWN', 'NYA', 'NHL',
-          'OAK', 'SEN', 'QUA', 'PHX', 'PIR', 'QBD', 'QUE', 'SLE', 'TBD', 'TAN', 'TSP', 'WIN',
-        ]);
-        const EXCLUDE_NAMES = new Set(['UTAH HOCKEY CLUB']);
-        const parsed: Team[] = rows
-          .map((r: any) => ({
-            id: String(r.teamId ?? r.id ?? r.abbrev ?? r.teamAbbrev ?? Math.random()),
-            name: String(
-              r.teamFullName ?? r.fullName ?? r.teamName ?? r.name ?? `${r.teamCommonName ?? ''} ${r.teamPlaceName ?? ''}`
-            ).trim(),
-            abbrev: String(r.teamAbbrev ?? r.abbrev ?? r.triCode ?? r.code ?? '').toUpperCase(),
-          }))
-          .filter((t: Team) => t.abbrev && t.name)
-          .filter((t: Team) => !EXCLUDE_ABBREV.has(t.abbrev) && !EXCLUDE_NAMES.has(t.name.toUpperCase()));
-        parsed.sort((a, b) => a.name.localeCompare(b.name));
-        if (mounted) setTeams(parsed);
-      } catch (e: any) {
-        if (mounted) setTeamsError(e?.message ?? 'Failed to load teams');
-      } finally {
-        if (mounted) setLoadingTeams(false);
-      }
-    }
-    loadTeams();
-    return () => { mounted = false; };
-  }, []);
 
   // Load NHL data from tested endpoints
   const loadNHLData = React.useCallback(async (isRefresh = false) => {
@@ -469,11 +387,6 @@ export default function HomeScreen() {
     loadNHLData(true);
   }, [loadNHLData]);
 
-  // Upcoming schedule for the selected team (current + next month if needed)
-  const [monthSchedule, setMonthSchedule] = useState<any[] | null>(null);
-  const [loadingMonthSchedule, setLoadingMonthSchedule] = useState(false);
-  const [monthScheduleError, setMonthScheduleError] = useState<string | null>(null);
-
   // League overview data - using tested endpoints
   const [todaysGames, setTodaysGames] = useState<any>(null);
   const [statLeaders, setStatLeaders] = useState<any>(null);
@@ -486,162 +399,15 @@ export default function HomeScreen() {
   const [lockOfTheDay, setLockOfTheDay] = useState<any>(null);
   const [smartPicks, setSmartPicks] = useState<any[]>([]);
   const [loadingPredictions, setLoadingPredictions] = useState(false);
+  const [playerFactorsMap, setPlayerFactorsMap] = useState<Map<string, PlayerPredictionFactors>>(new Map());
 
-  // Animated Probability Bar Component
-  const AnimatedProbabilityBar = ({ awayProb, homeProb }: { awayProb: number; homeProb: number }) => {
-    const awayWidth = useRef(new Animated.Value(0)).current;
-    const homeWidth = useRef(new Animated.Value(0)).current;
 
-    useEffect(() => {
-      // Animate bars with a staggered effect
-      Animated.sequence([
-        Animated.delay(100),
-        Animated.parallel([
-          Animated.timing(awayWidth, {
-            toValue: awayProb,
-            duration: 800,
-            useNativeDriver: false,
-          }),
-          Animated.timing(homeWidth, {
-            toValue: homeProb,
-            duration: 800,
-            useNativeDriver: false,
-          }),
-        ]),
-      ]).start();
-    }, [awayProb, homeProb]);
-
-    return (
-      <View style={{
-        height: 8,
-        backgroundColor: '#192e5e44',
-        borderRadius: 4,
-        overflow: 'hidden',
-        flexDirection: 'row',
-      }}>
-        <Animated.View style={{
-          width: awayWidth.interpolate({
-            inputRange: [0, 100],
-            outputRange: ['0%', '100%'],
-          }),
-          backgroundColor: '#60a5fa',
-          height: '100%',
-        }} />
-        <Animated.View style={{
-          width: homeWidth.interpolate({
-            inputRange: [0, 100],
-            outputRange: ['0%', '100%'],
-          }),
-          backgroundColor: '#f59e0b',
-          height: '100%',
-        }} />
-      </View>
-    );
-  };
-
-  // Helper function to calculate win probability based on standings
-  // BOOSTED: Amplifies differences to create more confident predictions
-  const calculateWinProbability = (homeTeamAbbrev: string, awayTeamAbbrev: string) => {
-    if (!currentStandings?.standings) return { homeWinProb: 50, awayWinProb: 50 };
-
-    const homeTeam = currentStandings.standings.find((t: any) =>
-      (t.teamAbbrev?.default || t.teamAbbrev) === homeTeamAbbrev
-    );
-    const awayTeam = currentStandings.standings.find((t: any) =>
-      (t.teamAbbrev?.default || t.teamAbbrev) === awayTeamAbbrev
-    );
-
-    if (!homeTeam || !awayTeam) return { homeWinProb: 50, awayWinProb: 50 };
-
-    // Base values from standings
-    const homeWinPct = homeTeam.pointPctg || 0.5;
-    const awayWinPct = awayTeam.pointPctg || 0.5;
-
-    // BOOSTED: Calculate multiple factors for wider spread
-    const HOME_ICE_BOOST = 8; // Home ice adds 8 points
-    const STANDINGS_MULTIPLIER = 80; // Amplify standings difference
-    const STREAK_MULTIPLIER = 12; // Streaks matter
-    const GOAL_DIFF_MULTIPLIER = 10; // Goal differential matters
-
-    // Start at 50-50
-    let homeProb = 50;
-
-    // Factor 1: Standings differential (biggest factor)
-    const standingsDiff = homeWinPct - awayWinPct;
-    homeProb += standingsDiff * STANDINGS_MULTIPLIER;
-
-    // Factor 2: Home ice advantage
-    homeProb += HOME_ICE_BOOST;
-
-    // Factor 3: Streak impact (with diminishing returns)
-    const getStreakValue = (code: string) => {
-      if (!code) return 0;
-      const isWin = code.startsWith('W');
-      const isLoss = code.startsWith('L');
-      const num = parseInt(code.substring(1)) || 0;
-      const cappedNum = Math.min(num, 10);
-      const scaled = Math.pow(cappedNum, 0.8);
-      return isWin ? scaled : isLoss ? -scaled : 0;
-    };
-    const homeStreakVal = getStreakValue(homeTeam.streakCode);
-    const awayStreakVal = getStreakValue(awayTeam.streakCode);
-    homeProb += (homeStreakVal - awayStreakVal) * STREAK_MULTIPLIER;
-
-    // Factor 4: Goal differential per game
-    const homeGamesPlayed = homeTeam.gamesPlayed || 1;
-    const awayGamesPlayed = awayTeam.gamesPlayed || 1;
-    const homeGD = ((homeTeam.goalFor || 0) - (homeTeam.goalAgainst || 0)) / homeGamesPlayed;
-    const awayGD = ((awayTeam.goalFor || 0) - (awayTeam.goalAgainst || 0)) / awayGamesPlayed;
-    homeProb += (homeGD - awayGD) * GOAL_DIFF_MULTIPLIER;
-
-    // Clamp to valid range
-    homeProb = Math.max(15, Math.min(85, homeProb));
-    const awayProb = 100 - homeProb;
-
-    return {
-      homeWinProb: Math.round(homeProb),
-      awayWinProb: Math.round(awayProb),
-      homePoints: homeTeam.points,
-      awayPoints: awayTeam.points,
-      homeRecord: `${homeTeam.wins}-${homeTeam.losses}-${homeTeam.otLosses || 0}`,
-      awayRecord: `${awayTeam.wins}-${awayTeam.losses}-${awayTeam.otLosses || 0}`,
-      homeStreak: homeTeam.streakCode || '',
-      awayStreak: awayTeam.streakCode || '',
-    };
-  };
-
-  // Generate key factors for a matchup
-  const getKeyFactors = (homeTeamAbbrev: string, awayTeamAbbrev: string, prediction: any) => {
-    const factors = [];
-
-    // Home ice advantage
-    factors.push(`${homeTeamAbbrev} has home ice advantage`);
-
-    // Win streak analysis
-    if (prediction.homeStreak && prediction.homeStreak.startsWith('W')) {
-      const wins = parseInt(prediction.homeStreak.substring(1)) || 0;
-      if (wins >= 3) {
-        factors.push(`🔥 ${homeTeamAbbrev} on ${wins}-game win streak`);
-      }
-    }
-    if (prediction.awayStreak && prediction.awayStreak.startsWith('W')) {
-      const wins = parseInt(prediction.awayStreak.substring(1)) || 0;
-      if (wins >= 3) {
-        factors.push(`🔥 ${awayTeamAbbrev} on ${wins}-game win streak`);
-      }
-    }
-
-    // Points differential
-    const pointsDiff = Math.abs(prediction.homePoints - prediction.awayPoints);
-    if (pointsDiff > 15) {
-      const leader = prediction.homePoints > prediction.awayPoints ? homeTeamAbbrev : awayTeamAbbrev;
-      factors.push(`${leader} leads by ${pointsDiff} points in standings`);
-    } else {
-      factors.push(`Closely matched teams in standings`);
-    }
-
-    return factors.slice(0, 3); // Return top 3 factors
-  };
+  // Helper function to calculate win probability using centralized enhanced function
+  // Includes player factors (goalie matchup, hot players) when available
+  const calculateWinProbability = useCallback((homeTeamAbbrev: string, awayTeamAbbrev: string, gameId?: string) => {
+    const playerFactors = gameId ? playerFactorsMap.get(gameId) : undefined;
+    return calculateWinProbabilityEnhanced(homeTeamAbbrev, awayTeamAbbrev, currentStandings, playerFactors || null);
+  }, [currentStandings, playerFactorsMap]);
 
   // ENHANCED SMART PICKS SYSTEM
 
@@ -765,105 +531,7 @@ export default function HomeScreen() {
       .sort((a: any, b: any) => b.powerScore - a.powerScore);
   }, []);
 
-  useEffect(() => {
-    let mounted = true;
-    if (!selectedTeam) {
-      setMonthSchedule(null);
-      setMonthScheduleError(null);
-      setLoadingMonthSchedule(false);
-      return () => { mounted = false; };
-    }
-
-    async function loadUpcomingGames() {
-      setLoadingMonthSchedule(true);
-      setMonthScheduleError(null);
-      try {
-        const now = new Date();
-        const teamCode = (selectedTeam ?? '').toUpperCase();
-        
-        // Helper function to fetch and parse games for a given month
-        async function fetchMonthGames(year: number, month: number) {
-          const monthStr = `${year}-${String(month).padStart(2, '0')}`;
-          const url = `https://api-web.nhle.com/v1/club-schedule/${teamCode}/month/${monthStr}`;
-          const res = await fetch(url);
-          if (!res.ok) throw new Error(`HTTP ${res.status} for ${monthStr}`);
-          const json = await res.json();
-          
-          const gamesRaw: any[] = Array.isArray(json?.games) ? json.games : [];
-          return gamesRaw.map((g: any) => {
-            const id = String(g.id ?? Math.random());
-            const date = g.gameDate ?? '';
-            const start = g.startTimeUTC ?? g.gameDate ?? '';
-            
-            const homeTeam = g.homeTeam ?? {};
-            const awayTeam = g.awayTeam ?? {};
-            
-            const home = `${homeTeam.placeName?.default ?? ''} ${homeTeam.commonName?.default ?? ''}`.trim() || 'Home';
-            const away = `${awayTeam.placeName?.default ?? ''} ${awayTeam.commonName?.default ?? ''}`.trim() || 'Away';
-            const homeAbbrev = (homeTeam.abbrev ?? '').toUpperCase();
-            const awayAbbrev = (awayTeam.abbrev ?? '').toUpperCase();
-            
-            const status = g.gameState ?? g.gameScheduleState ?? '';
-            
-            return { id, date, start, home, away, homeAbbrev, awayAbbrev, status };
-          });
-        }
-
-        let allUpcomingGames: any[] = [];
-        let currentYear = now.getFullYear();
-        let currentMonth = now.getMonth() + 1; // JS months are 0-indexed
-        let monthsChecked = 0;
-        const maxMonthsToCheck = 6; // Don't check more than 6 months ahead
-
-        // Keep fetching months until we have 10 games or hit the limit
-        while (allUpcomingGames.length < 10 && monthsChecked < maxMonthsToCheck) {
-          try {
-            const monthGames = await fetchMonthGames(currentYear, currentMonth);
-            
-            // Filter to upcoming games only for the current month
-            const upcomingGames = monthsChecked === 0 
-              ? monthGames.filter(g => {
-                  if (!g.start) return false;
-                  const gameDate = new Date(g.start);
-                  return gameDate >= now;
-                })
-              : monthGames; // For future months, all games are upcoming
-            
-            // Sort games by date and add to our collection
-            const sortedGames = upcomingGames.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
-            allUpcomingGames = [...allUpcomingGames, ...sortedGames];
-            
-          } catch (e) {
-            console.warn(`Failed to fetch ${currentYear}-${String(currentMonth).padStart(2,'0')}:`, e);
-          }
-          
-          // Move to next month
-          monthsChecked++;
-          currentMonth++;
-          if (currentMonth > 12) {
-            currentMonth = 1;
-            currentYear++;
-          }
-        }
-
-        // Take first 10 games and sort them chronologically
-        const finalGames = allUpcomingGames
-          .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
-          .slice(0, 10);
-
-        if (mounted) setMonthSchedule(finalGames);
-      } catch (e: any) {
-        if (mounted) setMonthScheduleError(e?.message ?? 'Failed to load upcoming games');
-      } finally {
-        if (mounted) setLoadingMonthSchedule(false);
-      }
-    }
-
-    loadUpcomingGames();
-    return () => { mounted = false; };
-  }, [selectedTeam]);
-
-  // Calculate enhanced predictions with recent form and situational factors
+  // Calculate enhanced predictions with recent form, situational factors, and player data
   useEffect(() => {
     let mounted = true;
 
@@ -872,14 +540,43 @@ export default function HomeScreen() {
         if (mounted) {
           setLockOfTheDay(null);
           setSmartPicks([]);
+          setPlayerFactorsMap(new Map());
         }
         return;
       }
 
       setLoadingPredictions(true);
-      console.log('[Enhanced Predictions] Loading with recent form & situational factors...');
+      console.log('[Enhanced Predictions] Loading with recent form, situational factors & player data...');
 
       try {
+        // Fetch player factors for each game (in parallel) for use in probability displays
+        const factorsPromises = todaysGames.games.map(async (game: any) => {
+          try {
+            const homeAbbrev = game.homeTeam?.abbrev || '';
+            const awayAbbrev = game.awayTeam?.abbrev || '';
+            if (homeAbbrev && awayAbbrev) {
+              const factors = await getPlayerPredictionFactors(homeAbbrev, awayAbbrev);
+              return { gameId: String(game.id), factors };
+            }
+            return null;
+          } catch (error) {
+            console.error(`[Enhanced Predictions] Error fetching player factors for game ${game.id}:`, error);
+            return null;
+          }
+        });
+
+        const factorsResults = await Promise.all(factorsPromises);
+        if (mounted) {
+          const newFactorsMap = new Map<string, PlayerPredictionFactors>();
+          for (const result of factorsResults) {
+            if (result) {
+              newFactorsMap.set(result.gameId, result.factors);
+            }
+          }
+          setPlayerFactorsMap(newFactorsMap);
+          console.log('[Enhanced Predictions] Player factors loaded for', newFactorsMap.size, 'games');
+        }
+
         // Fetch enhanced lock of the day (with recent form + situational factors)
         const enhancedLock = await getLockOfTheDayEnhanced(todaysGames.games, currentStandings);
 
@@ -935,7 +632,8 @@ export default function HomeScreen() {
         if (lockOfTheDay) {
           const prediction = calculateWinProbability(
             lockOfTheDay.homeTeam?.abbrev || '',
-            lockOfTheDay.awayTeam?.abbrev || ''
+            lockOfTheDay.awayTeam?.abbrev || '',
+            String(lockOfTheDay.id)
           );
           const predictedWinner = prediction.homeWinProb > prediction.awayWinProb
             ? lockOfTheDay.homeTeam.abbrev
@@ -1267,7 +965,8 @@ export default function HomeScreen() {
                     confidenceScore={lockOfTheDay.confidenceScore || 0}
                     prediction={calculateWinProbability(
                       lockOfTheDay.homeTeam?.abbrev || '',
-                      lockOfTheDay.awayTeam?.abbrev || ''
+                      lockOfTheDay.awayTeam?.abbrev || '',
+                      String(lockOfTheDay.id)
                     )}
                     onPress={() => handleOpenDeepDive(lockOfTheDay)}
                     onConfirmPick={() => handleOpenLockIn(lockOfTheDay)}
@@ -1311,7 +1010,8 @@ export default function HomeScreen() {
                         confidenceScore={pick.confidenceScore || 0}
                         prediction={calculateWinProbability(
                           pick.homeTeam?.abbrev || '',
-                          pick.awayTeam?.abbrev || ''
+                          pick.awayTeam?.abbrev || '',
+                          String(pick.id)
                         )}
                         onPress={() => handleOpenDeepDive(pick)}
                         onConfirmPick={() => handleOpenLockIn(pick)}
@@ -1354,195 +1054,6 @@ export default function HomeScreen() {
           <StreakTracker streakingTeams={streakingTeams} />
         )}
 
-        {/* Team Filter Card */}
-        <View style={[styles.card, { width: '100%', alignSelf: 'stretch', marginTop: 8 }]}>
-          <View style={{ alignSelf: 'flex-start' }}>
-            {teamsError ? (
-              <Text style={{ color: 'red', paddingBottom: 6 }}>{teamsError}</Text>
-            ) : null}
-            <Text style={[styles.greeting, { alignSelf: 'flex-start' }]}>Track Your Team</Text>
-            <Dropdown
-              placeholder="Select a team to track"
-              options={[
-                { label: 'All Teams', value: null },
-                ...((teams ?? []).map((t) => ({ label: `${t.name} (${t.abbrev})`, value: t.abbrev })))
-              ]}
-              value={selectedTeam}
-              onChange={handleTeamChange}
-              disabled={!teams || teams.length === 0}
-              loading={loadingTeams}
-              selectedTextStyle={{ fontWeight: '900', fontSize: 18, letterSpacing: 0.5 }}
-            />
-          </View>
-        </View>
-
-        {/* All Today's Games - Detailed View */}
-        <View style={[styles.card, { width: '100%', alignSelf: 'stretch' }]}>
-          <Text style={[styles.greeting, { alignSelf: 'flex-start', marginBottom: 8 }]}>
-            {selectedTeam ? `${selectedTeam} Games Today` : "Today's Action"}
-          </Text>
-
-          <View style={{ marginTop: 0, width: '100%' }}>
-            {loadingLeagueData && (
-              <View style={{ padding: 16 }}>
-                <Skeleton width="100%" height={60} borderRadius={12} style={{ marginBottom: 8 }} />
-                <Skeleton width="100%" height={60} borderRadius={12} style={{ marginBottom: 8 }} />
-                <Skeleton width="100%" height={60} borderRadius={12} />
-              </View>
-            )}
-
-            {!loadingLeagueData && (!todaysGames?.games || todaysGames.games.length === 0) && (
-              <View style={{ width: '100%' }}>
-                <View style={{ backgroundColor: styles.factbox.backgroundColor, borderRadius: 12, padding: 16, marginBottom: 12 }}>
-                  <Text style={[styles.boxtitle, { marginBottom: 8, textAlign: 'center' }]}>
-                    🏒 No Games Today
-                  </Text>
-                  <Text style={[styles.subtextSmall, { lineHeight: 16, textAlign: 'center' }]}>
-                    No games scheduled today. Check back tomorrow for matchup predictions!
-                  </Text>
-                </View>
-
-                {selectedTeam && (
-                  <Text style={[styles.subtextSmall, { textAlign: 'center', fontStyle: 'italic', opacity: 0.8 }]}>
-                    Check the upcoming games section below for {selectedTeam}'s season schedule.
-                  </Text>
-                )}
-              </View>
-            )}
-
-            {!loadingLeagueData && todaysGames?.games && todaysGames.games.length > 0 && (
-              todaysGames.games
-                .filter((g: any) => {
-                  if (!selectedTeam) return true;
-                  const homeAbbrev = (g.homeTeam?.abbrev || '').toUpperCase();
-                  const awayAbbrev = (g.awayTeam?.abbrev || '').toUpperCase();
-                  return homeAbbrev === selectedTeam || awayAbbrev === selectedTeam;
-                })
-                .map((g: any) => {
-                  const homeAbbrev = g.homeTeam?.abbrev || 'HOME';
-                  const awayAbbrev = g.awayTeam?.abbrev || 'AWAY';
-
-                  const localTime = g.startTimeUTC ? new Date(g.startTimeUTC).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'TBD';
-                  const venue = g.venue?.default || 'TBD';
-
-                  // Calculate prediction
-                  const prediction = calculateWinProbability(homeAbbrev, awayAbbrev);
-                  const keyFactors = getKeyFactors(homeAbbrev, awayAbbrev, prediction);
-
-                  // Game status
-                  let statusText = 'Scheduled';
-                  const gameState = g.gameState || '';
-                  if (gameState === 'LIVE' || gameState === 'CRIT') statusText = '🔴 LIVE';
-                  else if (gameState === 'FUT' || gameState === 'PRE') statusText = 'Upcoming';
-                  else if (gameState === 'FINAL' || gameState === 'OFF') statusText = 'Final';
-
-                  return (
-                    <View
-                      key={g.id}
-                      style={{
-                        backgroundColor: styles.card.backgroundColor,
-                        borderRadius: 14,
-                        padding: 18,
-                        marginBottom: 16,
-                        width: '100%',
-                        borderWidth: 2,
-                        borderColor: prediction.confidence === 'high' ? '#10b98133' : '#334e8d66',
-                      }}
-                    >
-                      {/* Header - Teams & Time */}
-                      <View style={{ marginBottom: 12 }}>
-                        <Text style={[styles.boxtitle, { fontSize: 18, fontWeight: '800', textAlign: 'center', marginBottom: 4 }]}>
-                          {awayAbbrev} @ {homeAbbrev}
-                        </Text>
-                        <Text style={[styles.subtextSmall, { color: styles.nameAccent.color, textAlign: 'center', fontSize: 13, fontWeight: '600' }]}>
-                          {localTime} • {statusText}
-                        </Text>
-                      </View>
-
-                      {/* Win Probability Bar */}
-                      <View style={{ marginBottom: 14 }}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-                          <Text style={[styles.subtextSmall, { fontSize: 12, fontWeight: '600' }]}>
-                            {awayAbbrev}: {prediction.awayWinProb}%
-                          </Text>
-                          <Text style={[styles.subtextSmall, { fontSize: 12, fontWeight: '600' }]}>
-                            {homeAbbrev}: {prediction.homeWinProb}%
-                          </Text>
-                        </View>
-
-                        {/* Animated Probability Bar */}
-                        <AnimatedProbabilityBar
-                          awayProb={prediction.awayWinProb}
-                          homeProb={prediction.homeWinProb}
-                        />
-
-                        {/* Confidence Badge */}
-                        <View style={{ alignItems: 'center', marginTop: 8 }}>
-                          <View style={{
-                            paddingHorizontal: 12,
-                            paddingVertical: 4,
-                            borderRadius: 12,
-                            backgroundColor: prediction.confidence === 'high' ? '#10b98122' : prediction.confidence === 'medium' ? '#f59e0b22' : '#ef444422',
-                          }}>
-                            <Text style={[styles.subtextSmall, {
-                              fontSize: 11,
-                              fontWeight: '700',
-                              color: prediction.confidence === 'high' ? '#10b981' : prediction.confidence === 'medium' ? '#f59e0b' : '#ef4444',
-                              textTransform: 'uppercase',
-                              letterSpacing: 0.5,
-                            }]}>
-                              {prediction.confidence === 'high' ? '● Strong Pick' : prediction.confidence === 'medium' ? '● Moderate' : '● Toss-Up'}
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
-
-                      {/* Records */}
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12, paddingHorizontal: 8 }}>
-                        <View style={{ alignItems: 'center' }}>
-                          <Text style={[styles.subtextSmall, { fontSize: 11, marginBottom: 2 }]}>Record</Text>
-                          <Text style={[styles.boxtitle, { fontSize: 14, fontWeight: '700' }]}>{prediction.awayRecord}</Text>
-                        </View>
-                        <View style={{ alignItems: 'center' }}>
-                          <Text style={[styles.subtextSmall, { fontSize: 11, marginBottom: 2 }]}>Record</Text>
-                          <Text style={[styles.boxtitle, { fontSize: 14, fontWeight: '700' }]}>{prediction.homeRecord}</Text>
-                        </View>
-                      </View>
-
-                      {/* Key Factors */}
-                      <View style={{
-                        backgroundColor: '#071a3699',
-                        borderRadius: 10,
-                        padding: 12,
-                        marginTop: 8,
-                      }}>
-                        <Text style={[styles.boxtitle, { fontSize: 12, marginBottom: 8, fontWeight: '700', opacity: 0.9 }]}>
-                          Key Factors
-                        </Text>
-                        {keyFactors.map((factor, idx) => (
-                          <Text
-                            key={idx}
-                            style={[styles.subtextSmall, {
-                              fontSize: 11,
-                              lineHeight: 16,
-                              marginBottom: idx < keyFactors.length - 1 ? 4 : 0,
-                            }]}
-                          >
-                            • {factor}
-                          </Text>
-                        ))}
-                      </View>
-
-                      {/* Venue */}
-                      <Text style={[styles.subtextSmall, { textAlign: 'center', marginTop: 12, fontSize: 11, opacity: 0.7 }]}>
-                        {venue}
-                      </Text>
-                    </View>
-                  );
-                })
-            )}
-          </View>
-        </View>
 
 
       </ScrollView>
@@ -1555,7 +1066,8 @@ export default function HomeScreen() {
           game={selectedGame}
           prediction={calculateWinProbability(
             selectedGame.homeTeam?.abbrev || '',
-            selectedGame.awayTeam?.abbrev || ''
+            selectedGame.awayTeam?.abbrev || '',
+            String(selectedGame.id)
           )}
         />
       )}
@@ -1574,18 +1086,16 @@ export default function HomeScreen() {
           onConfirm={handleConfirmLockIn}
           homeTeam={lockInGame.homeTeam?.abbrev || 'HOME'}
           awayTeam={lockInGame.awayTeam?.abbrev || 'AWAY'}
-          aiPick={
-            calculateWinProbability(
+          aiPick={(() => {
+            const prob = calculateWinProbability(
               lockInGame.homeTeam?.abbrev || '',
-              lockInGame.awayTeam?.abbrev || ''
-            ).homeWinProb >
-            calculateWinProbability(
-              lockInGame.homeTeam?.abbrev || '',
-              lockInGame.awayTeam?.abbrev || ''
-            ).awayWinProb
+              lockInGame.awayTeam?.abbrev || '',
+              String(lockInGame.id)
+            );
+            return prob.homeWinProb > prob.awayWinProb
               ? lockInGame.homeTeam?.abbrev || 'HOME'
-              : lockInGame.awayTeam?.abbrev || 'AWAY'
-          }
+              : lockInGame.awayTeam?.abbrev || 'AWAY';
+          })()}
           aiConfidence={lockInGame.confidenceScore || 60}
         />
       )}
