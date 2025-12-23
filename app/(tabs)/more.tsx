@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import Dropdown from '../../components/Dropdown';
-import AccuracyTrendsCard from '../../components/AccuracyTrendsCard';
+import TeamPlayerHighlightsCard from '../../components/TeamPlayerHighlightsCard';
 import { ThemedView } from '../../components/ThemedView';
 import { makeStyles, theme } from '../../constants/theme';
 import { useAnalytics } from '../../hooks/useAnalytics';
@@ -252,8 +252,8 @@ export default function MoreScreen({ embedded = false }: MoreScreenProps) {
 				</View>
 			)}
 
-				{/* Accuracy Trends Card */}
-				<AccuracyTrendsCard />
+				{/* Team Player Highlights Card */}
+				<TeamPlayerHighlightsCard teamAbbrev={selectedTeam} />
 
 				{/* Selection Card */}
 				<View style={[styles.card, { alignSelf: 'stretch', width: '100%' }]}>
@@ -391,14 +391,58 @@ export default function MoreScreen({ embedded = false }: MoreScreenProps) {
 											borderColor: '#081726',
 										}}
 									>
-										{Object.entries(playerData.featuredStats.regularSeason.subSeason)
-											.filter(([k]) => ['gamesPlayed', 'goals', 'assists', 'points', 'wins', 'savePct', 'gaa'].includes(k))
-											.map(([k, v]) => (
-												<View key={k} style={{ alignItems: 'center', flex: 1 }}>
-													<Text style={[styles.subtitle, { fontSize: 12 }]}>{k}</Text>
-													<Text style={{ color: styles.nameAccent.color, fontWeight: '800' }}>{String(v)}</Text>
-												</View>
-											))}
+										{(() => {
+											const stats = playerData.featuredStats.regularSeason.subSeason;
+											const isGoalie = 'wins' in stats && 'savePctg' in stats;
+
+											// Format helpers
+											const fmtSvPct = (val: any) => {
+												const num = Number(val);
+												if (!Number.isFinite(num)) return '-';
+												return num < 1 ? `.${Math.round(num * 1000)}` : `${num.toFixed(1)}%`;
+											};
+											const fmtGaa = (val: any) => {
+												const num = Number(val);
+												return Number.isFinite(num) ? num.toFixed(2) : '-';
+											};
+
+											if (isGoalie) {
+												// Goalie-specific stats with better labels
+												return [
+													{ label: 'GP', value: stats.gamesPlayed },
+													{ label: 'GS', value: stats.gamesStarted },
+													{ label: 'W', value: stats.wins },
+													{ label: 'L', value: stats.losses },
+													{ label: 'OT', value: stats.otLosses },
+													{ label: 'SV%', value: fmtSvPct(stats.savePctg || stats.savePercentage || stats.savePct) },
+													{ label: 'GAA', value: fmtGaa(stats.goalsAgainstAvg || stats.goalsAgainstAverage || stats.gaa) },
+													{ label: 'SO', value: stats.shutouts },
+												]
+													.filter((x) => x.value !== undefined && x.value !== null)
+													.map((x) => (
+														<View key={x.label} style={{ alignItems: 'center', flex: 1 }}>
+															<Text style={[styles.subtitle, { fontSize: 12 }]}>{x.label}</Text>
+															<Text style={{ color: styles.nameAccent.color, fontWeight: '800' }}>{String(x.value)}</Text>
+														</View>
+													));
+											} else {
+												// Skater stats
+												return [
+													{ label: 'GP', value: stats.gamesPlayed },
+													{ label: 'G', value: stats.goals },
+													{ label: 'A', value: stats.assists },
+													{ label: 'P', value: stats.points },
+													{ label: '+/-', value: stats.plusMinus },
+												]
+													.filter((x) => x.value !== undefined && x.value !== null)
+													.map((x) => (
+														<View key={x.label} style={{ alignItems: 'center', flex: 1 }}>
+															<Text style={[styles.subtitle, { fontSize: 12 }]}>{x.label}</Text>
+															<Text style={{ color: styles.nameAccent.color, fontWeight: '800' }}>{String(x.value)}</Text>
+														</View>
+													));
+											}
+										})()}
 									</View>
 								</View>
 							)}
@@ -417,14 +461,53 @@ export default function MoreScreen({ embedded = false }: MoreScreenProps) {
 											borderColor: '#081726',
 										}}
 									>
-										{Object.entries(playerData.featuredStats.playoffs.subSeason)
-											.filter(([k]) => ['gamesPlayed', 'goals', 'assists', 'points', 'wins', 'savePct', 'gaa'].includes(k))
-											.map(([k, v]) => (
-												<View key={k} style={{ alignItems: 'center', flex: 1 }}>
-													<Text style={[styles.subtitle, { fontSize: 12 }]}>{k}</Text>
-													<Text style={{ color: styles.nameAccent.color, fontWeight: '800' }}>{String(v)}</Text>
-												</View>
-											))}
+										{(() => {
+											const stats = playerData.featuredStats.playoffs.subSeason;
+											const isGoalie = 'wins' in stats && 'savePctg' in stats;
+
+											const fmtSvPct = (val: any) => {
+												const num = Number(val);
+												if (!Number.isFinite(num)) return '-';
+												return num < 1 ? `.${Math.round(num * 1000)}` : `${num.toFixed(1)}%`;
+											};
+											const fmtGaa = (val: any) => {
+												const num = Number(val);
+												return Number.isFinite(num) ? num.toFixed(2) : '-';
+											};
+
+											if (isGoalie) {
+												return [
+													{ label: 'GP', value: stats.gamesPlayed },
+													{ label: 'W', value: stats.wins },
+													{ label: 'L', value: stats.losses },
+													{ label: 'SV%', value: fmtSvPct(stats.savePctg || stats.savePercentage || stats.savePct) },
+													{ label: 'GAA', value: fmtGaa(stats.goalsAgainstAvg || stats.goalsAgainstAverage || stats.gaa) },
+													{ label: 'SO', value: stats.shutouts },
+												]
+													.filter((x) => x.value !== undefined && x.value !== null)
+													.map((x) => (
+														<View key={x.label} style={{ alignItems: 'center', flex: 1 }}>
+															<Text style={[styles.subtitle, { fontSize: 12 }]}>{x.label}</Text>
+															<Text style={{ color: styles.nameAccent.color, fontWeight: '800' }}>{String(x.value)}</Text>
+														</View>
+													));
+											} else {
+												return [
+													{ label: 'GP', value: stats.gamesPlayed },
+													{ label: 'G', value: stats.goals },
+													{ label: 'A', value: stats.assists },
+													{ label: 'P', value: stats.points },
+													{ label: '+/-', value: stats.plusMinus },
+												]
+													.filter((x) => x.value !== undefined && x.value !== null)
+													.map((x) => (
+														<View key={x.label} style={{ alignItems: 'center', flex: 1 }}>
+															<Text style={[styles.subtitle, { fontSize: 12 }]}>{x.label}</Text>
+															<Text style={{ color: styles.nameAccent.color, fontWeight: '800' }}>{String(x.value)}</Text>
+														</View>
+													));
+											}
+										})()}
 									</View>
 								</View>
 							)}
@@ -537,24 +620,69 @@ export default function MoreScreen({ embedded = false }: MoreScreenProps) {
 							{Array.isArray(playerData?.last5Games) && playerData.last5Games.length > 0 && (
 								<View style={{ marginTop: 12 }}>
 									<Text style={[styles.subtitle, { marginBottom: 6 }]}>Last 5 Games</Text>
-									<View style={{ borderWidth: 1, borderColor: '#081726', borderRadius: 10, overflow: 'hidden' }}>
-										<View style={{ flexDirection: 'row', backgroundColor: '#071a36' }}>
-											{['Date', 'Opp', 'G', 'A', 'P', 'S', 'TOI'].map((h) => (
-												<Text key={h} style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 8, color: styles.subtitle.color, fontSize: 12 }}>{h}</Text>
-											))}
-										</View>
-										{playerData.last5Games.map((g: any, i: number) => (
-											<View key={`${g.gameId}-${i}`} style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#081726' }}>
-												<Text style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 8, color: styles.greeting.color }}>{new Date(g.gameDate).toLocaleDateString()}</Text>
-												<Text style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 8, color: styles.greeting.color }}>{g.opponentAbbrev}</Text>
-												<Text style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 8, color: styles.greeting.color }}>{g.goals}</Text>
-												<Text style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 8, color: styles.greeting.color }}>{g.assists}</Text>
-												<Text style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 8, color: styles.greeting.color }}>{g.points}</Text>
-												<Text style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 8, color: styles.greeting.color }}>{g.shots}</Text>
-												<Text style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 8, color: styles.greeting.color }}>{g.toi || g.avgToi}</Text>
-											</View>
-										))}
-									</View>
+									{(() => {
+										// Check if goalie by looking at first game's data
+										const isGoalie = playerData.last5Games[0]?.decision !== undefined ||
+											playerData.last5Games[0]?.shotsAgainst !== undefined;
+
+										if (isGoalie) {
+											// Goalie-specific table
+											return (
+												<View style={{ borderWidth: 1, borderColor: '#081726', borderRadius: 10, overflow: 'hidden' }}>
+													<View style={{ flexDirection: 'row', backgroundColor: '#071a36' }}>
+														{['Date', 'Opp', 'Dec', 'SA', 'GA', 'SV%', 'TOI'].map((h) => (
+															<Text key={h} style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 4, color: styles.subtitle.color, fontSize: 11, textAlign: 'center' }}>{h}</Text>
+														))}
+													</View>
+													{playerData.last5Games.map((g: any, i: number) => {
+														const svPct = g.shotsAgainst && g.goalsAgainst !== undefined
+															? ((g.shotsAgainst - g.goalsAgainst) / g.shotsAgainst)
+															: null;
+														const decisionColor = g.decision === 'W' ? '#22c55e' : g.decision === 'L' ? '#ef4444' : styles.greeting.color;
+														return (
+															<View key={`${g.gameId}-${i}`} style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#081726' }}>
+																<Text style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 4, color: styles.greeting.color, fontSize: 11, textAlign: 'center' }}>{new Date(g.gameDate).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })}</Text>
+																<Text style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 4, color: styles.greeting.color, fontSize: 11, textAlign: 'center' }}>{g.opponentAbbrev}</Text>
+																<Text style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 4, color: decisionColor, fontSize: 11, textAlign: 'center', fontWeight: '700' }}>{g.decision || '-'}</Text>
+																<Text style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 4, color: styles.greeting.color, fontSize: 11, textAlign: 'center' }}>{g.shotsAgainst ?? '-'}</Text>
+																<Text style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 4, color: styles.greeting.color, fontSize: 11, textAlign: 'center' }}>{g.goalsAgainst ?? '-'}</Text>
+																<Text style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 4, color: styles.greeting.color, fontSize: 11, textAlign: 'center' }}>{svPct !== null ? `.${Math.round(svPct * 1000)}` : '-'}</Text>
+																<Text style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 4, color: styles.greeting.color, fontSize: 11, textAlign: 'center' }}>{g.toi || '-'}</Text>
+															</View>
+														);
+													})}
+												</View>
+											);
+										} else {
+											// Skater table (forwards/defensemen)
+											return (
+												<View style={{ borderWidth: 1, borderColor: '#081726', borderRadius: 10, overflow: 'hidden' }}>
+													<View style={{ flexDirection: 'row', backgroundColor: '#071a36' }}>
+														{['Date', 'Opp', 'G', 'A', 'P', '+/-', 'S', 'TOI'].map((h) => (
+															<Text key={h} style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 4, color: styles.subtitle.color, fontSize: 11, textAlign: 'center' }}>{h}</Text>
+														))}
+													</View>
+													{playerData.last5Games.map((g: any, i: number) => {
+														const points = (g.goals || 0) + (g.assists || 0);
+														const plusMinus = g.plusMinus ?? 0;
+														const plusMinusColor = plusMinus > 0 ? '#22c55e' : plusMinus < 0 ? '#ef4444' : styles.greeting.color;
+														return (
+															<View key={`${g.gameId}-${i}`} style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#081726' }}>
+																<Text style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 4, color: styles.greeting.color, fontSize: 11, textAlign: 'center' }}>{new Date(g.gameDate).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })}</Text>
+																<Text style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 4, color: styles.greeting.color, fontSize: 11, textAlign: 'center' }}>{g.opponentAbbrev}</Text>
+																<Text style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 4, color: g.goals > 0 ? '#22c55e' : styles.greeting.color, fontSize: 11, textAlign: 'center', fontWeight: g.goals > 0 ? '700' : '400' }}>{g.goals ?? 0}</Text>
+																<Text style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 4, color: g.assists > 0 ? '#3b82f6' : styles.greeting.color, fontSize: 11, textAlign: 'center', fontWeight: g.assists > 0 ? '700' : '400' }}>{g.assists ?? 0}</Text>
+																<Text style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 4, color: points > 0 ? '#f59e0b' : styles.greeting.color, fontSize: 11, textAlign: 'center', fontWeight: points > 0 ? '700' : '400' }}>{points}</Text>
+																<Text style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 4, color: plusMinusColor, fontSize: 11, textAlign: 'center', fontWeight: '700' }}>{plusMinus > 0 ? `+${plusMinus}` : plusMinus}</Text>
+																<Text style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 4, color: styles.greeting.color, fontSize: 11, textAlign: 'center' }}>{g.shots ?? 0}</Text>
+																<Text style={{ flex: 1, paddingVertical: 8, paddingHorizontal: 4, color: styles.greeting.color, fontSize: 11, textAlign: 'center' }}>{g.toi || '-'}</Text>
+															</View>
+														);
+													})}
+												</View>
+											);
+										}
+									})()}
 								</View>
 							)}
 						</View>
