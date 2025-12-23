@@ -17,3 +17,6 @@ export {
   CONFIDENCE_WEIGHTS,
   HOME_ICE_ADVANTAGE,
 } from './predictionUtils';
+
+// Re-export types
+export type { WinProbabilityResult } from './predictionUtils';

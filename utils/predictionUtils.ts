@@ -222,15 +222,32 @@ function getGoalDifferentialPerGame(team: TeamStandings): number {
 }
 
 /**
- * Calculate win probability for both teams
+ * Win probability result with additional context
+ */
+export interface WinProbabilityResult {
+  homeWinProb: number;
+  awayWinProb: number;
+  confidence: 'high' | 'medium' | 'low';
+  homePoints?: number;
+  awayPoints?: number;
+  homeRecord?: string;
+  awayRecord?: string;
+  homeStreak?: string;
+  awayStreak?: string;
+}
+
+/**
+ * Calculate win probability for both teams using enhanced multi-factor algorithm
+ * Uses standings, home ice advantage, streaks, and goal differential
+ * Results are clamped to 15-85% to avoid overconfident predictions
  */
 export function calculateWinProbability(
   homeAbbrev: string,
   awayAbbrev: string,
   standings: StandingsData | null
-): { homeWinProb: number; awayWinProb: number } {
+): WinProbabilityResult {
   if (!standings?.standings) {
-    return { homeWinProb: 50, awayWinProb: 50 };
+    return { homeWinProb: 50, awayWinProb: 50, confidence: 'medium' };
   }
 
   const standingsMap = createStandingsMap(standings);
@@ -238,22 +255,74 @@ export function calculateWinProbability(
   const away = standingsMap.get(awayAbbrev);
 
   if (!home || !away) {
-    return { homeWinProb: 50, awayWinProb: 50 };
+    return { homeWinProb: 50, awayWinProb: 50, confidence: 'medium' };
   }
 
-  // Calculate with home advantage
-  let homeProb = (home.pointPctg || 0.5) + HOME_ICE_ADVANTAGE;
-  let awayProb = away.pointPctg || 0.5;
+  // Base values from standings
+  const homeWinPct = home.pointPctg || 0.5;
+  const awayWinPct = away.pointPctg || 0.5;
 
-  // Normalize to 100%
-  const total = homeProb + awayProb;
-  homeProb = (homeProb / total) * 100;
-  awayProb = (awayProb / total) * 100;
+  // Use CONFIDENCE_WEIGHTS for consistent factors across the app
+  const HOME_ICE_BOOST = CONFIDENCE_WEIGHTS.homeIceAdvantage;
+  const STANDINGS_MULTIPLIER = CONFIDENCE_WEIGHTS.standingsDifferential;
+  const STREAK_MULTIPLIER = CONFIDENCE_WEIGHTS.streakImpact;
+  const GOAL_DIFF_MULTIPLIER = CONFIDENCE_WEIGHTS.goalDifferentialImpact;
+
+  // Start at 50-50
+  let homeProb = 50;
+
+  // Factor 1: Standings differential (biggest factor)
+  const standingsDiff = homeWinPct - awayWinPct;
+  homeProb += standingsDiff * STANDINGS_MULTIPLIER;
+
+  // Factor 2: Home ice advantage
+  homeProb += HOME_ICE_BOOST;
+
+  // Factor 3: Streak impact (using shared getStreakValue logic)
+  const homeStreakVal = getStreakValueForProb(home.streakCode);
+  const awayStreakVal = getStreakValueForProb(away.streakCode);
+  homeProb += (homeStreakVal - awayStreakVal) * STREAK_MULTIPLIER;
+
+  // Factor 4: Goal differential per game
+  const homeGamesPlayed = home.gamesPlayed || 1;
+  const awayGamesPlayed = away.gamesPlayed || 1;
+  const homeGD = ((home.goalFor || 0) - (home.goalAgainst || 0)) / homeGamesPlayed;
+  const awayGD = ((away.goalFor || 0) - (away.goalAgainst || 0)) / awayGamesPlayed;
+  homeProb += (homeGD - awayGD) * GOAL_DIFF_MULTIPLIER;
+
+  // Clamp to valid range (15-85% to avoid overconfident predictions)
+  homeProb = Math.max(15, Math.min(85, homeProb));
+  const awayProb = 100 - homeProb;
+
+  // Calculate confidence level based on probability spread
+  const diff = Math.abs(homeProb - awayProb);
+  const confidence: 'high' | 'medium' | 'low' = diff > 25 ? 'high' : diff < 10 ? 'low' : 'medium';
 
   return {
     homeWinProb: Math.round(homeProb),
     awayWinProb: Math.round(awayProb),
+    confidence,
+    homePoints: home.points,
+    awayPoints: away.points,
+    homeRecord: `${home.wins}-${home.losses}-${home.otLosses || 0}`,
+    awayRecord: `${away.wins}-${away.losses}-${away.otLosses || 0}`,
+    homeStreak: home.streakCode || '',
+    awayStreak: away.streakCode || '',
   };
+}
+
+/**
+ * Helper for win probability streak calculation
+ * Uses diminishing returns scaling to prevent streaks from dominating
+ */
+function getStreakValueForProb(streakCode?: string): number {
+  if (!streakCode) return 0;
+  const isWin = streakCode.startsWith('W');
+  const isLoss = streakCode.startsWith('L');
+  const num = parseInt(streakCode.substring(1)) || 0;
+  const cappedNum = Math.min(num, 10);
+  const scaled = Math.pow(cappedNum, 0.8);
+  return isWin ? scaled : isLoss ? -scaled : 0;
 }
 
 /**

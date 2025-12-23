@@ -56,6 +56,12 @@ PuckIQ has custom slash commands that follow a consistent TDD methodology. All c
 - `/test-service [service filename]` - Test a service file using TDD
   - Reads service → Writes comprehensive tests → Runs tests → Reports coverage
 
+**Quality Assurance:**
+- `/audit-feature [feature/component name]` - Audit a feature for completeness and production-readiness (TDD)
+  - Explores all related code → Verifies functionality → Reviews test coverage → Identifies gaps
+  - Creates prioritized improvement plan → Writes tests FIRST → Implements fixes → Verifies
+  - Catches incomplete AI implementations (missing error handling, edge cases, loading states, tests)
+
 **Documentation & Understanding:**
 - `/explain-feature [feature/component name]` - Get detailed explanation of how something works
   - Analyzes structure → Maps data flow → Identifies issues → Suggests improvements
@@ -69,6 +75,7 @@ PuckIQ has custom slash commands that follow a consistent TDD methodology. All c
 - 🔧 Code works but needs improvement OR want suggestions for new features → `/improve-feature`
 - ♻️ Restructuring without changing behavior → `/refactor`
 - 🧪 Need to test existing code → `/test-service`
+- 🔍 Feature exists but may be incomplete or missing production-readiness → `/audit-feature`
 - 📚 Don't understand how something works → `/explain-feature`
 - 🏗️ Setting up testing for first time → `/setup-tests`
 
@@ -77,6 +84,13 @@ PuckIQ has custom slash commands that follow a consistent TDD methodology. All c
 - Each change is verified with tests
 - Commits are incremental and descriptive
 - No changes to critical paths without tests
+
+**CRITICAL: Always Verify UI Changes:**
+- After making ANY changes that affect the UI, you MUST verify they work in the frontend
+- Ask the user to test the change in the simulator/browser OR check logs for confirmation
+- Don't assume code changes work - state updates, button behaviors, and visual changes need verification
+- If the user reports something isn't working, investigate thoroughly before claiming it's fixed
+- Common issues to check: state not updating, props not passed, missing re-renders, async timing
 
 ### Example Usage
 
@@ -100,6 +114,12 @@ PuckIQ has custom slash commands that follow a consistent TDD methodology. All c
 
 # Test an existing service
 /test-service analytics/AnalyticsService
+
+# Audit a feature for production-readiness
+/audit-feature Picks Screen
+# → Claude explores all related code
+# → Verifies functionality, identifies missing error handling, loading states
+# → Creates prioritized plan and implements fixes incrementally
 ```
 
 ## Core Architecture
