@@ -25,7 +25,7 @@ import {
 } from '../../services/pickTracking';
 import { getStreakData, StreakData } from '../../services/streakTracking';
 import { addNotificationResponseListener } from '../../services/notifications';
-import { getPredictedWinner } from '../../utils/predictionHelpers';
+import { getPredictedWinner, calculateWinProbability } from '../../utils/predictionHelpers';
 
 export default function PicksScreen() {
   const styles = makeStyles();
@@ -216,43 +216,9 @@ export default function PicksScreen() {
     });
   };
 
-  // Helpers for modal
-  const getConfidence = (home: any, away: any) => {
-    if (!home || !away) return 50;
-    const diff = (home.pointPctg || 0.5) - (away.pointPctg || 0.5);
-    return Math.max(0, Math.min(100, Math.round(50 + diff * 30 + 5)));
-  };
-
-
+  // Use centralized win probability calculation for consistency with Today screen
   const getProbability = (homeAbbrev: string, awayAbbrev: string) => {
-    if (!standings?.standings) {
-      return { homeWinProb: 50, awayWinProb: 50, confidence: 'medium' };
-    }
-
-    const home = standings.standings.find((t: any) => (t.teamAbbrev?.default || t.teamAbbrev) === homeAbbrev);
-    const away = standings.standings.find((t: any) => (t.teamAbbrev?.default || t.teamAbbrev) === awayAbbrev);
-
-    if (!home || !away) return { homeWinProb: 50, awayWinProb: 50, confidence: 'medium' };
-
-    let homeProb = (home.pointPctg || 0.5) + 0.1;
-    let awayProb = away.pointPctg || 0.5;
-    const total = homeProb + awayProb;
-    homeProb = (homeProb / total) * 100;
-    awayProb = (awayProb / total) * 100;
-
-    const diff = Math.abs(homeProb - awayProb);
-
-    return {
-      homeWinProb: Math.round(homeProb),
-      awayWinProb: Math.round(awayProb),
-      confidence: diff > 25 ? 'high' : diff < 10 ? 'low' : 'medium',
-      homePoints: home.points,
-      awayPoints: away.points,
-      homeRecord: `${home.wins}-${home.losses}-${home.otLosses || 0}`,
-      awayRecord: `${away.wins}-${away.losses}-${away.otLosses || 0}`,
-      homeStreak: home.streakCode || '',
-      awayStreak: away.streakCode || '',
-    };
+    return calculateWinProbability(homeAbbrev, awayAbbrev, standings);
   };
 
   return (
@@ -471,7 +437,6 @@ export default function PicksScreen() {
             visible={!!modalGame}
             onClose={() => setModalGame(null)}
             game={enrichedGame}
-            confidenceScore={getConfidence(home, away)}
             prediction={getProbability(modalGame.homeTeam?.abbrev || '', modalGame.awayTeam?.abbrev || '')}
           />
         );
