@@ -147,8 +147,10 @@ export default function HomeScreen() {
   const [yesterdaysResults, setYesterdaysResults] = useState<{
     lock?: Pick;
     smartPicks: Pick[];
+    userPicks: Pick[];
     lockStats: PickStats;
     smartPickStats: PickStats;
+    userPickStats: PickStats;
   } | null>(null);
 
   // Streak tracking state
@@ -624,9 +626,10 @@ export default function HomeScreen() {
   }, [currentStandings, getStreakingTeams]);
 
   // Save today's picks when they're generated
+  // Save AI predictions for ALL games, not just displayed picks
   useEffect(() => {
     async function saveTodaysPicks() {
-      console.log('[PICK SAVING] Effect triggered. Lock:', !!lockOfTheDay, 'Smart picks:', smartPicks.length);
+      console.log('[PICK SAVING] Effect triggered. Lock:', !!lockOfTheDay, 'Total games:', todaysGames?.games?.length);
       try {
         // Save Lock of the Day
         if (lockOfTheDay) {
@@ -652,42 +655,49 @@ export default function HomeScreen() {
             homeTeam: lockOfTheDay.homeTeam.abbrev,
             awayTeam: lockOfTheDay.awayTeam.abbrev,
             confidenceScore: lockOfTheDay.confidenceScore,
+            homeWinProb: prediction.homeWinProb,
+            awayWinProb: prediction.awayWinProb,
           });
           console.log('[PICK SAVING] Lock of the Day saved successfully');
         }
 
-        // Save Smart Picks
-        if (smartPicks.length > 0) {
-          console.log('[PICK SAVING] Saving', smartPicks.length, 'smart picks');
-          await saveSmartPicks(
-            smartPicks.map(pick => {
-              // Determine predicted winner based on prediction logic
-              const homeWinProb = pick.prediction?.homeWinProb || 50;
-              const awayWinProb = pick.prediction?.awayWinProb || 50;
-              const predictedWinner = homeWinProb > awayWinProb
-                ? pick.homeTeam.abbrev
-                : pick.awayTeam.abbrev;
+        // Save Smart Picks for ALL games (not just displayed ones)
+        // This ensures we track AI predictions for every game for comparison
+        if (todaysGames?.games?.length > 0 && currentStandings?.standings) {
+          const allGamePicks = todaysGames.games
+            .filter((game: any) => !lockOfTheDay || String(game.id) !== String(lockOfTheDay.id))
+            .map((game: any) => {
+              const homeAbbrev = game.homeTeam?.abbrev || '';
+              const awayAbbrev = game.awayTeam?.abbrev || '';
+              const prediction = calculateWinProbability(homeAbbrev, awayAbbrev, String(game.id));
+              const predictedWinner = prediction.homeWinProb > prediction.awayWinProb
+                ? homeAbbrev
+                : awayAbbrev;
 
               return {
-                gameId: String(pick.id),
+                gameId: String(game.id),
                 predictedWinner,
-                homeTeam: pick.homeTeam.abbrev,
-                awayTeam: pick.awayTeam.abbrev,
-                confidenceScore: pick.confidenceScore,
+                homeTeam: homeAbbrev,
+                awayTeam: awayAbbrev,
+                confidenceScore: Math.abs(prediction.homeWinProb - 50) * 2, // Convert to 0-100 scale
+                homeWinProb: prediction.homeWinProb,
+                awayWinProb: prediction.awayWinProb,
               };
-            })
-          );
-          console.log('[PICK SAVING] Smart picks saved successfully');
+            });
+
+          console.log('[PICK SAVING] Saving', allGamePicks.length, 'smart picks (all games)');
+          await saveSmartPicks(allGamePicks);
+          console.log('[PICK SAVING] All game predictions saved successfully');
         }
       } catch (error) {
         console.error('[PICK SAVING] Failed to save today\'s picks:', error);
       }
     }
 
-    if (lockOfTheDay || smartPicks.length > 0) {
+    if (lockOfTheDay && todaysGames?.games?.length > 0 && currentStandings?.standings) {
       saveTodaysPicks();
     }
-  }, [lockOfTheDay, smartPicks]);
+  }, [lockOfTheDay, todaysGames, currentStandings, calculateWinProbability]);
 
   // Info Modal Component
   const InfoModal = () => {
@@ -925,6 +935,21 @@ export default function HomeScreen() {
           />
         </View>
 
+        {/* YESTERDAY'S RESULTS - Show before today's picks when user has results */}
+        {yesterdaysResults && (
+          <View style={{ width: '100%', marginTop: 20 }}>
+            {console.log('[RENDER] Yesterday\'s results data:', yesterdaysResults)}
+            <YesterdayResultsCard
+              lock={yesterdaysResults.lock}
+              smartPicks={yesterdaysResults.smartPicks}
+              userPicks={yesterdaysResults.userPicks}
+              lockStats={yesterdaysResults.lockStats}
+              smartPickStats={yesterdaysResults.smartPickStats}
+              userPickStats={yesterdaysResults.userPickStats}
+            />
+          </View>
+        )}
+
         {/* TODAY'S PICKS SECTION */}
         <View style={{ width: '100%', marginTop: 20 }}>
           <Text style={[styles.subsection, { alignSelf: 'stretch', textAlign: 'center', marginBottom: 16 }]}>
@@ -946,17 +971,6 @@ export default function HomeScreen() {
             </View>
           ) : (
             <>
-              {/* Yesterday's Results */}
-              {console.log('[RENDER] Yesterday\'s results data:', yesterdaysResults)}
-              {yesterdaysResults && (
-                <YesterdayResultsCard
-                  lock={yesterdaysResults.lock}
-                  smartPicks={yesterdaysResults.smartPicks}
-                  lockStats={yesterdaysResults.lockStats}
-                  smartPickStats={yesterdaysResults.smartPickStats}
-                />
-              )}
-
               {/* Top Pick of the Day - Hero Card */}
               {lockOfTheDay && (
                 <View style={{ marginBottom: 16 }}>

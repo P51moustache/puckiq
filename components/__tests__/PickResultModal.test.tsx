@@ -55,16 +55,30 @@ interface GameDetails {
   awayPowerPlayOpportunities: number;
 }
 
-// Helper to parse period scores from boxscore API response
-function parsePeriodScores(boxscore: any): PeriodScore[] {
-  if (!boxscore?.byPeriod) return [];
+// Helper to parse period scores from landing API response
+function parsePeriodScores(
+  scoring: any[],
+  homeAbbrev: string,
+  awayAbbrev: string
+): PeriodScore[] {
+  if (!scoring || !Array.isArray(scoring)) return [];
 
-  return boxscore.byPeriod.map((period: any) => ({
-    periodNumber: period.periodDescriptor?.number || 0,
-    periodType: period.periodDescriptor?.periodType || 'REG',
-    homeScore: period.homeScore || 0,
-    awayScore: period.awayScore || 0,
-  }));
+  return scoring.map((period: any) => {
+    const goals = period.goals || [];
+    const homeGoals = goals.filter(
+      (g: any) => g.teamAbbrev?.default === homeAbbrev
+    ).length;
+    const awayGoals = goals.filter(
+      (g: any) => g.teamAbbrev?.default === awayAbbrev
+    ).length;
+
+    return {
+      periodNumber: period.periodDescriptor?.number || 0,
+      periodType: period.periodDescriptor?.periodType || 'REG',
+      homeScore: homeGoals,
+      awayScore: awayGoals,
+    };
+  });
 }
 
 // Helper to parse game stats from boxscore
@@ -164,6 +178,8 @@ const mockLockPick: Pick = {
   homeTeam: 'TOR',
   awayTeam: 'MTL',
   confidenceScore: 72,
+  homeWinProb: 72,
+  awayWinProb: 28,
   outcome: 'win',
   actualWinner: 'TOR',
 };
@@ -176,6 +192,8 @@ const mockSmartPick: Pick = {
   homeTeam: 'NYR',
   awayTeam: 'BOS',
   confidenceScore: 65,
+  homeWinProb: 35,
+  awayWinProb: 65,
   outcome: 'loss',
   actualWinner: 'NYR',
 };
@@ -188,6 +206,8 @@ const mockUserPick: Pick = {
   homeTeam: 'EDM',
   awayTeam: 'CGY',
   confidenceScore: undefined,
+  homeWinProb: undefined,
+  awayWinProb: undefined,
   outcome: 'win',
   actualWinner: 'EDM',
 };
@@ -200,6 +220,8 @@ const mockPendingPick: Pick = {
   homeTeam: 'VGK',
   awayTeam: 'LAK',
   confidenceScore: 58,
+  homeWinProb: 58,
+  awayWinProb: 42,
   outcome: undefined,
   actualWinner: undefined,
 };
@@ -347,6 +369,35 @@ describe('PickResultModal Pick Types', () => {
       expect(getPickTypeLabel(mockUserPick.type)).toBe('Your Pick');
     });
   });
+
+  describe('Win probability display', () => {
+    it('lock pick has win probabilities that sum to 100', () => {
+      expect(mockLockPick.homeWinProb).toBe(72);
+      expect(mockLockPick.awayWinProb).toBe(28);
+      expect(mockLockPick.homeWinProb! + mockLockPick.awayWinProb!).toBe(100);
+    });
+
+    it('smart pick has win probabilities that sum to 100', () => {
+      expect(mockSmartPick.homeWinProb).toBe(35);
+      expect(mockSmartPick.awayWinProb).toBe(65);
+      expect(mockSmartPick.homeWinProb! + mockSmartPick.awayWinProb!).toBe(100);
+    });
+
+    it('user pick may not have win probabilities', () => {
+      expect(mockUserPick.homeWinProb).toBeUndefined();
+      expect(mockUserPick.awayWinProb).toBeUndefined();
+    });
+
+    it('predicted winner matches team with higher probability', () => {
+      // Lock: TOR (home) predicted, homeWinProb = 72 > awayWinProb = 28
+      expect(mockLockPick.predictedWinner).toBe(mockLockPick.homeTeam);
+      expect(mockLockPick.homeWinProb).toBeGreaterThan(mockLockPick.awayWinProb!);
+
+      // Smart: BOS (away) predicted, awayWinProb = 65 > homeWinProb = 35
+      expect(mockSmartPick.predictedWinner).toBe(mockSmartPick.awayTeam);
+      expect(mockSmartPick.awayWinProb).toBeGreaterThan(mockSmartPick.homeWinProb!);
+    });
+  });
 });
 
 describe('PickResultModal Edge Cases', () => {
@@ -460,44 +511,74 @@ describe('PickResultModal API Integration', () => {
   });
 });
 
-// Mock boxscore API responses
-const mockBoxscoreRegulation = {
-  byPeriod: [
-    { periodDescriptor: { number: 1, periodType: 'REG' }, homeScore: 1, awayScore: 0 },
-    { periodDescriptor: { number: 2, periodType: 'REG' }, homeScore: 2, awayScore: 1 },
-    { periodDescriptor: { number: 3, periodType: 'REG' }, homeScore: 1, awayScore: 1 },
-  ],
-  homeTeam: { abbrev: 'TOR', sog: 35 },
-  awayTeam: { abbrev: 'MTL', sog: 28 },
-};
+// Helper to create mock goal
+const createGoal = (teamAbbrev: string) => ({
+  teamAbbrev: { default: teamAbbrev },
+  playerId: 12345,
+});
 
-const mockBoxscoreOvertime = {
-  byPeriod: [
-    { periodDescriptor: { number: 1, periodType: 'REG' }, homeScore: 1, awayScore: 1 },
-    { periodDescriptor: { number: 2, periodType: 'REG' }, homeScore: 1, awayScore: 1 },
-    { periodDescriptor: { number: 3, periodType: 'REG' }, homeScore: 1, awayScore: 1 },
-    { periodDescriptor: { number: 4, periodType: 'OT' }, homeScore: 1, awayScore: 0 },
-  ],
-  homeTeam: { abbrev: 'TOR', sog: 42 },
-  awayTeam: { abbrev: 'MTL', sog: 38 },
-};
+// Mock landing API responses (scoring format)
+const mockScoringRegulation = [
+  {
+    periodDescriptor: { number: 1, periodType: 'REG' },
+    goals: [createGoal('TOR')], // 1 home goal
+  },
+  {
+    periodDescriptor: { number: 2, periodType: 'REG' },
+    goals: [createGoal('TOR'), createGoal('TOR'), createGoal('MTL')], // 2 home, 1 away
+  },
+  {
+    periodDescriptor: { number: 3, periodType: 'REG' },
+    goals: [createGoal('TOR'), createGoal('MTL')], // 1 home, 1 away
+  },
+];
 
-const mockBoxscoreShootout = {
-  byPeriod: [
-    { periodDescriptor: { number: 1, periodType: 'REG' }, homeScore: 2, awayScore: 1 },
-    { periodDescriptor: { number: 2, periodType: 'REG' }, homeScore: 0, awayScore: 1 },
-    { periodDescriptor: { number: 3, periodType: 'REG' }, homeScore: 0, awayScore: 0 },
-    { periodDescriptor: { number: 4, periodType: 'OT' }, homeScore: 0, awayScore: 0 },
-    { periodDescriptor: { number: 5, periodType: 'SO' }, homeScore: 0, awayScore: 1 },
-  ],
-  homeTeam: { abbrev: 'TOR', sog: 30 },
-  awayTeam: { abbrev: 'MTL', sog: 32 },
-};
+const mockScoringOvertime = [
+  {
+    periodDescriptor: { number: 1, periodType: 'REG' },
+    goals: [createGoal('TOR'), createGoal('MTL')], // 1-1
+  },
+  {
+    periodDescriptor: { number: 2, periodType: 'REG' },
+    goals: [createGoal('TOR'), createGoal('MTL')], // 1-1
+  },
+  {
+    periodDescriptor: { number: 3, periodType: 'REG' },
+    goals: [createGoal('TOR'), createGoal('MTL')], // 1-1
+  },
+  {
+    periodDescriptor: { number: 4, periodType: 'OT' },
+    goals: [createGoal('TOR')], // 1-0 OT winner
+  },
+];
+
+const mockScoringShootout = [
+  {
+    periodDescriptor: { number: 1, periodType: 'REG' },
+    goals: [createGoal('TOR'), createGoal('TOR'), createGoal('MTL')], // 2-1
+  },
+  {
+    periodDescriptor: { number: 2, periodType: 'REG' },
+    goals: [createGoal('MTL')], // 0-1
+  },
+  {
+    periodDescriptor: { number: 3, periodType: 'REG' },
+    goals: [], // 0-0
+  },
+  {
+    periodDescriptor: { number: 4, periodType: 'OT' },
+    goals: [], // 0-0
+  },
+  {
+    periodDescriptor: { number: 5, periodType: 'SO' },
+    goals: [createGoal('MTL')], // SO winner (counts as 1)
+  },
+];
 
 describe('Period Scoring Logic', () => {
   describe('parsePeriodScores', () => {
     it('parses regulation game periods correctly', () => {
-      const result = parsePeriodScores(mockBoxscoreRegulation);
+      const result = parsePeriodScores(mockScoringRegulation, 'TOR', 'MTL');
 
       expect(result).toHaveLength(3);
       expect(result[0]).toEqual({ periodNumber: 1, periodType: 'REG', homeScore: 1, awayScore: 0 });
@@ -506,14 +587,14 @@ describe('Period Scoring Logic', () => {
     });
 
     it('parses overtime game correctly', () => {
-      const result = parsePeriodScores(mockBoxscoreOvertime);
+      const result = parsePeriodScores(mockScoringOvertime, 'TOR', 'MTL');
 
       expect(result).toHaveLength(4);
       expect(result[3]).toEqual({ periodNumber: 4, periodType: 'OT', homeScore: 1, awayScore: 0 });
     });
 
     it('parses shootout game correctly', () => {
-      const result = parsePeriodScores(mockBoxscoreShootout);
+      const result = parsePeriodScores(mockScoringShootout, 'TOR', 'MTL');
 
       expect(result).toHaveLength(5);
       expect(result[3]).toEqual({ periodNumber: 4, periodType: 'OT', homeScore: 0, awayScore: 0 });
@@ -521,15 +602,20 @@ describe('Period Scoring Logic', () => {
     });
 
     it('returns empty array when no period data', () => {
-      expect(parsePeriodScores(null)).toEqual([]);
-      expect(parsePeriodScores({})).toEqual([]);
-      expect(parsePeriodScores({ byPeriod: null })).toEqual([]);
+      expect(parsePeriodScores(null as any, 'TOR', 'MTL')).toEqual([]);
+      expect(parsePeriodScores(undefined as any, 'TOR', 'MTL')).toEqual([]);
+      expect(parsePeriodScores([], 'TOR', 'MTL')).toEqual([]);
     });
   });
 
   describe('parseGameStats', () => {
+    const mockLandingData = {
+      homeTeam: { abbrev: 'TOR', sog: 35 },
+      awayTeam: { abbrev: 'MTL', sog: 28 },
+    };
+
     it('parses shots on goal correctly', () => {
-      const result = parseGameStats(mockBoxscoreRegulation);
+      const result = parseGameStats(mockLandingData);
 
       expect(result).toEqual({ homeShots: 35, awayShots: 28 });
     });
@@ -597,7 +683,7 @@ describe('Period Scoring Logic', () => {
 
 describe('Period Scoring Display', () => {
   it('calculates total score from periods', () => {
-    const periodScores = parsePeriodScores(mockBoxscoreRegulation);
+    const periodScores = parsePeriodScores(mockScoringRegulation, 'TOR', 'MTL');
     const homeTotal = periodScores.reduce((sum, p) => sum + p.homeScore, 0);
     const awayTotal = periodScores.reduce((sum, p) => sum + p.awayScore, 0);
 
@@ -606,7 +692,7 @@ describe('Period Scoring Display', () => {
   });
 
   it('calculates overtime game total correctly', () => {
-    const periodScores = parsePeriodScores(mockBoxscoreOvertime);
+    const periodScores = parsePeriodScores(mockScoringOvertime, 'TOR', 'MTL');
     const homeTotal = periodScores.reduce((sum, p) => sum + p.homeScore, 0);
     const awayTotal = periodScores.reduce((sum, p) => sum + p.awayScore, 0);
 
@@ -615,7 +701,7 @@ describe('Period Scoring Display', () => {
   });
 
   it('calculates shootout game total correctly', () => {
-    const periodScores = parsePeriodScores(mockBoxscoreShootout);
+    const periodScores = parsePeriodScores(mockScoringShootout, 'TOR', 'MTL');
     const homeTotal = periodScores.reduce((sum, p) => sum + p.homeScore, 0);
     const awayTotal = periodScores.reduce((sum, p) => sum + p.awayScore, 0);
 
@@ -625,31 +711,37 @@ describe('Period Scoring Display', () => {
   });
 });
 
-describe('Boxscore API Integration', () => {
+describe('Landing API Integration', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     global.fetch = jest.fn();
   });
 
-  it('fetches boxscore from correct endpoint', async () => {
+  it('fetches landing data from correct endpoint', async () => {
+    const mockLandingResponse = {
+      summary: { scoring: mockScoringRegulation },
+      homeTeam: { abbrev: 'TOR', sog: 35 },
+      awayTeam: { abbrev: 'MTL', sog: 28 },
+    };
+
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve(mockBoxscoreRegulation),
+      json: () => Promise.resolve(mockLandingResponse),
     });
 
     const gameId = '2024020001';
-    await fetch(`https://api-web.nhle.com/v1/gamecenter/${gameId}/boxscore`);
+    await fetch(`https://api-web.nhle.com/v1/gamecenter/${gameId}/landing`);
 
     expect(global.fetch).toHaveBeenCalledWith(
-      `https://api-web.nhle.com/v1/gamecenter/${gameId}/boxscore`
+      `https://api-web.nhle.com/v1/gamecenter/${gameId}/landing`
     );
   });
 
-  it('handles boxscore API error gracefully', async () => {
+  it('handles landing API error gracefully', async () => {
     (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
 
     try {
-      await fetch('https://api-web.nhle.com/v1/gamecenter/2024020001/boxscore');
+      await fetch('https://api-web.nhle.com/v1/gamecenter/2024020001/landing');
     } catch (error: any) {
       expect(error.message).toBe('Network error');
     }
@@ -661,7 +753,7 @@ describe('Boxscore API Integration', () => {
       status: 404,
     });
 
-    const response = await fetch('https://api-web.nhle.com/v1/gamecenter/9999999/boxscore');
+    const response = await fetch('https://api-web.nhle.com/v1/gamecenter/9999999/landing');
     expect(response.ok).toBe(false);
     expect(response.status).toBe(404);
   });

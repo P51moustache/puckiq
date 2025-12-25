@@ -9,6 +9,8 @@ export interface Pick {
   homeTeam: string;
   awayTeam: string;
   confidenceScore?: number;
+  homeWinProb?: number; // Win probability for home team (0-100)
+  awayWinProb?: number; // Win probability for away team (0-100)
   outcome?: 'win' | 'loss' | 'push'; // null until game completes
   actualWinner?: string; // team abbrev that actually won
 }
@@ -242,8 +244,10 @@ export function calculatePickStats(picks: Pick[]): PickStats {
 export async function getYesterdaysResults(): Promise<{
   lock?: Pick;
   smartPicks: Pick[];
+  userPicks: Pick[];
   lockStats: PickStats;
   smartPickStats: PickStats;
+  userPickStats: PickStats;
 } | null> {
   const yesterday = getYesterdayDateString();
   const picks = await getPicksForDate(yesterday);
@@ -253,12 +257,15 @@ export async function getYesterdaysResults(): Promise<{
   const lockPicks = picks.lock ? [picks.lock] : [];
   const lockStats = calculatePickStats(lockPicks);
   const smartPickStats = calculatePickStats(picks.smartPicks);
+  const userPickStats = calculatePickStats(picks.userPicks || []);
 
   return {
     lock: picks.lock,
     smartPicks: picks.smartPicks,
+    userPicks: picks.userPicks || [],
     lockStats,
     smartPickStats,
+    userPickStats,
   };
 }
 
