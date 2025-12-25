@@ -70,16 +70,31 @@ function getOutcomeDisplay(outcome?: 'win' | 'loss' | 'push'): { label: string; 
   }
 }
 
-// Helper to parse period scores from boxscore API response
-function parsePeriodScores(boxscore: any): PeriodScore[] {
-  if (!boxscore?.byPeriod) return [];
+// Helper to parse period scores from landing API response
+function parsePeriodScores(
+  scoring: any[],
+  homeAbbrev: string,
+  awayAbbrev: string
+): PeriodScore[] {
+  if (!scoring || !Array.isArray(scoring)) return [];
 
-  return boxscore.byPeriod.map((period: any) => ({
-    periodNumber: period.periodDescriptor?.number || 0,
-    periodType: period.periodDescriptor?.periodType || 'REG',
-    homeScore: period.homeScore || 0,
-    awayScore: period.awayScore || 0,
-  }));
+  return scoring.map((period: any) => {
+    const goals = period.goals || [];
+    // Count goals for each team in this period
+    const homeGoals = goals.filter(
+      (g: any) => g.teamAbbrev?.default === homeAbbrev
+    ).length;
+    const awayGoals = goals.filter(
+      (g: any) => g.teamAbbrev?.default === awayAbbrev
+    ).length;
+
+    return {
+      periodNumber: period.periodDescriptor?.number || 0,
+      periodType: period.periodDescriptor?.periodType || 'REG',
+      homeScore: homeGoals,
+      awayScore: awayGoals,
+    };
+  });
 }
 
 // Helper to format period label
@@ -117,11 +132,14 @@ export default function PickResultModal({
       setError(null);
 
       try {
-        // Fetch both score and boxscore in parallel
-        const [scoreResponse, boxscoreResponse] = await Promise.all([
+        // Fetch both score and landing (for period breakdown) in parallel
+        const [scoreResponse, landingResponse] = await Promise.all([
           fetch(`https://api-web.nhle.com/v1/score/${pickDate}`),
-          fetch(`https://api-web.nhle.com/v1/gamecenter/${pickGameId}/boxscore`),
+          fetch(`https://api-web.nhle.com/v1/gamecenter/${pickGameId}/landing`),
         ]);
+
+        let homeAbbrev = '';
+        let awayAbbrev = '';
 
         // Process score data
         if (scoreResponse.ok) {
@@ -130,6 +148,8 @@ export default function PickResultModal({
           const game = games.find((g: any) => String(g.id) === pickGameId);
 
           if (game) {
+            homeAbbrev = game.homeTeam?.abbrev || '';
+            awayAbbrev = game.awayTeam?.abbrev || '';
             setGameScore({
               homeScore: game.homeTeam?.score || 0,
               awayScore: game.awayTeam?.score || 0,
@@ -139,15 +159,21 @@ export default function PickResultModal({
           }
         }
 
-        // Process boxscore data for period breakdown
-        if (boxscoreResponse.ok) {
-          const boxscoreData = await boxscoreResponse.json();
-          const periodScores = parsePeriodScores(boxscoreData);
+        // Process landing data for period breakdown
+        if (landingResponse.ok) {
+          const landingData = await landingResponse.json();
+          const scoring = landingData.summary?.scoring || [];
+
+          // Use abbrevs from landing if not found in score
+          if (!homeAbbrev) homeAbbrev = landingData.homeTeam?.abbrev || '';
+          if (!awayAbbrev) awayAbbrev = landingData.awayTeam?.abbrev || '';
+
+          const periodScores = parsePeriodScores(scoring, homeAbbrev, awayAbbrev);
 
           setGameDetails({
             periodScores,
-            homeShots: boxscoreData.homeTeam?.sog || 0,
-            awayShots: boxscoreData.awayTeam?.sog || 0,
+            homeShots: landingData.homeTeam?.sog || 0,
+            awayShots: landingData.awayTeam?.sog || 0,
           });
         }
       } catch (err) {
@@ -186,8 +212,8 @@ export default function PickResultModal({
           backgroundColor: '#0a1628',
           borderTopLeftRadius: 24,
           borderTopRightRadius: 24,
-          height: '75%',
-          maxHeight: '75%',
+          height: '85%',
+          maxHeight: '85%',
         }}>
           {/* Header */}
           <View style={{
@@ -242,8 +268,10 @@ export default function PickResultModal({
 
           <ScrollView
             style={{ flex: 1 }}
-            contentContainerStyle={{ padding: 20 }}
-            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
+            showsVerticalScrollIndicator={true}
+            bounces={true}
+            nestedScrollEnabled={true}
           >
             {/* Result Banner */}
             <View style={{
@@ -660,47 +688,82 @@ export default function PickResultModal({
                 </View>
               </View>
 
-              {/* Confidence Score (only for AI picks) */}
-              {pick.confidenceScore !== undefined && (
+              {/* Prediction Bar (show when win probabilities are available) */}
+              {pick.homeWinProb !== undefined && pick.awayWinProb !== undefined && (
                 <View style={{
                   borderTopWidth: 1,
                   borderTopColor: '#192e5e44',
                   paddingTop: 16,
                 }}>
+                  <Text style={{
+                    fontSize: 11,
+                    color: '#98a6bf',
+                    fontWeight: '600',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.5,
+                    marginBottom: 12,
+                    textAlign: 'center',
+                  }}>
+                    AI Win Probability
+                  </Text>
+                  {/* Team labels with percentages */}
                   <View style={{
                     flexDirection: 'row',
                     justifyContent: 'space-between',
-                    alignItems: 'center',
                     marginBottom: 8,
                   }}>
-                    <Text style={{
-                      fontSize: 13,
-                      color: '#98a6bf',
-                      fontWeight: '600',
-                    }}>
-                      Confidence Score
-                    </Text>
-                    <Text style={{
-                      fontSize: 16,
-                      fontWeight: '800',
-                      color: pick.confidenceScore >= 70 ? '#10b981' :
-                             pick.confidenceScore >= 55 ? '#f59e0b' : '#98a6bf',
-                    }}>
-                      {pick.confidenceScore}%
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Text style={{
+                        fontSize: 13,
+                        fontWeight: '700',
+                        color: '#60a5fa',
+                      }}>
+                        {pick.awayTeam}
+                      </Text>
+                      <Text style={{
+                        fontSize: 12,
+                        fontWeight: '800',
+                        color: '#60a5fa',
+                        marginLeft: 6,
+                      }}>
+                        {pick.awayWinProb}%
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Text style={{
+                        fontSize: 12,
+                        fontWeight: '800',
+                        color: '#f59e0b',
+                        marginRight: 6,
+                      }}>
+                        {pick.homeWinProb}%
+                      </Text>
+                      <Text style={{
+                        fontSize: 13,
+                        fontWeight: '700',
+                        color: '#f59e0b',
+                      }}>
+                        {pick.homeTeam}
+                      </Text>
+                    </View>
                   </View>
+                  {/* Prediction Bar */}
                   <View style={{
-                    height: 6,
+                    height: 10,
                     backgroundColor: '#192e5e',
-                    borderRadius: 3,
+                    borderRadius: 5,
                     overflow: 'hidden',
+                    flexDirection: 'row',
                   }}>
                     <View style={{
-                      width: `${pick.confidenceScore}%`,
+                      width: `${pick.awayWinProb}%`,
                       height: '100%',
-                      backgroundColor: pick.confidenceScore >= 70 ? '#10b981' :
-                                       pick.confidenceScore >= 55 ? '#f59e0b' : '#98a6bf',
-                      borderRadius: 3,
+                      backgroundColor: '#60a5fa',
+                    }} />
+                    <View style={{
+                      width: `${pick.homeWinProb}%`,
+                      height: '100%',
+                      backgroundColor: '#f59e0b',
                     }} />
                   </View>
                 </View>
