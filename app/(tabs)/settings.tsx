@@ -407,7 +407,7 @@ export default function SettingsScreen() {
           <Text style={styles.greeting}>About</Text>
           <View style={{ marginTop: 12 }}>
             <Text style={{ color: theme.text, fontSize: 14, marginBottom: 4 }}>PuckIQ</Text>
-            <Text style={{ color: theme.subtext, fontSize: 12 }}>Version 2.1.0</Text>
+            <Text style={{ color: theme.subtext, fontSize: 12 }}>Version 2.2.0</Text>
             <Text style={{ color: theme.subtext, fontSize: 12, marginTop: 8, lineHeight: 18 }}>
               Get AI-powered NHL pick predictions, track your accuracy, and compete against our algorithms.
             </Text>
