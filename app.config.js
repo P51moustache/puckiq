@@ -15,7 +15,6 @@ export default {
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.zlce.hockeystats",
-      googleServicesFile: process.env.GOOGLE_SERVICES_PLIST || "./GoogleService-Info.plist",
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
         UIBackgroundModes: [
@@ -50,16 +49,7 @@ export default {
           resizeMode: "contain",
           backgroundColor: "#1a1d29"
         }
-      ],
-      [
-        "expo-build-properties",
-        {
-          ios: {
-            useFrameworks: "dynamic"
-          }
-        }
-      ],
-      "@react-native-firebase/app"
+      ]
     ],
     experiments: {
       typedRoutes: true

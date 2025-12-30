@@ -2,17 +2,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logEvent as webLogEvent, setUserId as webSetUserId, setUserProperties as webSetUserProperties } from 'firebase/analytics';
 import { Platform } from 'react-native';
 import { analytics as webAnalytics } from '../../lib/firebase';
-
-// Import native Firebase Analytics for iOS/Android
-let nativeAnalytics: typeof import('@react-native-firebase/analytics').default | null = null;
-if (Platform.OS !== 'web') {
-  try {
-    // Dynamic import for native platforms only
-    nativeAnalytics = require('@react-native-firebase/analytics').default;
-  } catch (e) {
-    console.warn('Native Firebase Analytics not available:', e);
-  }
-}
 import {
     AnalyticsConfig,
     AnalyticsEvent,
@@ -109,11 +98,9 @@ class AnalyticsService {
     this.config.userId = userId;
     await AsyncStorage.setItem('analytics_user_id', userId);
 
-    // Set user ID in Firebase Analytics
+    // Set user ID in Firebase Analytics (web only for now)
     if (Platform.OS === 'web' && webAnalytics) {
       webSetUserId(webAnalytics, userId);
-    } else if (nativeAnalytics) {
-      await nativeAnalytics().setUserId(userId);
     }
   }
 
@@ -121,16 +108,9 @@ class AnalyticsService {
     try {
       await AsyncStorage.setItem('analytics_user_properties', JSON.stringify(properties));
 
-      // Set user properties in Firebase Analytics
+      // Set user properties in Firebase Analytics (web only for now)
       if (Platform.OS === 'web' && webAnalytics) {
         webSetUserProperties(webAnalytics, properties);
-      } else if (nativeAnalytics) {
-        // Convert properties to string format for native SDK
-        const stringProperties: { [key: string]: string | null } = {};
-        for (const [key, value] of Object.entries(properties)) {
-          stringProperties[key] = value != null ? String(value) : null;
-        }
-        await nativeAnalytics().setUserProperties(stringProperties);
       }
 
       this.log('User properties set:', properties);
@@ -282,9 +262,8 @@ class AnalyticsService {
     this.eventQueue = [];
 
     try {
-      // Send to Firebase Analytics
+      // Send to Firebase Analytics (web only for now)
       if (Platform.OS === 'web' && webAnalytics) {
-        // Use Firebase Web SDK on web platform
         for (const event of eventsToFlush) {
           const { timestamp, session_id, user_id, event: eventName, ...properties } = event;
           webLogEvent(webAnalytics, eventName, {
@@ -294,20 +273,9 @@ class AnalyticsService {
             ...properties,
           });
         }
-      } else if (nativeAnalytics) {
-        // Use native Firebase SDK on iOS/Android
-        for (const event of eventsToFlush) {
-          const { timestamp, session_id, user_id, event: eventName, ...properties } = event;
-          await nativeAnalytics().logEvent(eventName, {
-            timestamp,
-            session_id,
-            user_id,
-            ...properties,
-          });
-        }
       }
 
-      // Also persist locally for debugging/offline analysis
+      // Always persist locally for debugging/offline analysis
       await this.persistEvents(eventsToFlush);
 
       this.log(`Flushed ${eventsToFlush.length} events`);
