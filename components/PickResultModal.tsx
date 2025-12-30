@@ -130,7 +130,8 @@ export default function PickResultModal({
         matchup: `${pick.awayTeam} @ ${pick.homeTeam}`,
       });
     }
-  }, [visible, pick, analytics]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, pick]); // analytics methods are memoized, no need in deps
 
   // Fetch game score and details when modal opens
   useEffect(() => {
