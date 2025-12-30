@@ -83,14 +83,15 @@ class AnalyticsService {
   private updateActivity(): void {
     const now = Date.now();
     const timeSinceLastActivity = now - this.lastActivityTime;
-    
+
+    // Update timestamp FIRST to prevent recursion
+    this.lastActivityTime = now;
+
     // If more than session timeout, create new session
     if (timeSinceLastActivity > this.config.sessionTimeout * 60 * 1000) {
       this.sessionId = this.generateSessionId();
       this.trackSessionStart();
     }
-    
-    this.lastActivityTime = now;
   }
 
   // User management
