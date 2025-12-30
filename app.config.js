@@ -51,6 +51,14 @@ export default {
           backgroundColor: "#1a1d29"
         }
       ],
+      [
+        "expo-build-properties",
+        {
+          ios: {
+            useFrameworks: "static"
+          }
+        }
+      ],
       "@react-native-firebase/app"
     ],
     experiments: {

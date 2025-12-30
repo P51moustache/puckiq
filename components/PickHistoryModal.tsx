@@ -88,7 +88,8 @@ export default function PickHistoryModal({ visible, onClose, onHistoryCleared }:
         source: 'pick_history_button',
       });
     }
-  }, [visible, analytics]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]); // analytics methods are memoized, no need in deps
 
   const loadData = async () => {
     setLoading(true);
