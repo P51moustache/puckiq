@@ -1,7 +1,18 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { logEvent, setUserId, setUserProperties } from 'firebase/analytics';
+import { logEvent as webLogEvent, setUserId as webSetUserId, setUserProperties as webSetUserProperties } from 'firebase/analytics';
 import { Platform } from 'react-native';
-import { analytics } from '../../lib/firebase';
+import { analytics as webAnalytics } from '../../lib/firebase';
+
+// Import native Firebase Analytics for iOS/Android
+let nativeAnalytics: typeof import('@react-native-firebase/analytics').default | null = null;
+if (Platform.OS !== 'web') {
+  try {
+    // Dynamic import for native platforms only
+    nativeAnalytics = require('@react-native-firebase/analytics').default;
+  } catch (e) {
+    console.warn('Native Firebase Analytics not available:', e);
+  }
+}
 import {
     AnalyticsConfig,
     AnalyticsEvent,
@@ -97,22 +108,31 @@ class AnalyticsService {
   async setUserId(userId: string): Promise<void> {
     this.config.userId = userId;
     await AsyncStorage.setItem('analytics_user_id', userId);
-    
-    // Set user ID in Firebase Analytics (web only)
-    if (Platform.OS === 'web' && analytics) {
-      setUserId(analytics, userId);
+
+    // Set user ID in Firebase Analytics
+    if (Platform.OS === 'web' && webAnalytics) {
+      webSetUserId(webAnalytics, userId);
+    } else if (nativeAnalytics) {
+      await nativeAnalytics().setUserId(userId);
     }
   }
 
   async setUserProperties(properties: UserProperties): Promise<void> {
     try {
       await AsyncStorage.setItem('analytics_user_properties', JSON.stringify(properties));
-      
-      // Set user properties in Firebase Analytics (web only)
-      if (Platform.OS === 'web' && analytics) {
-        setUserProperties(analytics, properties);
+
+      // Set user properties in Firebase Analytics
+      if (Platform.OS === 'web' && webAnalytics) {
+        webSetUserProperties(webAnalytics, properties);
+      } else if (nativeAnalytics) {
+        // Convert properties to string format for native SDK
+        const stringProperties: { [key: string]: string | null } = {};
+        for (const [key, value] of Object.entries(properties)) {
+          stringProperties[key] = value != null ? String(value) : null;
+        }
+        await nativeAnalytics().setUserProperties(stringProperties);
       }
-      
+
       this.log('User properties set:', properties);
     } catch (error) {
       console.error('Failed to set user properties:', error);
@@ -263,20 +283,28 @@ class AnalyticsService {
 
     try {
       // Send to Firebase Analytics
-      if (Platform.OS === 'web' && analytics) {
+      if (Platform.OS === 'web' && webAnalytics) {
         // Use Firebase Web SDK on web platform
         for (const event of eventsToFlush) {
           const { timestamp, session_id, user_id, event: eventName, ...properties } = event;
-          logEvent(analytics, eventName, {
+          webLogEvent(webAnalytics, eventName, {
             timestamp,
             session_id,
             user_id,
             ...properties,
           });
         }
-      } else {
-        // Use Firebase Measurement Protocol API for native platforms (iOS/Android)
-        await this.sendToFirebaseMeasurementProtocol(eventsToFlush);
+      } else if (nativeAnalytics) {
+        // Use native Firebase SDK on iOS/Android
+        for (const event of eventsToFlush) {
+          const { timestamp, session_id, user_id, event: eventName, ...properties } = event;
+          await nativeAnalytics().logEvent(eventName, {
+            timestamp,
+            session_id,
+            user_id,
+            ...properties,
+          });
+        }
       }
 
       // Also persist locally for debugging/offline analysis
@@ -287,62 +315,6 @@ class AnalyticsService {
       // Re-add events to queue if flush failed
       this.eventQueue.unshift(...eventsToFlush);
       console.error('Failed to flush analytics events:', error);
-    }
-  }
-
-  // Send events to Firebase via Measurement Protocol API (works on all platforms)
-  private async sendToFirebaseMeasurementProtocol(events: AnalyticsEvent[]): Promise<void> {
-    try {
-      const measurementId = 'G-N37EWT11T5'; // Your Firebase measurement ID
-      // API Secret: Get from Firebase Console > Data Streams > Measurement Protocol API secrets
-      // For security, this should be stored in environment variables in production
-      const apiSecret = process.env.EXPO_PUBLIC_FIREBASE_API_SECRET || 'TEMP_DEV_SECRET';
-
-      const clientId = this.config.userId || this.sessionId;
-
-      // Format events for Firebase Measurement Protocol
-      const formattedEvents = events.map(event => {
-        const { event: eventName, timestamp, session_id, user_id, ...params } = event;
-        return {
-          name: eventName,
-          params: {
-            ...params,
-            session_id,
-            engagement_time_msec: '100',
-          }
-        };
-      });
-
-      const payload = {
-        client_id: clientId,
-        user_id: this.config.userId,
-        timestamp_micros: (Date.now() * 1000).toString(),
-        non_personalized_ads: false,
-        events: formattedEvents
-      };
-
-      this.log('Sending to Firebase Measurement Protocol:', payload);
-
-      // Send to Firebase
-      const response = await fetch(
-        `https://www.google-analytics.com/mp/collect?measurement_id=${measurementId}&api_secret=${apiSecret}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Firebase API returned ${response.status}`);
-      }
-
-      this.log('Successfully sent events to Firebase');
-    } catch (error) {
-      console.warn('Failed to send to Firebase Measurement Protocol:', error);
-      // Don't throw - we've already persisted locally
     }
   }
 

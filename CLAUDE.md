@@ -30,7 +30,9 @@ eas build --platform android # Build for Android
 
 ## Custom Claude Code Commands
 
-PuckIQ has custom slash commands that follow a consistent TDD methodology. All commands use the pattern: **Explore → Plan → Test → Implement → Verify → Commit**.
+PuckIQ has custom slash commands that follow a consistent TDD methodology. All commands use the pattern: **Verify Tests → Explore → Plan → Test → Implement → Verify → Commit**.
+
+**Important**: All commands that make changes run `npm test` first to ensure the codebase is in a known-good state before proceeding.
 
 ### Available Commands
 

@@ -1,21 +1,68 @@
 {
-  "allowedTools": [
-    "Read",
-    "Edit",
-    "Glob",
-    "Grep",
-    "TodoWrite",
-    "Bash(npm start)",
-    "Bash(npm test:*)",
-    "Bash(npm run *)",
-    "Bash(git add:*)",
-    "Bash(git commit:*)",
-    "Bash(git log:*)",
-    "Bash(git status)",
-    "Bash(git diff:*)",
-    "Bash(expo start:*)",
-    "Bash(ls:*)",
-    "Bash(npx tsc --noEmit)",
-    "mcp__ide__getDiagnostics"
-  ]
+  "permissions": {
+    "allow": [
+      "Read",
+      "Write",
+      "Edit",
+      "Glob",
+      "Grep",
+      "TodoWrite",
+      "WebFetch",
+      "WebSearch",
+      "mcp__ide__getDiagnostics",
+      "mcp__ide__executeCode",
+
+      "Bash(npm start)",
+      "Bash(npm test)",
+      "Bash(npm test:*)",
+      "Bash(npm run:*)",
+      "Bash(npm install)",
+      "Bash(npm install:*)",
+      "Bash(npm update:*)",
+      "Bash(npm cache clean:*)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(npx expo:*)",
+
+      "Bash(eas build:*)",
+      "Bash(eas build:list:*)",
+
+      "Bash(git status)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push)",
+      "Bash(git pull)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git branch:*)",
+      "Bash(git checkout:*)",
+      "Bash(git stash:*)",
+
+      "Bash(ls:*)",
+      "Bash(mkdir:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(wc:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(curl:*)",
+      "Bash(which:*)",
+      "Bash(echo:*)",
+      "Bash(pwd)",
+
+      "Bash(kill:*)",
+      "Bash(killall:*)",
+      "Bash(pkill:*)",
+      "Bash(lsof:*)",
+      "Bash(ps:*)",
+      "Bash(xargs kill -9)",
+
+      "Bash(node -e:*)",
+      "Bash(python3:*)"
+    ],
+    "deny": [
+      "Read(.env)",
+      "Read(.env.*)"
+    ]
+  }
 }

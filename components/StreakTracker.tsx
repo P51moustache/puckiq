@@ -92,7 +92,7 @@ export default function StreakTracker({ streakingTeams }: StreakTrackerProps) {
   };
 
   return (
-    <View style={{ marginBottom: 16 }}>
+    <View style={{ marginTop: 24, marginBottom: 0 }}>
       {/* Hot Streaks */}
       {hot && hot.length > 0 && (
         <View style={{ marginBottom: 12 }}>

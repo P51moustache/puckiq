@@ -31,6 +31,11 @@ export default function GameDeepDiveModal({
     goaltending: false,
     discipline: false,
   });
+  const [showGoalieInfo, setShowGoalieInfo] = useState(false);
+  const [showHotPlayersInfo, setShowHotPlayersInfo] = useState(false);
+  const [showHomeIceInfo, setShowHomeIceInfo] = useState(false);
+  const [showFavoredInfo, setShowFavoredInfo] = useState(false);
+  const [showEdgeInfo, setShowEdgeInfo] = useState(false);
 
   const homeAbbrev = game?.homeTeam?.abbrev || game?.homeTeam?.teamAbbrev?.default || 'HOME';
   const awayAbbrev = game?.awayTeam?.abbrev || game?.awayTeam?.teamAbbrev?.default || 'AWAY';
@@ -130,22 +135,22 @@ export default function GameDeepDiveModal({
           flexDirection: 'row',
         }}>
           <View style={{
-            width: `${prediction.awayWinProb}%`,
+            width: `${prediction?.awayWinProb || 50}%`,
             backgroundColor: '#60a5fa',
             height: '100%',
           }} />
           <View style={{
-            width: `${prediction.homeWinProb}%`,
+            width: `${prediction?.homeWinProb || 50}%`,
             backgroundColor: '#f59e0b',
             height: '100%',
           }} />
         </View>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
           <Text style={{ fontSize: 14, fontWeight: '700', color: '#60a5fa' }}>
-            {prediction.awayWinProb}%
+            {prediction?.awayWinProb || 50}%
           </Text>
           <Text style={{ fontSize: 14, fontWeight: '700', color: '#f59e0b' }}>
-            {prediction.homeWinProb}%
+            {prediction?.homeWinProb || 50}%
           </Text>
         </View>
       </View>
@@ -155,32 +160,577 @@ export default function GameDeepDiveModal({
         <Text style={{ fontSize: 16, fontWeight: '700', color: '#e6eef8', marginBottom: 12 }}>
           Key Factors
         </Text>
-        {[
-          { label: 'Home Ice Advantage', value: homeAbbrev, color: '#f59e0b' },
-          { label: 'Favored Team', value: favored, color: '#10b981' },
-          { label: 'Win Probability Edge', value: `${Math.abs(prediction.homeWinProb - prediction.awayWinProb)}%`, color: '#60a5fa' },
-        ].map((factor, idx) => (
-          <View
-            key={idx}
-            style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
+
+        {/* Home Ice Advantage */}
+        <Pressable
+          onPress={() => setShowHomeIceInfo(true)}
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            backgroundColor: '#071a3699',
+            borderRadius: 10,
+            padding: 12,
+            marginBottom: 8,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={{ fontSize: 13, color: '#98a6bf', fontWeight: '600' }}>
+              Home Ice Advantage
+            </Text>
+            <View style={{
+              marginLeft: 6,
+              width: 16,
+              height: 16,
+              borderRadius: 8,
+              backgroundColor: '#192e5e',
+              justifyContent: 'center',
               alignItems: 'center',
+            }}>
+              <Text style={{ fontSize: 10, color: '#60a5fa', fontWeight: '700' }}>?</Text>
+            </View>
+          </View>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: '#f59e0b' }}>
+            {homeAbbrev}
+          </Text>
+        </Pressable>
+
+        {/* Favored Team */}
+        <Pressable
+          onPress={() => setShowFavoredInfo(true)}
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            backgroundColor: '#071a3699',
+            borderRadius: 10,
+            padding: 12,
+            marginBottom: 8,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={{ fontSize: 13, color: '#98a6bf', fontWeight: '600' }}>
+              Favored Team
+            </Text>
+            <View style={{
+              marginLeft: 6,
+              width: 16,
+              height: 16,
+              borderRadius: 8,
+              backgroundColor: '#192e5e',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}>
+              <Text style={{ fontSize: 10, color: '#60a5fa', fontWeight: '700' }}>?</Text>
+            </View>
+          </View>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: '#10b981' }}>
+            {favored}
+          </Text>
+        </Pressable>
+
+        {/* Win Probability Edge */}
+        <Pressable
+          onPress={() => setShowEdgeInfo(true)}
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            backgroundColor: '#071a3699',
+            borderRadius: 10,
+            padding: 12,
+            marginBottom: 8,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={{ fontSize: 13, color: '#98a6bf', fontWeight: '600' }}>
+              Win Probability Edge
+            </Text>
+            <View style={{
+              marginLeft: 6,
+              width: 16,
+              height: 16,
+              borderRadius: 8,
+              backgroundColor: '#192e5e',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}>
+              <Text style={{ fontSize: 10, color: '#60a5fa', fontWeight: '700' }}>?</Text>
+            </View>
+          </View>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: '#60a5fa' }}>
+            {Math.abs((prediction?.homeWinProb || 50) - (prediction?.awayWinProb || 50))}%
+          </Text>
+        </Pressable>
+      </View>
+
+      {/* Player Advantage (when player factors are applied) */}
+      {prediction.playerFactorsApplied && (
+        <View style={{ marginBottom: 20 }}>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: '#e6eef8', marginBottom: 12 }}>
+            Player Factors
+          </Text>
+          <View style={{
+            backgroundColor: '#071a3699',
+            borderRadius: 12,
+            padding: 16,
+          }}>
+            {/* Goalie Matchup */}
+            <Pressable
+              onPress={() => setShowGoalieInfo(true)}
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: prediction.hotPlayersImpact !== 0 ? 12 : 0,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={{ fontSize: 16, marginRight: 8 }}>🥅</Text>
+                <Text style={{ fontSize: 13, color: '#98a6bf', fontWeight: '600' }}>
+                  Goalie Advantage
+                </Text>
+                <View style={{
+                  marginLeft: 6,
+                  width: 16,
+                  height: 16,
+                  borderRadius: 8,
+                  backgroundColor: '#192e5e',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}>
+                  <Text style={{ fontSize: 10, color: '#60a5fa', fontWeight: '700' }}>?</Text>
+                </View>
+              </View>
+              <View style={{
+                backgroundColor: prediction.goalieAdvantage === 'home' ? '#f59e0b22' :
+                               prediction.goalieAdvantage === 'away' ? '#60a5fa22' : '#98a6bf22',
+                paddingHorizontal: 10,
+                paddingVertical: 4,
+                borderRadius: 8,
+              }}>
+                <Text style={{
+                  fontSize: 12,
+                  fontWeight: '700',
+                  color: prediction.goalieAdvantage === 'home' ? '#f59e0b' :
+                         prediction.goalieAdvantage === 'away' ? '#60a5fa' : '#98a6bf',
+                }}>
+                  {prediction.goalieAdvantage === 'home' ? homeAbbrev :
+                   prediction.goalieAdvantage === 'away' ? awayAbbrev : 'Even'}
+                </Text>
+              </View>
+            </Pressable>
+
+            {/* Hot Players Impact */}
+            {prediction.hotPlayersImpact !== 0 && (
+              <Pressable
+                onPress={() => setShowHotPlayersInfo(true)}
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  paddingTop: 12,
+                  borderTopWidth: 1,
+                  borderTopColor: '#192e5e44',
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={{ fontSize: 16, marginRight: 8 }}>🔥</Text>
+                  <Text style={{ fontSize: 13, color: '#98a6bf', fontWeight: '600' }}>
+                    Hot Players Edge
+                  </Text>
+                  <View style={{
+                    marginLeft: 6,
+                    width: 16,
+                    height: 16,
+                    borderRadius: 8,
+                    backgroundColor: '#192e5e',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}>
+                    <Text style={{ fontSize: 10, color: '#60a5fa', fontWeight: '700' }}>?</Text>
+                  </View>
+                </View>
+                <View style={{
+                  backgroundColor: prediction.hotPlayersImpact > 0 ? '#f59e0b22' : '#60a5fa22',
+                  paddingHorizontal: 10,
+                  paddingVertical: 4,
+                  borderRadius: 8,
+                }}>
+                  <Text style={{
+                    fontSize: 12,
+                    fontWeight: '700',
+                    color: prediction.hotPlayersImpact > 0 ? '#f59e0b' : '#60a5fa',
+                  }}>
+                    +{Math.round(Math.abs(prediction.hotPlayersImpact / 1.5))} {prediction.hotPlayersImpact > 0 ? homeAbbrev : awayAbbrev}
+                  </Text>
+                </View>
+              </Pressable>
+            )}
+          </View>
+        </View>
+      )}
+
+      {/* Goalie Advantage Info Popup */}
+      <Modal
+        visible={showGoalieInfo}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowGoalieInfo(false)}
+      >
+        <Pressable
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 24,
+          }}
+          onPress={() => setShowGoalieInfo(false)}
+        >
+          <View style={{
+            backgroundColor: '#0a1628',
+            borderRadius: 16,
+            padding: 20,
+            maxWidth: 340,
+            borderWidth: 1,
+            borderColor: '#192e5e',
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+              <Text style={{ fontSize: 24, marginRight: 10 }}>🥅</Text>
+              <Text style={{ fontSize: 18, fontWeight: '700', color: '#e6eef8' }}>
+                Goalie Advantage
+              </Text>
+            </View>
+            <Text style={{ fontSize: 14, color: '#98a6bf', lineHeight: 22, marginBottom: 12 }}>
+              Compares the expected starting goalies based on:
+            </Text>
+            <View style={{ marginBottom: 12 }}>
+              {[
+                'Season save percentage (SV%)',
+                'Goals against average (GAA)',
+                'Recent performance (last 5 games)',
+                'Games started this season',
+              ].map((item, idx) => (
+                <View key={idx} style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 6 }}>
+                  <Text style={{ color: '#60a5fa', marginRight: 8, fontSize: 12 }}>•</Text>
+                  <Text style={{ fontSize: 13, color: '#c9d4e8', flex: 1 }}>{item}</Text>
+                </View>
+              ))}
+            </View>
+            <View style={{
               backgroundColor: '#071a3699',
               borderRadius: 10,
               padding: 12,
-              marginBottom: 8,
-            }}
-          >
-            <Text style={{ fontSize: 13, color: '#98a6bf', fontWeight: '600' }}>
-              {factor.label}
-            </Text>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: factor.color }}>
-              {factor.value}
-            </Text>
+              marginBottom: 16,
+            }}>
+              <Text style={{ fontSize: 12, color: '#98a6bf', lineHeight: 18 }}>
+                The team shown has the goaltending advantage for this matchup. A strong goalie can significantly impact the outcome.
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => setShowGoalieInfo(false)}
+              style={{
+                backgroundColor: '#60a5fa',
+                borderRadius: 10,
+                paddingVertical: 12,
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '700', color: '#0a1628' }}>Got it</Text>
+            </Pressable>
           </View>
-        ))}
-      </View>
+        </Pressable>
+      </Modal>
+
+      {/* Hot Players Info Popup */}
+      <Modal
+        visible={showHotPlayersInfo}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowHotPlayersInfo(false)}
+      >
+        <Pressable
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 24,
+          }}
+          onPress={() => setShowHotPlayersInfo(false)}
+        >
+          <View style={{
+            backgroundColor: '#0a1628',
+            borderRadius: 16,
+            padding: 20,
+            maxWidth: 340,
+            borderWidth: 1,
+            borderColor: '#192e5e',
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+              <Text style={{ fontSize: 24, marginRight: 10 }}>🔥</Text>
+              <Text style={{ fontSize: 18, fontWeight: '700', color: '#e6eef8' }}>
+                Hot Players Edge
+              </Text>
+            </View>
+            <Text style={{ fontSize: 14, color: '#98a6bf', lineHeight: 22, marginBottom: 12 }}>
+              Measures the difference in player momentum between teams:
+            </Text>
+            <View style={{ marginBottom: 12 }}>
+              {[
+                'Players on scoring streaks (+1 each)',
+                'Players in cold slumps (-1 each)',
+                'Difference creates the "edge" value',
+              ].map((item, idx) => (
+                <View key={idx} style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 6 }}>
+                  <Text style={{ color: '#f59e0b', marginRight: 8, fontSize: 12 }}>•</Text>
+                  <Text style={{ fontSize: 13, color: '#c9d4e8', flex: 1 }}>{item}</Text>
+                </View>
+              ))}
+            </View>
+            <View style={{
+              backgroundColor: '#071a3699',
+              borderRadius: 10,
+              padding: 12,
+              marginBottom: 16,
+            }}>
+              <Text style={{ fontSize: 12, color: '#98a6bf', lineHeight: 18 }}>
+                <Text style={{ color: '#10b981', fontWeight: '600' }}>+2 TOR</Text> means Toronto has a net advantage of 2 more hot/fewer cold players than their opponent.{'\n\n'}
+                Example: TOR has 3 hot, 1 cold (+2) vs opponent with 1 hot, 1 cold (0) = +2 edge for TOR.
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => setShowHotPlayersInfo(false)}
+              style={{
+                backgroundColor: '#f59e0b',
+                borderRadius: 10,
+                paddingVertical: 12,
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '700', color: '#0a1628' }}>Got it</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Home Ice Advantage Info Popup */}
+      <Modal
+        visible={showHomeIceInfo}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowHomeIceInfo(false)}
+      >
+        <Pressable
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 24,
+          }}
+          onPress={() => setShowHomeIceInfo(false)}
+        >
+          <View style={{
+            backgroundColor: '#0a1628',
+            borderRadius: 16,
+            padding: 20,
+            maxWidth: 340,
+            borderWidth: 1,
+            borderColor: '#192e5e',
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+              <Text style={{ fontSize: 24, marginRight: 10 }}>🏠</Text>
+              <Text style={{ fontSize: 18, fontWeight: '700', color: '#e6eef8' }}>
+                Home Ice Advantage
+              </Text>
+            </View>
+            <Text style={{ fontSize: 14, color: '#98a6bf', lineHeight: 22, marginBottom: 12 }}>
+              The team playing on their home ice has a statistical advantage:
+            </Text>
+            <View style={{ marginBottom: 12 }}>
+              {[
+                'Home teams win ~54% of NHL games historically',
+                'Last line change gives tactical advantage',
+                'Familiar arena and ice conditions',
+                'Crowd energy and support',
+              ].map((item, idx) => (
+                <View key={idx} style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 6 }}>
+                  <Text style={{ color: '#f59e0b', marginRight: 8, fontSize: 12 }}>•</Text>
+                  <Text style={{ fontSize: 13, color: '#c9d4e8', flex: 1 }}>{item}</Text>
+                </View>
+              ))}
+            </View>
+            <View style={{
+              backgroundColor: '#071a3699',
+              borderRadius: 10,
+              padding: 12,
+              marginBottom: 16,
+            }}>
+              <Text style={{ fontSize: 12, color: '#98a6bf', lineHeight: 18 }}>
+                This factor adds approximately <Text style={{ color: '#f59e0b', fontWeight: '600' }}>+4%</Text> to the home team's base win probability in our prediction model.
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => setShowHomeIceInfo(false)}
+              style={{
+                backgroundColor: '#f59e0b',
+                borderRadius: 10,
+                paddingVertical: 12,
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '700', color: '#0a1628' }}>Got it</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Favored Team Info Popup */}
+      <Modal
+        visible={showFavoredInfo}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowFavoredInfo(false)}
+      >
+        <Pressable
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 24,
+          }}
+          onPress={() => setShowFavoredInfo(false)}
+        >
+          <View style={{
+            backgroundColor: '#0a1628',
+            borderRadius: 16,
+            padding: 20,
+            maxWidth: 340,
+            borderWidth: 1,
+            borderColor: '#192e5e',
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+              <Text style={{ fontSize: 24, marginRight: 10 }}>⭐</Text>
+              <Text style={{ fontSize: 18, fontWeight: '700', color: '#e6eef8' }}>
+                Favored Team
+              </Text>
+            </View>
+            <Text style={{ fontSize: 14, color: '#98a6bf', lineHeight: 22, marginBottom: 12 }}>
+              The team with the higher win probability based on:
+            </Text>
+            <View style={{ marginBottom: 12 }}>
+              {[
+                'Points percentage this season',
+                'Goal differential',
+                'Recent form and streaks',
+                'Home ice advantage',
+                'Goalie matchup quality',
+                'Hot/cold player momentum',
+              ].map((item, idx) => (
+                <View key={idx} style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 6 }}>
+                  <Text style={{ color: '#10b981', marginRight: 8, fontSize: 12 }}>•</Text>
+                  <Text style={{ fontSize: 13, color: '#c9d4e8', flex: 1 }}>{item}</Text>
+                </View>
+              ))}
+            </View>
+            <View style={{
+              backgroundColor: '#071a3699',
+              borderRadius: 10,
+              padding: 12,
+              marginBottom: 16,
+            }}>
+              <Text style={{ fontSize: 12, color: '#98a6bf', lineHeight: 18 }}>
+                All these factors are combined and weighted to calculate each team's win probability. The team above <Text style={{ color: '#10b981', fontWeight: '600' }}>50%</Text> is favored to win.
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => setShowFavoredInfo(false)}
+              style={{
+                backgroundColor: '#10b981',
+                borderRadius: 10,
+                paddingVertical: 12,
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '700', color: '#0a1628' }}>Got it</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Win Probability Edge Info Popup */}
+      <Modal
+        visible={showEdgeInfo}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowEdgeInfo(false)}
+      >
+        <Pressable
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 24,
+          }}
+          onPress={() => setShowEdgeInfo(false)}
+        >
+          <View style={{
+            backgroundColor: '#0a1628',
+            borderRadius: 16,
+            padding: 20,
+            maxWidth: 340,
+            borderWidth: 1,
+            borderColor: '#192e5e',
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+              <Text style={{ fontSize: 24, marginRight: 10 }}>📊</Text>
+              <Text style={{ fontSize: 18, fontWeight: '700', color: '#e6eef8' }}>
+                Win Probability Edge
+              </Text>
+            </View>
+            <Text style={{ fontSize: 14, color: '#98a6bf', lineHeight: 22, marginBottom: 12 }}>
+              The difference between the two teams' win probabilities:
+            </Text>
+            <View style={{ marginBottom: 12 }}>
+              {[
+                'Higher edge = more confident prediction',
+                'Lower edge = closer, less certain matchup',
+                'Range is typically 0-70%',
+              ].map((item, idx) => (
+                <View key={idx} style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 6 }}>
+                  <Text style={{ color: '#60a5fa', marginRight: 8, fontSize: 12 }}>•</Text>
+                  <Text style={{ fontSize: 13, color: '#c9d4e8', flex: 1 }}>{item}</Text>
+                </View>
+              ))}
+            </View>
+            <View style={{
+              backgroundColor: '#071a3699',
+              borderRadius: 10,
+              padding: 12,
+              marginBottom: 16,
+            }}>
+              <Text style={{ fontSize: 12, color: '#98a6bf', lineHeight: 18 }}>
+                <Text style={{ color: '#60a5fa', fontWeight: '600' }}>Example:</Text> If Team A has 65% and Team B has 35%, the edge is <Text style={{ color: '#60a5fa', fontWeight: '600' }}>30%</Text>. A larger edge means our model is more confident in the predicted winner.
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => setShowEdgeInfo(false)}
+              style={{
+                backgroundColor: '#60a5fa',
+                borderRadius: 10,
+                paddingVertical: 12,
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '700', color: '#0a1628' }}>Got it</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
 
       {/* Team Stats Comparison */}
       <View>

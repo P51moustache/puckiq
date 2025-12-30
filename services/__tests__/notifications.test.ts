@@ -6,6 +6,8 @@ import {
   scheduleDailyNotification,
   initializeNotifications,
   triggerTestNotification,
+  scheduleGameStartNotification,
+  cancelGameNotification,
 } from '../notifications';
 import { getNotificationSettings } from '../notificationSettings';
 import { getAllPicks, getYesterdaysResults } from '../pickTracking';
@@ -34,10 +36,13 @@ jest.mock('expo-notifications', () => ({
   addNotificationResponseReceivedListener: jest.fn(),
   SchedulableTriggerInputTypes: {
     CALENDAR: 'calendar',
+    DATE: 'date',
   },
   AndroidImportance: {
     DEFAULT: 3,
+    HIGH: 4,
   },
+  cancelScheduledNotificationAsync: jest.fn(),
 }));
 jest.mock('../notificationSettings');
 jest.mock('../pickTracking');
@@ -197,8 +202,10 @@ describe('notifications', () => {
       mockGetYesterdaysResults.mockResolvedValue({
         lock: createWinningPick({ type: 'lock' }),
         smartPicks: [createWinningPick(), createLosingPick()],
+        userPicks: [],
         lockStats: { total: 1, wins: 1, losses: 0, pushes: 0, accuracy: 100 },
         smartPickStats: { total: 2, wins: 1, losses: 1, pushes: 0, accuracy: 50 },
+        userPickStats: { total: 0, wins: 0, losses: 0, pushes: 0, accuracy: 0 },
       });
     });
 
@@ -339,8 +346,10 @@ describe('notifications', () => {
       mockGetYesterdaysResults.mockResolvedValue({
         lock: createWinningPick({ type: 'lock' }),
         smartPicks: [createWinningPick()],
+        userPicks: [],
         lockStats: { total: 1, wins: 1, losses: 0, pushes: 0, accuracy: 100 },
         smartPickStats: { total: 1, wins: 1, losses: 0, pushes: 0, accuracy: 100 },
+        userPickStats: { total: 0, wins: 0, losses: 0, pushes: 0, accuracy: 0 },
       });
 
       await triggerTestNotification();
@@ -392,8 +401,10 @@ describe('notifications', () => {
       mockGetYesterdaysResults.mockResolvedValue({
         lock: createWinningPick({ type: 'lock', date: '2024-01-01' }),
         smartPicks: [],
+        userPicks: [],
         lockStats: { total: 1, wins: 1, losses: 0, pushes: 0, accuracy: 100 },
         smartPickStats: { total: 0, wins: 0, losses: 0, pushes: 0, accuracy: 0 },
+        userPickStats: { total: 0, wins: 0, losses: 0, pushes: 0, accuracy: 0 },
       });
 
       await triggerTestNotification();
@@ -415,8 +426,10 @@ describe('notifications', () => {
       mockGetYesterdaysResults.mockResolvedValue({
         lock: undefined,
         smartPicks: [createWinningPick(), createLosingPick()],
+        userPicks: [],
         lockStats: { total: 0, wins: 0, losses: 0, pushes: 0, accuracy: 0 },
         smartPickStats: { total: 2, wins: 1, losses: 1, pushes: 0, accuracy: 50 },
+        userPickStats: { total: 0, wins: 0, losses: 0, pushes: 0, accuracy: 0 },
       });
 
       await triggerTestNotification();
@@ -438,8 +451,10 @@ describe('notifications', () => {
       mockGetYesterdaysResults.mockResolvedValue({
         lock: createMockPick({ type: 'lock', date: '2024-01-01' }),
         smartPicks: [],
+        userPicks: [createWinningPick({ type: 'user-pick', date: '2024-01-01' })],
         lockStats: { total: 1, wins: 0, losses: 0, pushes: 0, accuracy: 0 },
         smartPickStats: { total: 0, wins: 0, losses: 0, pushes: 0, accuracy: 0 },
+        userPickStats: { total: 1, wins: 1, losses: 0, pushes: 0, accuracy: 100 },
       });
 
       mockGetAllPicks.mockResolvedValue([
@@ -459,8 +474,10 @@ describe('notifications', () => {
           createWinningPick(),
           createLosingPick(),
         ],
+        userPicks: [],
         lockStats: { total: 1, wins: 1, losses: 0, pushes: 0, accuracy: 100 },
         smartPickStats: { total: 3, wins: 2, losses: 1, pushes: 0, accuracy: 67 },
+        userPickStats: { total: 0, wins: 0, losses: 0, pushes: 0, accuracy: 0 },
       });
 
       await triggerTestNotification();
@@ -472,8 +489,10 @@ describe('notifications', () => {
       mockGetYesterdaysResults.mockResolvedValue({
         lock: createPushPick({ type: 'lock' }),
         smartPicks: [createWinningPick(), createPushPick()],
+        userPicks: [],
         lockStats: { total: 1, wins: 0, losses: 0, pushes: 1, accuracy: 0 },
         smartPickStats: { total: 2, wins: 1, losses: 0, pushes: 1, accuracy: 100 },
+        userPickStats: { total: 0, wins: 0, losses: 0, pushes: 0, accuracy: 0 },
       });
 
       await triggerTestNotification();
@@ -485,8 +504,10 @@ describe('notifications', () => {
       mockGetYesterdaysResults.mockResolvedValue({
         lock: createMockPick({ type: 'lock', outcome: undefined }),
         smartPicks: [createMockPick({ outcome: undefined })],
+        userPicks: [],
         lockStats: { total: 0, wins: 0, losses: 0, pushes: 0, accuracy: 0 },
         smartPickStats: { total: 0, wins: 0, losses: 0, pushes: 0, accuracy: 0 },
+        userPickStats: { total: 0, wins: 0, losses: 0, pushes: 0, accuracy: 0 },
       });
 
       await triggerTestNotification();
@@ -504,8 +525,10 @@ describe('notifications', () => {
       mockGetYesterdaysResults.mockResolvedValue({
         lock: createWinningPick({ type: 'lock' }),
         smartPicks: [createWinningPick(), createWinningPick()],
+        userPicks: [],
         lockStats: { total: 1, wins: 1, losses: 0, pushes: 0, accuracy: 100 },
         smartPickStats: { total: 2, wins: 2, losses: 0, pushes: 0, accuracy: 100 },
+        userPickStats: { total: 0, wins: 0, losses: 0, pushes: 0, accuracy: 0 },
       });
 
       await triggerTestNotification();
@@ -517,13 +540,157 @@ describe('notifications', () => {
       mockGetYesterdaysResults.mockResolvedValue({
         lock: createLosingPick({ type: 'lock' }),
         smartPicks: [createLosingPick()],
+        userPicks: [],
         lockStats: { total: 1, wins: 0, losses: 1, pushes: 0, accuracy: 0 },
         smartPickStats: { total: 1, wins: 0, losses: 1, pushes: 0, accuracy: 0 },
+        userPickStats: { total: 0, wins: 0, losses: 0, pushes: 0, accuracy: 0 },
       });
 
       await triggerTestNotification();
 
       expect(mockNotifications.scheduleNotificationAsync).toHaveBeenCalled();
+    });
+  });
+
+  describe('scheduleGameStartNotification', () => {
+    const futureGameTime = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(); // 2 hours from now
+
+    beforeEach(() => {
+      mockNotifications.scheduleNotificationAsync.mockResolvedValue('game-notification-id');
+      mockNotifications.cancelScheduledNotificationAsync.mockResolvedValue();
+    });
+
+    it('should schedule notification for future game', async () => {
+      const result = await scheduleGameStartNotification(
+        'game-123',
+        'TOR',
+        'MTL',
+        futureGameTime,
+        30,
+        'TOR'
+      );
+
+      expect(result).toBe('game-notification-id');
+      expect(mockNotifications.scheduleNotificationAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          content: expect.objectContaining({
+            title: 'MTL @ TOR starting soon!',
+            body: 'Your pick: TOR - Game starts in 30 minutes',
+          }),
+          trigger: expect.objectContaining({
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+          }),
+        })
+      );
+    });
+
+    it('should return null when game start notifications are disabled', async () => {
+      mockGetNotificationSettings.mockResolvedValue({
+        enabled: true,
+        time: '09:00',
+        notifyLockResults: true,
+        notifySmartPickResults: true,
+        notifyUserPickResults: true,
+        notifyGameStart: false,
+        gameStartMinutesBefore: 30,
+      });
+
+      const result = await scheduleGameStartNotification(
+        'game-123',
+        'TOR',
+        'MTL',
+        futureGameTime,
+        30,
+        'TOR'
+      );
+
+      expect(result).toBeNull();
+      expect(mockNotifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+    });
+
+    it('should return null when notification time is in the past', async () => {
+      const pastGameTime = new Date(Date.now() - 60 * 60 * 1000).toISOString(); // 1 hour ago
+
+      const result = await scheduleGameStartNotification(
+        'game-123',
+        'TOR',
+        'MTL',
+        pastGameTime,
+        30,
+        'TOR'
+      );
+
+      expect(result).toBeNull();
+    });
+
+    it('should store notification ID in AsyncStorage', async () => {
+      await scheduleGameStartNotification(
+        'game-123',
+        'TOR',
+        'MTL',
+        futureGameTime,
+        30,
+        'TOR'
+      );
+
+      expect(mockAsyncStorage.setItem).toHaveBeenCalledWith(
+        'puckiq_scheduled_game_notifications',
+        expect.stringContaining('game-123')
+      );
+    });
+
+    it('should cancel existing notification for same game before scheduling', async () => {
+      // Simulate existing notification
+      mockAsyncStorage.getItem.mockResolvedValueOnce(
+        JSON.stringify({ 'game-123': 'old-notification-id' })
+      );
+
+      await scheduleGameStartNotification(
+        'game-123',
+        'TOR',
+        'MTL',
+        futureGameTime,
+        30,
+        'TOR'
+      );
+
+      expect(mockNotifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith('old-notification-id');
+    });
+  });
+
+  describe('cancelGameNotification', () => {
+    beforeEach(() => {
+      mockNotifications.cancelScheduledNotificationAsync.mockResolvedValue();
+    });
+
+    it('should cancel notification by game ID', async () => {
+      mockAsyncStorage.getItem.mockResolvedValue(
+        JSON.stringify({ 'game-123': 'notification-id-123' })
+      );
+
+      await cancelGameNotification('game-123');
+
+      expect(mockNotifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith('notification-id-123');
+    });
+
+    it('should remove notification ID from storage after canceling', async () => {
+      mockAsyncStorage.getItem.mockResolvedValue(
+        JSON.stringify({ 'game-123': 'notification-id-123', 'game-456': 'notification-id-456' })
+      );
+
+      await cancelGameNotification('game-123');
+
+      expect(mockAsyncStorage.setItem).toHaveBeenCalledWith(
+        'puckiq_scheduled_game_notifications',
+        JSON.stringify({ 'game-456': 'notification-id-456' })
+      );
+    });
+
+    it('should handle non-existent game notification gracefully', async () => {
+      mockAsyncStorage.getItem.mockResolvedValue(JSON.stringify({}));
+
+      await expect(cancelGameNotification('non-existent')).resolves.not.toThrow();
+      expect(mockNotifications.cancelScheduledNotificationAsync).not.toHaveBeenCalled();
     });
   });
 });

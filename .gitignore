@@ -45,3 +45,4 @@ CLAUDE.local.md
 # Test coverage
 coverage/
 *.lcov
+GoogleService-Info.plist

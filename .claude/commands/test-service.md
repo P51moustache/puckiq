@@ -7,6 +7,25 @@ Test a service file using TDD approach.
 
 Target service: $ARGUMENTS
 
+## Step 0: VERIFY BASELINE (Run First!)
+
+Before writing new tests, ensure the codebase is in a known-good state:
+
+1. **Run the existing test suite**:
+   ```bash
+   npm test
+   ```
+
+2. **Check results**:
+   - ✅ If all tests pass → Proceed to Step 1
+   - ❌ If tests fail → Note pre-existing failures (don't make them worse)
+
+3. **Document baseline**:
+   - Record current test count
+   - Note if any tests already exist for this service
+
+**CHECKPOINT: Baseline documented before proceeding**
+
 ## Steps:
 
 1. **Read the service file** to understand its current implementation

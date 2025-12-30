@@ -24,11 +24,16 @@ import {
   Pick,
 } from '../../services/pickTracking';
 import { getStreakData, StreakData } from '../../services/streakTracking';
-import { addNotificationResponseListener } from '../../services/notifications';
-import { getPredictedWinner, calculateWinProbability } from '../../utils/predictionHelpers';
+import { addNotificationResponseListener, scheduleGameStartNotification } from '../../services/notifications';
+import { getNotificationSettings } from '../../services/notificationSettings';
+import { calculateWinProbabilityEnhanced } from '../../utils/predictionUtils';
+import { getPlayerPredictionFactors } from '../../services/playerPrediction';
+import type { PlayerPredictionFactors } from '../../types/predictions';
+import { useAnalytics } from '../../hooks/useAnalytics';
 
 export default function PicksScreen() {
   const styles = makeStyles();
+  const analytics = useAnalytics('PicksScreen');
 
   // State
   const [loading, setLoading] = useState(true);
@@ -47,6 +52,7 @@ export default function PicksScreen() {
   const [standings, setStandings] = useState<any>(null);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [playerFactorsMap, setPlayerFactorsMap] = useState<Map<string, PlayerPredictionFactors>>(new Map());
 
   // Load data
   useEffect(() => {
@@ -83,9 +89,10 @@ export default function PicksScreen() {
       setAllPicks(allPicksRes);
       setPicks(dailyPicksRes || { smartPicks: [], userPicks: [] });
 
+      let todaysGames: any[] = [];
       if (gamesRes.ok) {
         const data = await gamesRes.json();
-        const todaysGames = (data.games || []).filter((game: any) => {
+        todaysGames = (data.games || []).filter((game: any) => {
           return game.gameDate === today;
         });
         setGames(todaysGames);
@@ -93,6 +100,33 @@ export default function PicksScreen() {
 
       if (standingsRes.ok) {
         setStandings(await standingsRes.json());
+      }
+
+      // Fetch player factors for each game (in parallel)
+      if (todaysGames.length > 0) {
+        const factorsPromises = todaysGames.map(async (game: any) => {
+          try {
+            const homeAbbrev = game.homeTeam?.abbrev || '';
+            const awayAbbrev = game.awayTeam?.abbrev || '';
+            if (homeAbbrev && awayAbbrev) {
+              const factors = await getPlayerPredictionFactors(homeAbbrev, awayAbbrev);
+              return { gameId: String(game.id), factors };
+            }
+            return null;
+          } catch (error) {
+            console.error(`[Picks] Error fetching player factors for game ${game.id}:`, error);
+            return null;
+          }
+        });
+
+        const results = await Promise.all(factorsPromises);
+        const newFactorsMap = new Map<string, PlayerPredictionFactors>();
+        for (const result of results) {
+          if (result) {
+            newFactorsMap.set(result.gameId, result.factors);
+          }
+        }
+        setPlayerFactorsMap(newFactorsMap);
       }
     } catch (err) {
       console.error('Error:', err);
@@ -103,7 +137,7 @@ export default function PicksScreen() {
   };
 
   // Make pick
-  const makePick = async (gameId: string, team: string, homeTeam: string, awayTeam: string) => {
+  const makePick = async (gameId: string, team: string, homeTeam: string, awayTeam: string, startTimeUTC?: string) => {
     // Trigger animation
     setLastPickedGame(`${gameId}-${team}`);
     setTimeout(() => setLastPickedGame(null), 200);
@@ -140,6 +174,31 @@ export default function PicksScreen() {
         homeTeam,
         awayTeam,
       });
+
+      // Track pick made event
+      analytics.trackCustomEvent('pick_made', {
+        game_id: gameId,
+        predicted_winner: team,
+        home_team: homeTeam,
+        away_team: awayTeam,
+        matchup: `${awayTeam} @ ${homeTeam}`,
+        pick_source: 'picks_screen',
+      });
+
+      // Schedule game start notification if enabled and game time is available
+      if (startTimeUTC) {
+        const settings = await getNotificationSettings();
+        if (settings.notifyGameStart) {
+          await scheduleGameStartNotification(
+            gameId,
+            homeTeam,
+            awayTeam,
+            startTimeUTC,
+            settings.gameStartMinutesBefore,
+            team
+          );
+        }
+      }
     } catch (error) {
       console.error('Error saving pick:', error);
     }
@@ -216,16 +275,53 @@ export default function PicksScreen() {
     });
   };
 
-  // Use centralized win probability calculation for consistency with Today screen
-  const getProbability = (homeAbbrev: string, awayAbbrev: string) => {
-    return calculateWinProbability(homeAbbrev, awayAbbrev, standings);
+  // Use enhanced win probability calculation with player factors for consistency with Today screen
+  const getProbability = (homeAbbrev: string, awayAbbrev: string, gameId?: string) => {
+    const playerFactors = gameId ? playerFactorsMap.get(gameId) : undefined;
+    return calculateWinProbabilityEnhanced(homeAbbrev, awayAbbrev, standings, playerFactors || null);
+  };
+
+  // Helper to get team standings data
+  const getTeamStandings = (abbrev: string) => {
+    if (!standings?.standings) return null;
+    return standings.standings.find((t: any) =>
+      (t.teamAbbrev?.default || t.teamAbbrev) === abbrev
+    );
+  };
+
+  // Helper to format record
+  const formatRecord = (team: any) => {
+    if (!team) return '0-0-0';
+    return `${team.wins || 0}-${team.losses || 0}-${team.otLosses || 0}`;
+  };
+
+  // Helper to get streak with color
+  const getStreakInfo = (streakCode: string | undefined) => {
+    if (!streakCode) return { text: '-', color: theme.subtext };
+    const isWin = streakCode.startsWith('W');
+    const isLoss = streakCode.startsWith('L');
+    if (isWin) return { text: streakCode, color: '#10b981' };
+    if (isLoss) return { text: streakCode, color: '#ef4444' };
+    return { text: streakCode, color: theme.subtext };
+  };
+
+  // Helper to get confidence level
+  const getConfidenceInfo = (homeProb: number, awayProb: number) => {
+    const diff = Math.abs(homeProb - awayProb);
+    if (diff >= 20) return { text: 'Strong', color: '#10b981', bg: '#10b98122' };
+    if (diff >= 10) return { text: 'Moderate', color: '#f59e0b', bg: '#f59e0b22' };
+    return { text: 'Toss-Up', color: '#ef4444', bg: '#ef444422' };
   };
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView style={[styles.container, { overflow: 'hidden' }]}>
       <ScrollView
-        contentContainerStyle={[styles.scrollContainer, { paddingBottom: 100 }]}
+        contentContainerStyle={[styles.scrollContainer, { paddingBottom: 100, flexGrow: 1 }]}
         showsVerticalScrollIndicator={false}
+        showsHorizontalScrollIndicator={false}
+        horizontal={false}
+        bounces={true}
+        style={{ flex: 1, width: '100%' }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} tintColor={theme.accent} />
         }
@@ -295,8 +391,18 @@ export default function PicksScreen() {
                   // Allow picks if game is future OR if live and before 3rd period
                   const canMakePick = isFuture || (isLive && currentPeriod < 3);
 
+                  // Get prediction data
+                  const gameProb = getProbability(game.homeTeam?.abbrev || '', game.awayTeam?.abbrev || '', String(game.id));
+                  const predictedTeam = gameProb.homeWinProb > gameProb.awayWinProb ? game.homeTeam?.abbrev : game.awayTeam?.abbrev;
+                  const confidenceInfo = getConfidenceInfo(gameProb.homeWinProb, gameProb.awayWinProb);
+
+                  // Get team standings for records and streaks
+                  const homeStandings = getTeamStandings(game.homeTeam?.abbrev || '');
+                  const awayStandings = getTeamStandings(game.awayTeam?.abbrev || '');
+                  const homeStreak = getStreakInfo(homeStandings?.streakCode);
+                  const awayStreak = getStreakInfo(awayStandings?.streakCode);
+
                   // Get badge to display using priority system
-                  const predictedTeam = standings ? getPredictedWinner(game.homeTeam?.abbrev || '', game.awayTeam?.abbrev || '', standings) : undefined;
                   const badge = getBadgeToDisplay(
                     isLive,
                     isFinal,
@@ -307,96 +413,139 @@ export default function PicksScreen() {
                   );
 
                   return (
-                    <View key={game.id} style={s.gameRow}>
-                      {/* Time & Badges */}
-                      <View style={s.gameInfo}>
-                        <Text style={s.gameTime}>
-                          {new Date(game.startTimeUTC).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
-                        </Text>
-                        {badge && (
-                          <Text style={[
-                            badge.type === 'live' && s.liveTag,
-                            badge.type === 'final' && s.finalTag,
-                            badge.type === 'bestbet' && s.bestBetTag,
-                            badge.type === 'ai' && s.smartTag,
-                          ]}>
-                            {badge.text}
+                    <TouchableOpacity
+                      key={game.id}
+                      style={s.enhancedGameCard}
+                      onPress={() => setModalGame(game)}
+                      activeOpacity={0.8}
+                    >
+                      {/* Header: Time, Status, Confidence */}
+                      <View style={s.cardHeader}>
+                        <View style={s.cardHeaderLeft}>
+                          <Text style={s.gameTime}>
+                            {new Date(game.startTimeUTC).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
                           </Text>
-                        )}
+                          {badge && (
+                            <View style={[
+                              s.badgeContainer,
+                              badge.type === 'live' && { backgroundColor: '#ef444422' },
+                              badge.type === 'final' && { backgroundColor: '#98a6bf22' },
+                              badge.type === 'bestbet' && { backgroundColor: '#fbbf2422' },
+                              badge.type === 'ai' && { backgroundColor: '#10b98122' },
+                            ]}>
+                              <Text style={[
+                                s.badgeText,
+                                { color: badge.color }
+                              ]}>
+                                {badge.text}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          {userPick?.outcome && (
+                            <View style={[s.outcomeBadge, { backgroundColor: userPick.outcome === 'win' ? '#10b98122' : '#ef444422', marginRight: 6 }]}>
+                              <Text style={{ fontSize: 11, fontWeight: '800', color: userPick.outcome === 'win' ? '#10b981' : '#ef4444' }}>
+                                {userPick.outcome === 'win' ? 'WIN' : 'LOSS'}
+                              </Text>
+                            </View>
+                          )}
+                          <View style={[s.confidenceBadge, { backgroundColor: confidenceInfo.bg }]}>
+                            <Text style={[s.confidenceText, { color: confidenceInfo.color }]}>
+                              {confidenceInfo.text}
+                            </Text>
+                          </View>
+                        </View>
                       </View>
 
-                      {/* Matchup */}
-                      <View style={s.matchup}>
+                      {/* Teams Row with Records and Streaks */}
+                      <View style={s.teamsContainer}>
+                        {/* Away Team */}
                         <Animated.View style={{
                           flex: 1,
-                          transform: [{
-                            scale: lastPickedGame === `${game.id}-${game.awayTeam?.abbrev}` ? 0.95 : 1
-                          }]
+                          transform: [{ scale: lastPickedGame === `${game.id}-${game.awayTeam?.abbrev}` ? 0.95 : 1 }]
                         }}>
                           <TouchableOpacity
                             style={[
-                              s.teamBtn,
-                              userPick?.predictedWinner === game.awayTeam?.abbrev && s.picked,
-                              !canMakePick && s.disabled
+                              s.enhancedTeamBtn,
+                              userPick?.predictedWinner === game.awayTeam?.abbrev && s.pickedTeam,
+                              predictedTeam === game.awayTeam?.abbrev && s.favoredTeam,
+                              !canMakePick && s.disabledTeam
                             ]}
-                            onPress={() => canMakePick && makePick(String(game.id), game.awayTeam?.abbrev, game.homeTeam?.abbrev, game.awayTeam?.abbrev)}
+                            onPress={() => canMakePick && makePick(String(game.id), game.awayTeam?.abbrev, game.homeTeam?.abbrev, game.awayTeam?.abbrev, game.startTimeUTC)}
                             disabled={!canMakePick}
                           >
-                            <Text style={s.teamText}>{game.awayTeam?.abbrev}</Text>
-                            {gameStarted && awayScore !== undefined && (
-                              <Text style={[
-                                s.scoreText,
-                                getScoreStyle(awayScore, homeScore ?? 0, gameStarted)
-                              ]}>
+                            <Text style={s.teamAbbrev}>{game.awayTeam?.abbrev}</Text>
+                            {gameStarted && awayScore !== undefined ? (
+                              <Text style={[s.teamScore, getScoreStyle(awayScore, homeScore ?? 0, gameStarted)]}>
                                 {awayScore}
                               </Text>
+                            ) : (
+                              <>
+                                <Text style={s.teamRecord}>{formatRecord(awayStandings)}</Text>
+                                <Text style={[s.teamStreak, { color: awayStreak.color }]}>{awayStreak.text}</Text>
+                              </>
                             )}
                           </TouchableOpacity>
                         </Animated.View>
 
-                        <Text style={s.vs}>@</Text>
+                        {/* VS Divider */}
+                        <View style={s.vsDivider}>
+                          <Text style={s.vsText}>@</Text>
+                        </View>
 
+                        {/* Home Team */}
                         <Animated.View style={{
                           flex: 1,
-                          transform: [{
-                            scale: lastPickedGame === `${game.id}-${game.homeTeam?.abbrev}` ? 0.95 : 1
-                          }]
+                          transform: [{ scale: lastPickedGame === `${game.id}-${game.homeTeam?.abbrev}` ? 0.95 : 1 }]
                         }}>
                           <TouchableOpacity
                             style={[
-                              s.teamBtn,
-                              userPick?.predictedWinner === game.homeTeam?.abbrev && s.picked,
-                              !canMakePick && s.disabled
+                              s.enhancedTeamBtn,
+                              userPick?.predictedWinner === game.homeTeam?.abbrev && s.pickedTeam,
+                              predictedTeam === game.homeTeam?.abbrev && s.favoredTeam,
+                              !canMakePick && s.disabledTeam
                             ]}
-                            onPress={() => canMakePick && makePick(String(game.id), game.homeTeam?.abbrev, game.homeTeam?.abbrev, game.awayTeam?.abbrev)}
+                            onPress={() => canMakePick && makePick(String(game.id), game.homeTeam?.abbrev, game.homeTeam?.abbrev, game.awayTeam?.abbrev, game.startTimeUTC)}
                             disabled={!canMakePick}
                           >
-                            <Text style={s.teamText}>{game.homeTeam?.abbrev}</Text>
-                            {gameStarted && homeScore !== undefined && (
-                              <Text style={[
-                                s.scoreText,
-                                getScoreStyle(homeScore, awayScore ?? 0, gameStarted)
-                              ]}>
+                            <Text style={s.teamAbbrev}>{game.homeTeam?.abbrev}</Text>
+                            {gameStarted && homeScore !== undefined ? (
+                              <Text style={[s.teamScore, getScoreStyle(homeScore, awayScore ?? 0, gameStarted)]}>
                                 {homeScore}
                               </Text>
+                            ) : (
+                              <>
+                                <Text style={s.teamRecord}>{formatRecord(homeStandings)}</Text>
+                                <Text style={[s.teamStreak, { color: homeStreak.color }]}>{homeStreak.text}</Text>
+                              </>
                             )}
                           </TouchableOpacity>
                         </Animated.View>
                       </View>
 
-                      {/* Status / Action */}
-                      <TouchableOpacity style={s.action} onPress={() => setModalGame(game)}>
-                        {userPick?.outcome ? (
-                          <Text style={[s.result, { color: userPick.outcome === 'win' ? '#10b981' : '#ef4444' }]}>
-                            {userPick.outcome === 'win' ? 'W' : 'L'}
-                          </Text>
-                        ) : userPick && !gameStarted ? (
-                          <Text style={s.selected}>P</Text>
+                      {/* Win Probability Bar - Show for all games */}
+                      <View style={s.probContainer}>
+                        <View style={s.probLabels}>
+                          <Text style={s.probLabel}>{gameProb.awayWinProb}%</Text>
+                          <Text style={[s.probLabelCenter, { opacity: gameStarted ? 1 : 0 }]}>AI Prediction</Text>
+                          <Text style={s.probLabel}>{gameProb.homeWinProb}%</Text>
+                        </View>
+                        <View style={s.probBar}>
+                          <View style={[s.probFillAway, { width: `${gameProb.awayWinProb}%` }]} />
+                          <View style={[s.probFillHome, { width: `${gameProb.homeWinProb}%` }]} />
+                        </View>
+                      </View>
+
+                      {/* Footer: Pick status or More Info hint */}
+                      <View style={s.cardFooter}>
+                        {userPick ? (
+                          <Text style={s.pickedStatus}>Your pick: {userPick.predictedWinner}</Text>
                         ) : (
-                          <Text style={s.info}>i</Text>
+                          <Text style={s.moreInfoHint}>Tap for detailed analysis</Text>
                         )}
-                      </TouchableOpacity>
-                    </View>
+                      </View>
+                    </TouchableOpacity>
                   );
                 })}
               </View>
@@ -437,7 +586,7 @@ export default function PicksScreen() {
             visible={!!modalGame}
             onClose={() => setModalGame(null)}
             game={enrichedGame}
-            prediction={getProbability(modalGame.homeTeam?.abbrev || '', modalGame.awayTeam?.abbrev || '')}
+            prediction={getProbability(modalGame.homeTeam?.abbrev || '', modalGame.awayTeam?.abbrev || '', String(modalGame.id))}
           />
         );
       })()}
@@ -524,8 +673,8 @@ const s = StyleSheet.create({
     textTransform: 'uppercase',
   },
   gamesSection: {
-    gap: 12,
     width: '100%',
+    overflow: 'hidden',
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -656,5 +805,165 @@ const s = StyleSheet.create({
     fontSize: 16,
     color: theme.subtext,
     opacity: 0.5,
+  },
+
+  // Enhanced Game Card Styles
+  enhancedGameCard: {
+    backgroundColor: theme.card,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+    width: '100%',
+    maxWidth: '100%',
+    borderWidth: 1,
+    borderColor: '#334e8d44',
+    overflow: 'hidden',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  cardHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 1,
+  },
+  badgeContainer: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginLeft: 8,
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  confidenceBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  confidenceText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  outcomeBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  teamsContainer: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    marginBottom: 8,
+  },
+  enhancedTeamBtn: {
+    flex: 1,
+    backgroundColor: theme.subtle,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+    minHeight: 58,
+  },
+  pickedTeam: {
+    backgroundColor: '#1e3a8a',
+    borderColor: theme.accent,
+  },
+  favoredTeam: {
+    borderColor: '#10b98166',
+  },
+  disabledTeam: {
+    opacity: 0.6,
+  },
+  teamAbbrev: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: theme.text,
+    marginBottom: 2,
+  },
+  teamRecord: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: theme.subtext,
+    marginBottom: 1,
+  },
+  teamStreak: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  teamScore: {
+    fontSize: 22,
+    fontWeight: '900',
+    marginTop: 2,
+  },
+  vsDivider: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 28,
+    marginHorizontal: 2,
+  },
+  vsText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: theme.subtext,
+    opacity: 0.4,
+  },
+  probContainer: {
+    marginBottom: 6,
+  },
+  probLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  probLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.subtext,
+  },
+  probLabelCenter: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: theme.subtext,
+    opacity: 0.7,
+  },
+  probBar: {
+    height: 8,
+    backgroundColor: '#192e5e44',
+    borderRadius: 4,
+    overflow: 'hidden',
+    flexDirection: 'row',
+  },
+  probFillAway: {
+    height: '100%',
+    backgroundColor: '#60a5fa',
+  },
+  probFillHome: {
+    height: '100%',
+    backgroundColor: '#f59e0b',
+  },
+  cardFooter: {
+    alignItems: 'center',
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#192e5e44',
+  },
+  pickedStatus: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: theme.accent,
+  },
+  moreInfoHint: {
+    fontSize: 10,
+    fontWeight: '500',
+    color: theme.subtext,
+    opacity: 0.7,
   },
 });

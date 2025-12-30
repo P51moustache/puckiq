@@ -9,6 +9,25 @@ Improve a feature or component using systematic analysis and testing. Includes b
 
 Target: $ARGUMENTS
 
+## Step 0: VERIFY BASELINE (Run First!)
+
+Before making any changes, ensure the codebase is in a known-good state:
+
+1. **Run the test suite**:
+   ```bash
+   npm test
+   ```
+
+2. **Check results**:
+   - ✅ If all tests pass → Proceed to Step 1
+   - ❌ If tests fail → STOP and note pre-existing failures (don't make them worse)
+
+3. **Document baseline**:
+   - Note any pre-existing test failures
+   - Record current test count for comparison after improvements
+
+**CHECKPOINT: Tests baseline documented before proceeding**
+
 ## Step 1: ANALYZE & UNDERSTAND
 
 1. **Read the current implementation**:

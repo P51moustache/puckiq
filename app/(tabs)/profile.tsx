@@ -30,9 +30,11 @@ import {
   Pick,
 } from '../../services/pickTracking';
 import { getStreakData, StreakData } from '../../services/streakTracking';
+import { useAnalytics } from '../../hooks/useAnalytics';
 
 export default function ProfileScreen() {
   const styles = makeStyles();
+  const analytics = useAnalytics('ProfileScreen');
 
   // Notification settings
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
@@ -221,7 +223,7 @@ export default function ProfileScreen() {
                 if (value) {
                   const hasPermission = await requestNotificationPermissions();
                   if (!hasPermission) {
-                    alert('Please enable notifications in your device settings to receive daily results.');
+                    Alert.alert('Notifications Disabled', 'Please enable notifications in your device settings to receive daily results.');
                     return;
                   }
                   await scheduleDailyNotification(notificationSettings.time);
@@ -277,7 +279,7 @@ export default function ProfileScreen() {
                     value={notificationSettings.notifyLockResults}
                     onValueChange={async (value) => {
                       if (!value && !notificationSettings.notifySmartPickResults && !notificationSettings.notifyUserPickResults) {
-                        alert('At least one pick type must be selected');
+                        Alert.alert('Selection Required', 'At least one pick type must be selected.');
                         return;
                       }
 
@@ -295,7 +297,7 @@ export default function ProfileScreen() {
                     value={notificationSettings.notifySmartPickResults}
                     onValueChange={async (value) => {
                       if (!value && !notificationSettings.notifyLockResults && !notificationSettings.notifyUserPickResults) {
-                        alert('At least one pick type must be selected');
+                        Alert.alert('Selection Required', 'At least one pick type must be selected.');
                         return;
                       }
 
@@ -313,7 +315,7 @@ export default function ProfileScreen() {
                     value={notificationSettings.notifyUserPickResults}
                     onValueChange={async (value) => {
                       if (!value && !notificationSettings.notifyLockResults && !notificationSettings.notifySmartPickResults) {
-                        alert('At least one pick type must be selected');
+                        Alert.alert('Selection Required', 'At least one pick type must be selected.');
                         return;
                       }
 
@@ -357,7 +359,7 @@ export default function ProfileScreen() {
                   if (value) {
                     const hasPermission = await requestNotificationPermissions();
                     if (!hasPermission) {
-                      alert('Please enable notifications in your device settings.');
+                      Alert.alert('Notifications Disabled', 'Please enable notifications in your device settings.');
                       return;
                     }
                   }

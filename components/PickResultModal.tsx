@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { makeStyles } from '../constants/theme';
+import { useAnalytics } from '../hooks/useAnalytics';
 import { Pick } from '../services/pickTracking';
 
 interface GameScore {
@@ -109,10 +111,26 @@ export default function PickResultModal({
   onClose,
   pick,
 }: PickResultModalProps) {
+  const styles = makeStyles();
+  const analytics = useAnalytics();
   const [gameScore, setGameScore] = useState<GameScore | null>(null);
   const [gameDetails, setGameDetails] = useState<GameDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Track modal view when it opens
+  useEffect(() => {
+    if (visible && pick) {
+      analytics.trackCustomEvent('pick_result_viewed', {
+        game_id: pick.gameId,
+        pick_type: pick.type,
+        outcome: pick.outcome,
+        predicted_winner: pick.predictedWinner,
+        actual_winner: pick.actualWinner,
+        matchup: `${pick.awayTeam} @ ${pick.homeTeam}`,
+      });
+    }
+  }, [visible, pick, analytics]);
 
   // Fetch game score and details when modal opens
   useEffect(() => {
@@ -209,7 +227,7 @@ export default function PickResultModal({
         justifyContent: 'flex-end',
       }}>
         <View style={{
-          backgroundColor: '#0a1628',
+          backgroundColor: styles.card.backgroundColor,
           borderTopLeftRadius: 24,
           borderTopRightRadius: 24,
           height: '85%',
@@ -220,21 +238,21 @@ export default function PickResultModal({
             flexDirection: 'row',
             justifyContent: 'space-between',
             alignItems: 'center',
-            padding: 20,
+            padding: 16,
             borderBottomWidth: 1,
             borderBottomColor: '#192e5e44',
           }}>
             <View>
               <View style={{
                 backgroundColor: `${typeColor}22`,
-                paddingHorizontal: 10,
-                paddingVertical: 4,
-                borderRadius: 8,
-                marginBottom: 8,
+                paddingHorizontal: 8,
+                paddingVertical: 3,
+                borderRadius: 6,
+                marginBottom: 6,
                 alignSelf: 'flex-start',
               }}>
                 <Text style={{
-                  fontSize: 11,
+                  fontSize: 10,
                   fontWeight: '700',
                   color: typeColor,
                   textTransform: 'uppercase',
@@ -243,10 +261,10 @@ export default function PickResultModal({
                   {typeLabel}
                 </Text>
               </View>
-              <Text style={{ fontSize: 22, fontWeight: '800', color: '#e6eef8' }}>
+              <Text style={{ fontSize: 18, fontWeight: '800', color: '#e6eef8' }}>
                 {pick.awayTeam} @ {pick.homeTeam}
               </Text>
-              <Text style={{ fontSize: 13, color: '#98a6bf', marginTop: 4 }}>
+              <Text style={{ fontSize: 11, color: '#98a6bf', marginTop: 2 }}>
                 {new Date(pick.date + 'T12:00:00').toLocaleDateString('en-US', {
                   weekday: 'long',
                   month: 'long',
@@ -255,20 +273,20 @@ export default function PickResultModal({
               </Text>
             </View>
             <Pressable onPress={onClose} style={{
-              width: 32,
-              height: 32,
-              borderRadius: 16,
+              width: 28,
+              height: 28,
+              borderRadius: 14,
               backgroundColor: '#192e5e44',
               justifyContent: 'center',
               alignItems: 'center',
             }}>
-              <Text style={{ fontSize: 18, color: '#e6eef8' }}>✕</Text>
+              <Text style={{ fontSize: 16, color: '#e6eef8' }}>✕</Text>
             </Pressable>
           </View>
 
           <ScrollView
             style={{ flex: 1 }}
-            contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
+            contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
             showsVerticalScrollIndicator={true}
             bounces={true}
             nestedScrollEnabled={true}
@@ -276,75 +294,78 @@ export default function PickResultModal({
             {/* Result Banner */}
             <View style={{
               backgroundColor: `${outcomeDisplay.color}15`,
-              borderRadius: 16,
-              padding: 20,
-              marginBottom: 20,
+              borderRadius: 12,
+              padding: 14,
+              marginBottom: 12,
               borderWidth: 1,
               borderColor: `${outcomeDisplay.color}40`,
+              flexDirection: 'row',
               alignItems: 'center',
             }}>
               <View style={{
-                width: 48,
-                height: 48,
-                borderRadius: 24,
+                width: 36,
+                height: 36,
+                borderRadius: 18,
                 backgroundColor: `${outcomeDisplay.color}22`,
                 justifyContent: 'center',
                 alignItems: 'center',
-                marginBottom: 12,
+                marginRight: 12,
               }}>
                 <Text style={{
-                  fontSize: 24,
+                  fontSize: 18,
                   fontWeight: '800',
                   color: outcomeDisplay.color,
                 }}>
                   {outcomeDisplay.icon}
                 </Text>
               </View>
-              <Text style={{
-                fontSize: 20,
-                fontWeight: '800',
-                color: outcomeDisplay.color,
-                marginBottom: 4,
-              }}>
-                {outcomeDisplay.label}
-              </Text>
-              {pick.outcome && (
+              <View>
                 <Text style={{
-                  fontSize: 13,
-                  color: '#98a6bf',
+                  fontSize: 16,
+                  fontWeight: '800',
+                  color: outcomeDisplay.color,
                 }}>
-                  {pick.outcome === 'win'
-                    ? 'The prediction was right!'
-                    : pick.outcome === 'loss'
-                    ? 'The prediction was wrong'
-                    : 'Game ended in a tie'}
+                  {outcomeDisplay.label}
                 </Text>
-              )}
+                {pick.outcome && (
+                  <Text style={{
+                    fontSize: 11,
+                    color: '#98a6bf',
+                    marginTop: 2,
+                  }}>
+                    {pick.outcome === 'win'
+                      ? 'The prediction was right!'
+                      : pick.outcome === 'loss'
+                      ? 'The prediction was wrong'
+                      : 'Game ended in a tie'}
+                  </Text>
+                )}
+              </View>
             </View>
 
             {/* Final Score */}
             <View style={{
-              backgroundColor: '#071a3699',
-              borderRadius: 16,
-              padding: 20,
-              marginBottom: 20,
+              backgroundColor: styles.factbox.backgroundColor,
+              borderRadius: 12,
+              padding: 14,
+              marginBottom: 12,
             }}>
               <Text style={{
-                fontSize: 12,
+                fontSize: 10,
                 fontWeight: '700',
                 color: '#98a6bf',
                 textTransform: 'uppercase',
                 letterSpacing: 0.5,
-                marginBottom: 16,
+                marginBottom: 10,
                 textAlign: 'center',
               }}>
                 Final Score
               </Text>
 
               {loading ? (
-                <View style={{ alignItems: 'center', padding: 20 }}>
+                <View style={{ alignItems: 'center', padding: 12 }}>
                   <ActivityIndicator size="small" color="#60a5fa" />
-                  <Text style={{ color: '#98a6bf', marginTop: 8, fontSize: 12 }}>
+                  <Text style={{ color: '#98a6bf', marginTop: 6, fontSize: 11 }}>
                     Loading score...
                   </Text>
                 </View>
@@ -365,15 +386,15 @@ export default function PickResultModal({
                   {/* Away Team */}
                   <View style={{ alignItems: 'center', flex: 1 }}>
                     <Text style={{
-                      fontSize: 14,
+                      fontSize: 12,
                       fontWeight: '600',
                       color: pick.actualWinner === pick.awayTeam ? '#10b981' : '#e6eef8',
-                      marginBottom: 8,
+                      marginBottom: 4,
                     }}>
                       {pick.awayTeam}
                     </Text>
                     <Text style={{
-                      fontSize: 36,
+                      fontSize: 28,
                       fontWeight: '900',
                       color: pick.actualWinner === pick.awayTeam ? '#10b981' : '#e6eef8',
                     }}>
@@ -382,12 +403,12 @@ export default function PickResultModal({
                     {pick.actualWinner === pick.awayTeam && (
                       <View style={{
                         backgroundColor: '#10b98122',
-                        paddingHorizontal: 8,
+                        paddingHorizontal: 6,
                         paddingVertical: 2,
-                        borderRadius: 6,
-                        marginTop: 8,
+                        borderRadius: 4,
+                        marginTop: 4,
                       }}>
-                        <Text style={{ fontSize: 10, fontWeight: '700', color: '#10b981' }}>
+                        <Text style={{ fontSize: 9, fontWeight: '700', color: '#10b981' }}>
                           WINNER
                         </Text>
                       </View>
@@ -395,9 +416,9 @@ export default function PickResultModal({
                   </View>
 
                   {/* Divider */}
-                  <View style={{ paddingHorizontal: 16 }}>
+                  <View style={{ paddingHorizontal: 12 }}>
                     <Text style={{
-                      fontSize: 20,
+                      fontSize: 16,
                       fontWeight: '700',
                       color: '#98a6bf',
                     }}>
@@ -405,9 +426,9 @@ export default function PickResultModal({
                     </Text>
                     {gameScore.periodDescriptor && (
                       <Text style={{
-                        fontSize: 10,
+                        fontSize: 9,
                         color: '#98a6bf',
-                        marginTop: 4,
+                        marginTop: 2,
                       }}>
                         {gameScore.periodDescriptor.periodType === 'OT' ? 'OT' :
                          gameScore.periodDescriptor.periodType === 'SO' ? 'SO' : 'REG'}
@@ -418,15 +439,15 @@ export default function PickResultModal({
                   {/* Home Team */}
                   <View style={{ alignItems: 'center', flex: 1 }}>
                     <Text style={{
-                      fontSize: 14,
+                      fontSize: 12,
                       fontWeight: '600',
                       color: pick.actualWinner === pick.homeTeam ? '#10b981' : '#e6eef8',
-                      marginBottom: 8,
+                      marginBottom: 4,
                     }}>
                       {pick.homeTeam}
                     </Text>
                     <Text style={{
-                      fontSize: 36,
+                      fontSize: 28,
                       fontWeight: '900',
                       color: pick.actualWinner === pick.homeTeam ? '#10b981' : '#e6eef8',
                     }}>
@@ -435,12 +456,12 @@ export default function PickResultModal({
                     {pick.actualWinner === pick.homeTeam && (
                       <View style={{
                         backgroundColor: '#10b98122',
-                        paddingHorizontal: 8,
+                        paddingHorizontal: 6,
                         paddingVertical: 2,
-                        borderRadius: 6,
-                        marginTop: 8,
+                        borderRadius: 4,
+                        marginTop: 4,
                       }}>
-                        <Text style={{ fontSize: 10, fontWeight: '700', color: '#10b981' }}>
+                        <Text style={{ fontSize: 9, fontWeight: '700', color: '#10b981' }}>
                           WINNER
                         </Text>
                       </View>
@@ -461,18 +482,18 @@ export default function PickResultModal({
             {/* Period Breakdown */}
             {gameDetails && gameDetails.periodScores.length > 0 && (
               <View style={{
-                backgroundColor: '#071a3699',
-                borderRadius: 16,
-                padding: 20,
-                marginBottom: 20,
+                backgroundColor: styles.factbox.backgroundColor,
+                borderRadius: 12,
+                padding: 14,
+                marginBottom: 12,
               }}>
                 <Text style={{
-                  fontSize: 12,
+                  fontSize: 10,
                   fontWeight: '700',
                   color: '#98a6bf',
                   textTransform: 'uppercase',
                   letterSpacing: 0.5,
-                  marginBottom: 16,
+                  marginBottom: 10,
                   textAlign: 'center',
                 }}>
                   Period Breakdown
@@ -481,16 +502,16 @@ export default function PickResultModal({
                 {/* Period Header Row */}
                 <View style={{
                   flexDirection: 'row',
-                  marginBottom: 8,
-                  paddingBottom: 8,
+                  marginBottom: 6,
+                  paddingBottom: 6,
                   borderBottomWidth: 1,
                   borderBottomColor: '#192e5e44',
                 }}>
-                  <View style={{ width: 50 }} />
+                  <View style={{ width: 40 }} />
                   {gameDetails.periodScores.map((period, idx) => (
                     <View key={idx} style={{ flex: 1, alignItems: 'center' }}>
                       <Text style={{
-                        fontSize: 11,
+                        fontSize: 10,
                         fontWeight: '700',
                         color: '#98a6bf',
                       }}>
@@ -498,9 +519,9 @@ export default function PickResultModal({
                       </Text>
                     </View>
                   ))}
-                  <View style={{ width: 40, alignItems: 'center' }}>
+                  <View style={{ width: 32, alignItems: 'center' }}>
                     <Text style={{
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: '700',
                       color: '#98a6bf',
                     }}>
@@ -513,11 +534,11 @@ export default function PickResultModal({
                 <View style={{
                   flexDirection: 'row',
                   alignItems: 'center',
-                  marginBottom: 8,
+                  marginBottom: 4,
                 }}>
-                  <View style={{ width: 50 }}>
+                  <View style={{ width: 40 }}>
                     <Text style={{
-                      fontSize: 13,
+                      fontSize: 11,
                       fontWeight: '700',
                       color: pick.actualWinner === pick.awayTeam ? '#10b981' : '#e6eef8',
                     }}>
@@ -527,7 +548,7 @@ export default function PickResultModal({
                   {gameDetails.periodScores.map((period, idx) => (
                     <View key={idx} style={{ flex: 1, alignItems: 'center' }}>
                       <Text style={{
-                        fontSize: 14,
+                        fontSize: 12,
                         fontWeight: '600',
                         color: period.awayScore > 0 ? '#e6eef8' : '#5a6a8a',
                       }}>
@@ -535,9 +556,9 @@ export default function PickResultModal({
                       </Text>
                     </View>
                   ))}
-                  <View style={{ width: 40, alignItems: 'center' }}>
+                  <View style={{ width: 32, alignItems: 'center' }}>
                     <Text style={{
-                      fontSize: 14,
+                      fontSize: 12,
                       fontWeight: '800',
                       color: pick.actualWinner === pick.awayTeam ? '#10b981' : '#e6eef8',
                     }}>
@@ -550,11 +571,11 @@ export default function PickResultModal({
                 <View style={{
                   flexDirection: 'row',
                   alignItems: 'center',
-                  marginBottom: 16,
+                  marginBottom: 10,
                 }}>
-                  <View style={{ width: 50 }}>
+                  <View style={{ width: 40 }}>
                     <Text style={{
-                      fontSize: 13,
+                      fontSize: 11,
                       fontWeight: '700',
                       color: pick.actualWinner === pick.homeTeam ? '#10b981' : '#e6eef8',
                     }}>
@@ -564,7 +585,7 @@ export default function PickResultModal({
                   {gameDetails.periodScores.map((period, idx) => (
                     <View key={idx} style={{ flex: 1, alignItems: 'center' }}>
                       <Text style={{
-                        fontSize: 14,
+                        fontSize: 12,
                         fontWeight: '600',
                         color: period.homeScore > 0 ? '#e6eef8' : '#5a6a8a',
                       }}>
@@ -572,9 +593,9 @@ export default function PickResultModal({
                       </Text>
                     </View>
                   ))}
-                  <View style={{ width: 40, alignItems: 'center' }}>
+                  <View style={{ width: 32, alignItems: 'center' }}>
                     <Text style={{
-                      fontSize: 14,
+                      fontSize: 12,
                       fontWeight: '800',
                       color: pick.actualWinner === pick.homeTeam ? '#10b981' : '#e6eef8',
                     }}>
@@ -587,7 +608,7 @@ export default function PickResultModal({
                 <View style={{
                   borderTopWidth: 1,
                   borderTopColor: '#192e5e44',
-                  paddingTop: 12,
+                  paddingTop: 8,
                 }}>
                   <View style={{
                     flexDirection: 'row',
@@ -595,13 +616,13 @@ export default function PickResultModal({
                     alignItems: 'center',
                   }}>
                     <Text style={{
-                      fontSize: 12,
+                      fontSize: 11,
                       color: '#98a6bf',
                     }}>
                       Shots on Goal
                     </Text>
                     <Text style={{
-                      fontSize: 13,
+                      fontSize: 11,
                       fontWeight: '700',
                       color: '#e6eef8',
                     }}>
@@ -614,18 +635,18 @@ export default function PickResultModal({
 
             {/* AI Prediction Section */}
             <View style={{
-              backgroundColor: '#071a3699',
-              borderRadius: 16,
-              padding: 20,
-              marginBottom: 20,
+              backgroundColor: styles.factbox.backgroundColor,
+              borderRadius: 12,
+              padding: 14,
+              marginBottom: 12,
             }}>
               <Text style={{
-                fontSize: 12,
+                fontSize: 10,
                 fontWeight: '700',
                 color: '#98a6bf',
                 textTransform: 'uppercase',
                 letterSpacing: 0.5,
-                marginBottom: 16,
+                marginBottom: 10,
               }}>
                 {pick.type === 'user-pick' ? 'Your Prediction' : 'AI Prediction'}
               </Text>
@@ -634,20 +655,20 @@ export default function PickResultModal({
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                marginBottom: 16,
+                marginBottom: pick.homeWinProb !== undefined ? 12 : 0,
               }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <View style={{
                     backgroundColor: `${typeColor}22`,
-                    width: 40,
-                    height: 40,
-                    borderRadius: 20,
+                    width: 32,
+                    height: 32,
+                    borderRadius: 16,
                     justifyContent: 'center',
                     alignItems: 'center',
-                    marginRight: 12,
+                    marginRight: 10,
                   }}>
                     <Text style={{
-                      fontSize: 16,
+                      fontSize: 12,
                       fontWeight: '800',
                       color: typeColor,
                     }}>
@@ -656,14 +677,14 @@ export default function PickResultModal({
                   </View>
                   <View>
                     <Text style={{
-                      fontSize: 16,
+                      fontSize: 14,
                       fontWeight: '700',
                       color: '#e6eef8',
                     }}>
                       {pick.predictedWinner} to win
                     </Text>
                     <Text style={{
-                      fontSize: 12,
+                      fontSize: 10,
                       color: '#98a6bf',
                     }}>
                       {predictedHome ? 'Home team' : 'Away team'}
@@ -674,12 +695,12 @@ export default function PickResultModal({
                 {/* Outcome indicator */}
                 <View style={{
                   backgroundColor: `${outcomeDisplay.color}22`,
-                  paddingHorizontal: 12,
-                  paddingVertical: 6,
-                  borderRadius: 8,
+                  paddingHorizontal: 10,
+                  paddingVertical: 4,
+                  borderRadius: 6,
                 }}>
                   <Text style={{
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: '700',
                     color: outcomeDisplay.color,
                   }}>
@@ -693,53 +714,42 @@ export default function PickResultModal({
                 <View style={{
                   borderTopWidth: 1,
                   borderTopColor: '#192e5e44',
-                  paddingTop: 16,
+                  paddingTop: 10,
                 }}>
-                  <Text style={{
-                    fontSize: 11,
-                    color: '#98a6bf',
-                    fontWeight: '600',
-                    textTransform: 'uppercase',
-                    letterSpacing: 0.5,
-                    marginBottom: 12,
-                    textAlign: 'center',
-                  }}>
-                    AI Win Probability
-                  </Text>
                   {/* Team labels with percentages */}
                   <View style={{
                     flexDirection: 'row',
                     justifyContent: 'space-between',
-                    marginBottom: 8,
+                    marginBottom: 6,
                   }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <Text style={{
-                        fontSize: 13,
+                        fontSize: 11,
                         fontWeight: '700',
                         color: '#60a5fa',
                       }}>
                         {pick.awayTeam}
                       </Text>
                       <Text style={{
-                        fontSize: 12,
+                        fontSize: 11,
                         fontWeight: '800',
                         color: '#60a5fa',
-                        marginLeft: 6,
+                        marginLeft: 4,
                       }}>
                         {pick.awayWinProb}%
                       </Text>
                     </View>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <Text style={{
-                        fontSize: 12,
+                        fontSize: 11,
                         fontWeight: '800',
                         color: '#f59e0b',
-                        marginRight: 6,
+                        marginRight: 4,
                       }}>
                         {pick.homeWinProb}%
                       </Text>
                       <Text style={{
-                        fontSize: 13,
+                        fontSize: 11,
                         fontWeight: '700',
                         color: '#f59e0b',
                       }}>
@@ -749,9 +759,9 @@ export default function PickResultModal({
                   </View>
                   {/* Prediction Bar */}
                   <View style={{
-                    height: 10,
+                    height: 8,
                     backgroundColor: '#192e5e',
-                    borderRadius: 5,
+                    borderRadius: 4,
                     overflow: 'hidden',
                     flexDirection: 'row',
                   }}>
@@ -773,24 +783,24 @@ export default function PickResultModal({
             {/* What Happened Summary */}
             {pick.outcome && pick.actualWinner && (
               <View style={{
-                backgroundColor: '#071a3699',
-                borderRadius: 16,
-                padding: 20,
+                backgroundColor: styles.factbox.backgroundColor,
+                borderRadius: 12,
+                padding: 14,
               }}>
                 <Text style={{
-                  fontSize: 12,
+                  fontSize: 10,
                   fontWeight: '700',
                   color: '#98a6bf',
                   textTransform: 'uppercase',
                   letterSpacing: 0.5,
-                  marginBottom: 12,
+                  marginBottom: 8,
                 }}>
                   Summary
                 </Text>
                 <Text style={{
-                  fontSize: 14,
+                  fontSize: 12,
                   color: '#c9d4e8',
-                  lineHeight: 22,
+                  lineHeight: 18,
                 }}>
                   {pick.outcome === 'win' ? (
                     <>
@@ -808,7 +818,7 @@ export default function PickResultModal({
             )}
 
             {/* Bottom padding */}
-            <View style={{ height: 40 }} />
+            <View style={{ height: 20 }} />
           </ScrollView>
         </View>
       </View>

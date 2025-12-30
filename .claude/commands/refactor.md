@@ -7,6 +7,25 @@ Refactor code safely using tests as a safety net.
 
 Code to refactor: $ARGUMENTS
 
+## Phase 0: VERIFY BASELINE (Run First!)
+
+Before making any changes, ensure the codebase is in a known-good state:
+
+1. **Run the test suite**:
+   ```bash
+   npm test
+   ```
+
+2. **Check results**:
+   - ✅ If all tests pass → Proceed to Phase 1
+   - ❌ If tests fail → STOP and fix failing tests first (refactoring requires green tests!)
+
+3. **Document baseline**:
+   - Record current test count and coverage
+   - These numbers should NOT decrease after refactoring
+
+**CRITICAL: Refactoring without passing tests is dangerous. Fix tests first!**
+
 ## IMPORTANT: Refactoring Rules
 
 1. **NEVER refactor without tests**

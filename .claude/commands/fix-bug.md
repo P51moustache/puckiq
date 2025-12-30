@@ -7,6 +7,25 @@ Fix a bug using TDD approach.
 
 Bug description: $ARGUMENTS
 
+## Step 0: VERIFY BASELINE (Run First!)
+
+Before making any changes, ensure the codebase is in a known-good state:
+
+1. **Run the test suite**:
+   ```bash
+   npm test
+   ```
+
+2. **Check results**:
+   - ✅ If all tests pass → Proceed to Step 1
+   - ❌ If tests fail → STOP and note pre-existing failures (don't make them worse)
+
+3. **Document baseline**:
+   - Note any pre-existing test failures
+   - These help distinguish new issues from existing ones
+
+**CHECKPOINT: Tests baseline documented before proceeding**
+
 ## Step 1: REPRODUCE & UNDERSTAND
 
 1. **Reproduce the bug**:
@@ -72,12 +91,18 @@ Bug description: $ARGUMENTS
    ```
    Make sure nothing broke
 
-3. **Test manually** in simulator/browser:
-   - Reproduce original bug scenario
-   - Verify it's fixed
-   - Test related functionality
+3. **CRITICAL: Verify in the UI**:
+   - Ask the user to test the change in the simulator/browser
+   - For state/UI bugs: confirm button states, visual feedback, data display all work
+   - For logic bugs: confirm the expected behavior now works
+   - **DO NOT proceed until user confirms the fix works in the frontend**
 
-4. **Check for similar bugs** in related code
+4. **If user reports it's still broken**:
+   - Re-investigate - don't assume the code change was correct
+   - Check: state updates, prop passing, re-renders, async timing
+   - Look for missing pieces (e.g., state not loaded on mount, props not passed)
+
+5. **Check for similar bugs** in related code
 
 ## Step 5: COMMIT
 
@@ -108,7 +133,7 @@ Bug description: $ARGUMENTS
 - ✅ Bug fixed with minimal changes
 - ✅ Test now passes
 - ✅ Full test suite passes
-- ✅ Manually verified in simulator
+- ✅ **USER CONFIRMED fix works in the UI** (mandatory for UI bugs)
 - ✅ Similar issues checked
 - ✅ Descriptive commit message
 - ✅ No new console errors

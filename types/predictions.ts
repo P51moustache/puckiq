@@ -125,3 +125,131 @@ export interface WeightAnalysis {
   suggestedWeights: ConfidenceWeights;
   improvements: string[];
 }
+
+// ============================================
+// Player Data Types for Predictions
+// ============================================
+
+/**
+ * Basic player info from roster/landing APIs
+ */
+export interface PlayerInfo {
+  id: number;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  teamAbbrev: string;
+  position: 'C' | 'L' | 'R' | 'D' | 'G';
+  positionType: 'F' | 'D' | 'G';
+  sweaterNumber?: number;
+}
+
+/**
+ * Skater stats (forwards and defensemen)
+ */
+export interface SkaterStats {
+  gamesPlayed: number;
+  goals: number;
+  assists: number;
+  points: number;
+  plusMinus: number;
+  pim: number;
+  shots: number;
+  shootingPct: number;
+  powerPlayGoals: number;
+  powerPlayPoints: number;
+  gameWinningGoals: number;
+  avgTimeOnIce: string;
+}
+
+/**
+ * Goalie stats
+ */
+export interface GoalieStats {
+  gamesPlayed: number;
+  gamesStarted: number;
+  wins: number;
+  losses: number;
+  otLosses: number;
+  savePercentage: number;
+  goalsAgainstAverage: number;
+  shutouts: number;
+  shotsAgainst: number;
+  saves: number;
+  avgTimeOnIce: string;
+}
+
+/**
+ * Player's recent form (last N games)
+ */
+export interface PlayerRecentForm {
+  playerId: number;
+  playerName: string;
+  position: string;
+  gamesPlayed: number;
+  // Skater stats
+  goals?: number;
+  assists?: number;
+  points?: number;
+  plusMinus?: number;
+  // Goalie stats
+  wins?: number;
+  savePercentage?: number;
+  goalsAgainstAverage?: number;
+  // Calculated
+  isHot: boolean;  // Performing above season average
+  isCold: boolean; // Performing below season average
+  hotStreak?: number; // Consecutive games with points (skaters) or wins (goalies)
+}
+
+/**
+ * Starting goalie information for a game
+ */
+export interface GoalieMatchup {
+  homeGoalie: {
+    id: number;
+    name: string;
+    seasonStats: GoalieStats | null;
+    recentForm: PlayerRecentForm | null;
+    isConfirmed: boolean; // Whether this is confirmed starter
+  } | null;
+  awayGoalie: {
+    id: number;
+    name: string;
+    seasonStats: GoalieStats | null;
+    recentForm: PlayerRecentForm | null;
+    isConfirmed: boolean;
+  } | null;
+  advantage: 'home' | 'away' | 'neutral';
+  confidenceImpact: number; // -15 to +15 impact on confidence score
+}
+
+/**
+ * Hot/cold players for a team
+ */
+export interface TeamHotPlayers {
+  teamAbbrev: string;
+  hotPlayers: PlayerRecentForm[];  // Players on scoring/winning streaks
+  coldPlayers: PlayerRecentForm[]; // Players in slumps
+  injuredStars: PlayerInfo[];      // Key players out (if available)
+  overallHeatIndex: number;        // -10 to +10, positive = team is hot
+}
+
+/**
+ * Complete player factors for prediction
+ */
+export interface PlayerPredictionFactors {
+  goalieMatchup: GoalieMatchup | null;
+  homeHotPlayers: TeamHotPlayers | null;
+  awayHotPlayers: TeamHotPlayers | null;
+  totalImpact: number; // Combined impact on confidence (-25 to +25)
+}
+
+/**
+ * Extended confidence weights including player factors
+ */
+export interface ExtendedConfidenceWeights extends ConfidenceWeights {
+  goalieMatchupImpact: number;     // Impact of starting goalie comparison
+  hotPlayersImpact: number;        // Impact of hot/cold player differential
+  starPlayerImpact: number;        // Impact of star player availability
+}

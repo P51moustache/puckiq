@@ -7,6 +7,25 @@ Add a new feature using the Explore → Plan → Code → Test → Commit workfl
 
 Feature to add: $ARGUMENTS
 
+## Phase 0: VERIFY BASELINE (Run First!)
+
+Before making any changes, ensure the codebase is in a known-good state:
+
+1. **Run the test suite**:
+   ```bash
+   npm test
+   ```
+
+2. **Check results**:
+   - ✅ If all tests pass → Proceed to Phase 1
+   - ❌ If tests fail → STOP and fix failing tests first (or note pre-existing failures)
+
+3. **Document baseline**:
+   - Note any pre-existing test failures
+   - These are NOT your responsibility to fix, but don't make them worse
+
+**CHECKPOINT: Tests must be passing (or pre-existing failures documented) before proceeding**
+
 ## Phase 1: EXPLORE (Do NOT code yet!)
 
 1. **Read existing similar features** to understand patterns

@@ -7,6 +7,25 @@ Audit a feature for completeness and make it production-ready using TDD.
 
 Feature to audit: $ARGUMENTS
 
+## Phase 0: VERIFY BASELINE (Run First!)
+
+Before making any changes, ensure the codebase is in a known-good state:
+
+1. **Run the test suite**:
+   ```bash
+   npm test
+   ```
+
+2. **Check results**:
+   - ✅ If all tests pass → Proceed to Phase 1
+   - ❌ If tests fail → Document pre-existing failures (don't make them worse)
+
+3. **Document baseline**:
+   - Note current test count and any failures
+   - Record which tests cover this feature (if any)
+
+**CHECKPOINT: Tests baseline documented before proceeding**
+
 ## Phase 1: EXPLORE & MAP
 
 1. **Find all related code**:

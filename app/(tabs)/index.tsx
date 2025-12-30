@@ -31,6 +31,7 @@ import { initializeNotifications, scheduleGameStartNotification } from '../../se
 import { getNotificationSettings } from '../../services/notificationSettings';
 import { getLockOfTheDayEnhanced, getSmartPicksEnhanced, calculateWinProbabilityEnhanced } from '../../utils/predictionUtils';
 import { getPlayerPredictionFactors } from '../../services/playerPrediction';
+import logger from '../../utils/logger';
 import type { PlayerPredictionFactors } from '../../types/predictions';
 
 const name = 'Zach'
@@ -168,58 +169,53 @@ export default function HomeScreen() {
   // User picks state - tracks which games user has picked today
   const [userPickedGameIds, setUserPickedGameIds] = useState<Set<string>>(new Set());
 
-  // Check and load yesterday's results on mount
+  // Consolidated initial data loading - runs once on mount
+  // Combines yesterday's data, streak data, and user picks into single parallel load
   useEffect(() => {
-    async function loadYesterdaysData() {
-      console.log('[PHASE 2] Starting to load yesterday\'s data...');
-      try {
-        // Check and update yesterday's game outcomes
-        await checkAndUpdateYesterdaysGames();
-        console.log('[PHASE 2] Updated yesterday\'s game outcomes');
+    async function loadInitialData() {
+      logger.log('[INIT] Starting consolidated initial data load...');
 
-        // Load yesterday's results
-        const results = await getYesterdaysResults();
-        console.log('[PHASE 2] Yesterday\'s results:', results);
-        setYesterdaysResults(results);
-      } catch (error) {
-        console.error('[PHASE 2] Failed to load yesterday\'s results:', error);
-      }
-    }
-    loadYesterdaysData();
-  }, []);
+      // Run all initial data loads in parallel for faster startup
+      const [yesterdayResult, streakResult, picksResult] = await Promise.allSettled([
+        // Yesterday's data
+        (async () => {
+          await checkAndUpdateYesterdaysGames();
+          return await getYesterdaysResults();
+        })(),
+        // Streak data
+        checkAndUpdateStreak(),
+        // Today's picks
+        (async () => {
+          const today = getTodayDateString();
+          return await getPicksForDate(today);
+        })(),
+      ]);
 
-  // Check and update streak on mount
-  useEffect(() => {
-    async function loadStreakData() {
-      console.log('[PHASE 3] Starting to load streak data...');
-      try {
-        const streak = await checkAndUpdateStreak();
-        console.log('[PHASE 3] Streak data loaded:', streak);
-        setStreakData(streak);
-        console.log('[PHASE 3] Streak state updated successfully');
-      } catch (error) {
-        console.error('[PHASE 3] Failed to load streak data:', error);
+      // Process results
+      if (yesterdayResult.status === 'fulfilled') {
+        setYesterdaysResults(yesterdayResult.value);
+        logger.log('[INIT] Yesterday\'s results loaded');
+      } else {
+        logger.error('[INIT] Failed to load yesterday\'s results:', yesterdayResult.reason);
       }
-    }
-    loadStreakData();
-  }, []);
 
-  // Load today's user picks on mount
-  useEffect(() => {
-    async function loadTodaysUserPicks() {
-      try {
-        const today = getTodayDateString();
-        const todaysPicks = await getPicksForDate(today);
-        if (todaysPicks?.userPicks) {
-          const pickedIds = new Set(todaysPicks.userPicks.map(p => p.gameId));
-          setUserPickedGameIds(pickedIds);
-          console.log('[PICKS] Loaded user picks for today:', pickedIds.size, 'games');
-        }
-      } catch (error) {
-        console.error('[PICKS] Failed to load today\'s user picks:', error);
+      if (streakResult.status === 'fulfilled') {
+        setStreakData(streakResult.value);
+        logger.log('[INIT] Streak data loaded');
+      } else {
+        logger.error('[INIT] Failed to load streak data:', streakResult.reason);
       }
+
+      if (picksResult.status === 'fulfilled' && picksResult.value?.userPicks) {
+        const pickedIds = new Set(picksResult.value.userPicks.map((p: Pick) => p.gameId));
+        setUserPickedGameIds(pickedIds);
+        logger.log('[INIT] User picks loaded:', pickedIds.size, 'games');
+      }
+
+      logger.log('[INIT] Initial data load complete');
     }
-    loadTodaysUserPicks();
+
+    loadInitialData();
   }, []);
 
   // Check if picks can be made for a game (before 3rd period)
@@ -245,7 +241,15 @@ export default function HomeScreen() {
     if (!canMakePick(game)) return; // Don't open if can't make pick
     setLockInGame(game);
     setLockInModalVisible(true);
-  }, [canMakePick]);
+
+    // Track pick modal opened
+    analytics.trackCustomEvent('pick_modal_opened', {
+      game_id: String(game.id),
+      home_team: game.homeTeam?.abbrev,
+      away_team: game.awayTeam?.abbrev,
+      matchup: `${game.awayTeam?.abbrev} @ ${game.homeTeam?.abbrev}`,
+    });
+  }, [canMakePick, analytics]);
 
   // Handle confirming a pick
   const handleConfirmLockIn = useCallback(async (selectedTeam: string) => {
@@ -270,7 +274,17 @@ export default function HomeScreen() {
       // Update local state to reflect the pick was made
       setUserPickedGameIds(prev => new Set([...prev, gameId]));
 
-      console.log(`[PICK SAVING] User pick saved: ${selectedTeam} for game ${gameId}`);
+      // Track pick made event
+      analytics.trackCustomEvent('pick_made', {
+        game_id: gameId,
+        predicted_winner: selectedTeam,
+        home_team: homeTeam,
+        away_team: awayTeam,
+        matchup: `${awayTeam} @ ${homeTeam}`,
+        pick_source: 'home_screen',
+      });
+
+      logger.log(`[PICK SAVING] User pick saved: ${selectedTeam} for game ${gameId}`);
 
       // Schedule game start notification if enabled and game time is available
       if (lockInGame.startTimeUTC) {
@@ -302,12 +316,21 @@ export default function HomeScreen() {
       `You picked ${selectedTeam} to win.`,
       [{ text: 'Got it!' }]
     );
-  }, [lockInGame]);
+  }, [lockInGame, analytics]);
 
   // Handle opening deep dive modal
   const handleOpenDeepDive = (game: any) => {
     setSelectedGame(game);
     setModalVisible(true);
+
+    // Track game deep dive opened
+    analytics.trackCustomEvent('game_deep_dive_opened', {
+      game_id: String(game.id),
+      home_team: game.homeTeam?.abbrev,
+      away_team: game.awayTeam?.abbrev,
+      matchup: `${game.awayTeam?.abbrev} @ ${game.homeTeam?.abbrev}`,
+      game_state: game.gameState,
+    });
   };
 
   // Load NHL data from tested endpoints
@@ -320,7 +343,7 @@ export default function HomeScreen() {
       // Fetch multiple endpoints in parallel
       const today = new Date();
       const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      console.log('[NHL Data] Fetching games for date:', todayStr);
+      logger.log('[NHL Data] Fetching games for date:', todayStr);
 
       const [gamesRes, standingsRes, skatersRes, goaliesRes, spotlightRes] = await Promise.allSettled([
         fetch(`https://api-web.nhle.com/v1/score/${todayStr}`), // Use actual today's date
@@ -333,10 +356,10 @@ export default function HomeScreen() {
       // Process today's games
       if (gamesRes.status === 'fulfilled' && gamesRes.value.ok) {
         const gamesData = await gamesRes.value.json();
-        console.log('[NHL Data] Games loaded:', gamesData?.games?.length || 0, 'games');
+        logger.log('[NHL Data] Games loaded:', gamesData?.games?.length || 0, 'games');
         if (mounted) setTodaysGames(gamesData);
       } else {
-        console.log('[NHL Data] Failed to load games:', gamesRes.status);
+        logger.log('[NHL Data] Failed to load games:', gamesRes.status);
       }
 
       // Process current standings
@@ -548,7 +571,7 @@ export default function HomeScreen() {
       }
 
       setLoadingPredictions(true);
-      console.log('[Enhanced Predictions] Loading with recent form, situational factors & player data...');
+      logger.log('[Enhanced Predictions] Loading with recent form, situational factors & player data...');
 
       try {
         // Fetch player factors for each game (in parallel) for use in probability displays
@@ -576,7 +599,7 @@ export default function HomeScreen() {
             }
           }
           setPlayerFactorsMap(newFactorsMap);
-          console.log('[Enhanced Predictions] Player factors loaded for', newFactorsMap.size, 'games');
+          logger.log('[Enhanced Predictions] Player factors loaded for', newFactorsMap.size, 'games');
         }
 
         // Fetch enhanced lock of the day (with recent form + situational factors)
@@ -584,7 +607,7 @@ export default function HomeScreen() {
 
         if (mounted) {
           setLockOfTheDay(enhancedLock);
-          console.log('[Enhanced Predictions] Lock loaded with confidence:', enhancedLock?.confidenceScore);
+          logger.log('[Enhanced Predictions] Lock loaded with confidence:', enhancedLock?.confidenceScore);
         }
 
         // Fetch enhanced smart picks
@@ -598,7 +621,7 @@ export default function HomeScreen() {
 
           if (mounted) {
             setSmartPicks(enhancedPicks);
-            console.log('[Enhanced Predictions] Smart picks loaded:', enhancedPicks.length);
+            logger.log('[Enhanced Predictions] Smart picks loaded:', enhancedPicks.length);
           }
         }
       } catch (error) {
@@ -629,7 +652,7 @@ export default function HomeScreen() {
   // Save AI predictions for ALL games, not just displayed picks
   useEffect(() => {
     async function saveTodaysPicks() {
-      console.log('[PICK SAVING] Effect triggered. Lock:', !!lockOfTheDay, 'Total games:', todaysGames?.games?.length);
+      logger.log('[PICK SAVING] Effect triggered. Lock:', !!lockOfTheDay, 'Total games:', todaysGames?.games?.length);
       try {
         // Save Lock of the Day
         if (lockOfTheDay) {
@@ -642,7 +665,7 @@ export default function HomeScreen() {
             ? lockOfTheDay.homeTeam.abbrev
             : lockOfTheDay.awayTeam.abbrev;
 
-          console.log('[PICK SAVING] Saving Lock of the Day:', {
+          logger.log('[PICK SAVING] Saving Lock of the Day:', {
             gameId: String(lockOfTheDay.id),
             predictedWinner,
             homeTeam: lockOfTheDay.homeTeam.abbrev,
@@ -658,7 +681,7 @@ export default function HomeScreen() {
             homeWinProb: prediction.homeWinProb,
             awayWinProb: prediction.awayWinProb,
           });
-          console.log('[PICK SAVING] Lock of the Day saved successfully');
+          logger.log('[PICK SAVING] Lock of the Day saved successfully');
         }
 
         // Save Smart Picks for ALL games (not just displayed ones)
@@ -685,9 +708,9 @@ export default function HomeScreen() {
               };
             });
 
-          console.log('[PICK SAVING] Saving', allGamePicks.length, 'smart picks (all games)');
+          logger.log('[PICK SAVING] Saving', allGamePicks.length, 'smart picks (all games)');
           await saveSmartPicks(allGamePicks);
-          console.log('[PICK SAVING] All game predictions saved successfully');
+          logger.log('[PICK SAVING] All game predictions saved successfully');
         }
       } catch (error) {
         console.error('[PICK SAVING] Failed to save today\'s picks:', error);
@@ -937,8 +960,7 @@ export default function HomeScreen() {
 
         {/* YESTERDAY'S RESULTS - Show before today's picks when user has results */}
         {yesterdaysResults && (
-          <View style={{ width: '100%', marginTop: 20 }}>
-            {console.log('[RENDER] Yesterday\'s results data:', yesterdaysResults)}
+          <View style={{ width: '100%', marginTop: 24 }}>
             <YesterdayResultsCard
               lock={yesterdaysResults.lock}
               smartPicks={yesterdaysResults.smartPicks}
@@ -951,7 +973,7 @@ export default function HomeScreen() {
         )}
 
         {/* TODAY'S PICKS SECTION */}
-        <View style={{ width: '100%', marginTop: 20 }}>
+        <View style={{ width: '100%', marginTop: 24 }}>
           <Text style={[styles.subsection, { alignSelf: 'stretch', textAlign: 'center', marginBottom: 16 }]}>
             Today's Picks
           </Text>
@@ -973,7 +995,7 @@ export default function HomeScreen() {
             <>
               {/* Top Pick of the Day - Hero Card */}
               {lockOfTheDay && (
-                <View style={{ marginBottom: 16 }}>
+                <View style={{ marginBottom: 0 }}>
                   <TopPickCard
                     game={lockOfTheDay}
                     confidenceScore={lockOfTheDay.confidenceScore || 0}
@@ -992,7 +1014,7 @@ export default function HomeScreen() {
 
               {/* More Picks Grid */}
               {smartPicks && smartPicks.length > 0 && (
-                <View style={{ marginBottom: 20 }}>
+                <View style={{ marginTop: 16, marginBottom: 0 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                     <Text style={{
                       fontSize: 16,

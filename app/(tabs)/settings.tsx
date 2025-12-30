@@ -13,6 +13,7 @@ import {
   toggleNotifications,
   updateNotificationTime,
   updateNotificationTypes,
+  updateGameStartSettings,
 } from '../../services/notificationSettings';
 import {
   cancelAllNotifications,
@@ -133,7 +134,7 @@ export default function SettingsScreen() {
                 if (value) {
                   const hasPermission = await requestNotificationPermissions();
                   if (!hasPermission) {
-                    alert('Please enable notifications in your device settings to receive daily results.');
+                    Alert.alert('Notifications Disabled', 'Please enable notifications in your device settings to receive daily results.');
                     return;
                   }
                   // Schedule notification when enabling
@@ -142,6 +143,12 @@ export default function SettingsScreen() {
 
                 await toggleNotifications(value);
                 setNotificationSettings(prev => ({ ...prev, enabled: value }));
+
+                // Track notification settings change
+                analytics.trackCustomEvent('notification_setting_changed', {
+                  setting_name: 'notifications_enabled',
+                  new_value: value,
+                });
 
                 if (!value) {
                   await cancelAllNotifications();
@@ -185,13 +192,13 @@ export default function SettingsScreen() {
                 <Text style={{ color: theme.subtext, fontSize: 12, marginBottom: 8 }}>Include in notification:</Text>
 
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6, gap: 16 }}>
-                  <Text style={{ color: theme.text, fontSize: 14 }}>Lock of the Day</Text>
+                  <Text style={{ color: theme.text, fontSize: 14 }}>Best Bet of the Day</Text>
                   <Switch
                     value={notificationSettings.notifyLockResults}
                     onValueChange={async (value) => {
                       // Ensure at least one type is selected
                       if (!value && !notificationSettings.notifySmartPickResults && !notificationSettings.notifyUserPickResults) {
-                        alert('At least one pick type must be selected');
+                        Alert.alert('Selection Required', 'At least one pick type must be selected.');
                         return;
                       }
 
@@ -209,7 +216,7 @@ export default function SettingsScreen() {
                     value={notificationSettings.notifySmartPickResults}
                     onValueChange={async (value) => {
                       if (!value && !notificationSettings.notifyLockResults && !notificationSettings.notifyUserPickResults) {
-                        alert('At least one pick type must be selected');
+                        Alert.alert('Selection Required', 'At least one pick type must be selected.');
                         return;
                       }
 
@@ -227,7 +234,7 @@ export default function SettingsScreen() {
                     value={notificationSettings.notifyUserPickResults}
                     onValueChange={async (value) => {
                       if (!value && !notificationSettings.notifyLockResults && !notificationSettings.notifySmartPickResults) {
-                        alert('At least one pick type must be selected');
+                        Alert.alert('Selection Required', 'At least one pick type must be selected.');
                         return;
                       }
 
@@ -257,6 +264,55 @@ export default function SettingsScreen() {
               </TouchableOpacity>
             </>
           )}
+
+          {/* Game Start Alerts Section */}
+          <View style={{ marginTop: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: theme.subtle }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: theme.text, fontSize: 15, fontWeight: '600' }}>Game Start Alerts</Text>
+                <Text style={{ color: theme.subtext, fontSize: 12, marginTop: 2 }}>Get notified before your picked games start</Text>
+              </View>
+              <Switch
+                value={notificationSettings.notifyGameStart}
+                onValueChange={async (value) => {
+                  if (value) {
+                    const hasPermission = await requestNotificationPermissions();
+                    if (!hasPermission) {
+                      Alert.alert('Notifications Disabled', 'Please enable notifications in your device settings.');
+                      return;
+                    }
+                  }
+                  await updateGameStartSettings(value);
+                  setNotificationSettings(prev => ({ ...prev, notifyGameStart: value }));
+                }}
+                trackColor={{ false: theme.subtle, true: theme.accent }}
+                thumbColor={notificationSettings.notifyGameStart ? '#ffffff' : '#f4f3f4'}
+              />
+            </View>
+
+            {notificationSettings.notifyGameStart && (
+              <View style={{ marginTop: 12 }}>
+                <Dropdown
+                  label="Alert Time"
+                  placeholder="Select when to be notified"
+                  options={[
+                    { label: '15 minutes before', value: '15' },
+                    { label: '30 minutes before', value: '30' },
+                    { label: '1 hour before', value: '60' },
+                  ]}
+                  value={String(notificationSettings.gameStartMinutesBefore)}
+                  onChange={async (value) => {
+                    if (value) {
+                      const minutes = parseInt(value, 10);
+                      await updateGameStartSettings(true, minutes);
+                      setNotificationSettings(prev => ({ ...prev, gameStartMinutesBefore: minutes }));
+                    }
+                  }}
+                  selectedTextStyle={{ fontWeight: '700', fontSize: 16, textAlign: 'center' }}
+                />
+              </View>
+            )}
+          </View>
         </View>
 
         {/* Data Management Section */}
@@ -285,6 +341,11 @@ export default function SettingsScreen() {
                     style: 'destructive',
                     onPress: async () => {
                       try {
+                        // Track history clear action
+                        analytics.trackCustomEvent('user_pick_history_cleared', {
+                          source: 'settings_screen',
+                        });
+
                         await clearUserPickHistory();
                         Alert.alert('Success', 'Your pick history has been cleared.');
                       } catch (error) {
@@ -313,7 +374,7 @@ export default function SettingsScreen() {
             onPress={() => {
               Alert.alert(
                 'Clear AI Picks History',
-                'This will permanently delete all Smart Picks and Lock of the Day history. Your personal picks will be preserved. This action cannot be undone.',
+                'This will permanently delete all Smart Picks and Best Bet of the Day history. Your personal picks will be preserved. This action cannot be undone.',
                 [
                   { text: 'Cancel', style: 'cancel' },
                   {
@@ -321,6 +382,11 @@ export default function SettingsScreen() {
                     style: 'destructive',
                     onPress: async () => {
                       try {
+                        // Track AI history clear action
+                        analytics.trackCustomEvent('ai_pick_history_cleared', {
+                          source: 'settings_screen',
+                        });
+
                         await clearAIPickHistory();
                         Alert.alert('Success', 'AI pick history has been cleared.');
                       } catch (error) {
@@ -341,7 +407,7 @@ export default function SettingsScreen() {
           <Text style={styles.greeting}>About</Text>
           <View style={{ marginTop: 12 }}>
             <Text style={{ color: theme.text, fontSize: 14, marginBottom: 4 }}>PuckIQ</Text>
-            <Text style={{ color: theme.subtext, fontSize: 12 }}>Version 2.0.0</Text>
+            <Text style={{ color: theme.subtext, fontSize: 12 }}>Version 2.1.0</Text>
             <Text style={{ color: theme.subtext, fontSize: 12, marginTop: 8, lineHeight: 18 }}>
               Get AI-powered NHL pick predictions, track your accuracy, and compete against our algorithms.
             </Text>

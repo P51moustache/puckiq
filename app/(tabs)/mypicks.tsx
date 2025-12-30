@@ -24,11 +24,15 @@ import {
   Pick,
 } from '../../services/pickTracking';
 import { getStreakData, StreakData } from '../../services/streakTracking';
-import { addNotificationResponseListener } from '../../services/notifications';
+import { addNotificationResponseListener, scheduleGameStartNotification } from '../../services/notifications';
+import { getNotificationSettings } from '../../services/notificationSettings';
 import { getPredictedWinner, calculateWinProbability } from '../../utils/predictionHelpers';
+import logger from '../../utils/logger';
+import { useAnalytics } from '../../hooks/useAnalytics';
 
 export default function MyPicksScreen() {
   const styles = makeStyles();
+  const analytics = useAnalytics('MyPicksScreen');
 
   // State
   const [loading, setLoading] = useState(true);
@@ -85,14 +89,8 @@ export default function MyPicksScreen() {
 
       if (gamesRes.ok) {
         const data = await gamesRes.json();
-        console.log('[MY PICKS] Today date:', today);
-        console.log('[MY PICKS] Current date from API:', data.currentDate);
-        console.log('[MY PICKS] Total games from API:', data.games?.length);
-        const todaysGames = (data.games || []).filter((game: any) => {
-          console.log('[MY PICKS] Game date:', game.gameDate, 'Match:', game.gameDate === today);
-          return game.gameDate === today;
-        });
-        console.log('[MY PICKS] Filtered games for today:', todaysGames.length);
+        logger.log('[MY PICKS] Games loaded:', data.games?.length || 0);
+        const todaysGames = (data.games || []).filter((game: any) => game.gameDate === today);
         setGames(todaysGames);
       }
 
@@ -108,7 +106,7 @@ export default function MyPicksScreen() {
   };
 
   // Make pick
-  const makePick = async (gameId: string, team: string, homeTeam: string, awayTeam: string) => {
+  const makePick = async (gameId: string, team: string, homeTeam: string, awayTeam: string, startTimeUTC?: string) => {
     // Trigger animation
     setLastPickedGame(`${gameId}-${team}`);
     setTimeout(() => setLastPickedGame(null), 200);
@@ -145,9 +143,57 @@ export default function MyPicksScreen() {
         homeTeam,
         awayTeam,
       });
+
+      // Track pick made event
+      analytics.trackCustomEvent('pick_made', {
+        game_id: gameId,
+        predicted_winner: team,
+        home_team: homeTeam,
+        away_team: awayTeam,
+        matchup: `${awayTeam} @ ${homeTeam}`,
+        pick_source: 'my_picks_screen',
+      });
+
+      // Schedule game start notification if enabled and game time is available
+      if (startTimeUTC) {
+        const settings = await getNotificationSettings();
+        if (settings.notifyGameStart) {
+          await scheduleGameStartNotification(
+            gameId,
+            homeTeam,
+            awayTeam,
+            startTimeUTC,
+            settings.gameStartMinutesBefore,
+            team
+          );
+        }
+      }
     } catch (error) {
       console.error('Error saving pick:', error);
     }
+  };
+
+  // Open history modal with tracking
+  const handleOpenHistory = () => {
+    setShowHistoryModal(true);
+    analytics.trackCustomEvent('pick_history_opened', {
+      total_picks: allPicks.length,
+      accuracy: allPicks.filter(p => p.outcome).length > 0
+        ? Math.round((allPicks.filter(p => p.outcome === 'win').length / allPicks.filter(p => p.outcome).length) * 100)
+        : 0,
+    });
+  };
+
+  // Open game modal with tracking
+  const handleOpenGameModal = (game: any) => {
+    setModalGame(game);
+    analytics.trackCustomEvent('game_deep_dive_opened', {
+      game_id: String(game.id),
+      home_team: game.homeTeam?.abbrev,
+      away_team: game.awayTeam?.abbrev,
+      matchup: `${game.awayTeam?.abbrev} @ ${game.homeTeam?.abbrev}`,
+      source: 'my_picks_screen',
+    });
   };
 
   // Stats
@@ -279,7 +325,7 @@ export default function MyPicksScreen() {
             {/* Quick Stats */}
             <TouchableOpacity
               style={s.statsBar}
-              onPress={() => setShowHistoryModal(true)}
+              onPress={handleOpenHistory}
               activeOpacity={0.7}
             >
               <View style={s.stat}>
@@ -368,7 +414,7 @@ export default function MyPicksScreen() {
                               userPick?.predictedWinner === game.awayTeam?.abbrev && s.picked,
                               !canMakePick && s.disabled
                             ]}
-                            onPress={() => canMakePick && makePick(String(game.id), game.awayTeam?.abbrev, game.homeTeam?.abbrev, game.awayTeam?.abbrev)}
+                            onPress={() => canMakePick && makePick(String(game.id), game.awayTeam?.abbrev, game.homeTeam?.abbrev, game.awayTeam?.abbrev, game.startTimeUTC)}
                             disabled={!canMakePick}
                           >
                             <Text style={s.teamText}>{game.awayTeam?.abbrev}</Text>
@@ -397,7 +443,7 @@ export default function MyPicksScreen() {
                               userPick?.predictedWinner === game.homeTeam?.abbrev && s.picked,
                               !canMakePick && s.disabled
                             ]}
-                            onPress={() => canMakePick && makePick(String(game.id), game.homeTeam?.abbrev, game.homeTeam?.abbrev, game.awayTeam?.abbrev)}
+                            onPress={() => canMakePick && makePick(String(game.id), game.homeTeam?.abbrev, game.homeTeam?.abbrev, game.awayTeam?.abbrev, game.startTimeUTC)}
                             disabled={!canMakePick}
                           >
                             <Text style={s.teamText}>{game.homeTeam?.abbrev}</Text>
@@ -414,7 +460,7 @@ export default function MyPicksScreen() {
                       </View>
 
                       {/* Status / Action */}
-                      <TouchableOpacity style={s.action} onPress={() => setModalGame(game)}>
+                      <TouchableOpacity style={s.action} onPress={() => handleOpenGameModal(game)}>
                         {userPick?.outcome ? (
                           <Text style={[s.result, { color: userPick.outcome === 'win' ? '#10b981' : '#ef4444' }]}>
                             {userPick.outcome === 'win' ? 'W' : 'L'}
