@@ -14,10 +14,12 @@ import type {
   RecentFormStats,
   SituationalFactors,
   TeamPredictionStats,
+  PlayerPredictionFactors,
 } from '../types/predictions';
 import { getMatchupRecentForm } from './recentForm';
 import { calculateSituationalFactors } from './situationalFactors';
 import { fetchAllTeamStats } from './teamStatsForPrediction';
+import { getPlayerPredictionFactors } from '../services/playerPrediction';
 
 /**
  * Confidence scoring weights - extracted as constants for easy tuning
@@ -35,6 +37,14 @@ export const CONFIDENCE_WEIGHTS: ConfidenceWeights = {
   restAdvantage: 8,             // Bonus per extra rest day - increased
   specialTeamsImpact: 25,       // Impact of PP% + PK% combined differential - BOOSTED
   shotDifferentialImpact: 10,   // Impact of net shots per game differential - DOUBLED
+};
+
+/**
+ * Player-based prediction weights
+ */
+export const PLAYER_WEIGHTS = {
+  goalieMatchupImpact: 1.0,     // Multiplier for goalie comparison impact (already scaled ±15)
+  hotPlayersImpact: 1.5,        // Multiplier for hot/cold player differential
 };
 
 /**
@@ -111,7 +121,7 @@ export function getPredictedWinner(
 /**
  * Calculate confidence score (0-100) based on multiple factors
  * Higher score = higher confidence in prediction
- * Enhanced with optional recent form, situational factors, and team stats
+ * Enhanced with optional recent form, situational factors, team stats, and player factors
  */
 export function calculateConfidenceScore(
   game: GameData,
@@ -120,7 +130,8 @@ export function calculateConfidenceScore(
   weights: ConfidenceWeights = CONFIDENCE_WEIGHTS,
   recentForm?: { home: RecentFormStats; away: RecentFormStats },
   situationalFactors?: SituationalFactors,
-  teamStats?: { home: TeamPredictionStats | null; away: TeamPredictionStats | null }
+  teamStats?: { home: TeamPredictionStats | null; away: TeamPredictionStats | null },
+  playerFactors?: PlayerPredictionFactors
 ): number {
   let score = 50; // Base score
 
@@ -181,6 +192,20 @@ export function calculateConfidenceScore(
     const shotDiff = homeNetShots - awayNetShots;
     // Scale by 0.5 since shot diff can be large (e.g., +6 vs -4 = 10 point swing)
     score += (shotDiff * 0.5) * weights.shotDifferentialImpact;
+  }
+
+  // Factor 9: Player-based factors (goalie matchup + hot players)
+  if (playerFactors) {
+    // Goalie matchup impact (±15 scaled by weight)
+    if (playerFactors.goalieMatchup) {
+      score += playerFactors.goalieMatchup.confidenceImpact * PLAYER_WEIGHTS.goalieMatchupImpact;
+    }
+
+    // Hot/cold players differential
+    if (playerFactors.homeHotPlayers && playerFactors.awayHotPlayers) {
+      const heatDiff = playerFactors.homeHotPlayers.overallHeatIndex - playerFactors.awayHotPlayers.overallHeatIndex;
+      score += heatDiff * PLAYER_WEIGHTS.hotPlayersImpact;
+    }
   }
 
   // Normalize to 0-100
@@ -326,6 +351,91 @@ function getStreakValueForProb(streakCode?: string): number {
 }
 
 /**
+ * Enhanced win probability result with player factor context
+ */
+export interface EnhancedWinProbabilityResult extends WinProbabilityResult {
+  goalieAdvantage: 'home' | 'away' | 'neutral';
+  hotPlayersImpact: number;
+  playerFactorsApplied: boolean;
+}
+
+/**
+ * Calculate win probability with player factors (goalie matchup, hot players)
+ * This is the recommended function for displaying probabilities to users
+ * as it includes all available prediction factors.
+ *
+ * Falls back to basic calculation if player factors are not available.
+ */
+export function calculateWinProbabilityEnhanced(
+  homeAbbrev: string,
+  awayAbbrev: string,
+  standings: StandingsData | null,
+  playerFactors: PlayerPredictionFactors | null | undefined
+): EnhancedWinProbabilityResult {
+  // Get base probability from existing function
+  const baseResult = calculateWinProbability(homeAbbrev, awayAbbrev, standings);
+
+  // Default enhanced values
+  let goalieAdvantage: 'home' | 'away' | 'neutral' = 'neutral';
+  let hotPlayersImpact = 0;
+  let playerFactorsApplied = false;
+
+  // If no player factors or no valid standings (base returned 50-50 default), return base result
+  // We don't apply player factors if we couldn't find teams in standings
+  const isDefaultResult = baseResult.homeWinProb === 50 && baseResult.awayWinProb === 50 && !baseResult.homePoints;
+  if (!playerFactors || isDefaultResult) {
+    return {
+      ...baseResult,
+      goalieAdvantage,
+      hotPlayersImpact,
+      playerFactorsApplied,
+    };
+  }
+
+  // Start with base probability
+  let homeProb = baseResult.homeWinProb;
+
+  // Apply goalie matchup impact
+  if (playerFactors.goalieMatchup) {
+    const goalieImpact = playerFactors.goalieMatchup.confidenceImpact * PLAYER_WEIGHTS.goalieMatchupImpact;
+    homeProb += goalieImpact;
+    goalieAdvantage = playerFactors.goalieMatchup.advantage;
+    playerFactorsApplied = true;
+  }
+
+  // Apply hot/cold players impact
+  if (playerFactors.homeHotPlayers && playerFactors.awayHotPlayers) {
+    const heatDiff = playerFactors.homeHotPlayers.overallHeatIndex - playerFactors.awayHotPlayers.overallHeatIndex;
+    hotPlayersImpact = heatDiff * PLAYER_WEIGHTS.hotPlayersImpact;
+    homeProb += hotPlayersImpact;
+    playerFactorsApplied = true;
+  }
+
+  // Clamp to valid range (15-85%)
+  homeProb = Math.max(15, Math.min(85, homeProb));
+  const awayProb = 100 - homeProb;
+
+  // Recalculate confidence level
+  const diff = Math.abs(homeProb - awayProb);
+  const confidence: 'high' | 'medium' | 'low' = diff > 25 ? 'high' : diff < 10 ? 'low' : 'medium';
+
+  return {
+    homeWinProb: Math.round(homeProb),
+    awayWinProb: Math.round(awayProb),
+    confidence,
+    homePoints: baseResult.homePoints,
+    awayPoints: baseResult.awayPoints,
+    homeRecord: baseResult.homeRecord,
+    awayRecord: baseResult.awayRecord,
+    homeStreak: baseResult.homeStreak,
+    awayStreak: baseResult.awayStreak,
+    goalieAdvantage,
+    hotPlayersImpact: Math.round(hotPlayersImpact * 10) / 10,
+    playerFactorsApplied,
+  };
+}
+
+/**
  * Find Lock of the Day - game with highest confidence score
  */
 export function getLockOfTheDay(
@@ -413,7 +523,7 @@ export function getSmartPicks(
 
 /**
  * Get Lock of the Day with enhanced factors - ASYNC VERSION
- * Fetches recent form, situational data, and team stats for better predictions
+ * Fetches recent form, situational data, team stats, and player factors for better predictions
  */
 export async function getLockOfTheDayEnhanced(
   games: GameData[],
@@ -454,7 +564,10 @@ export async function getLockOfTheDayEnhanced(
           away: allTeamStats.get(awayAbbrev) || null,
         };
 
-        // Calculate enhanced confidence score with all factors
+        // Get player prediction factors (goalie matchup, hot players)
+        const playerFactors = await getPlayerPredictionFactors(homeAbbrev, awayAbbrev);
+
+        // Calculate enhanced confidence score with all factors including player data
         const confidenceScore = calculateConfidenceScore(
           game,
           homeTeam,
@@ -462,7 +575,8 @@ export async function getLockOfTheDayEnhanced(
           CONFIDENCE_WEIGHTS,
           recentFormData,
           situationalData,
-          teamStats
+          teamStats,
+          playerFactors
         );
 
         if (confidenceScore > highestScore) {
@@ -496,7 +610,7 @@ export async function getLockOfTheDayEnhanced(
 
 /**
  * Get top smart picks with enhanced factors - ASYNC VERSION
- * Fetches recent form, situational data, and team stats for better predictions
+ * Fetches recent form, situational data, team stats, and player factors for better predictions
  */
 export async function getSmartPicksEnhanced(
   games: GameData[],
@@ -543,7 +657,10 @@ export async function getSmartPicksEnhanced(
           away: allTeamStats.get(awayAbbrev) || null,
         };
 
-        // Calculate enhanced confidence score with all factors
+        // Get player prediction factors (goalie matchup, hot players)
+        const playerFactors = await getPlayerPredictionFactors(homeAbbrev, awayAbbrev);
+
+        // Calculate enhanced confidence score with all factors including player data
         const confidenceScore = calculateConfidenceScore(
           game,
           homeTeam,
@@ -551,7 +668,8 @@ export async function getSmartPicksEnhanced(
           CONFIDENCE_WEIGHTS,
           recentFormData,
           situationalData,
-          teamStats
+          teamStats,
+          playerFactors
         );
 
         scoredGames.push({

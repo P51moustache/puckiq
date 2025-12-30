@@ -63,7 +63,7 @@ export default function YesterdayResultsCard({
         backgroundColor: styles.card.backgroundColor,
         borderRadius: 14,
         padding: 16,
-        marginBottom: 16,
+        marginBottom: 0,
       }}>
         <Text style={{
           fontSize: 16,
@@ -106,7 +106,7 @@ export default function YesterdayResultsCard({
       backgroundColor: styles.card.backgroundColor,
       borderRadius: 14,
       padding: 16,
-      marginBottom: 16,
+      marginBottom: 0,
       borderWidth: 1.5,
       borderColor: userBeatAI ? '#10b98155' : (aiBeatUser ? '#60a5fa55' : '#334e8d66'),
     }}>
@@ -123,7 +123,7 @@ export default function YesterdayResultsCard({
       {/* You vs AI Comparison - Main Focus */}
       {hasUserPicks && userTotal > 0 && hasAIPicks && aiTotal > 0 ? (
         <View style={{
-          backgroundColor: '#071a3699',
+          backgroundColor: styles.factbox.backgroundColor,
           borderRadius: 12,
           padding: 14,
           marginBottom: 12,
@@ -267,7 +267,7 @@ export default function YesterdayResultsCard({
       ) : hasUserPicks && userTotal > 0 ? (
         /* User Only Stats */
         <View style={{
-          backgroundColor: '#071a3699',
+          backgroundColor: styles.factbox.backgroundColor,
           borderRadius: 12,
           padding: 14,
           marginBottom: 12,
@@ -324,7 +324,7 @@ export default function YesterdayResultsCard({
       ) : hasAIPicks && aiTotal > 0 ? (
         /* AI Only Stats */
         <View style={{
-          backgroundColor: '#071a3699',
+          backgroundColor: styles.factbox.backgroundColor,
           borderRadius: 12,
           padding: 14,
           marginBottom: 12,
@@ -385,7 +385,7 @@ export default function YesterdayResultsCard({
         <Pressable
           onPress={() => handlePickPress(lock)}
           style={({ pressed }) => ({
-            backgroundColor: pressed ? '#0a2040' : '#071a3699',
+            backgroundColor: pressed ? '#253d6d' : styles.factbox.backgroundColor,
             borderRadius: 10,
             padding: 10,
             marginBottom: 8,
@@ -456,7 +456,7 @@ export default function YesterdayResultsCard({
               key={idx}
               onPress={() => handlePickPress(pick)}
               style={({ pressed }) => ({
-                backgroundColor: pressed ? '#0a2040' : '#071a3644',
+                backgroundColor: pressed ? '#253d6d' : styles.factbox.backgroundColor,
                 borderRadius: 8,
                 padding: 8,
                 marginBottom: 4,

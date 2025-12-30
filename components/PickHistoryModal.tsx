@@ -22,7 +22,9 @@ import {
   Pick,
   PickStats,
 } from '../services/pickTracking';
+import { useAnalytics } from '../hooks/useAnalytics';
 import AchievementBadge from './AchievementBadge';
+import PickResultModal from './PickResultModal';
 import StreakIndicator from './StreakIndicator';
 
 interface PickHistoryModalProps {
@@ -35,6 +37,7 @@ type TabType = 'overview' | 'achievements' | 'history';
 type FilterType = 'all' | 'user' | 'smart' | 'lock';
 
 export default function PickHistoryModal({ visible, onClose, onHistoryCleared }: PickHistoryModalProps) {
+  const analytics = useAnalytics();
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterType>('all');
@@ -47,12 +50,45 @@ export default function PickHistoryModal({ visible, onClose, onHistoryCleared }:
   const [history, setHistory] = useState<Record<string, DailyPicks>>({});
   const [recentPicks, setRecentPicks] = useState<Pick[]>([]);
 
+  // Pick detail modal state
+  const [selectedPick, setSelectedPick] = useState<Pick | null>(null);
+  const [showPickModal, setShowPickModal] = useState(false);
+
+  const handlePickPress = (pick: Pick) => {
+    setSelectedPick(pick);
+    setShowPickModal(true);
+    // Track when user views a specific pick from history
+    analytics.trackCustomEvent('history_pick_selected', {
+      game_id: pick.gameId,
+      pick_type: pick.type,
+      outcome: pick.outcome,
+      matchup: `${pick.awayTeam} @ ${pick.homeTeam}`,
+    });
+  };
+
+  const handleClosePickModal = () => {
+    setShowPickModal(false);
+    setSelectedPick(null);
+  };
+
+  // Handle tab change with tracking
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab);
+    analytics.trackCustomEvent('history_tab_changed', {
+      tab_name: tab,
+    });
+  };
+
   // Load data when modal opens
   useEffect(() => {
     if (visible) {
       loadData();
+      // Track modal opened
+      analytics.trackCustomEvent('pick_history_modal_opened', {
+        source: 'pick_history_button',
+      });
     }
-  }, [visible]);
+  }, [visible, analytics]);
 
   const loadData = async () => {
     setLoading(true);
@@ -96,6 +132,14 @@ export default function PickHistoryModal({ visible, onClose, onHistoryCleared }:
           style: 'destructive',
           onPress: async () => {
             try {
+              // Track history cleared before actually clearing
+              analytics.trackCustomEvent('pick_history_cleared', {
+                total_picks_cleared: userStats.total,
+                accuracy_at_clear: userStats.accuracy,
+                wins_cleared: userStats.wins,
+                losses_cleared: userStats.losses,
+              });
+
               await clearUserPickHistory();
               await loadData();
               onHistoryCleared?.();
@@ -358,7 +402,14 @@ export default function PickHistoryModal({ visible, onClose, onHistoryCleared }:
 
                 {/* Picks */}
                 {completedPicks.map((pick, idx) => (
-                  <View key={`${pick.gameId}-${idx}`} style={styles.historyPick}>
+                  <Pressable
+                    key={`${pick.gameId}-${idx}`}
+                    style={({ pressed }) => [
+                      styles.historyPick,
+                      pressed && styles.historyPickPressed,
+                    ]}
+                    onPress={() => handlePickPress(pick)}
+                  >
                     <View style={[
                       styles.historyOutcome,
                       pick.outcome === 'win' && styles.historyOutcomeWin,
@@ -378,7 +429,8 @@ export default function PickHistoryModal({ visible, onClose, onHistoryCleared }:
                         {pick.type === 'smart-pick' && ' 🤖'}
                       </Text>
                     </View>
-                  </View>
+                    <Text style={styles.historyChevron}>›</Text>
+                  </Pressable>
                 ))}
               </View>
             );
@@ -420,7 +472,7 @@ export default function PickHistoryModal({ visible, onClose, onHistoryCleared }:
               <TouchableOpacity
                 key={tab}
                 style={[styles.tab, activeTab === tab && styles.tabActive]}
-                onPress={() => setActiveTab(tab)}
+                onPress={() => handleTabChange(tab)}
               >
                 <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
                   {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -444,6 +496,13 @@ export default function PickHistoryModal({ visible, onClose, onHistoryCleared }:
           )}
         </View>
       </View>
+
+      {/* Pick Result Modal */}
+      <PickResultModal
+        visible={showPickModal}
+        onClose={handleClosePickModal}
+        pick={selectedPick}
+      />
     </Modal>
   );
 }
@@ -702,7 +761,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingVertical: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    marginHorizontal: -8,
+    borderRadius: 8,
+  },
+  historyPickPressed: {
+    backgroundColor: '#334e8d44',
+  },
+  historyChevron: {
+    fontSize: 18,
+    color: '#98a6bf',
+    marginLeft: 'auto',
   },
   historyOutcome: {
     width: 32,

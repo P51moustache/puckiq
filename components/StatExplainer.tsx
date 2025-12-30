@@ -19,25 +19,14 @@ interface StatExplainerProps {
 
 export default function StatExplainer({ visible, onClose, metricId, leagueThresholds }: StatExplainerProps) {
   if (!metricId) {
-    console.log('StatExplainer: No metricId provided');
     return null;
   }
 
   const metric: AdvancedMetric | undefined = ADVANCED_METRICS[metricId];
 
   if (!metric) {
-    console.log('StatExplainer: Metric not found for ID:', metricId);
-    console.log('Available metric IDs:', Object.keys(ADVANCED_METRICS));
     return null;
   }
-
-  console.log('StatExplainer rendering for:', metricId, 'visible:', visible);
-  console.log('Metric data:', {
-    name: metric.name,
-    whatItIs: metric.whatItIs?.substring(0, 50),
-    hasThresholds: !!metric.thresholds,
-    hasLeagueThresholds: !!leagueThresholds
-  });
 
   // Use league thresholds if available, otherwise fall back to metric thresholds
   const thresholds = leagueThresholds || metric.thresholds;

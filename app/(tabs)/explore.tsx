@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { ThemedView } from '../../components/ThemedView';
 import { makeStyles, theme } from '../../constants/theme';
+import { useAnalytics } from '../../hooks/useAnalytics';
 
 // Lazy load the existing screen content as components
 const TeamsContent = lazy(() => import('./teams'));
@@ -15,7 +16,16 @@ const PlayersContent = lazy(() => import('./more'));
 
 export default function ExploreScreen() {
   const styles = makeStyles();
+  const analytics = useAnalytics('ExploreScreen');
   const [activeTab, setActiveTab] = useState<'teams' | 'players'>('teams');
+
+  // Track tab changes within explore
+  const handleTabChange = (tab: 'teams' | 'players') => {
+    setActiveTab(tab);
+    analytics.trackCustomEvent('explore_tab_changed', {
+      tab_name: tab,
+    });
+  };
 
   const LoadingFallback = () => (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -37,7 +47,7 @@ export default function ExploreScreen() {
               localStyles.segmentButton,
               activeTab === 'teams' && localStyles.segmentButtonActive,
             ]}
-            onPress={() => setActiveTab('teams')}
+            onPress={() => handleTabChange('teams')}
           >
             <Text
               style={[
@@ -53,7 +63,7 @@ export default function ExploreScreen() {
               localStyles.segmentButton,
               activeTab === 'players' && localStyles.segmentButtonActive,
             ]}
-            onPress={() => setActiveTab('players')}
+            onPress={() => handleTabChange('players')}
           >
             <Text
               style={[
