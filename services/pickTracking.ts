@@ -13,6 +13,7 @@ export interface Pick {
   awayWinProb?: number; // Win probability for away team (0-100)
   outcome?: 'win' | 'loss' | 'push'; // null until game completes
   actualWinner?: string; // team abbrev that actually won
+  modelId?: string; // ID of the model that made this pick (undefined = Classic for backward compat)
 }
 
 export interface DailyPicks {
@@ -414,6 +415,43 @@ export async function getLockStats(): Promise<PickStats> {
   const allPicks = await getAllPicks();
   const lockPicks = allPicks.filter(p => p.type === 'lock');
   return calculatePickStats(lockPicks);
+}
+
+// Default model ID for backward compatibility (picks without modelId are treated as Classic)
+export const CLASSIC_MODEL_ID = 'classic';
+
+// Get stats filtered by model ID
+// Picks without modelId are treated as Classic model for backward compatibility
+export async function getPickStatsByModel(modelId: string, pickType: 'lock' | 'smart-pick' | 'all' = 'all'): Promise<PickStats> {
+  const allPicks = await getAllPicks();
+
+  // Filter by model - undefined/null modelId means Classic (for backward compat)
+  const modelPicks = allPicks.filter(pick => {
+    // Match model ID (undefined modelId = classic)
+    const pickModelId = pick.modelId || CLASSIC_MODEL_ID;
+    const targetModelId = modelId || CLASSIC_MODEL_ID;
+    if (pickModelId !== targetModelId) return false;
+
+    // Filter by pick type if specified
+    if (pickType === 'all') {
+      return pick.type === 'lock' || pick.type === 'smart-pick';
+    }
+    return pick.type === pickType;
+  });
+
+  return calculatePickStats(modelPicks);
+}
+
+// Get all picks for a specific model
+export async function getPicksByModel(modelId: string): Promise<Pick[]> {
+  const allPicks = await getAllPicks();
+
+  // Filter by model - undefined/null modelId means Classic (for backward compat)
+  return allPicks.filter(pick => {
+    const pickModelId = pick.modelId || CLASSIC_MODEL_ID;
+    const targetModelId = modelId || CLASSIC_MODEL_ID;
+    return pickModelId === targetModelId && (pick.type === 'lock' || pick.type === 'smart-pick');
+  });
 }
 
 // Get streak information for user picks
