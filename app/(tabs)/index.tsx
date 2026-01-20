@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { Animated, Modal, RefreshControl, ScrollView, Text, TouchableOpacity, View, Alert } from 'react-native';
+import { Modal, RefreshControl, ScrollView, Text, TouchableOpacity, View, Alert } from 'react-native';
 import GameDeepDiveModal from '../../components/GameDeepDiveModal';
 import ConfirmPickModal from '../../components/ConfirmPickModal';
 import TopPickCard from '../../components/TopPickCard';
@@ -29,10 +29,12 @@ import {
 import { checkAndUpdateStreak, StreakData } from '../../services/streakTracking';
 import { initializeNotifications, scheduleGameStartNotification } from '../../services/notifications';
 import { getNotificationSettings } from '../../services/notificationSettings';
-import { getLockOfTheDayEnhanced, getSmartPicksEnhanced, calculateWinProbabilityEnhanced } from '../../utils/predictionUtils';
+import { calculateWinProbabilityEnhanced } from '../../utils/predictionUtils';
 import { getPlayerPredictionFactors } from '../../services/playerPrediction';
+import { getLockWithModel, getSmartPicksWithModel } from '../../services/modelPrediction';
+import { getActiveModel, loadModels, setActiveModel as setActiveModelStorage } from '../../services/modelStorage';
 import logger from '../../utils/logger';
-import type { PlayerPredictionFactors } from '../../types/predictions';
+import type { PlayerPredictionFactors, PredictionModel } from '../../types/predictions';
 
 const name = 'Zach'
 const now = new Date();
@@ -87,55 +89,6 @@ export default function HomeScreen() {
     trackImageView(i, `top_image_${i + 1}`);
     return TOP_IMAGES[i];
   }, [trackImageView]);
-
-  
-
-  // Countdown to Sep 20th 4:00 PM PT (Pacific Time). On Sep 20, PT is UTC-7.
-  const targetDate = React.useMemo(() => {
-    const now = new Date();
-    const year = now.getFullYear();
-    // 16:00 PT = 23:00 UTC (UTC-7) on Sep 20
-    const targetUtc = Date.UTC(year, 8, 20, 23, 0, 0, 0);
-    return new Date(targetUtc);
-  }, []);
-
-  const [msLeft, setMsLeft] = React.useState<number | null>(null);
-
-  // Subtle pulse animation to draw attention
-  const pulse = React.useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    if (msLeft == null) return; // stop anim when hidden
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, { toValue: 1, duration: 700, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 0, duration: 700, useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [msLeft, pulse]);
-
-  const scale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.03] });
-
-  useEffect(() => {
-    const update = () => {
-      const diff = targetDate.getTime() - Date.now();
-      setMsLeft(diff > 0 ? diff : null);
-    };
-    update();
-    const id = setInterval(update, 1000);
-    return () => clearInterval(id);
-  }, [targetDate]);
-
-  const fmtCountdown = React.useMemo(() => {
-    if (msLeft == null) return null;
-    const totalSec = Math.floor(msLeft / 1000);
-    const days = Math.floor(totalSec / 86400);
-    const hours = Math.floor((totalSec % 86400) / 3600);
-    const minutes = Math.floor((totalSec % 3600) / 60);
-    const seconds = totalSec % 60;
-    return `${days}d ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
-  }, [msLeft]);
 
   // Deep dive modal state
   const [modalVisible, setModalVisible] = useState(false);
@@ -426,6 +379,11 @@ export default function HomeScreen() {
   const [loadingPredictions, setLoadingPredictions] = useState(false);
   const [playerFactorsMap, setPlayerFactorsMap] = useState<Map<string, PlayerPredictionFactors>>(new Map());
 
+  // Active prediction model state
+  const [activeModel, setActiveModel] = useState<PredictionModel | null>(null);
+  const [allModels, setAllModels] = useState<PredictionModel[]>([]);
+  const [showModelPicker, setShowModelPicker] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Helper function to calculate win probability using centralized enhanced function
   // Includes player factors (goalie matchup, hot players) when available
@@ -433,6 +391,49 @@ export default function HomeScreen() {
     const playerFactors = gameId ? playerFactorsMap.get(gameId) : undefined;
     return calculateWinProbabilityEnhanced(homeTeamAbbrev, awayTeamAbbrev, currentStandings, playerFactors || null);
   }, [currentStandings, playerFactorsMap]);
+
+  // Handle model switch from the quick-switcher
+  const handleModelSwitch = useCallback(async (modelId: string) => {
+    if (!modelId || modelId === activeModel?.id) {
+      setShowModelPicker(false);
+      return;
+    }
+
+    try {
+      // Update storage
+      await setActiveModelStorage(modelId);
+
+      // Reload models to get updated state
+      const updatedModels = await loadModels();
+      const newActiveModel = updatedModels.find(m => m.id === modelId);
+
+      if (newActiveModel) {
+        setActiveModel(newActiveModel);
+        setAllModels(updatedModels);
+
+        // Show toast
+        setToastMessage(`Switched to ${newActiveModel.name}`);
+        setTimeout(() => setToastMessage(null), 2500);
+
+        // Clear predictions to trigger reload with new model
+        setLockOfTheDay(null);
+        setSmartPicks([]);
+
+        logger.log('[Model Switch] Switched to:', newActiveModel.name);
+
+        // Track analytics
+        analytics.trackCustomEvent('model_switched', {
+          model_id: modelId,
+          model_name: newActiveModel.name,
+        });
+      }
+    } catch (error) {
+      console.error('[Model Switch] Error switching model:', error);
+      Alert.alert('Error', 'Failed to switch model. Please try again.');
+    } finally {
+      setShowModelPicker(false);
+    }
+  }, [activeModel, analytics]);
 
   // ENHANCED SMART PICKS SYSTEM
 
@@ -557,6 +558,7 @@ export default function HomeScreen() {
   }, []);
 
   // Calculate enhanced predictions with recent form, situational factors, and player data
+  // Uses the active prediction model for customizable weights
   useEffect(() => {
     let mounted = true;
 
@@ -574,6 +576,17 @@ export default function HomeScreen() {
       logger.log('[Enhanced Predictions] Loading with recent form, situational factors & player data...');
 
       try {
+        // Load the active prediction model and all available models
+        const [model, models] = await Promise.all([
+          getActiveModel(),
+          loadModels(),
+        ]);
+        if (mounted) {
+          setActiveModel(model);
+          setAllModels(models);
+          logger.log('[Enhanced Predictions] Using model:', model.name, '| Available models:', models.length);
+        }
+
         // Fetch player factors for each game (in parallel) for use in probability displays
         const factorsPromises = todaysGames.games.map(async (game: any) => {
           try {
@@ -602,21 +615,22 @@ export default function HomeScreen() {
           logger.log('[Enhanced Predictions] Player factors loaded for', newFactorsMap.size, 'games');
         }
 
-        // Fetch enhanced lock of the day (with recent form + situational factors)
-        const enhancedLock = await getLockOfTheDayEnhanced(todaysGames.games, currentStandings);
+        // Fetch lock of the day using active model weights
+        const enhancedLock = await getLockWithModel(model, todaysGames.games, currentStandings);
 
         if (mounted) {
           setLockOfTheDay(enhancedLock);
           logger.log('[Enhanced Predictions] Lock loaded with confidence:', enhancedLock?.confidenceScore);
         }
 
-        // Fetch enhanced smart picks
+        // Fetch smart picks using active model weights
         if (enhancedLock && mounted) {
-          const enhancedPicks = await getSmartPicksEnhanced(
+          const enhancedPicks = await getSmartPicksWithModel(
+            model,
             todaysGames.games,
-            enhancedLock.id,
             currentStandings,
-            4
+            4,
+            enhancedLock.id
           );
 
           if (mounted) {
@@ -680,6 +694,7 @@ export default function HomeScreen() {
             confidenceScore: lockOfTheDay.confidenceScore,
             homeWinProb: prediction.homeWinProb,
             awayWinProb: prediction.awayWinProb,
+            modelId: activeModel?.id,
           });
           logger.log('[PICK SAVING] Lock of the Day saved successfully');
         }
@@ -705,10 +720,11 @@ export default function HomeScreen() {
                 confidenceScore: Math.abs(prediction.homeWinProb - 50) * 2, // Convert to 0-100 scale
                 homeWinProb: prediction.homeWinProb,
                 awayWinProb: prediction.awayWinProb,
+                modelId: activeModel?.id,
               };
             });
 
-          logger.log('[PICK SAVING] Saving', allGamePicks.length, 'smart picks (all games)');
+          logger.log('[PICK SAVING] Saving', allGamePicks.length, 'smart picks (all games) for model:', activeModel?.name || 'Classic');
           await saveSmartPicks(allGamePicks);
           logger.log('[PICK SAVING] All game predictions saved successfully');
         }
@@ -932,24 +948,32 @@ export default function HomeScreen() {
               <Text style={[styles.subtitle, { marginTop: 8, fontSize: 16 }]}>
                 Smart NHL Picks
               </Text>
+              {/* Model Quick-Switcher Pill */}
+              {activeModel && (
+                <TouchableOpacity
+                  onPress={() => setShowModelPicker(true)}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: '#192e5e',
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    borderRadius: 16,
+                    marginTop: 10,
+                    alignSelf: 'flex-start',
+                  }}
+                >
+                  <Text style={{ color: '#8b5cf6', fontSize: 12, fontWeight: '600', marginRight: 4 }}>
+                    {activeModel.name}
+                  </Text>
+                  <Text style={{ color: '#60a5fa', fontSize: 10 }}>▼</Text>
+                </TouchableOpacity>
+              )}
             </View>
             <View style={{ alignItems: 'flex-end' }}>
               <StreakBadge currentStreak={streakData.currentStreak} longestStreak={streakData.longestStreak} />
             </View>
           </View>
-          {fmtCountdown && (
-            <View style={[styles.countdownBox, { marginTop: 16 }]}> 
-              <LinearGradient
-                colors={['#60a5fa', '#7c3aed', '#f43f5e']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={{ paddingVertical: 16, paddingHorizontal: 16 }}
-              >
-                <Text style={styles.countdownLabel}>Countdown to Preseason</Text>
-                <Text style={styles.countdownTimer}>{fmtCountdown}</Text>
-              </LinearGradient>
-            </View>
-          )}
           <Image
             source={topImage}
             style={styles.mainpic}
@@ -1134,6 +1158,104 @@ export default function HomeScreen() {
           })()}
           aiConfidence={lockInGame.confidenceScore || 60}
         />
+      )}
+
+      {/* Model Picker Modal */}
+      <Modal
+        visible={showModelPicker}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowModelPicker(false)}
+      >
+        <TouchableOpacity
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.7)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+          activeOpacity={1}
+          onPress={() => setShowModelPicker(false)}
+        >
+          <View
+            style={{
+              backgroundColor: '#0f172a',
+              borderRadius: 16,
+              padding: 20,
+              width: '80%',
+              maxWidth: 300,
+              borderWidth: 1,
+              borderColor: '#334155',
+            }}
+          >
+            <Text style={{ color: '#e6eef8', fontSize: 18, fontWeight: '700', marginBottom: 16, textAlign: 'center' }}>
+              Select Model
+            </Text>
+            {allModels.map((model) => (
+              <TouchableOpacity
+                key={model.id}
+                onPress={() => handleModelSwitch(model.id)}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  paddingVertical: 14,
+                  paddingHorizontal: 12,
+                  backgroundColor: model.id === activeModel?.id ? '#1e3a5f' : 'transparent',
+                  borderRadius: 10,
+                  marginBottom: 8,
+                }}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: '#e6eef8', fontSize: 15, fontWeight: '600' }}>
+                    {model.name}
+                  </Text>
+                  {model.isDefault && (
+                    <Text style={{ color: '#8b5cf6', fontSize: 11, marginTop: 2 }}>
+                      Default
+                    </Text>
+                  )}
+                </View>
+                {model.id === activeModel?.id && (
+                  <Text style={{ color: '#10b981', fontSize: 16 }}>✓</Text>
+                )}
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity
+              onPress={() => setShowModelPicker(false)}
+              style={{
+                marginTop: 8,
+                paddingVertical: 12,
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ color: '#60a5fa', fontSize: 14, fontWeight: '600' }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <View
+          style={{
+            position: 'absolute',
+            bottom: 100,
+            left: 20,
+            right: 20,
+            backgroundColor: '#1e3a5f',
+            paddingVertical: 12,
+            paddingHorizontal: 20,
+            borderRadius: 12,
+            alignItems: 'center',
+            borderWidth: 1,
+            borderColor: '#334155',
+          }}
+        >
+          <Text style={{ color: '#e6eef8', fontSize: 14, fontWeight: '600' }}>
+            {toastMessage}
+          </Text>
+        </View>
       )}
     </ThemedView>
   );

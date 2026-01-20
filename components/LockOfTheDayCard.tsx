@@ -1,7 +1,13 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import React from 'react';
-import { Pressable, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { Pressable, Text, View, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { makeStyles, insiderTheme } from '../constants/theme';
+import type { FactorBreakdownItem } from '../services/modelPrediction';
+
+// Enable LayoutAnimation for Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 interface LockOfTheDayCardProps {
   game: any;
@@ -17,10 +23,30 @@ interface LockOfTheDayCardProps {
     awayRestDays: number;
     restAdvantage: 'home' | 'away' | 'neutral';
   } | null;
+  // Model-related props
+  modelName?: string;
+  isClassicModel?: boolean;
+  factorBreakdown?: FactorBreakdownItem[];
+  classicPrediction?: {
+    predictedWinnerAbbrev: string;
+  } | null;
 }
 
-export default function LockOfTheDayCard({ game, confidenceScore, prediction, onPress, onLockIn, isLocked = false, situationalFactors }: LockOfTheDayCardProps) {
+export default function LockOfTheDayCard({
+  game,
+  confidenceScore,
+  prediction,
+  onPress,
+  onLockIn,
+  isLocked = false,
+  situationalFactors,
+  modelName,
+  isClassicModel = true,
+  factorBreakdown,
+  classicPrediction,
+}: LockOfTheDayCardProps) {
   const styles = makeStyles();
+  const [isFactorExpanded, setIsFactorExpanded] = useState(false);
 
   const homeAbbrev = game.homeTeam?.abbrev || 'HOME';
   const awayAbbrev = game.awayTeam?.abbrev || 'AWAY';
@@ -174,6 +200,27 @@ export default function LockOfTheDayCard({ game, confidenceScore, prediction, on
                 </Text>
               </View>
             )}
+
+            {/* Model Name Badge - only shown if not Classic */}
+            {!isClassicModel && modelName && (
+              <View style={{
+                backgroundColor: '#8b5cf622',
+                paddingHorizontal: 10,
+                paddingVertical: 6,
+                borderRadius: 20,
+                borderWidth: 1.5,
+                borderColor: '#8b5cf6',
+              }}>
+                <Text style={{
+                  color: '#8b5cf6',
+                  fontSize: 10,
+                  fontWeight: '800',
+                  letterSpacing: 0.5,
+                }}>
+                  {modelName}
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Matchup */}
@@ -272,35 +319,158 @@ export default function LockOfTheDayCard({ game, confidenceScore, prediction, on
             </View>
           </View>
 
-          {/* Key Factors */}
-          <View style={{
-            backgroundColor: '#071a3699',
-            borderRadius: 10,
-            padding: 14,
-          }}>
-            <Text style={{
-              fontSize: 12,
-              fontWeight: '700',
-              color: '#e6eef8',
-              marginBottom: 10,
-              opacity: 0.9,
-            }}>
-              OUR ANALYSTS FOUND
-            </Text>
-            {['Strong position in standings', 'Recent form trending up', 'Home ice advantage'].map((factor, idx) => (
-              <Text
-                key={idx}
-                style={{
-                  fontSize: 12,
-                  lineHeight: 18,
-                  color: '#98a6bf',
-                  marginBottom: idx < 2 ? 6 : 0,
-                }}
-              >
-                • {factor}
+          {/* Key Factors - Expandable Section */}
+          <Pressable
+            onPress={() => {
+              LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+              setIsFactorExpanded(!isFactorExpanded);
+            }}
+            style={{
+              backgroundColor: '#071a3699',
+              borderRadius: 10,
+              padding: 14,
+            }}
+          >
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={{
+                fontSize: 12,
+                fontWeight: '700',
+                color: '#e6eef8',
+                opacity: 0.9,
+              }}>
+                {factorBreakdown && factorBreakdown.length > 0 ? 'KEY FACTORS' : 'OUR ANALYSTS FOUND'}
               </Text>
-            ))}
-          </View>
+              <Text style={{ color: '#60a5fa', fontSize: 12 }}>
+                {isFactorExpanded ? '▲' : '▼'}
+              </Text>
+            </View>
+
+            {/* Summary - always visible (top 3 factors or fallback) */}
+            {!isFactorExpanded && (
+              <View style={{ marginTop: 10 }}>
+                {factorBreakdown && factorBreakdown.length > 0 ? (
+                  // Show top 3 factors sorted by absolute impact
+                  [...factorBreakdown]
+                    .sort((a, b) => Math.abs(b.impact) - Math.abs(a.impact))
+                    .slice(0, 3)
+                    .map((factor, idx) => (
+                      <View key={factor.factorKey} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: idx < 2 ? 6 : 0 }}>
+                        <Text style={{
+                          fontSize: 12,
+                          color: factor.impact > 0 ? '#10b981' : factor.impact < 0 ? '#ef4444' : '#98a6bf',
+                          marginRight: 6,
+                        }}>
+                          {factor.impact > 0 ? '▲' : factor.impact < 0 ? '▼' : '•'}
+                        </Text>
+                        <Text style={{ fontSize: 12, color: '#98a6bf', flex: 1 }}>
+                          {factor.factorName}: {factor.favoredTeam === 'home' ? homeAbbrev : factor.favoredTeam === 'away' ? awayAbbrev : 'Even'}
+                        </Text>
+                        <Text style={{
+                          fontSize: 11,
+                          color: factor.impact > 0 ? '#10b981' : factor.impact < 0 ? '#ef4444' : '#98a6bf',
+                          fontWeight: '700',
+                        }}>
+                          {factor.impact > 0 ? '+' : ''}{factor.impact}
+                        </Text>
+                      </View>
+                    ))
+                ) : (
+                  // Fallback to static factors
+                  ['Strong position in standings', 'Recent form trending up', 'Home ice advantage'].map((factor, idx) => (
+                    <Text
+                      key={idx}
+                      style={{
+                        fontSize: 12,
+                        lineHeight: 18,
+                        color: '#98a6bf',
+                        marginBottom: idx < 2 ? 6 : 0,
+                      }}
+                    >
+                      • {factor}
+                    </Text>
+                  ))
+                )}
+              </View>
+            )}
+
+            {/* Expanded - show all factors (top 5) */}
+            {isFactorExpanded && factorBreakdown && factorBreakdown.length > 0 && (
+              <View style={{ marginTop: 10 }}>
+                {[...factorBreakdown]
+                  .sort((a, b) => Math.abs(b.impact) - Math.abs(a.impact))
+                  .slice(0, 5)
+                  .map((factor, idx, arr) => (
+                    <View key={factor.factorKey} style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      paddingVertical: 8,
+                      borderBottomWidth: idx < arr.length - 1 ? 1 : 0,
+                      borderBottomColor: '#192e5e44',
+                    }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 12, fontWeight: '600', color: '#e6eef8', marginBottom: 2 }}>
+                          {factor.factorName}
+                        </Text>
+                        <Text style={{ fontSize: 11, color: '#98a6bf' }}>
+                          {homeAbbrev}: {factor.homeValue} vs {awayAbbrev}: {factor.awayValue}
+                        </Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={{
+                          fontSize: 14,
+                          fontWeight: '800',
+                          color: factor.impact > 0 ? '#10b981' : factor.impact < 0 ? '#ef4444' : '#98a6bf',
+                        }}>
+                          {factor.impact > 0 ? '+' : ''}{factor.impact}
+                        </Text>
+                        <Text style={{
+                          fontSize: 10,
+                          color: factor.favoredTeam === 'home' ? '#f59e0b' : factor.favoredTeam === 'away' ? '#60a5fa' : '#98a6bf',
+                          fontWeight: '600',
+                        }}>
+                          {factor.favoredTeam === 'home' ? homeAbbrev : factor.favoredTeam === 'away' ? awayAbbrev : 'EVEN'}
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+              </View>
+            )}
+
+            {/* Expanded fallback when no breakdown available */}
+            {isFactorExpanded && (!factorBreakdown || factorBreakdown.length === 0) && (
+              <View style={{ marginTop: 10 }}>
+                {['Strong position in standings', 'Recent form trending up', 'Home ice advantage'].map((factor, idx) => (
+                  <Text
+                    key={idx}
+                    style={{
+                      fontSize: 12,
+                      lineHeight: 18,
+                      color: '#98a6bf',
+                      marginBottom: idx < 2 ? 6 : 0,
+                    }}
+                  >
+                    • {factor}
+                  </Text>
+                ))}
+              </View>
+            )}
+          </Pressable>
+
+          {/* Classic Model Comparison - show if prediction differs */}
+          {!isClassicModel && classicPrediction && classicPrediction.predictedWinnerAbbrev !== favored && (
+            <View style={{
+              backgroundColor: '#f59e0b22',
+              borderRadius: 8,
+              padding: 10,
+              marginTop: 12,
+              flexDirection: 'row',
+              alignItems: 'center',
+            }}>
+              <Text style={{ fontSize: 11, color: '#f59e0b', fontWeight: '600' }}>
+                Classic would pick: {classicPrediction.predictedWinnerAbbrev}
+              </Text>
+            </View>
+          )}
 
           {/* Lock In Button or Locked Status */}
           {isLocked ? (

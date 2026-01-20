@@ -274,6 +274,64 @@ File: `app/(tabs)/index.tsx`
 - Metro bundler for web output
 - Custom fonts must be loaded before render
 
+## Expo MCP Integration
+
+### Session Startup
+1. Run `npm start` - automatically enables MCP server + opens iOS simulator
+2. Run `/mcp` in Claude Code to reconnect the MCP server
+
+### Navigation in Simulator
+**Use deep links instead of tap automation** - they're instant and reliable:
+```bash
+# Navigate to specific routes
+xcrun simctl openurl booted "exp+learning-project://"           # Home/Today
+xcrun simctl openurl booted "exp+learning-project://models"     # Models tab
+xcrun simctl openurl booted "exp+learning-project://explore"    # Explore tab
+xcrun simctl openurl booted "exp+learning-project://profile"    # Profile tab
+```
+
+### Screenshots (Fast Method)
+Use simctl directly - it's instant:
+```bash
+xcrun simctl io booted screenshot /tmp/sim_screenshot.png
+```
+Then use the Read tool on `/tmp/sim_screenshot.png` to view it.
+
+**Avoid** `mcp__expo-mcp-local__automation_take_screenshot` - it uses XCTest and is slow.
+
+### Simulator Interactions (Taps, Scrolls, etc.)
+
+**DO NOT use cliclick or automated tap tools** - they are unreliable and waste time with coordinate calculations.
+
+**Instead, ask the user to perform interactions:**
+1. Tell the user exactly what to tap/scroll (be specific about location and element)
+2. Wait for user to confirm they did it (e.g., "done" or "tapped")
+3. Take a screenshot to verify the result
+
+**Example workflow:**
+```
+Claude: "Please tap on the 'PuckIQ Classic ▼' pill in the header (below 'Smart NHL Picks')"
+User: "done"
+Claude: [takes screenshot to verify]
+```
+
+**For navigation, use deep links instead of taps** - they're instant and reliable:
+```bash
+xcrun simctl openurl booted "exp+learning-project://models"
+```
+
+### Available Routes
+```
+/                 - Home/Today (default)
+/explore          - Explore tab
+/models           - Models tab
+/profile          - Profile tab
+/settings         - Settings
+/mypicks          - My Picks
+/sign-in          - Sign in
+/sign-up          - Sign up
+```
+
 ## Workflow Guidelines
 
 ### Before Making Changes
@@ -385,6 +443,6 @@ analytics.trackFeatureUsed('feature_name', { param: 'value' });
 
 ---
 
-**Last Updated**: 2025-11-16 (Added custom command documentation)
-**Version**: 2.1.0
+**Last Updated**: 2026-01-19 (Added Expo MCP integration guide)
+**Version**: 2.2.0
 **Maintained by**: Development Team
