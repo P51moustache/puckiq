@@ -37,6 +37,7 @@ import logger from '../../utils/logger';
 import type { PlayerPredictionFactors, PredictionModel } from '../../types/predictions';
 import { SettingsButton } from '../../components/SettingsButton';
 import { BreakdownCard } from '../../components/BreakdownCard';
+import { ThemeBanner } from '../../components/ThemeBanner';
 import { calculateTopFactors } from '../../services/factorAnalysis';
 import { getCurrentTheme } from '../../services/weeklyTheme';
 import { GameFactor } from '../../types/factors';
@@ -1019,6 +1020,14 @@ export default function HomeScreen() {
             style={styles.mainpic}
             contentFit="cover"
             accessibilityLabel="NHL action shot"
+          />
+        </View>
+
+        {/* WEEKLY THEME BANNER */}
+        <View style={{ width: '100%', marginTop: 24 }}>
+          <ThemeBanner
+            theme={weeklyTheme}
+            onLearnMore={() => router.push('/learn')}
           />
         </View>
 
