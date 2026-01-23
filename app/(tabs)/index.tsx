@@ -36,6 +36,10 @@ import { getActiveModel, loadModels, setActiveModel as setActiveModelStorage } f
 import logger from '../../utils/logger';
 import type { PlayerPredictionFactors, PredictionModel } from '../../types/predictions';
 import { SettingsButton } from '../../components/SettingsButton';
+import { BreakdownCard } from '../../components/BreakdownCard';
+import { calculateTopFactors } from '../../services/factorAnalysis';
+import { getCurrentTheme } from '../../services/weeklyTheme';
+import { GameFactor } from '../../types/factors';
 
 const name = 'Zach'
 const now = new Date();
@@ -377,6 +381,8 @@ export default function HomeScreen() {
   // Enhanced predictions state
   const [lockOfTheDay, setLockOfTheDay] = useState<any>(null);
   const [smartPicks, setSmartPicks] = useState<any[]>([]);
+  const [gameBreakdowns, setGameBreakdowns] = useState<Map<string, GameFactor[]>>(new Map());
+  const weeklyTheme = useMemo(() => getCurrentTheme(), []);
   const [loadingPredictions, setLoadingPredictions] = useState(false);
   const [playerFactorsMap, setPlayerFactorsMap] = useState<Map<string, PlayerPredictionFactors>>(new Map());
 
@@ -652,6 +658,36 @@ export default function HomeScreen() {
     loadEnhancedPredictions();
     return () => { mounted = false; };
   }, [todaysGames, currentStandings]);
+
+  // Calculate game breakdowns for BreakdownCard display
+  useEffect(() => {
+    if (!todaysGames?.games) {
+      setGameBreakdowns(new Map());
+      return;
+    }
+
+    const breakdowns = new Map<string, GameFactor[]>();
+
+    for (const game of todaysGames.games) {
+      const homeTeam = {
+        abbrev: game.homeTeam?.abbrev || '',
+        homeRecord: game.homeTeam?.record || '',
+        recentSavePct: 0.910, // TODO: Get from goalie stats
+        daysRest: 2, // TODO: Calculate from schedule
+      };
+      const awayTeam = {
+        abbrev: game.awayTeam?.abbrev || '',
+        homeRecord: game.awayTeam?.record || '',
+        recentSavePct: 0.905, // TODO: Get from goalie stats
+        daysRest: 2, // TODO: Calculate from schedule
+      };
+
+      const factors = calculateTopFactors(homeTeam, awayTeam);
+      breakdowns.set(String(game.id), factors);
+    }
+
+    setGameBreakdowns(breakdowns);
+  }, [todaysGames]);
 
   const powerRankings = useMemo(() => {
     if (!currentStandings?.standings) return [];
@@ -1107,6 +1143,53 @@ export default function HomeScreen() {
             </>
           )}
         </View>
+
+        {/* GAME BREAKDOWNS - Educational factor analysis */}
+        {todaysGames?.games && todaysGames.games.length > 0 && gameBreakdowns.size > 0 && (
+          <View style={{ width: '100%', marginTop: 24 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <View>
+                <Text style={{
+                  fontSize: 18,
+                  fontWeight: '700',
+                  color: '#e6eef8',
+                }}>
+                  Game Breakdowns
+                </Text>
+                <Text style={{
+                  fontSize: 13,
+                  color: '#98a6bf',
+                  marginTop: 4,
+                }}>
+                  This week: {weeklyTheme.name}
+                </Text>
+              </View>
+            </View>
+            {todaysGames.games.slice(0, 3).map((game: any) => {
+              const factors = gameBreakdowns.get(String(game.id)) || [];
+              const gameTime = game.startTimeUTC
+                ? new Date(game.startTimeUTC).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+                : 'TBD';
+
+              return (
+                <BreakdownCard
+                  key={game.id}
+                  awayTeam={game.awayTeam?.abbrev || '???'}
+                  homeTeam={game.homeTeam?.abbrev || '???'}
+                  gameTime={gameTime}
+                  weeklyTheme={weeklyTheme.name}
+                  factors={factors}
+                  onPickTeam={(team) => {
+                    // Handle pick - same as existing flow
+                    const pickGame = { ...game, selectedTeam: team };
+                    handleOpenLockIn(pickGame);
+                  }}
+                  selectedTeam={undefined}
+                />
+              );
+            })}
+          </View>
+        )}
 
         {/* POWER RANKINGS */}
         {powerRankings && powerRankings.length > 0 && (
