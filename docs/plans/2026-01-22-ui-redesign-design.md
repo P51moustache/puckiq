@@ -341,13 +341,56 @@ A stats page you visit when curious. **Pull, not push.** No nagging.
 
 ---
 
+## Decisions
+
+1. **AI benchmark:** Keep as subtle reference point, not the main value. "PuckIQ says X%" can stay but it's not framed as competition.
+2. **Model builder:** Cut entirely. Simplify the app.
+3. **Notifications:** Educational-first. Every notification teaches something.
+
 ## Open Questions
 
-1. **AI benchmark:** Do we still show "PuckIQ says X%" or remove AI comparison entirely?
-2. **Off-season:** What happens when there are no games?
-3. **Notifications:** What brings users back? Weekly recap? Daily reminder?
-4. **Social:** Any sharing features? Shareable result cards?
-5. **Model builder:** Keep as advanced feature or cut entirely?
+1. **Off-season:** What happens when there are no games?
+2. **Social:** Any sharing features? Shareable result cards?
+
+---
+
+## Notifications Strategy
+
+**Principle:** Every notification makes you smarter, not just reminds you to open the app.
+
+### Notification Types
+
+**Daily Insight (morning)**
+One interesting thing from yesterday's games:
+- "Last night: Home teams went 6-1. Home ice is having a moment this week."
+- "Underdogs went 4-2 yesterday. Favorites aren't automatic."
+- "Goalies with 3+ days rest went 5-0. Rest matters between the pipes."
+
+**Weekly Trend (mid-week)**
+A pattern emerging from this week's theme:
+- "Halfway through Goaltending Week: Teams with the hot goalie are 12-4. Trust the stats."
+- "Rest Advantage check-in: It's only predicting 51% of winners this week. Hmm."
+
+**Surprising Result (occasional)**
+When something defies expectations:
+- "Upset alert: CHI beat CAR despite every factor favoring Carolina. Hockey is chaos sometimes."
+
+**Weekly Recap (Sunday)**
+- "Week 3 done. Goaltending predicted 68% of winners. Your accuracy: 71%. You're getting it."
+
+### Weekly Cadence
+
+| Day | Notification |
+|-----|--------------|
+| Mon | New theme intro |
+| Tue | Daily insight |
+| Wed | Daily insight |
+| Thu | Weekly trend check-in |
+| Fri | Daily insight |
+| Sat | Daily insight |
+| Sun | Weekly recap |
+
+~7 notifications per week, all educational.
 
 ---
 
