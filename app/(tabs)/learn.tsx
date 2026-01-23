@@ -1,9 +1,10 @@
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { theme } from '../../constants/theme';
 import { BreakdownCard } from '../../components/BreakdownCard';
+import { ResultsCard } from '../../components/ResultsCard';
 import { GameFactor } from '../../types/factors';
 
-// Sample data for preview
+// Sample data for BreakdownCard preview
 const sampleFactors: GameFactor[] = [
   {
     type: 'GOALIE_EDGE',
@@ -28,22 +29,63 @@ const sampleFactors: GameFactor[] = [
   },
 ];
 
+// Sample data for ResultsCard preview
+const sampleResultFactors = [
+  {
+    type: 'GOALIE_EDGE' as const,
+    advantage: 'CAR',
+    description: 'GOALIE EDGE',
+    detail: 'Andersen: 31 saves, .939',
+    impact: 41,
+    mattered: true,
+    resultNote: 'This was the difference.',
+  },
+  {
+    type: 'HOME_ICE' as const,
+    advantage: 'CAR',
+    description: 'HOME ICE',
+    detail: 'CAR scored 2 in the 1st',
+    impact: 30,
+    mattered: true,
+    resultNote: 'Home crowd energy paid off.',
+  },
+  {
+    type: 'REST' as const,
+    advantage: 'EVEN',
+    description: 'REST',
+    detail: 'CHI actually outshot CAR',
+    impact: 0,
+    mattered: false,
+    resultNote: "Fatigue wasn't a factor.",
+  },
+];
+
 export default function LearnScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Learn</Text>
-      <Text style={styles.subtitle}>BreakdownCard Preview</Text>
+      <Text style={styles.subtitle}>Component Previews</Text>
 
-      <View style={styles.previewSection}>
-        <BreakdownCard
-          awayTeam="CHI"
-          homeTeam="CAR"
-          gameTime="7:00 PM"
-          weeklyTheme="Goaltending"
-          factors={sampleFactors}
-          onPickTeam={(team) => console.log('Picked:', team)}
-        />
-      </View>
+      <Text style={styles.sectionHeader}>BreakdownCard (Pre-game)</Text>
+      <BreakdownCard
+        awayTeam="CHI"
+        homeTeam="CAR"
+        gameTime="7:00 PM"
+        weeklyTheme="Goaltending"
+        factors={sampleFactors}
+        onPickTeam={(team) => console.log('Picked:', team)}
+      />
+
+      <Text style={styles.sectionHeader}>ResultsCard (Post-game)</Text>
+      <ResultsCard
+        awayTeam="CHI"
+        homeTeam="CAR"
+        awayScore={2}
+        homeScore={4}
+        userPick="CAR"
+        factors={sampleResultFactors}
+        insight="Goaltending and home ice were real. Rest was noise tonight."
+      />
     </ScrollView>
   );
 }
@@ -56,6 +98,7 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
     paddingTop: 60,
+    paddingBottom: 100,
   },
   title: {
     fontSize: 24,
@@ -68,7 +111,11 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 24,
   },
-  previewSection: {
-    marginTop: 16,
+  sectionHeader: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.subtext,
+    marginBottom: 12,
+    marginTop: 8,
   },
 });
