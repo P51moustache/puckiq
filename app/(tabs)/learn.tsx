@@ -1,101 +1,107 @@
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
 import { theme } from '../../constants/theme';
-import { BreakdownCard } from '../../components/BreakdownCard';
-import { ResultsCard } from '../../components/ResultsCard';
 import { ThemeBanner } from '../../components/ThemeBanner';
+import { FactorLeaderboard } from '../../components/FactorLeaderboard';
 import { getCurrentTheme } from '../../services/weeklyTheme';
-import { GameFactor } from '../../types/factors';
+import { IconSymbol } from '../../components/ui/IconSymbol';
 
-// Sample data for BreakdownCard preview
-const sampleFactors: GameFactor[] = [
+// Coach's Corner lesson categories
+const LESSON_CATEGORIES = [
   {
-    type: 'GOALIE_EDGE',
-    advantage: 'CAR',
-    description: 'GOALIE EDGE',
-    detail: 'Andersen .932 vs Mrazek .891',
-    impact: 41,
+    id: 'fundamentals',
+    title: 'Fundamentals',
+    description: 'Core hockey concepts every fan should know',
+    icon: 'book.fill',
+    lessons: 4,
   },
   {
-    type: 'HOME_ICE',
-    advantage: 'CAR',
-    description: 'HOME ICE',
-    detail: '15-3-1 at home',
-    impact: 30,
+    id: 'goaltending',
+    title: 'Goaltending',
+    description: 'Understanding the art of stopping pucks',
+    icon: 'shield.fill',
+    lessons: 4,
   },
   {
-    type: 'REST',
-    advantage: 'EVEN',
-    description: 'REST',
-    detail: 'Both teams 2 days rest',
-    impact: 0,
-  },
-];
-
-// Sample data for ResultsCard preview
-const sampleResultFactors = [
-  {
-    type: 'GOALIE_EDGE' as const,
-    advantage: 'CAR',
-    description: 'GOALIE EDGE',
-    detail: 'Andersen: 31 saves, .939',
-    impact: 41,
-    mattered: true,
-    resultNote: 'This was the difference.',
+    id: 'advanced',
+    title: 'Advanced Analytics',
+    description: 'xG, Corsi, Fenwick, and beyond',
+    icon: 'chart.bar.fill',
+    lessons: 4,
   },
   {
-    type: 'HOME_ICE' as const,
-    advantage: 'CAR',
-    description: 'HOME ICE',
-    detail: 'CAR scored 2 in the 1st',
-    impact: 30,
-    mattered: true,
-    resultNote: 'Home crowd energy paid off.',
-  },
-  {
-    type: 'REST' as const,
-    advantage: 'EVEN',
-    description: 'REST',
-    detail: 'CHI actually outshot CAR',
-    impact: 0,
-    mattered: false,
-    resultNote: "Fatigue wasn't a factor.",
+    id: 'coaching',
+    title: 'Coaching Concepts',
+    description: 'Systems, matchups, and strategy',
+    icon: 'person.3.fill',
+    lessons: 4,
   },
 ];
 
 export default function LearnScreen() {
+  const router = useRouter();
   const weeklyTheme = getCurrentTheme();
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Learn</Text>
-      <Text style={styles.subtitle}>Component Previews</Text>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.title}>Learn</Text>
+        <Text style={styles.subtitle}>Become a hockey expert</Text>
+      </View>
 
-      <Text style={styles.sectionHeader}>ThemeBanner</Text>
-      <ThemeBanner
-        theme={weeklyTheme}
-        onLearnMore={() => console.log('Learn more pressed')}
-      />
+      {/* Weekly Theme */}
+      <View style={styles.section}>
+        <ThemeBanner
+          theme={weeklyTheme}
+          onLearnMore={() => console.log('Navigate to theme lesson')}
+        />
+      </View>
 
-      <Text style={styles.sectionHeader}>BreakdownCard (Pre-game)</Text>
-      <BreakdownCard
-        awayTeam="CHI"
-        homeTeam="CAR"
-        gameTime="7:00 PM"
-        weeklyTheme="Goaltending"
-        factors={sampleFactors}
-        onPickTeam={(team) => console.log('Picked:', team)}
-      />
+      {/* Factor Leaderboard */}
+      <View style={styles.section}>
+        <FactorLeaderboard />
+      </View>
 
-      <Text style={styles.sectionHeader}>ResultsCard (Post-game)</Text>
-      <ResultsCard
-        awayTeam="CHI"
-        homeTeam="CAR"
-        awayScore={2}
-        homeScore={4}
-        userPick="CAR"
-        factors={sampleResultFactors}
-        insight="Goaltending and home ice were real. Rest was noise tonight."
-      />
+      {/* Coach's Corner */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Coach's Corner</Text>
+        <Text style={styles.sectionSubtitle}>
+          Bite-sized lessons to level up your hockey IQ
+        </Text>
+
+        <View style={styles.lessonGrid}>
+          {LESSON_CATEGORIES.map((category) => (
+            <TouchableOpacity
+              key={category.id}
+              style={styles.lessonCard}
+              onPress={() => console.log('Navigate to', category.id)}
+            >
+              <View style={styles.lessonIcon}>
+                <IconSymbol name={category.icon as any} size={24} color={theme.accent} />
+              </View>
+              <Text style={styles.lessonTitle}>{category.title}</Text>
+              <Text style={styles.lessonDescription}>{category.description}</Text>
+              <Text style={styles.lessonCount}>{category.lessons} lessons</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {/* Teams & Players Link */}
+      <TouchableOpacity
+        style={styles.teamsLink}
+        onPress={() => router.push('/explore')}
+      >
+        <View style={styles.teamsLinkContent}>
+          <IconSymbol name="hockey.puck.fill" size={20} color={theme.accent} />
+          <View style={styles.teamsLinkText}>
+            <Text style={styles.teamsLinkTitle}>Teams & Players</Text>
+            <Text style={styles.teamsLinkSubtitle}>Browse stats and analytics</Text>
+          </View>
+        </View>
+        <IconSymbol name="chevron.right" size={16} color={theme.subtext} />
+      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -110,22 +116,94 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 100,
   },
+  header: {
+    marginBottom: 24,
+  },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 32,
+    fontWeight: '700',
     color: theme.text,
   },
   subtitle: {
     fontSize: 16,
     color: theme.subtext,
-    marginTop: 8,
+    marginTop: 4,
+  },
+  section: {
     marginBottom: 24,
   },
-  sectionHeader: {
-    fontSize: 14,
-    fontWeight: '600',
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: theme.text,
+    marginBottom: 4,
+  },
+  sectionSubtitle: {
+    fontSize: 13,
     color: theme.subtext,
+    marginBottom: 16,
+  },
+  lessonGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  lessonCard: {
+    width: '48%',
+    backgroundColor: theme.card,
+    borderRadius: 12,
+    padding: 16,
+  },
+  lessonIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: theme.subtle,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 12,
-    marginTop: 8,
+  },
+  lessonTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.text,
+    marginBottom: 4,
+  },
+  lessonDescription: {
+    fontSize: 12,
+    color: theme.subtext,
+    lineHeight: 16,
+    marginBottom: 8,
+  },
+  lessonCount: {
+    fontSize: 11,
+    color: theme.accent,
+    fontWeight: '600',
+  },
+  teamsLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: theme.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+  },
+  teamsLinkContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  teamsLinkText: {
+    gap: 2,
+  },
+  teamsLinkTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.text,
+  },
+  teamsLinkSubtitle: {
+    fontSize: 12,
+    color: theme.subtext,
   },
 });
