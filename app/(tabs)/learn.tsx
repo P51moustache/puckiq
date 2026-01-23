@@ -2,6 +2,8 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { theme } from '../../constants/theme';
 import { BreakdownCard } from '../../components/BreakdownCard';
 import { ResultsCard } from '../../components/ResultsCard';
+import { ThemeBanner } from '../../components/ThemeBanner';
+import { getCurrentTheme } from '../../services/weeklyTheme';
 import { GameFactor } from '../../types/factors';
 
 // Sample data for BreakdownCard preview
@@ -61,10 +63,18 @@ const sampleResultFactors = [
 ];
 
 export default function LearnScreen() {
+  const weeklyTheme = getCurrentTheme();
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Learn</Text>
       <Text style={styles.subtitle}>Component Previews</Text>
+
+      <Text style={styles.sectionHeader}>ThemeBanner</Text>
+      <ThemeBanner
+        theme={weeklyTheme}
+        onLearnMore={() => console.log('Learn more pressed')}
+      />
 
       <Text style={styles.sectionHeader}>BreakdownCard (Pre-game)</Text>
       <BreakdownCard
