@@ -35,6 +35,7 @@ import { getLockWithModel, getSmartPicksWithModel } from '../../services/modelPr
 import { getActiveModel, loadModels, setActiveModel as setActiveModelStorage } from '../../services/modelStorage';
 import logger from '../../utils/logger';
 import type { PlayerPredictionFactors, PredictionModel } from '../../types/predictions';
+import { SettingsButton } from '../../components/SettingsButton';
 
 const name = 'Zach'
 const now = new Date();
@@ -971,7 +972,10 @@ export default function HomeScreen() {
               )}
             </View>
             <View style={{ alignItems: 'flex-end' }}>
-              <StreakBadge currentStreak={streakData.currentStreak} longestStreak={streakData.longestStreak} />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <StreakBadge currentStreak={streakData.currentStreak} longestStreak={streakData.longestStreak} />
+                <SettingsButton />
+              </View>
             </View>
           </View>
           <Image
