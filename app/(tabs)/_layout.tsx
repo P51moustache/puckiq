@@ -17,7 +17,6 @@ export default function TabLayout() {
         tabBarBackground: TabBarBackground,
         tabBarStyle: Platform.select({
           ios: {
-            // Use a transparent background on iOS to show the blur effect
             position: 'absolute',
           },
           default: {
@@ -26,6 +25,7 @@ export default function TabLayout() {
           },
         }),
       }}>
+      {/* Main 3 tabs */}
       <Tabs.Screen
         name="index"
         options={{
@@ -34,51 +34,28 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="picks"
+        name="learn"
         options={{
-          title: 'Picks',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="checkmark.circle.fill" color={color} />,
+          title: 'Learn',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="book.fill" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="myiq"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="magnifyingglass" color={color} />,
+          title: 'My IQ',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="chart.line.uptrend.xyaxis" color={color} />,
         }}
       />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Profile',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.circle.fill" color={color} />,
-        }}
-      />
-      {/* Hidden screens - kept for file-based routing but not shown in tab bar */}
-      <Tabs.Screen
-        name="mypicks"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="teams"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="more"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          href: null,
-        }}
-      />
+      {/* Hidden screens - kept for routing but not in tab bar */}
+      <Tabs.Screen name="explore" options={{ href: null }} />
+      <Tabs.Screen name="models" options={{ href: null }} />
+      <Tabs.Screen name="profile" options={{ href: null }} />
+      <Tabs.Screen name="picks" options={{ href: null }} />
+      <Tabs.Screen name="mypicks" options={{ href: null }} />
+      <Tabs.Screen name="teams" options={{ href: null }} />
+      <Tabs.Screen name="more" options={{ href: null }} />
+      <Tabs.Screen name="settings" options={{ href: null }} />
     </Tabs>
   );
 }
