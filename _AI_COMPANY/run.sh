@@ -234,7 +234,8 @@ REWORK PROTOCOL:
 2. Identify what went wrong with the original option
 3. Re-run the meeting protocol with the rework reason as a NEW constraint
 4. Present 3 NEW options (don't repeat the failed approach)
-5. After CEO approves, overwrite ACTIVE_REQUEST.md and update PIPELINE_STATUS.md
+5. After CEO approves, overwrite ACTIVE_REQUEST.md (include Persona Scorecard)
+6. Set PIPELINE_STATUS.md Current Stage to BLUEPRINT and update the Strategy row to REWORK_COMPLETE
 PROMPT
 )"
         ;;
@@ -260,7 +261,7 @@ REWORK PROTOCOL:
 2. Identify what's wrong with the current spec
 3. Revise the spec, keeping what works and fixing what doesn't
 4. Clearly mark what changed: add a "## Rework Changes" section at the top of TECHNICAL_SPEC.md
-5. Update PIPELINE_STATUS.md back to EXECUTION
+5. Set PIPELINE_STATUS.md Current Stage to EXECUTION and update the Blueprint row to REWORK_COMPLETE
 PROMPT
 )"
         ;;
@@ -286,7 +287,7 @@ REWORK PROTOCOL:
 2. Fix the specific issues identified
 3. Do NOT rebuild from scratch unless the rework reason requires it
 4. Update IMPLEMENTATION_LOG.md with a "## Rework" section describing fixes
-5. Update PIPELINE_STATUS.md back to VERIFICATION
+5. Set PIPELINE_STATUS.md Current Stage to VERIFICATION and update the Execution row to REWORK_COMPLETE
 PROMPT
 )"
         ;;

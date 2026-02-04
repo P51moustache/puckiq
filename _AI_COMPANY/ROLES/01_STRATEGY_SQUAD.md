@@ -135,7 +135,12 @@ Append the approved decision to `_AI_COMPANY/MEMORY/DECISIONS.md` in this format
 ## [Date] - [Feature Name]
 - **Request**: [Original user request]
 - **Approved Option**: [A/B/C] - [Name]
+- **Rationale**: [Why this option won over the others]
 - **Key Requirements**: [Bullet list]
+- **Persona Scorecard**:
+  - Shark: [excited/neutral/bored] - [promise]
+  - Debater: [excited/neutral/bored] - [promise]
+  - Homer: [excited/neutral/bored] - [promise]
 - **Next Squad**: Blueprint Squad
 ```
 
@@ -166,6 +171,11 @@ Append the approved decision to `_AI_COMPANY/MEMORY/DECISIONS.md` in this format
 
 ## Success Criteria
 - [How we know this is done]
+
+## Persona Scorecard
+- Shark: [excited/neutral/bored] - [what this feature delivers for Shark]
+- Debater: [excited/neutral/bored] - [what this feature delivers for Debater]
+- Homer: [excited/neutral/bored] - [what this feature delivers for Homer]
 ```
 
 ### Step 3: Update Pipeline Status

@@ -1,5 +1,33 @@
 -- PUCK-IQ Database Schema
--- Database Architect writes schema definitions here
 -- Target: Supabase (PostgreSQL)
+-- Database Architect writes schema definitions here
 
--- Schema definitions will be added by Blueprint Squad
+-- ============================================
+-- CURRENT STATE (as of 2026-02-03)
+-- ============================================
+
+-- NO CUSTOM SUPABASE TABLES EXIST YET.
+-- All user data is stored client-side in AsyncStorage:
+--
+--   puckiq_daily_picks       → Pick history by date (JSON blob)
+--   puckiq_streak_data       → Streak tracking (currentStreak, longestStreak, lastVisitDate)
+--   puckiq_last_visit        → Last visit date string
+--   puckiq_last_check_date   → Last yesterday-results check date
+--   puckiq_prediction_models → User's custom prediction models (JSON array)
+--   selectedTeam             → User's favorite team abbreviation
+--   analytics_user_id        → Anonymous analytics user ID
+--   analytics_events         → Offline event queue (last 1000 events)
+--   notification_settings    → Notification preferences (JSON)
+--   favorite_teams           → Array of favorite team abbreviations
+--
+-- Supabase is configured for AUTH ONLY (email + Apple Sign-In).
+-- No RLS policies, no custom tables, no server-side data yet.
+
+-- ============================================
+-- FUTURE SCHEMA (Blueprint Squad adds tables below)
+-- ============================================
+-- When designing new tables, consider:
+--   1. Supabase RLS policies for row-level security
+--   2. Migration from AsyncStorage → Supabase for existing data
+--   3. Free-tier limits: 500MB database, 2GB bandwidth
+--   4. Indexes on frequently queried columns (user_id, date, team_abbrev)
