@@ -24,3 +24,10 @@
 
 ## Success Criteria
 <!-- How do we know this is done? -->
+
+## Persona Scorecard
+<!-- Strategy Squad: paste the Persona Scorecard from the approved option here -->
+<!-- Downstream squads use this to verify they're delivering on persona promises -->
+<!-- Shark: [excited/neutral/bored] - [what was promised] -->
+<!-- Debater: [excited/neutral/bored] - [what was promised] -->
+<!-- Homer: [excited/neutral/bored] - [what was promised] -->
