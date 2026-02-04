@@ -176,22 +176,22 @@ PROMPT
     echo ""
     echo "${CYAN}Deploying Quick Fix...${RESET}"
     claude -p "$(cat <<PROMPT
-You are in QUICK FIX mode. This is for small, cosmetic, or trivial changes that don't need the full 5-squad pipeline.
+You are in QUICK FIX mode. This is for small, cosmetic, or trivial changes that do not need the full 5-squad pipeline.
 
 Read these files for context:
-1. _AI_COMPANY/MEMORY/CURRENT_STATE.md (what the app looks like today)
-2. _AI_COMPANY/MEMORY/STYLE_GUIDE.md (design tokens and patterns)
-3. _AI_COMPANY/MEMORY/STACK.md (technology stack)
-4. _AI_COMPANY/MEMORY/PERSONAS.md (make sure the fix doesn't break persona promises)
+1. _AI_COMPANY/MEMORY/CURRENT_STATE.md - what the app looks like today
+2. _AI_COMPANY/MEMORY/STYLE_GUIDE.md - design tokens and patterns
+3. _AI_COMPANY/MEMORY/STACK.md - technology stack
+4. _AI_COMPANY/MEMORY/PERSONAS.md - make sure the fix does not break persona promises
 
 CEO's request: "$QUICK_FIX"
 
 QUICK FIX PROTOCOL:
-1. Identify the exact file(s) to change (should be 1-3 files max)
-2. If this change affects more than 3 files or requires new services/components, STOP and tell the CEO: "This needs the full pipeline. Run option 1 (Strategy Squad) instead."
+1. Identify the exact files to change - should be 1-3 files max
+2. If this change affects more than 3 files or requires new services/components, STOP and tell the CEO: "This needs the full pipeline. Run option 1 - Strategy Squad - instead."
 3. Make the change
-4. Briefly verify it doesn't break persona promises (Shark/Debater/Homer)
-5. Log what you changed in _AI_COMPANY/MEMORY/IMPLEMENTATION_LOG.md (append, don't overwrite)
+4. Briefly verify it does not break persona promises - Shark, Debater, Homer
+5. Log what you changed in _AI_COMPANY/MEMORY/IMPLEMENTATION_LOG.md - append, do not overwrite
 6. Update _AI_COMPANY/MEMORY/CURRENT_STATE.md if the change affects what the user sees
 
 Do NOT run the full meeting protocol. Just fix it and report back.
@@ -220,21 +220,21 @@ REWORK MODE: The CEO is sending work back to Strategy Squad for re-evaluation.
 Reason for rework: "$rework_reason"
 
 Read these files:
-1. _AI_COMPANY/ROLES/01_STRATEGY_SQUAD.md (your role card)
-2. _AI_COMPANY/MEMORY/ACTIVE_REQUEST.md (the current approved option that needs rework)
-3. _AI_COMPANY/MEMORY/PERSONAS.md (user archetypes)
-4. _AI_COMPANY/MEMORY/MISSION.md (product context)
-5. _AI_COMPANY/MEMORY/CURRENT_STATE.md (what the app looks like today)
-6. _AI_COMPANY/MEMORY/STYLE_GUIDE.md (design system)
-7. _AI_COMPANY/MEMORY/DECISIONS.md (prior decisions)
-8. _AI_COMPANY/MEMORY/AUDIT_RESULTS.md (if verification flagged issues)
+1. _AI_COMPANY/ROLES/01_STRATEGY_SQUAD.md - your role card
+2. _AI_COMPANY/MEMORY/ACTIVE_REQUEST.md - the current approved option that needs rework
+3. _AI_COMPANY/MEMORY/PERSONAS.md - user archetypes
+4. _AI_COMPANY/MEMORY/MISSION.md - product context
+5. _AI_COMPANY/MEMORY/CURRENT_STATE.md - what the app looks like today
+6. _AI_COMPANY/MEMORY/STYLE_GUIDE.md - design system
+7. _AI_COMPANY/MEMORY/DECISIONS.md - prior decisions
+8. _AI_COMPANY/MEMORY/AUDIT_RESULTS.md - if verification flagged issues
 
 REWORK PROTOCOL:
 1. CoS reads the rework reason and the current ACTIVE_REQUEST
 2. Identify what went wrong with the original option
 3. Re-run the meeting protocol with the rework reason as a NEW constraint
-4. Present 3 NEW options (don't repeat the failed approach)
-5. After CEO approves, overwrite ACTIVE_REQUEST.md (include Persona Scorecard)
+4. Present 3 NEW options - do not repeat the failed approach
+5. After CEO approves, overwrite ACTIVE_REQUEST.md, include Persona Scorecard
 6. Set PIPELINE_STATUS.md Current Stage to BLUEPRINT and update the Strategy row to REWORK_COMPLETE
 PROMPT
 )"
@@ -247,19 +247,19 @@ REWORK MODE: The CEO is sending work back to Blueprint Squad for re-planning.
 Reason for rework: "$rework_reason"
 
 Read these files:
-1. _AI_COMPANY/ROLES/02_BLUEPRINT_SQUAD.md (your role card)
-2. _AI_COMPANY/MEMORY/ACTIVE_REQUEST.md (the approved option)
-3. _AI_COMPANY/MEMORY/TECHNICAL_SPEC.md (the current spec that needs rework)
-4. _AI_COMPANY/MEMORY/PERSONAS.md (user archetypes)
-5. _AI_COMPANY/MEMORY/IMPLEMENTATION_LOG.md (if execution already started, what was built)
-6. _AI_COMPANY/MEMORY/STACK.md (technical constraints)
-7. _AI_COMPANY/MEMORY/SCHEMA.sql (existing schema)
-8. _AI_COMPANY/MEMORY/MISSION.md (product context)
+1. _AI_COMPANY/ROLES/02_BLUEPRINT_SQUAD.md - your role card
+2. _AI_COMPANY/MEMORY/ACTIVE_REQUEST.md - the approved option
+3. _AI_COMPANY/MEMORY/TECHNICAL_SPEC.md - the current spec that needs rework
+4. _AI_COMPANY/MEMORY/PERSONAS.md - user archetypes
+5. _AI_COMPANY/MEMORY/IMPLEMENTATION_LOG.md - if execution already started, what was built
+6. _AI_COMPANY/MEMORY/STACK.md - technical constraints
+7. _AI_COMPANY/MEMORY/SCHEMA.sql - existing schema
+8. _AI_COMPANY/MEMORY/MISSION.md - product context
 
 REWORK PROTOCOL:
 1. EPM reads the rework reason and the current TECHNICAL_SPEC
-2. Identify what's wrong with the current spec
-3. Revise the spec, keeping what works and fixing what doesn't
+2. Identify what is wrong with the current spec
+3. Revise the spec, keeping what works and fixing what does not
 4. Clearly mark what changed: add a "## Rework Changes" section at the top of TECHNICAL_SPEC.md
 5. Set PIPELINE_STATUS.md Current Stage to EXECUTION and update the Blueprint row to REWORK_COMPLETE
 PROMPT
@@ -273,14 +273,14 @@ REWORK MODE: The CEO is sending work back to Execution Squad for re-implementati
 Reason for rework: "$rework_reason"
 
 Read these files:
-1. _AI_COMPANY/ROLES/03_EXECUTION_SQUAD.md (your role card)
-2. _AI_COMPANY/MEMORY/TECHNICAL_SPEC.md (the spec to build against)
-3. _AI_COMPANY/MEMORY/ACTIVE_REQUEST.md (original request)
-4. _AI_COMPANY/MEMORY/PERSONAS.md (user archetypes)
-5. _AI_COMPANY/MEMORY/IMPLEMENTATION_LOG.md (what was already built)
-6. _AI_COMPANY/MEMORY/AUDIT_RESULTS.md (if verification flagged issues, fix them)
-7. _AI_COMPANY/MEMORY/STYLE_GUIDE.md (design system)
-8. _AI_COMPANY/MEMORY/STACK.md (technology stack)
+1. _AI_COMPANY/ROLES/03_EXECUTION_SQUAD.md - your role card
+2. _AI_COMPANY/MEMORY/TECHNICAL_SPEC.md - the spec to build against
+3. _AI_COMPANY/MEMORY/ACTIVE_REQUEST.md - original request
+4. _AI_COMPANY/MEMORY/PERSONAS.md - user archetypes
+5. _AI_COMPANY/MEMORY/IMPLEMENTATION_LOG.md - what was already built
+6. _AI_COMPANY/MEMORY/AUDIT_RESULTS.md - if verification flagged issues, fix them
+7. _AI_COMPANY/MEMORY/STYLE_GUIDE.md - design system
+8. _AI_COMPANY/MEMORY/STACK.md - technology stack
 
 REWORK PROTOCOL:
 1. Builder reads the rework reason and the AUDIT_RESULTS/IMPLEMENTATION_LOG
