@@ -184,8 +184,8 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   teamLogo: {
-    width: 20,
-    height: 20,
+    width: 24,
+    height: 24,
   },
   shareBtn: {
     marginLeft: 6,

@@ -1,6 +1,7 @@
 import React from 'react';
 import { ScrollView, Text, View } from 'react-native';
-import { makeStyles } from '../constants/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { makeStyles, theme } from '../constants/theme';
 
 interface StreakTrackerProps {
   streakingTeams: {
@@ -21,10 +22,10 @@ export default function StreakTracker({ streakingTeams }: StreakTrackerProps) {
     const streakNum = parseInt(streak.substring(1)) || 0;
     const goalDiff = (team.goalFor || 0) - (team.goalAgainst || 0);
 
-    const bgColor = type === 'hot' ? '#10b98122' : '#3b82f622';
-    const borderColor = type === 'hot' ? '#10b981' : '#3b82f6';
-    const textColor = type === 'hot' ? '#10b981' : '#3b82f6';
-    const emoji = type === 'hot' ? '🔥' : '❄️';
+    const bgColor = type === 'hot' ? `${theme.semantic.positive}22` : `${theme.accent}22`;
+    const borderColor = type === 'hot' ? theme.semantic.positive : theme.accent;
+    const textColor = type === 'hot' ? theme.semantic.positive : theme.accent;
+    const iconName: keyof typeof Ionicons.glyphMap = type === 'hot' ? 'flame' : 'snow-outline';
 
     return (
       <View
@@ -44,11 +45,11 @@ export default function StreakTracker({ streakingTeams }: StreakTrackerProps) {
           <Text style={{
             fontSize: 16,
             fontWeight: '800',
-            color: '#e6eef8',
+            color: theme.text,
           }}>
             {team.teamAbbrev?.default || team.teamAbbrev}
           </Text>
-          <Text style={{ fontSize: 20 }}>{emoji}</Text>
+          <Ionicons name={iconName} size={20} color={textColor} />
         </View>
 
         {/* Streak */}
@@ -71,17 +72,17 @@ export default function StreakTracker({ streakingTeams }: StreakTrackerProps) {
         {/* Stats */}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
           <View>
-            <Text style={{ fontSize: 10, color: '#98a6bf', marginBottom: 2 }}>Record</Text>
-            <Text style={{ fontSize: 12, fontWeight: '700', color: '#e6eef8' }}>
+            <Text style={{ fontSize: 10, color: theme.subtext, marginBottom: 2 }}>Record</Text>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: theme.text }}>
               {team.wins}-{team.losses}-{team.otLosses || 0}
             </Text>
           </View>
           <View style={{ alignItems: 'flex-end' }}>
-            <Text style={{ fontSize: 10, color: '#98a6bf', marginBottom: 2 }}>Goal Diff</Text>
+            <Text style={{ fontSize: 10, color: theme.subtext, marginBottom: 2 }}>Goal Diff</Text>
             <Text style={{
               fontSize: 12,
               fontWeight: '700',
-              color: goalDiff > 0 ? '#10b981' : goalDiff < 0 ? '#ef4444' : '#98a6bf'
+              color: goalDiff > 0 ? theme.semantic.positive : goalDiff < 0 ? theme.semantic.negative : theme.subtext
             }}>
               {goalDiff > 0 ? '+' : ''}{goalDiff}
             </Text>
@@ -99,7 +100,7 @@ export default function StreakTracker({ streakingTeams }: StreakTrackerProps) {
           <Text style={{
             fontSize: 16,
             fontWeight: '800',
-            color: '#e6eef8',
+            color: theme.text,
             marginBottom: 10,
             marginLeft: 16,
           }}>
@@ -121,7 +122,7 @@ export default function StreakTracker({ streakingTeams }: StreakTrackerProps) {
           <Text style={{
             fontSize: 16,
             fontWeight: '800',
-            color: '#e6eef8',
+            color: theme.text,
             marginBottom: 10,
             marginLeft: 16,
           }}>

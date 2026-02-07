@@ -6,7 +6,6 @@ import HeroBanner from '../../components/HeroBanner';
 import LiveNowBar from '../../components/LiveNowBar';
 import AllGamesCard from '../../components/AllGamesCard';
 import EdgeSpotlight from '../../components/EdgeSpotlight';
-import YourTeamCard from '../../components/YourTeamCard';
 import EmptyNightCard from '../../components/EmptyNightCard';
 import StatOfTheNight from '../../components/StatOfTheNight';
 import PlayerSpotlightCarousel from '../../components/PlayerSpotlightCarousel';
@@ -18,7 +17,9 @@ import { SkeletonPickCard, Skeleton } from '../../components/ui/SkeletonLoader';
 import { SettingsButton } from '../../components/SettingsButton';
 import { makeStyles, theme } from '../../constants/theme';
 import Toast from '../../components/Toast';
+import InfoTooltip from '../../components/InfoTooltip';
 import { useTonightData } from '../../hooks/useTonightData';
+import { useGlossary } from '../../hooks/useGlossary';
 import type { SituationalFactors } from '../../types/predictions';
 
 export default function TonightScreen() {
@@ -27,6 +28,9 @@ export default function TonightScreen() {
   // Deep dive modal state (UI-coupled, stays in component)
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedGame, setSelectedGame] = useState<any>(null);
+
+  // Glossary tooltip state
+  const glossary = useGlossary();
 
   // All data, state, and logic from the hook
   const data = useTonightData();
@@ -79,26 +83,9 @@ export default function TonightScreen() {
     });
   }, []);
 
-  // Find the user's team game (if playing tonight)
-  const yourTeamGame = useMemo(() => {
-    if (!selectedTeam || !data.sortedGames.length) return null;
-    return data.sortedGames.find((game: any) =>
-      game.homeTeam?.abbrev === selectedTeam || game.awayTeam?.abbrev === selectedTeam
-    ) ?? null;
-  }, [selectedTeam, data.sortedGames]);
-
-  // Is the user's team the hero game?
-  const yourTeamIsHero = heroGame && yourTeamGame && String(heroGame.id) === String(yourTeamGame.id);
-
-  // Filter remaining games to exclude yourTeamGame (avoid duplication)
-  const filteredRemainingGames = useMemo(() => {
-    if (!yourTeamGame || yourTeamIsHero) return remainingGames;
-    return remainingGames.filter((game: any) => String(game.id) !== String(yourTeamGame.id));
-  }, [remainingGames, yourTeamGame, yourTeamIsHero]);
-
   // Split remaining games: first 2 as featured full cards, rest as compact rows
-  const featuredGames = filteredRemainingGames.slice(0, 2);
-  const compactGames = filteredRemainingGames.slice(2);
+  const featuredGames = remainingGames.slice(0, 2);
+  const compactGames = remainingGames.slice(2);
 
   // Pick the best insight as "Stat of the Night"
   const statOfTheNight = useMemo(() => {
@@ -142,21 +129,6 @@ export default function TonightScreen() {
     }
   }, []);
 
-  // Share handler for YourTeamCard
-  const handleShareYourTeam = useCallback(async () => {
-    if (!yourTeamGame || !selectedTeam) return;
-    const away = yourTeamGame.awayTeam?.abbrev || '???';
-    const home = yourTeamGame.homeTeam?.abbrev || '???';
-    const isHome = home === selectedTeam;
-    const teamProb = Math.round(isHome ? yourTeamPrediction.homeWinProb : yourTeamPrediction.awayWinProb);
-    try {
-      await Share.share({
-        message: `${away} @ ${home} -- ${selectedTeam} at ${teamProb}% (PuckIQ)`,
-      });
-    } catch {
-      // User cancelled
-    }
-  }, [yourTeamGame, selectedTeam, yourTeamPrediction]);
 
   // Compute real SituationalFactors for the hero game from restMap
   const heroSituationalFactors = useMemo((): SituationalFactors | null => {
@@ -182,16 +154,6 @@ export default function TonightScreen() {
     };
   }, [heroGame, restMap]);
 
-  // Prediction for yourTeamGame
-  const yourTeamPrediction = useMemo(() => {
-    if (!yourTeamGame) return { homeWinProb: 50, awayWinProb: 50 };
-    return predictionsMap.get(String(yourTeamGame.id)) ?? { homeWinProb: 50, awayWinProb: 50 };
-  }, [yourTeamGame, predictionsMap]);
-
-  const yourTeamConfidence = useMemo(() => {
-    if (!yourTeamGame) return 50;
-    return Math.round(Math.abs(yourTeamPrediction.homeWinProb - 50) * 2);
-  }, [yourTeamGame, yourTeamPrediction]);
 
   return (
     <ThemedView style={styles.container}>
@@ -243,9 +205,9 @@ export default function TonightScreen() {
             headline={tonightHeadline}
             onPress={() => handleOpenDeepDive(heroGame)}
             onShare={handleShareHero}
+            onInfoPress={glossary.showTerm}
             awayForm={formMap.get(heroGame.awayTeam?.abbrev) ?? null}
             homeForm={formMap.get(heroGame.homeTeam?.abbrev) ?? null}
-            isYourTeam={!!yourTeamIsHero}
           />
         )}
 
@@ -257,19 +219,6 @@ export default function TonightScreen() {
           />
         )}
 
-        {/* YOUR TEAM CARD — compact row, below hero when team is playing */}
-        {!isLoading && selectedTeam && yourTeamGame && !yourTeamIsHero && (
-          <View style={{ marginTop: 12 }}>
-            <YourTeamCard
-              game={yourTeamGame}
-              prediction={yourTeamPrediction}
-              selectedTeam={selectedTeam}
-              confidenceScore={yourTeamConfidence}
-              onPress={() => handleOpenDeepDive(yourTeamGame)}
-              onShare={handleShareYourTeam}
-            />
-          </View>
-        )}
 
         {/* STAT OF THE NIGHT — bold single-stat visual break */}
         {!isLoading && gameCount > 0 && (
@@ -277,6 +226,7 @@ export default function TonightScreen() {
             <StatOfTheNight
               stat={statOfTheNight}
               onShare={handleShareStat}
+              onInfoPress={glossary.showTerm}
             />
           </View>
         )}
@@ -330,6 +280,7 @@ export default function TonightScreen() {
                     index={idx}
                     onPress={() => handleOpenDeepDive(game)}
                     onShare={() => handleShareGame(game)}
+                    onInfoPress={glossary.showTerm}
                     awayMomentum={momentumMap.get(game.awayTeam?.abbrev) ?? null}
                     homeMomentum={momentumMap.get(game.homeTeam?.abbrev) ?? null}
                     restAdvantage={{
@@ -445,6 +396,13 @@ export default function TonightScreen() {
           restMap={restMap}
         />
       )}
+
+      {/* Glossary Tooltip */}
+      <InfoTooltip
+        visible={glossary.visible}
+        entry={glossary.entry}
+        onClose={glossary.dismiss}
+      />
 
       {/* Toast Notification */}
       <Toast message={toastMessage} />

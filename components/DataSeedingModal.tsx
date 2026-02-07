@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   StyleSheet,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../constants/theme';
 import {
   seedSeason,
@@ -152,7 +153,7 @@ export default function DataSeedingModal({
             </Text>
             {!isSeeding && !isComplete && (
               <Pressable onPress={handleSkip} style={styles.closeButton}>
-                <Text style={styles.closeButtonText}>✕</Text>
+                <Ionicons name="close" size={18} color={theme.subtext} />
               </Pressable>
             )}
           </View>
@@ -162,7 +163,7 @@ export default function DataSeedingModal({
             // Success state
             <View style={styles.content}>
               <View style={styles.successIcon}>
-                <Text style={styles.successIconText}>✓</Text>
+                <Ionicons name="checkmark" size={28} color={theme.semantic?.positive || '#10b981'} />
               </View>
               <Text style={styles.successText}>
                 Successfully loaded {totalGames.toLocaleString()} games
@@ -249,7 +250,7 @@ export default function DataSeedingModal({
             // Initial state - prompt to seed
             <View style={styles.content}>
               <View style={styles.infoIcon}>
-                <Text style={styles.infoIconText}>📊</Text>
+                <Ionicons name="stats-chart" size={24} color="#60a5fa" />
               </View>
               <Text style={styles.description}>
                 To backtest your models against historical games, we need to

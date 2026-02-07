@@ -1,4 +1,4 @@
-import { getTeamColors } from '../teamColors';
+import { getTeamColors, getAccessibleTextColor } from '../teamColors';
 import type { TeamColors } from '../teamColors';
 
 const ALL_TEAMS = [
@@ -39,6 +39,54 @@ describe('teamColors', () => {
       const tor = getTeamColors('TOR');
       const mtl = getTeamColors('MTL');
       expect(tor.primary).not.toBe(mtl.primary);
+    });
+  });
+
+  describe('getAccessibleTextColor', () => {
+    const DARK_BLUE_TEAMS = ['NYR', 'TOR', 'TBL', 'BUF', 'CBJ', 'NYI', 'STL', 'WPG', 'VAN'];
+    const BRIGHT_TEAMS = ['BOS', 'PIT', 'NSH', 'PHI', 'EDM', 'ANA', 'SEA'];
+
+    it.each(ALL_TEAMS)('returns a valid hex color for %s', (team) => {
+      const color = getAccessibleTextColor(team);
+      expect(color).toMatch(/^#[0-9A-Fa-f]{6}$/);
+    });
+
+    it('returns a valid hex color for unknown team', () => {
+      const color = getAccessibleTextColor('XYZ');
+      expect(color).toMatch(/^#[0-9A-Fa-f]{6}$/);
+    });
+
+    it.each(DARK_BLUE_TEAMS)('lightens dark blue team %s for contrast', (team) => {
+      const original = getTeamColors(team).primary;
+      const accessible = getAccessibleTextColor(team);
+      // Accessible color should be different (lightened) from the dark original
+      expect(accessible).not.toBe(original);
+    });
+
+    it.each(BRIGHT_TEAMS)('keeps bright team %s color unchanged', (team) => {
+      const original = getTeamColors(team).primary;
+      const accessible = getAccessibleTextColor(team);
+      // Bright colors already pass contrast, should be unchanged
+      expect(accessible).toBe(original);
+    });
+
+    it('lightened colors are brighter than originals for dark teams', () => {
+      // Helper to compute perceived brightness
+      const brightness = (hex: string) => {
+        const h = hex.replace('#', '');
+        const r = parseInt(h.substring(0, 2), 16);
+        const g = parseInt(h.substring(2, 4), 16);
+        const b = parseInt(h.substring(4, 6), 16);
+        return (r * 299 + g * 587 + b * 114) / 1000;
+      };
+
+      for (const team of DARK_BLUE_TEAMS) {
+        const original = getTeamColors(team).primary;
+        const accessible = getAccessibleTextColor(team);
+        if (accessible !== original) {
+          expect(brightness(accessible)).toBeGreaterThan(brightness(original));
+        }
+      }
     });
   });
 });

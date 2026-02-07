@@ -45,6 +45,7 @@ jest.mock('../../utils/teamLogo', () => ({
 }));
 jest.mock('../../constants/teamColors', () => ({
   getTeamColors: () => ({ primary: '#000000', secondary: '#ffffff' }),
+  getAccessibleTextColor: () => '#4488cc',
 }));
 
 import HeroBanner from '../HeroBanner';

@@ -53,6 +53,7 @@ jest.mock('../ConfidenceBadge', () => ({
 // Mock teamColors
 jest.mock('../../constants/teamColors', () => ({
   getTeamColors: () => ({ primary: '#003E7E', secondary: '#fff' }),
+  getAccessibleTextColor: () => '#4488cc',
 }));
 
 import React from 'react';

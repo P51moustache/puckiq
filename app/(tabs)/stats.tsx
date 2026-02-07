@@ -507,7 +507,7 @@ const localStyles = StyleSheet.create({
     color: theme.subtext,
   },
   segmentTextActive: {
-    color: '#fff',
+    color: theme.text,
   },
   content: {
     flex: 1,
@@ -603,7 +603,7 @@ const localStyles = StyleSheet.create({
     borderRadius: 8,
   },
   tooltipCloseText: {
-    color: '#fff',
+    color: theme.text,
     fontWeight: '600',
     fontSize: 14,
   },
@@ -693,7 +693,7 @@ const localStyles = StyleSheet.create({
     textAlign: 'center',
   },
   pickerItemTextActive: {
-    color: '#fff',
+    color: theme.text,
   },
   resultsContainer: {
     marginTop: 20,

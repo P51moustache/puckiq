@@ -74,11 +74,11 @@ function getGameStatus(game: MatchupGameCardProps['game']): {
     else if (periodType === 'SO') periodText = 'SO';
 
     if (inIntermission) {
-      return { text: `🔴 INT ${periodText}`, isLive: true, isFinal: false };
+      return { text: `INT ${periodText}`, isLive: true, isFinal: false };
     }
 
     return {
-      text: timeRemaining ? `🔴 ${periodText} ${timeRemaining}` : `🔴 LIVE`,
+      text: timeRemaining ? `${periodText} ${timeRemaining}` : 'LIVE',
       isLive: true,
       isFinal: false
     };

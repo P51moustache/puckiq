@@ -21,6 +21,7 @@ jest.mock('react-native-reanimated', () => ({
 // Mock teamColors
 jest.mock('../../constants/teamColors', () => ({
   getTeamColors: (abbrev: string) => ({ primary: '#000000', secondary: '#FFFFFF' }),
+  getAccessibleTextColor: () => '#4488cc',
 }));
 
 // Mock useState so we can call the component directly outside of React render

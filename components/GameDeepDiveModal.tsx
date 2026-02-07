@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { getTeamComparisonData, calculateCategoryWinners } from '../services/teamComparison';
 import { TeamComparisonStats, StatCategory } from '../types/teamStats';
 import StatComparisonRow from './StatComparisonRow';
@@ -353,7 +354,7 @@ export default function GameDeepDiveModal({
               }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ fontSize: 16, marginRight: 8 }}>🥅</Text>
+                <Ionicons name="hand-left-outline" size={16} color="#98a6bf" style={{ marginRight: 8 }} />
                 <Text style={{ fontSize: 13, color: '#98a6bf', fontWeight: '600' }}>
                   Goalie Advantage
                 </Text>
@@ -402,7 +403,7 @@ export default function GameDeepDiveModal({
                 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={{ fontSize: 16, marginRight: 8 }}>🔥</Text>
+                  <Ionicons name="flame-outline" size={16} color="#98a6bf" style={{ marginRight: 8 }} />
                   <Text style={{ fontSize: 13, color: '#98a6bf', fontWeight: '600' }}>
                     Hot Players Edge
                   </Text>
@@ -464,7 +465,7 @@ export default function GameDeepDiveModal({
             borderColor: '#192e5e',
           }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-              <Text style={{ fontSize: 24, marginRight: 10 }}>🥅</Text>
+              <Ionicons name="hand-left-outline" size={24} color="#98a6bf" style={{ marginRight: 10 }} />
               <Text style={{ fontSize: 18, fontWeight: '700', color: '#e6eef8' }}>
                 Goalie Advantage
               </Text>
@@ -536,7 +537,7 @@ export default function GameDeepDiveModal({
             borderColor: '#192e5e',
           }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-              <Text style={{ fontSize: 24, marginRight: 10 }}>🔥</Text>
+              <Ionicons name="flame-outline" size={24} color="#98a6bf" style={{ marginRight: 10 }} />
               <Text style={{ fontSize: 18, fontWeight: '700', color: '#e6eef8' }}>
                 Hot Players Edge
               </Text>
@@ -608,7 +609,7 @@ export default function GameDeepDiveModal({
             borderColor: '#192e5e',
           }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-              <Text style={{ fontSize: 24, marginRight: 10 }}>🏠</Text>
+              <Ionicons name="home-outline" size={24} color="#98a6bf" style={{ marginRight: 10 }} />
               <Text style={{ fontSize: 18, fontWeight: '700', color: '#e6eef8' }}>
                 Home Ice Advantage
               </Text>
@@ -754,7 +755,7 @@ export default function GameDeepDiveModal({
             borderColor: '#192e5e',
           }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-              <Text style={{ fontSize: 24, marginRight: 10 }}>📊</Text>
+              <Ionicons name="stats-chart-outline" size={24} color="#98a6bf" style={{ marginRight: 10 }} />
               <Text style={{ fontSize: 18, fontWeight: '700', color: '#e6eef8' }}>
                 Win Probability Edge
               </Text>
@@ -1231,7 +1232,7 @@ export default function GameDeepDiveModal({
     const renderCategoryHeader = (
       category: StatCategory,
       title: string,
-      icon: string
+      iconName: keyof typeof Ionicons.glyphMap
     ) => {
       const winner = categoryWinners[category];
       const isExpanded = expandedCategories[category];
@@ -1252,7 +1253,7 @@ export default function GameDeepDiveModal({
           }}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-            <Text style={{ fontSize: 16, marginRight: 8 }}>{icon}</Text>
+            <Ionicons name={iconName} size={16} color="#98a6bf" style={{ marginRight: 8 }} />
             <Text style={{ fontSize: 14, fontWeight: '700', color: '#e6eef8' }}>
               {title}
             </Text>
@@ -1346,7 +1347,7 @@ export default function GameDeepDiveModal({
 
         {/* OFFENSE */}
         <View style={{ marginBottom: 12 }}>
-          {renderCategoryHeader('offense', 'Offense', '⚔️')}
+          {renderCategoryHeader('offense', 'Offense', 'flash-outline')}
           {renderCategoryContent(
             <>
               <StatComparisonRow
@@ -1405,7 +1406,7 @@ export default function GameDeepDiveModal({
 
         {/* DEFENSE */}
         <View style={{ marginBottom: 12 }}>
-          {renderCategoryHeader('defense', 'Defense', '🛡️')}
+          {renderCategoryHeader('defense', 'Defense', 'shield-outline')}
           {renderCategoryContent(
             <>
               <StatComparisonRow
@@ -1452,7 +1453,7 @@ export default function GameDeepDiveModal({
 
         {/* SPECIAL TEAMS */}
         <View style={{ marginBottom: 12 }}>
-          {renderCategoryHeader('specialTeams', 'Special Teams', '⚡')}
+          {renderCategoryHeader('specialTeams', 'Special Teams', 'flash')}
           {renderCategoryContent(
             <>
               <StatComparisonRow
@@ -1499,7 +1500,7 @@ export default function GameDeepDiveModal({
 
         {/* GOALTENDING */}
         <View style={{ marginBottom: 12 }}>
-          {renderCategoryHeader('goaltending', 'Goaltending', '🥅')}
+          {renderCategoryHeader('goaltending', 'Goaltending', 'hand-left-outline')}
           {renderCategoryContent(
             <>
               <StatComparisonRow
@@ -1955,7 +1956,7 @@ export default function GameDeepDiveModal({
               justifyContent: 'center',
               alignItems: 'center',
             }}>
-              <Text style={{ fontSize: 18, color: '#e6eef8' }}>✕</Text>
+              <Ionicons name="close" size={18} color="#e6eef8" />
             </Pressable>
           </View>
 

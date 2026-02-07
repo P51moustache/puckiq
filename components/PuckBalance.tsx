@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { insiderTheme } from '../constants/theme';
 
 interface PuckBalanceProps {
@@ -38,7 +39,7 @@ export default function PuckBalance({
       gap: 6,
     }}>
       {/* Puck Icon */}
-      <Text style={{ fontSize: sizeConfig.iconSize }}>🏒</Text>
+      <Ionicons name="disc" size={sizeConfig.iconSize} color={insiderTheme.engagement.pucks} />
 
       <View>
         {showLabel && (

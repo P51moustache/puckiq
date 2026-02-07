@@ -122,7 +122,7 @@ const localStyles = StyleSheet.create({
     color: theme.subtext,
   },
   segmentTextActive: {
-    color: '#fff',
+    color: theme.text,
     fontWeight: '700',
   },
   contentContainer: {

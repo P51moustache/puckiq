@@ -110,7 +110,7 @@ export default function PickPerformanceChart({ onRefresh }: PickPerformanceChart
           Pick Performance
         </Text>
         <EmptyState
-          icon="📈"
+          icon="trending-up-outline"
           title="No Picks Yet"
           message="Start making picks to see how different pick types compare!"
         />

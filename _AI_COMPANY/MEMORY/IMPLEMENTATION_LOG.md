@@ -1,5 +1,38 @@
 # Implementation Log
 
+## Cycle 8 Sprint Summary — YourTeamCard Removal + StatOfTheNight Redesign (2026-02-07)
+
+Two focused changes to the Tonight screen: removed YourTeamCard component entirely, and redesigned StatOfTheNight with a cinematic hero-number treatment.
+
+### Change 1: YourTeamCard Removal
+
+**Rationale**: YourTeamCard duplicated information already available in HeroBanner's YOUR TEAM badge. Removing it simplifies the scroll depth and eliminates redundant state logic.
+
+**Files Deleted:**
+- `components/YourTeamCard.tsx` (242 lines) — Component file deleted
+- `components/__tests__/YourTeamCard.test.tsx` — Test file deleted
+
+**Files Modified:**
+- `app/(tabs)/index.tsx` — Removed YourTeamCard import, `yourTeamGame` / `yourTeamIsHero` / `filteredRemainingGames` / `yourTeamPrediction` / `yourTeamConfidence` computed values, `handleShareYourTeam` callback, JSX render block, and `isYourTeam` prop from HeroBanner. Simplified `featuredGames`/`compactGames` to use `remainingGames` directly. 442 → 397 lines (-45 lines).
+
+**Impact**: `isYourTeam` prop still exists on HeroBanner/HeroMatchup interfaces (optional `?` prop) but is no longer passed. YOUR TEAM badge on hero simply won't appear. No breaking changes.
+
+### Change 2: StatOfTheNight Redesign
+
+**Rationale**: Original was a plain text card with purple accent. Redesigned to be a visually distinct "hero number" card that pulls the leading stat number into large 42px mono typography, adds team logo and team-color accent stripe.
+
+**Files Modified:**
+- `components/StatOfTheNight.tsx` — Complete redesign. Added `extractHeroNumber()` helper that regex-matches patterns like "5 points", "4-game streak", etc. New layout: team color 4px left border, team logo (20x20) in top-right via expo-image, "STAT OF THE NIGHT" label chip, hero number (42px mono bold), context text (13px subtext), share button (bottom-right). Card: 16px border-radius, subtle shadow, minHeight 120. React.memo wrapped. 151 lines.
+- `components/__tests__/StatOfTheNight.test.tsx` — Updated with 2 new tests: hero number extraction ("5" from "5 points in his last 2 games") and no-number fallback rendering. Now 7 tests total (was 5).
+
+### Build Health
+
+- **Tests**: 70 suites, 1131 passing, 0 failures (after Jest cache clear — stale YourTeamCard reference resolved)
+- **TypeScript**: Pre-existing GameDeepDiveModal type errors only (not introduced by this sprint)
+- **Status**: GREEN
+
+---
+
 ## Cycle 7 Build Summary (In Progress)
 
 The Hero Zone — Replaced the old compact header + HeroMatchup with a cinematic HeroBanner component featuring bundled photo backgrounds, PuckIQ branding, and matchup overlay. Restructured the Tonight screen layout with new content zones: PlayerSpotlightCarousel, CompactGameRow, StandingsWidget. Added useHaptics hook and TeamFormData type. Hero photo selection uses daily rotation (day-of-year modulo 8) from 8 bundled arena photos (`assets/images/topimages/image1-8.jpg`).

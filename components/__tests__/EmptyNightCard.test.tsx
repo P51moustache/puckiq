@@ -40,6 +40,7 @@ jest.mock('../../constants/teamColors', () => ({
     primary: '#005DAA',
     secondary: '#FFFFFF',
   }),
+  getAccessibleTextColor: () => '#4488cc',
 }));
 
 import EmptyNightCard from '../EmptyNightCard';

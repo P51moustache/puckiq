@@ -22,6 +22,7 @@ jest.mock('react-native-reanimated', () => ({
 // Mock teamColors
 jest.mock('../../constants/teamColors', () => ({
   getTeamColors: () => ({ primary: '#FF0000', secondary: '#000000' }),
+  getAccessibleTextColor: () => '#FF0000',
 }));
 
 import React from 'react';

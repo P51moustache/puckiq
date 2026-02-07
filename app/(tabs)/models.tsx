@@ -13,6 +13,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../constants/theme';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import { ModelList, ModelEditScreen } from '../../components/model-builder';
@@ -110,7 +111,7 @@ export default function ModelsScreen() {
           onPress={() => setSeedingModalVisible(true)}
         >
           <View style={styles.seedingBannerIcon}>
-            <Text style={styles.seedingBannerIconText}>📊</Text>
+            <Ionicons name="stats-chart" size={20} color="#60a5fa" />
           </View>
           <View style={styles.seedingBannerContent}>
             <Text style={styles.seedingBannerTitle}>
@@ -217,6 +218,6 @@ const styles = StyleSheet.create({
   seedingBannerArrowText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#fff',
+    color: theme.text,
   },
 });

@@ -1,6 +1,7 @@
 /**
  * Tests for StatOfTheNight component
- * Verifies null rendering, stat display, testIDs, and label text.
+ * Verifies null rendering, stat display, testIDs, label text,
+ * category emoji + chip, gradient background, logo circle, and fallback behavior.
  */
 
 // Mock react-native
@@ -14,8 +15,14 @@ jest.mock('react-native', () => ({
 // Mock react-native-reanimated
 jest.mock('react-native-reanimated', () => ({
   __esModule: true,
-  default: { View: 'Animated.View' },
+  default: {
+    View: 'Animated.View',
+    Text: 'Animated.Text',
+  },
   FadeInUp: { duration: () => ({ delay: () => ({}) }) },
+  useSharedValue: (val: number) => ({ value: val }),
+  useAnimatedStyle: (fn: () => any) => fn(),
+  withSpring: (val: number) => val,
 }));
 
 // Mock expo-image
@@ -28,8 +35,22 @@ jest.mock('@expo/vector-icons', () => ({
   Ionicons: 'Ionicons',
 }));
 
+// Mock expo-linear-gradient
+jest.mock('expo-linear-gradient', () => ({
+  LinearGradient: 'LinearGradient',
+}));
+
 import React from 'react';
 import type { Insight } from '../../types/insights';
+
+// Mock React.useEffect since tests call the component function directly (no renderer)
+const originalUseEffect = React.useEffect;
+beforeAll(() => {
+  (React as any).useEffect = (fn: () => void) => { fn(); };
+});
+afterAll(() => {
+  (React as any).useEffect = originalUseEffect;
+});
 
 // Access inner component through React.memo wrapper
 const StatOfTheNightDefault = require('../StatOfTheNight').default;
@@ -78,6 +99,21 @@ function findByTestID(element: any, testID: string): any {
   return null;
 }
 
+/** Find all elements of a given type */
+function findByType(element: any, type: string): any[] {
+  if (!element || typeof element !== 'object') return [];
+  const results: any[] = [];
+  if (element?.type === type) results.push(element);
+  const children = element?.props?.children;
+  if (!children) return results;
+  if (Array.isArray(children)) {
+    children.forEach((c: any) => results.push(...findByType(c, type)));
+  } else {
+    results.push(...findByType(children, type));
+  }
+  return results;
+}
+
 describe('StatOfTheNight', () => {
   beforeEach(() => {
     mockOnShare.mockClear();
@@ -105,10 +141,11 @@ describe('StatOfTheNight', () => {
     expect(shareBtn).not.toBeNull();
   });
 
-  it('shows "STAT OF THE NIGHT" label text', () => {
+  it('shows "STAT OF THE NIGHT" in label text with emoji prefix', () => {
     const element = StatOfTheNightComponent({ stat: mockStat, onShare: mockOnShare });
     const texts = collectText(element);
-    expect(texts).toContain('STAT OF THE NIGHT');
+    const labelText = texts.find(t => t.includes('STAT OF THE NIGHT'));
+    expect(labelText).toBeDefined();
   });
 
   it('extracts hero number from stat text', () => {
@@ -129,6 +166,89 @@ describe('StatOfTheNight', () => {
     const element = StatOfTheNightComponent({ stat: noNumStat, onShare: mockOnShare });
     const texts = collectText(element);
     expect(texts).toContain('Edmonton is the hottest team in the league');
-    expect(texts).toContain('STAT OF THE NIGHT');
+    const labelText = texts.find(t => t.includes('STAT OF THE NIGHT'));
+    expect(labelText).toBeDefined();
+  });
+
+  it('uses LinearGradient for card background', () => {
+    const element = StatOfTheNightComponent({ stat: mockStat, onShare: mockOnShare });
+    const gradients = findByType(element, 'LinearGradient');
+    expect(gradients.length).toBeGreaterThan(0);
+  });
+
+  it('renders team logo in circle container when teamAbbrev is present', () => {
+    const element = StatOfTheNightComponent({ stat: mockStat, onShare: mockOnShare });
+    const images = findByType(element, 'Image');
+    expect(images.length).toBeGreaterThan(0);
+  });
+
+  it('does not render team logo when teamAbbrev is empty', () => {
+    const noTeamStat: Insight = {
+      id: 'stat-3',
+      text: 'League-wide scoring is up 12 percent this season',
+      teamAbbrev: '',
+      category: 'standings',
+      shareText: 'Scoring up!',
+    };
+    const element = StatOfTheNightComponent({ stat: noTeamStat, onShare: mockOnShare });
+    const images = findByType(element, 'Image');
+    expect(images.length).toBe(0);
+  });
+
+  it('renders category chip with correct label for each category', () => {
+    const expectedLabels: Record<string, string> = {
+      streak: 'STREAK',
+      h2h: 'HEAD TO HEAD',
+      rest: 'REST ADVANTAGE',
+      player: 'PLAYER',
+      standings: 'STANDINGS',
+      edge: 'EDGE',
+    };
+
+    for (const [cat, label] of Object.entries(expectedLabels)) {
+      const catStat: Insight = {
+        id: `stat-${cat}`,
+        text: 'Test stat text for category',
+        teamAbbrev: 'TOR',
+        category: cat as Insight['category'],
+        shareText: 'Test',
+      };
+      const element = StatOfTheNightComponent({ stat: catStat, onShare: mockOnShare });
+      const texts = collectText(element);
+      expect(texts).toContain(label);
+    }
+  });
+
+  it('uses theme.accent fallback when no team', () => {
+    const noTeamStat: Insight = {
+      id: 'stat-4',
+      text: 'League average save percentage is rising',
+      category: 'standings',
+      shareText: 'Save pct rising!',
+    };
+    const element = StatOfTheNightComponent({ stat: noTeamStat, onShare: mockOnShare });
+    const gradients = findByType(element, 'LinearGradient');
+    expect(gradients.length).toBeGreaterThan(0);
+    const texts = collectText(element);
+    expect(texts).toContain('League average save percentage is rising');
+  });
+
+  it('has minimum height of 160px on the card', () => {
+    const element = StatOfTheNightComponent({ stat: mockStat, onShare: mockOnShare });
+    const gradients = findByType(element, 'LinearGradient');
+    const card = gradients[0];
+    // Style is an array [styles.card, dynamic overrides]
+    const cardStyles = Array.isArray(card.props.style) ? card.props.style : [card.props.style];
+    const baseStyle = cardStyles[0];
+    expect(baseStyle.minHeight).toBe(160);
+  });
+
+  it('renders share button with Ionicons share-outline inside circle', () => {
+    const element = StatOfTheNightComponent({ stat: mockStat, onShare: mockOnShare });
+    const shareBtn = findByTestID(element, 'stat-of-night-share');
+    expect(shareBtn).not.toBeNull();
+    const icons = findByType(shareBtn, 'Ionicons');
+    expect(icons.length).toBeGreaterThan(0);
+    expect(icons[0].props.name).toBe('share-outline');
   });
 });

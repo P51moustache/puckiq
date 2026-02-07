@@ -760,7 +760,7 @@ const s = StyleSheet.create({
     minHeight: 44,
   },
   picked: {
-    backgroundColor: '#1e3a8a',
+    backgroundColor: theme.factbox,
     borderColor: theme.accent,
   },
   disabled: {
@@ -872,7 +872,7 @@ const s = StyleSheet.create({
     minHeight: 58,
   },
   pickedTeam: {
-    backgroundColor: '#1e3a8a',
+    backgroundColor: theme.factbox,
     borderColor: theme.accent,
   },
   favoredTeam: {

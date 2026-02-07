@@ -1,10 +1,11 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../constants/theme';
 
 export interface TeamBadge {
   id: string;
-  emoji: string;
+  icon: keyof typeof Ionicons.glyphMap;
   label: string;
   color: string;
   description: string;
@@ -28,7 +29,7 @@ export default function TeamStatusBadges({ teamStats, standings }: TeamStatusBad
       <View style={styles.badgeGrid}>
         {badges.map((badge) => (
           <View key={badge.id} style={[styles.badge, { borderColor: badge.color }]}>
-            <Text style={styles.badgeEmoji}>{badge.emoji}</Text>
+            <Ionicons name={badge.icon} size={16} color={badge.color} />
             <Text style={styles.badgeLabel}>{badge.label}</Text>
           </View>
         ))}
@@ -69,7 +70,7 @@ function getTeamBadges(teamStats: any, standings?: any): TeamBadge[] {
   if (isWinStreak && streakNum >= 5) {
     badges.push({
       id: 'on_fire',
-      emoji: '🔥',
+      icon: 'flame',
       label: 'On Fire',
       color: '#ef4444',
       description: `${streakNum} game win streak`,
@@ -80,7 +81,7 @@ function getTeamBadges(teamStats: any, standings?: any): TeamBadge[] {
   if (isLossStreak && streakNum >= 5) {
     badges.push({
       id: 'ice_cold',
-      emoji: '❄️',
+      icon: 'snow-outline',
       label: 'Ice Cold',
       color: '#60a5fa',
       description: `${streakNum} game losing streak`,
@@ -91,7 +92,7 @@ function getTeamBadges(teamStats: any, standings?: any): TeamBadge[] {
   if (goalsAgainstPerGame <= 2.5) {
     badges.push({
       id: 'defensive_wall',
-      emoji: '🛡️',
+      icon: 'shield',
       label: 'Defensive Wall',
       color: '#10b981',
       description: `Only ${goalsAgainstPerGame.toFixed(1)} GA/game`,
@@ -102,7 +103,7 @@ function getTeamBadges(teamStats: any, standings?: any): TeamBadge[] {
   if (goalsPerGame >= 3.5) {
     badges.push({
       id: 'offensive_powerhouse',
-      emoji: '⚡',
+      icon: 'flash',
       label: 'Offensive Force',
       color: '#f59e0b',
       description: `${goalsPerGame.toFixed(1)} GF/game`,
@@ -113,7 +114,7 @@ function getTeamBadges(teamStats: any, standings?: any): TeamBadge[] {
   if (last10Wins >= 8) {
     badges.push({
       id: 'trending_up',
-      emoji: '📈',
+      icon: 'trending-up',
       label: 'Trending Up',
       color: '#10b981',
       description: `${last10Wins}-${last10Losses} in last 10`,
@@ -124,7 +125,7 @@ function getTeamBadges(teamStats: any, standings?: any): TeamBadge[] {
   if (last10Wins <= 2 && (last10Wins + last10Losses) >= 8) {
     badges.push({
       id: 'struggling',
-      emoji: '📉',
+      icon: 'trending-down',
       label: 'Struggling',
       color: '#ef4444',
       description: `${last10Wins}-${last10Losses} in last 10`,
@@ -136,7 +137,7 @@ function getTeamBadges(teamStats: any, standings?: any): TeamBadge[] {
   if (winPct >= 0.60 && goalDifferential > 20 && standingsRank <= 8) {
     badges.push({
       id: 'cup_contender',
-      emoji: '🏆',
+      icon: 'trophy',
       label: 'Cup Contender',
       color: '#fbbf24',
       description: 'Elite record & playoff position',
@@ -147,7 +148,7 @@ function getTeamBadges(teamStats: any, standings?: any): TeamBadge[] {
   if (standingsRank <= 8 && goalDifferential < 0) {
     badges.push({
       id: 'underdog',
-      emoji: '⭐',
+      icon: 'star',
       label: 'Underdog Story',
       color: '#a78bfa',
       description: 'Winning close games',
@@ -158,7 +159,7 @@ function getTeamBadges(teamStats: any, standings?: any): TeamBadge[] {
   if (winPct > 0.50 && goalsAgainstPerGame > 3.2) {
     badges.push({
       id: 'resilient',
-      emoji: '💪',
+      icon: 'fitness',
       label: 'Resilient',
       color: '#f97316',
       description: 'Outscoring defensive issues',
@@ -170,7 +171,7 @@ function getTeamBadges(teamStats: any, standings?: any): TeamBadge[] {
   if (goalDiff < 0.3 && winPct >= 0.45 && winPct <= 0.55) {
     badges.push({
       id: 'balanced',
-      emoji: '🎯',
+      icon: 'ellipse-outline',
       label: 'Balanced',
       color: '#60a5fa',
       description: 'Evenly matched games',
@@ -181,7 +182,7 @@ function getTeamBadges(teamStats: any, standings?: any): TeamBadge[] {
   if (gamesPlayed < 15 && winPct >= 0.65) {
     badges.push({
       id: 'hot_start',
-      emoji: '🚀',
+      icon: 'rocket',
       label: 'Hot Start',
       color: '#f59e0b',
       description: 'Strong early season',

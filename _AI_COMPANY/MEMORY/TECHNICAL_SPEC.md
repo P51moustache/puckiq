@@ -1,5 +1,104 @@
 ## TECHNICAL SPECIFICATION
 
+### Feature: Sprint 7 — YourTeamCard Removal + Stat of the Night Redesign
+### Cycle: 7
+
+---
+
+## Change 1: Remove YourTeamCard
+
+**Scope:** Delete `components/YourTeamCard.tsx` and remove all references from `app/(tabs)/index.tsx`.
+
+**Acceptance Criteria:**
+1. `YourTeamCard` import removed from index.tsx
+2. `YourTeamCard` rendering block removed
+3. All supporting variables (`yourTeamGame`, `yourTeamIsHero`, `yourTeamPrediction`, `yourTeamConfidence`, `handleShareYourTeam`, `filteredRemainingGames`) cleaned up if exclusively used by YourTeamCard
+4. Component file deleted
+5. `npm test` passes
+6. No TypeScript errors
+
+---
+
+## Change 2: Stat of the Night — Cinematic Redesign
+
+### Problem Statement
+The current Stat of the Night card is a forgettable, low-contrast dark box. All three personas (Shark, Debater, Homer) scored it BORED in the baseline gauntlet. It fails to surface data edges prominently (Shark), is not screenshot-worthy (Debater), and lacks team identity energy (Homer).
+
+### Persona-Driven Acceptance Criteria
+
+**SHARK (Data Edge):**
+- [ ] AC-S1: Hero number is 48-64px and immediately the first visual element the eye lands on
+- [ ] AC-S2: Category is communicated via icon, distinguishing edge/streak/h2h/player/rest/standings at a glance
+- [ ] AC-S3: The stat feels like a competitive edge, not trivia — number prominence signals importance
+
+**DEBATER (Screenshot-Worthy):**
+- [ ] AC-D1: Card is visually dramatic enough to screenshot and share in a group chat
+- [ ] AC-D2: Context text is 15-16px, readable and quotable (not the current 13px)
+- [ ] AC-D3: Share button is integrated naturally into the card layout, not floating in corner
+- [ ] AC-D4: Team identity (logo + colors) brands the card for recognition
+
+**HOMER (Vibes & Energy):**
+- [ ] AC-H1: Team color gradient background fills the card (not just a thin left stripe)
+- [ ] AC-H2: Team logo is 36-40px, prominently placed
+- [ ] AC-H3: Hero number has a subtle glow or text shadow in team color for emphasis
+- [ ] AC-H4: Entry animation is smooth and attention-grabbing (FadeInUp + slight scale)
+- [ ] AC-H5: Card minimum height is 140px to command scroll-stop attention
+
+### Technical Acceptance Criteria
+- [ ] AC-T1: Component uses `LinearGradient` from `expo-linear-gradient` for team color background
+- [ ] AC-T2: Uses `getTeamColors(abbrev)` for dynamic team colors — no hardcoded colors
+- [ ] AC-T3: Uses `getTeamLogoUrl(abbrev)` for team logo
+- [ ] AC-T4: Category mapping covers all 6 categories + fallback (UX spec is source of truth):
+  - `streak` → fire emoji, chip "STREAK"
+  - `h2h` → crossed swords emoji, chip "HEAD TO HEAD"
+  - `rest` → zzz emoji, chip "REST ADVANTAGE"
+  - `player` → star emoji, chip "PLAYER"
+  - `standings` → chart up emoji, chip "STANDINGS"
+  - `edge` → bar chart emoji, chip "EDGE"
+  - fallback → hockey puck emoji, chip "HIGHLIGHT"
+- [ ] AC-T5: `extractHeroNumber()` function preserved and working (NOTE: verify regex handles "+5" momentum scores)
+- [ ] AC-T6: Graceful fallback when `teamAbbrev` is empty (default to `theme.accent` gradient)
+- [ ] AC-T7: Graceful fallback when no hero number is extractable (text-only layout)
+- [ ] AC-T8: `testID="stat-of-the-night"` preserved for testing
+- [ ] AC-T9: `onShare` callback preserved and working
+- [ ] AC-T10: `npm test` passes, existing StatOfTheNight tests updated or passing
+- [ ] AC-T11: No TypeScript errors
+
+### Typography Hierarchy (UX Spec — Authoritative)
+| Element | Size | Weight | Color | Extra |
+|---------|------|--------|-------|-------|
+| "STAT OF THE NIGHT" label | 11px | 800 | `theme.accent` (#60a5fa) | letter-spacing: 1.5, uppercase, category emoji prefix |
+| Hero number | 56px | 800 | `#FFFFFF` | mono font, textShadow: teamColor radius 12, spring scale 0.85->1.0 |
+| Context text | 15px | 600 | `theme.text` (#e6eef8) | line-height: 20 |
+| Category chip | 10px | 700 | bg: teamColor+'25', text: teamColor | paddingH 8, paddingV 3, borderRadius 6 |
+| Share icon | 18px | — | `theme.accent` | inside 32px glass circle (rgba(255,255,255,0.08)) |
+| Team logo | 36px | — | full opacity | inside 40px circle (rgba(255,255,255,0.08)), top-right |
+
+### Layout Spec (UX Spec — Authoritative)
+- Full width (marginHorizontal: 16)
+- Border radius: 16
+- Padding: 20 vertical, 20 horizontal
+- Min height: 160px
+- Team logo: 36px inside 40px glass circle, position absolute top 14 right 14
+- Gradient: `[teamColor+'30', teamColor+'08', theme.card]`, start {x:0,y:0} end {x:1,y:1} (diagonal)
+- Card border: teamColor+'40'
+- Card shadow: teamColor at 0.25 opacity, radius 16 (team-colored glow underneath)
+
+### Gauntlet Results
+**PASSED — All three personas EXCITED.**
+
+| Persona | Baseline | UX Spec | Verdict |
+|---------|----------|---------|---------|
+| Shark | BORED | EXCITED | 56px hero number + category chip = edge at a glance |
+| Debater | BORED | EXCITED | Team gradient + glow + branding = screenshot material |
+| Homer | BORED | EXCITED | Team glow, spring animation, 36px logo, 160px = scroll-stopper |
+
+**Awaiting:** Final visual verification Gauntlet after frontend implementation (screenshot of real rendered component).
+
+---
+
+## Previous Cycle Spec (Cycle 5) — Reference Only
+
 ### Feature: The Analytics Engine — Enhanced Stats Overhaul
 ### Approved Option: B (Bold) — "The Analytics Engine"
 ### Cycle: 5

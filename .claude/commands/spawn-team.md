@@ -1,5 +1,5 @@
 ---
-description: Spawn the PuckIQ 8-agent development team
+description: Spawn the PuckIQ 9-agent development team
 ---
 
 # Spawn PuckIQ Agent Team
@@ -13,7 +13,7 @@ Read the team manifest and all agent definition files, then create and spawn the
 2. Create the team:
    - TeamCreate with team_name: "puckiq-dev", description: "PuckIQ React Native/Expo app development team"
 
-3. Spawn ALL 8 agents in parallel using the Task tool. For each agent:
+3. Spawn ALL 9 agents in parallel using the Task tool. For each agent:
    - Read the agent's definition file from `.claude/agents/{role}.md`
    - Use the file contents as the agent's prompt
    - Set the parameters per this table:
@@ -28,6 +28,7 @@ Read the team manifest and all agent definition files, then create and spawn the
 | devops-engineer | sonnet | .claude/agents/devops-engineer.md |
 | qa-tester | sonnet | .claude/agents/qa-tester.md |
 | security-reviewer | opus | .claude/agents/security-reviewer.md |
+| performance-optimizer | sonnet | .claude/agents/performance-optimizer.md |
 
    For ALL agents use:
    - subagent_type: "general-purpose"

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { insiderTheme } from '../constants/theme';
 
 interface StreakBadgeProps {
@@ -15,12 +16,11 @@ export default function StreakBadge({ currentStreak, longestStreak }: StreakBadg
   const isOnFire = currentStreak >= 14;
   const isLegendary = currentStreak >= 30;
 
-  // Get fire emoji based on streak length
-  const getFireEmoji = () => {
-    if (isLegendary) return '👑🔥';
-    if (isOnFire) return '🔥🔥';
-    if (isHot) return '🔥';
-    return '🔥';
+  // Get streak icon based on streak length
+  const getStreakIcon = (): { name: keyof typeof Ionicons.glyphMap; size: number } => {
+    if (isLegendary) return { name: 'trophy', size: 18 };
+    if (isOnFire) return { name: 'flame', size: 18 };
+    return { name: 'flame-outline', size: 16 };
   };
 
   // Get streak title based on length
@@ -48,7 +48,7 @@ export default function StreakBadge({ currentStreak, longestStreak }: StreakBadg
       paddingVertical: 6,
       gap: 6,
     }}>
-      <Text style={{ fontSize: isOnFire ? 18 : 16 }}>{getFireEmoji()}</Text>
+      <Ionicons name={getStreakIcon().name} size={getStreakIcon().size} color={streakColor} />
       <View>
         <Text style={{
           fontSize: 10,

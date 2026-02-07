@@ -2,7 +2,7 @@
 
 ## Overview
 
-8-agent team for PuckIQ development. Operates as a **parallel, message-driven workflow** — not a sequential pipeline. Agents collaborate simultaneously, coordinate via messages and shared MEMORY files.
+9-agent team for PuckIQ development. Operates as a **parallel, message-driven workflow** — not a sequential pipeline. Agents collaborate simultaneously, coordinate via messages and shared MEMORY files.
 
 ## Team
 
@@ -16,12 +16,13 @@
 | `devops-engineer` | Sonnet | Builds, deps, docs, infra | STACK.md, FILE_MAP.md, PIPELINE_STATUS.md |
 | `qa-tester` | Sonnet | Tests, fixtures, code quality | AUDIT_RESULTS.md (shared) |
 | `security-reviewer` | Opus | Security, compliance, analytics | AUDIT_RESULTS.md (shared) |
+| `performance-optimizer` | Sonnet | Startup speed, renders, bundle size | None (reports to CEO) |
 
 ## How to Spawn This Team
 
 ```
 1. TeamCreate with team_name: "puckiq-dev"
-2. Spawn all 8 agents via Task tool in parallel:
+2. Spawn all 9 agents via Task tool in parallel:
    - Each agent gets: name, team_name: "puckiq-dev", model (opus/sonnet per table above)
    - Use subagent_type: "general-purpose" for all agents
    - Use mode: "bypassPermissions" so agents can read/write freely
@@ -47,12 +48,14 @@
    ├── Backend: types → schema → services → API integration
    ├── Frontend: components → screens → animations (waits for UX specs)
    ├── QA: writes tests alongside implementation (TDD)
-   └── DevOps: deps, build health, config
+   ├── DevOps: deps, build health, config
+   └── Perf: audit startup, renders, bundle — fix small, flag big
 
 4. Review (parallel)
    ├── QA: test suite + coverage report
    ├── Security: vulnerability scan + compliance
    ├── UX: screenshot verification vs design specs
+   ├── Perf: performance report with quick wins + big optimizations
    └── CEO: strategic alignment + persona promises
 
 5. Ship
@@ -67,6 +70,7 @@
 - QA test writing + implementation
 - Security review + QA code quality
 - DevOps docs + any implementation
+- Performance audit + any implementation
 
 **Must wait:**
 - Frontend implementation → waits for UX Screen Design Specs
@@ -143,6 +147,7 @@ idb ui swipe 196 650 196 100 --duration 0.5 --udid $UDID
 | Security issue | CEO → Security (audit) → Frontend/Backend (remediate) → Security (re-verify) |
 | Build broken | CEO → DevOps (fix) → QA (verify tests pass) |
 | Quick cosmetic fix | CEO → UX (spec) → Frontend (implement) → UX (screenshot verify) |
+| Performance issue | CEO → Perf (audit) → Frontend/Backend (fix) → Perf (verify) |
 | Update docs | CEO → DevOps |
 
 ## PuckIQ Codebase Quick Reference

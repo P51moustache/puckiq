@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../constants/theme';
 import type {
   EdgeSkaterLanding,
@@ -15,7 +16,7 @@ interface EdgeIntelSectionProps {
 
 interface IntelCard {
   key: string;
-  icon: string;
+  icon: keyof typeof Ionicons.glyphMap;
   title: string;
   value: string;
   subtitle: string;
@@ -35,7 +36,7 @@ function buildCards(
     if (speed && name) {
       cards.push({
         key: 'shot-speed',
-        icon: '⚡',
+        icon: 'flash',
         title: 'SHOT SPEED',
         value: `${speed.toFixed(0)} mph`,
         subtitle: name,
@@ -50,7 +51,7 @@ function buildCards(
     if (speed && name) {
       cards.push({
         key: 'skating-speed',
-        icon: '🏃',
+        icon: 'speedometer-outline',
         title: 'SKATING SPEED',
         value: `${speed.toFixed(1)} mph`,
         subtitle: name,
@@ -65,7 +66,7 @@ function buildCards(
     if (team && value) {
       cards.push({
         key: 'zone-time',
-        icon: '🏒',
+        icon: 'disc-outline',
         title: 'SHOTS >90mph',
         value: `${value}`,
         subtitle: `#1 ${team}`,
@@ -80,7 +81,7 @@ function buildCards(
     if (team && value) {
       cards.push({
         key: 'shot-map',
-        icon: '🎯',
+        icon: 'pulse-outline',
         title: 'SPEED BURSTS',
         value: `${value}`,
         subtitle: `#1 ${team}`,
@@ -114,7 +115,7 @@ export default function EdgeIntelSection({
             entering={FadeInUp.springify().damping(18).stiffness(120).delay(100 + index * 80)}
           >
             <View testID={`edge-intel-card-${card.key}`} style={styles.card}>
-              <Text style={styles.cardIcon}>{card.icon}</Text>
+              <Ionicons name={card.icon} size={20} color={theme.accent} />
               <Text style={styles.cardTitle}>{card.title}</Text>
               <Text style={styles.cardValue}>{card.value}</Text>
               <Text style={styles.cardSubtitle}>{card.subtitle}</Text>

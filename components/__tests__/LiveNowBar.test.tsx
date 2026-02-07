@@ -25,9 +25,19 @@ jest.mock('react-native-reanimated', () => ({
   withSpring: (x: any) => x,
 }));
 
+// Mock expo-image
+jest.mock('expo-image', () => ({
+  Image: 'Image',
+}));
+
+// Mock teamLogo utility
+jest.mock('../../utils/teamLogo', () => ({
+  getTeamLogoUrl: (abbrev: string) => `https://logo/${abbrev}.png`,
+}));
+
 // Mock the theme
 jest.mock('../../constants/theme', () => ({
-  theme: { text: '#ffffff', fonts: { mono: 'monospace', system: 'System' } },
+  theme: { text: '#ffffff', subtext: '#aaaaaa', fonts: { mono: 'monospace', system: 'System' } },
 }));
 
 import React from 'react';
