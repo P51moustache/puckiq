@@ -103,7 +103,7 @@ export default function MatchupList({
         <View style={{ marginTop: 0, width: '100%' }}>
           <View style={{ backgroundColor: styles.factbox.backgroundColor, borderRadius: 12, padding: 16, marginBottom: 12 }}>
             <Text style={[styles.boxtitle, { marginBottom: 8, textAlign: 'center' }]}>
-              🏒 No Games Today
+              No Games Today
             </Text>
             <Text style={[styles.subtextSmall, { lineHeight: 16, textAlign: 'center' }]}>
               No games scheduled today. Check back tomorrow for matchup predictions!
@@ -124,7 +124,7 @@ export default function MatchupList({
         <View style={{ marginTop: 0, width: '100%' }}>
           <View style={{ backgroundColor: styles.factbox.backgroundColor, borderRadius: 12, padding: 16, marginBottom: 12 }}>
             <Text style={[styles.boxtitle, { marginBottom: 8, textAlign: 'center' }]}>
-              🏒 No {selectedTeam} Games Today
+              No {selectedTeam} Games Today
             </Text>
             <Text style={[styles.subtextSmall, { lineHeight: 16, textAlign: 'center' }]}>
               {selectedTeam} isn't playing today. There are {games.length} other game{games.length !== 1 ? 's' : ''} scheduled.

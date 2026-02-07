@@ -2,44 +2,48 @@
 
 This file describes what the app looks and feels like TODAY. Strategy Squad (especially CoS) reads this to translate abstract CEO directives like "feels too cluttered" or "needs more energy" into concrete, actionable scope.
 
-**Last Updated:** 2026-02-03
+**Last Updated:** 2026-02-07 (Cycle 8 — YourTeamCard removed, StatOfTheNight redesigned)
 
 ---
 
-## Tab Bar (3 Visible Tabs)
+## Tab Bar (2 Visible Tabs)
 
 | Tab | Label | Icon | Purpose |
 |-----|-------|------|---------|
-| 1 | Today | Home | Daily picks, game cards, streaks |
-| 2 | Learn | Book | Hockey analytics education |
-| 3 | My IQ | Brain | User stats, accuracy, milestones |
+| 1 | Tonight | Home | Cinematic analytics terminal — hero matchup, game cards, player spotlight, standings, edge stats |
+| 2 | Explore | Search | Teams, Players, Edge IQ, Factors, Models segments |
 
-Hidden screens (accessible via navigation, not tab bar): Explore, Models, Profile, Picks, MyPicks, Teams, Settings
+Hidden routes (accessible via navigation, not tab bar): Learn, My IQ, MyPicks, Models, Profile, Picks, Teams, Settings
 
 ---
 
 ## Screen-by-Screen Inventory
 
-### TODAY (Home) — `app/(tabs)/index.tsx` — 1,359 lines
+### TONIGHT (Home) — `app/(tabs)/index.tsx` — 397 lines
 
-The main screen. A long vertical scroll with ~7 sections:
+The main screen. A cinematic analytics terminal with clean vertical scroll:
 
-1. **Header** — "PuckIQ" title, "Smart NHL Picks" subtitle, random hero image (8 rotate), model switcher pill ("PuckIQ Classic"), streak badge, settings gear
-2. **Weekly Theme Banner** — Current coaching theme (e.g., "Goaltending") with "Learn More" link
-3. **Yesterday's Results Card** — 3-row stat summary (Lock, Smart Picks, User Picks) with accuracy %, expandable to individual results
-4. **Lock of the Day** — Large hero card: matchup, time, confidence badge, win probability bars, expandable factor breakdown, "Lock In" button
-5. **More Picks Grid** — 2-column grid of SmartPickCards, "View All Picks" link
-6. **Game Breakdowns** — Top 3 games with factor analysis, weekly theme focus
-7. **Power Rankings Widget** — All teams ranked with momentum indicators
-8. **Hot/Cold Streaks** — Teams on 3+ game win/loss streaks
+1. **HeroBanner** — Cinematic hero zone: bundled photo background (8 images, daily rotation), PuckIQ wordmark + tagline branding bar, team logo matchup overlay with VS + probability percentages + ConfidenceBadge, insight chips bar (H2H, B2B/REST, streak) on frosted BlurView, share button, spring press animation
+2. **LiveNowBar** — Compact red-accented bar showing live game scores with pulsing dot (only during live games)
+3. **StatOfTheNight** — Redesigned bold single-stat card: hero number extraction (42px mono), team logo (20x20), team color accent stripe (4px left border), context text, share button
+4. **PlayerSpotlightCarousel** — Horizontal scroll of tonight's top players sorted by points, team color gradient accent
+5. **More Games** — First 2 remaining games as full AllGamesCards (team colors, probability bar, H2H, insights, momentum arrows, rest icons)
+6. **StandingsWidget** — Division standings table for user's favorite team division (W-L-OTL-PTS)
+7. **Also Tonight** — Remaining games as CompactGameRows (condensed single-row cards)
+8. **EdgeSpotlight** — Horizontal scroll of hot players + Edge stat leaders (max 5)
+9. **InsightFeed** — Vertical feed of analytical insight nuggets with team color accents
+10. **EmptyNightCard** — Shows when no games tonight (team standings + next game info)
 
-**Modals:** Deep Dive (game analysis), Lock-In Confirmation (pick team), Model Picker (switch models), Info Modals (divisions, schedule, stats)
+**Modals:** Deep Dive (game analysis), Toast (model switch confirmation)
+
+**Removed in Cycle 8:**
+- YourTeamCard — favorite team personalization card removed (redundant with HeroBanner)
 
 **CEO Translation Guide:**
-- "Too cluttered" → likely means too many sections visible at once (7-8 cards in scroll). Consider collapsing, hiding, or paginating.
-- "Feels generic" → the hero image rotation and lack of team-specific personalization. Homer wants their team front and center.
-- "Not enough energy" → the Lock of the Day card may need more visual punch (animations, color, confidence badge styling).
-- "Too much going on" → Power Rankings + Hot/Cold + Breakdowns may feel like noise below the fold. Consider which sections earn their space.
+- "Too cluttered" → 9 sections but most are compact. CompactGameRows and EdgeSpotlight are efficient. Could hide InsightFeed.
+- "Feels generic" → HeroBanner personalizes with team logos, colors, and insight chips. EmptyNightCard shows team-specific standings.
+- "Not enough energy" → HeroBanner has spring press animation, photo backgrounds, frosted glass. StatOfTheNight has hero numbers.
+- "Want my team first" → HeroBanner can show YOUR TEAM badge (isYourTeam prop exists but currently not wired since YourTeamCard removal).
 
 ---
 
@@ -128,16 +132,22 @@ Settings + stats:
 
 | Category | Count | Examples |
 |----------|-------|---------|
-| Game/Prediction cards | 10 | LockOfTheDayCard, SmartPickCard, PickCard, TopPickCard |
-| Modals | 6 | GameDeepDiveModal, LockInModal, ConfirmPickModal, PickHistoryModal |
-| Stats/Analytics | 7 | PowerRankingsWidget, StreakTracker, AccuracyTrendsCard, FactorLeaderboard |
-| Team/Player | 6 | TeamCard, TeamModal, TeamPlayerHighlightsCard, AdvancedStatCard |
+| Hero/Terminal (Tonight) | 9 | HeroBanner, HeroMatchup, ProbabilityArc, AllGamesCard, CompactGameRow, StatOfTheNight, LiveNowBar, StandingsWidget, PlayerSpotlightCarousel |
+| Feed/Spotlight | 3 | InsightFeed, EdgeSpotlight, EmptyNightCard |
+| Analytics Engine (Edge) | 6 | SpeedGauge, MomentumSparkline, ClutchBadge, ZoneTimeChart, ShotLocationMap, EdgeIntelSection |
+| Modals | 5 | GameDeepDiveModal, LockInModal, PickHistoryModal, PickResultModal, ModelPickerModal |
+| Stats/Analytics | 7 | PowerRankingsWidget, StreakTracker, AccuracyTrendsCard, FactorLeaderboard, QuickStatsBar, HotPlayersSection, StandingsSnapshot |
+| Team/Player | 6 | TeamCard, TeamModal, TeamPlayerHighlightsCard, AdvancedStatCard, TeamSearchBar, StatComparisonRow |
+| Shared UI | 4 | ConfidenceBadge, ShareableCard, SeasonSeriesBadge, Toast |
 | User Progress | 3 | StreakBadge, AchievementBadge, ThemeBanner |
 | Design System | 3 | Button, Card, Typography |
-| UI Utilities | 6 | EmptyState, ErrorState, SkeletonLoader, Collapsible, Dropdown |
-| Model Builder | 6 | ModelEditScreen, WeightSlider, FactorEditor, LivePreview, BacktestPanel |
+| UI Utilities | 8 | EmptyState, ErrorState, SkeletonLoader, Collapsible, Dropdown, SettingsButton, DailyBrief, DailyIntelBrief |
+| Model Builder | 6 | ModelEditScreen, WeightSlider, FactorEditor, LivePreview, BacktestPanel, ModelList |
 | Providers | 2 | AuthProvider (placeholder), AnalyticsProvider |
-| **Total** | **~49** | |
+| Legacy (unused) | 3 | GameTicker, MatchupGameCard, MatchupList |
+| **Total** | **~65** | |
+
+**Deleted Components (Cycle 3-8):** TopPickCard, SmartPickCard, PickCard, LockOfTheDayCard, ConfirmPickModal, YesterdayResultsCard, YourTeamCard
 
 ## Services Count
 
@@ -149,6 +159,11 @@ Settings + stats:
 | modelStorage.ts | ~150 | Production |
 | backtesting.ts | ~150 | Production |
 | historicalGames.ts | ~150 | Production |
+| gameResults.ts | ~200 | Production (Supabase H2H) |
+| playerStats.ts | ~150 | Production (NHL API + cache) |
+| edgeStats.ts | ~200 | Production (Edge API + 5-min cache) |
+| derivedStats.ts | ~150 | Production (momentum, clutch, rest, xG) |
+| insightGenerator.ts | ~200 | Production (Insight[] generation) |
 | analytics/AnalyticsService.ts | ~200 | Production |
 | weeklyTheme.ts | ~80 | Production |
 | factorAnalysis.ts | ~100 | Production |
@@ -163,9 +178,9 @@ Settings + stats:
 ## Known UX Gaps
 
 - **My IQ uses mock data** — not connected to real pick history
-- **Learn lessons are placeholders** — Coach's Corner cards lead nowhere
-- **Profile and My IQ overlap** — both show accuracy stats
-- **No onboarding** — new user lands on Today with no context
-- **No share flow** — Debater can't share picks or stats (no share button anywhere)
-- **No team personalization on Today** — Homer's team isn't prioritized
+- **Learn lessons are placeholders** — Coach's Corner cards lead nowhere (hidden route)
+- **Profile and My IQ overlap** — both show accuracy stats (both hidden routes)
+- **No onboarding** — new user lands on Tonight with no context
+- **YOUR TEAM badge not wired** — `isYourTeam` prop exists on HeroBanner but not passed since YourTeamCard removal. Could re-wire to show when user's team is the hero game.
+- **GameDeepDiveModal has 20+ TS errors** — Pre-existing type issues with `game: any` prop (deferred since Cycle 5)
 - **Settings duplicated** — Profile and Settings screens show same notification controls

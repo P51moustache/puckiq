@@ -1,11 +1,11 @@
 # PUCK-IQ File Map
 
 <!-- Archivist and Builder update this as files change -->
-<!-- Last Updated: 2026-02-07 (Cycle 7 — The Hero Zone — IN PROGRESS) -->
+<!-- Last Updated: 2026-02-07 (Cycle 8 — YourTeamCard Removal + StatOfTheNight Redesign) -->
 
 ## App Screens (`app/(tabs)/`)
 - `_layout.tsx` - Tab bar layout (2 visible tabs: Tonight, Explore; mypicks/learn/myiq/explore/models/profile hidden)
-- `index.tsx` - Tonight screen — Compact header (date + headline + settings + last-updated) + LiveNowBar + YourTeamCard + HeroMatchup (top edge) + StatOfTheNight + PlayerSpotlightCarousel + AllGamesCards (featured 2) + StandingsWidget + CompactGameRows (remaining) + EdgeSpotlight + InsightFeed + EmptyNightCard. 442 lines (from 299, added new sections). Cycle 7 overhaul.
+- `index.tsx` - Tonight screen — HeroBanner (cinematic hero) + LiveNowBar + StatOfTheNight (redesigned: hero number + team logo + accent stripe) + PlayerSpotlightCarousel + AllGamesCards (featured 2) + StandingsWidget + CompactGameRows (remaining) + EdgeSpotlight + InsightFeed + EmptyNightCard. 397 lines. Cycle 8: removed YourTeamCard, redesigned StatOfTheNight.
 - `stats.tsx` - Explore screen — 5 segments: Teams/Players/Edge/Factors/Models
 - `learn.tsx` - ~~Learn tab~~ (hidden route — Factor Leaderboard moved to Explore)
 - `myiq.tsx` - ~~My IQ tab~~ (hidden route)
@@ -31,7 +31,7 @@
 - `LiveNowBar.tsx` - Compact red-accented bar showing live game scores with pulsing dot
 - `AllGamesCard.tsx` - Full-width vertical game card with team color accent, probability bar, H2H, insight, momentum arrows, rest icons (React.memo)
 - `HotPlayersSection.tsx` - Horizontal scroll of top player highlight cards with team colors, Edge shot speed + last 5 stats
-- `StatOfTheNight.tsx` - Bold single-stat shareable card with large typography
+- `StatOfTheNight.tsx` - Redesigned bold single-stat card with hero number extraction (42px mono), team logo (20x20), team color accent stripe (4px left border), share button. Extracts leading number from stat text for visual emphasis. React.memo wrapped. (151 lines, redesigned Cycle 8)
 - `StandingsSnapshot.tsx` - Compact division leaders table with expand/collapse, momentum column (MTM)
 
 ### Modals
@@ -82,7 +82,7 @@
 - `EdgeIntelSection.tsx` - 2×2 grid of Edge stat cards (shot speed, skating speed, zone time, shot map), FadeInUp animation
 
 ### Personal Terminal Components (Cycle 6)
-- `YourTeamCard.tsx` - Favorite team personalization card with team color gradient, logo, probability, ConfidenceBadge. Shows when selectedTeam is playing tonight. FadeInUp entry. (242 lines)
+- ~~`YourTeamCard.tsx`~~ — Removed in Cycle 8. Favorite team personalization absorbed into HeroBanner YOUR TEAM badge.
 - `EmptyNightCard.tsx` - Enhanced empty state card when no games tonight. Shows favorite team's standings position, next game, and fun stat. Team logo + color accents. (192 lines)
 - `EdgeSpotlight.tsx` - Merged HotPlayers + EdgeIntel horizontal scroll. Max 5 spotlight items (hot players + Edge leaders) with team logos, FadeInRight. "See all" link to Explore. Replaces HotPlayersSection + EdgeIntelSection on Tonight screen. (278 lines)
 - `ModelPickerModal.tsx` - Modal for switching prediction models. Overlay with model list, active checkmark, cancel button. (133 lines)
@@ -212,7 +212,7 @@
 - `LiveNowBar.test.tsx` - Null guard, LIVE/CRIT games, team display, testID. (Cycle 4)
 - `AllGamesCard.test.tsx` - Matchup text, game states (future/live/final/TBD), H2H, insight, testID. (Cycle 4)
 - `HotPlayersSection.test.tsx` - Null guard, player extraction, HOT badge, cap at 5, testID. (Cycle 4)
-- `StatOfTheNight.test.tsx` - Null guard, stat text, share button, label, testID. (Cycle 4)
+- `StatOfTheNight.test.tsx` - Null guard, stat text, share button, label, testID, hero number extraction, no-number fallback. 7 tests. (Updated Cycle 8)
 - `StandingsSnapshot.test.tsx` - Null guard, division rendering, toggle, testID. (Cycle 4)
 - `SpeedGauge.test.tsx` - Speed display, testID, value/label, custom unit, percentile bar, league avg. 6 tests.
 - `MomentumSparkline.test.tsx` - Compact/full modes, trend arrow, team color, null guard. 6 tests.
@@ -222,7 +222,7 @@
 - `EdgeIntelSection.test.tsx` - Null data, shot/skating speed, team cards, header, 4-card limit. 6 tests.
 
 ### Personal Terminal Tests (Cycle 6)
-- `components/__tests__/YourTeamCard.test.tsx` - YOUR TEAM rendering, team colors, logo, game time, confidence badge, non-playing state.
+- ~~`components/__tests__/YourTeamCard.test.tsx`~~ — Removed in Cycle 8 (component deleted).
 - `components/__tests__/EmptyNightCard.test.tsx` - Empty state rendering, standings info, next game display, no-team fallback.
 - `components/__tests__/EdgeSpotlight.test.tsx` - Spotlight items, player cards, Edge leaders, max 5 cap, null data.
 - `components/__tests__/ModelPickerModal.test.tsx` - Modal visibility, model list, active model, switch callback, cancel.

@@ -1,9 +1,10 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../constants/theme';
 
 interface EmptyStateProps {
-  icon?: string;
+  icon?: keyof typeof Ionicons.glyphMap;
   title: string;
   message: string;
   actionLabel?: string;
@@ -12,7 +13,7 @@ interface EmptyStateProps {
 }
 
 export function EmptyState({
-  icon = '🏒',
+  icon = 'disc-outline',
   title,
   message,
   actionLabel,
@@ -21,7 +22,7 @@ export function EmptyState({
 }: EmptyStateProps) {
   return (
     <View style={[styles.container, style]}>
-      <Text style={styles.icon}>{icon}</Text>
+      <Ionicons name={icon} size={32} color={theme.subtext} />
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.message}>{message}</Text>
       {actionLabel && onAction && (

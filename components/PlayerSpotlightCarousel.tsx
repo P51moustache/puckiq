@@ -193,8 +193,8 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   teamLogo: {
-    width: 16,
-    height: 16,
+    width: 24,
+    height: 24,
   },
   teamAbbrev: {
     fontSize: 11,

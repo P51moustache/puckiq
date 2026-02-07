@@ -1,5 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { theme } from '../constants/theme';
 import { Pick } from '../services/pickTracking';
 
 interface StreakIndicatorProps {
@@ -44,8 +46,8 @@ export default function StreakIndicator({
           ]}>
             {currentStreak || '-'}
           </Text>
-          {isHot && <Text style={styles.emoji}>🔥</Text>}
-          {isCold && <Text style={styles.emoji}>❄️</Text>}
+          {isHot && <Ionicons name="flame" size={16} color={theme.semantic.positive} />}
+          {isCold && <Ionicons name="snow-outline" size={16} color={theme.accent} />}
         </View>
         {isHot && <Text style={styles.statusText}>Hot Hand!</Text>}
         {isCold && <Text style={styles.statusText}>Cold Streak</Text>}
@@ -55,13 +57,13 @@ export default function StreakIndicator({
       <View style={styles.statsRow}>
         <View style={styles.statBox}>
           <Text style={styles.statLabel}>Best Streak</Text>
-          <Text style={[styles.statValue, { color: '#10b981' }]}>
+          <Text style={[styles.statValue, { color: theme.semantic.positive }]}>
             {bestWinStreak > 0 ? `W${bestWinStreak}` : '-'}
           </Text>
         </View>
         <View style={styles.statBox}>
           <Text style={styles.statLabel}>Worst Streak</Text>
-          <Text style={[styles.statValue, { color: '#ef4444' }]}>
+          <Text style={[styles.statValue, { color: theme.semantic.negative }]}>
             {worstLossStreak > 0 ? `L${worstLossStreak}` : '-'}
           </Text>
         </View>
@@ -99,7 +101,7 @@ export default function StreakIndicator({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#192e5eff',
+    backgroundColor: theme.card,
     borderRadius: 12,
     padding: 16,
     gap: 16,
@@ -111,7 +113,7 @@ const styles = StyleSheet.create({
   currentStreakLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#98a6bf',
+    color: theme.subtext,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -121,29 +123,29 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 20,
     paddingVertical: 12,
-    backgroundColor: '#334e8dff',
+    backgroundColor: theme.factbox,
     borderRadius: 12,
     borderWidth: 2,
     borderColor: '#60a5fa44',
   },
   hotStreak: {
     backgroundColor: '#10b98122',
-    borderColor: '#10b981',
+    borderColor: theme.semantic.positive,
   },
   coldStreak: {
     backgroundColor: '#ef444422',
-    borderColor: '#ef4444',
+    borderColor: theme.semantic.negative,
   },
   streakText: {
     fontSize: 32,
     fontWeight: '900',
-    color: '#e6eef8',
+    color: theme.text,
   },
   hotStreakText: {
-    color: '#10b981',
+    color: theme.semantic.positive,
   },
   coldStreakText: {
-    color: '#ef4444',
+    color: theme.semantic.negative,
   },
   emoji: {
     fontSize: 28,
@@ -151,7 +153,7 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#60a5fa',
+    color: theme.accent,
     textTransform: 'uppercase',
   },
   statsRow: {
@@ -167,20 +169,20 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 10,
-    color: '#98a6bf',
+    color: theme.subtext,
     marginBottom: 6,
   },
   statValue: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#e6eef8',
+    color: theme.text,
   },
   timelineContainer: {
     gap: 8,
   },
   timelineLabel: {
     fontSize: 10,
-    color: '#98a6bf',
+    color: theme.subtext,
     fontWeight: '600',
   },
   timeline: {
@@ -192,7 +194,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#334e8dff',
+    backgroundColor: theme.factbox,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
@@ -200,16 +202,16 @@ const styles = StyleSheet.create({
   },
   timelineDotWin: {
     backgroundColor: '#10b98133',
-    borderColor: '#10b981',
+    borderColor: theme.semantic.positive,
   },
   timelineDotLoss: {
     backgroundColor: '#ef444433',
-    borderColor: '#ef4444',
+    borderColor: theme.semantic.negative,
   },
   timelineDotText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#e6eef8',
+    color: theme.text,
   },
   timelineLabels: {
     flexDirection: 'row',

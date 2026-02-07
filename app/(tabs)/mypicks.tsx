@@ -190,13 +190,13 @@ export default function MyPicksScreen() {
                   <Text style={s.statLabel}>Overall</Text>
                 </View>
                 <View style={s.statBox}>
-                  <Text style={[s.statValue, { color: '#4CAF50' }]}>
+                  <Text style={[s.statValue, { color: theme.semantic.positive }]}>
                     {overallStats ? overallStats.wins : '--'}
                   </Text>
                   <Text style={s.statLabel}>Wins</Text>
                 </View>
                 <View style={s.statBox}>
-                  <Text style={[s.statValue, { color: '#F44336' }]}>
+                  <Text style={[s.statValue, { color: theme.semantic.negative }]}>
                     {overallStats ? overallStats.losses : '--'}
                   </Text>
                   <Text style={s.statLabel}>Losses</Text>
@@ -497,15 +497,15 @@ const s = StyleSheet.create({
     fontWeight: '700',
   },
   outcomeBadgeTextWin: {
-    color: '#4CAF50',
+    color: theme.semantic.positive,
   },
   outcomeBadgeTextLoss: {
-    color: '#F44336',
+    color: theme.semantic.negative,
   },
   outcomeBadgeTextPush: {
-    color: '#FFC107',
+    color: theme.semantic.neutral,
   },
   outcomeBadgeTextPending: {
-    color: '#9E9E9E',
+    color: theme.subtext,
   },
 });

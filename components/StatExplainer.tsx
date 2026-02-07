@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { ADVANCED_METRICS, AdvancedMetric } from '../constants/advancedMetrics';
 import { theme } from '../constants/theme';
 
@@ -52,7 +53,7 @@ export default function StatExplainer({ visible, onClose, metricId, leagueThresh
           >
             {/* Header */}
             <View style={styles.header}>
-              <Text style={styles.statIcon}>📊</Text>
+              <Ionicons name="stats-chart" size={24} color="#60a5fa" />
               <Text style={styles.title}>{metric.name}</Text>
               <Text style={styles.shortDesc}>{metric.shortDesc}</Text>
             </View>

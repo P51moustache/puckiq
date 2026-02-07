@@ -13,7 +13,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { theme } from '../constants/theme';
-import { getTeamColors } from '../constants/teamColors';
+import { getTeamColors, getAccessibleTextColor } from '../constants/teamColors';
 import { getTeamLogoUrl } from '../utils/teamLogo';
 import { ConfidenceBadge } from './ConfidenceBadge';
 import type { H2HRecord } from '../types/gameResults';
@@ -31,6 +31,7 @@ interface AllGamesCardProps {
   index: number;
   onPress: () => void;
   onShare?: () => void;
+  onInfoPress?: (glossaryKey: string) => void;
   awayMomentum?: MomentumData | null;
   homeMomentum?: MomentumData | null;
   restAdvantage?: { home: number; away: number } | null;
@@ -155,7 +156,7 @@ function computeFactorSplits(
   return { mtm, rest, h2h };
 }
 
-function AllGamesCardComponent({ game, prediction, h2hRecord, insight, index, onPress, onShare, awayMomentum, homeMomentum, restAdvantage, awayForm, homeForm }: AllGamesCardProps) {
+function AllGamesCardComponent({ game, prediction, h2hRecord, insight, index, onPress, onShare, onInfoPress, awayMomentum, homeMomentum, restAdvantage, awayForm, homeForm }: AllGamesCardProps) {
   const awayAbbrev = game.awayTeam?.abbrev ?? '???';
   const homeAbbrev = game.homeTeam?.abbrev ?? '???';
   const favoredIsHome = prediction.homeWinProb >= prediction.awayWinProb;
@@ -233,7 +234,9 @@ function AllGamesCardComponent({ game, prediction, h2hRecord, insight, index, on
               <FormSparkline results={awayForm.results} width={36} height={14} />
             )}
             <Text style={styles.matchup}>
-              {awayAbbrev} @ {homeAbbrev}
+              <Text style={{ color: getAccessibleTextColor(awayAbbrev) }}>{awayAbbrev}</Text>
+              {' @ '}
+              <Text style={{ color: getAccessibleTextColor(homeAbbrev) }}>{homeAbbrev}</Text>
             </Text>
             {homeForm?.results && homeForm.results.length >= 2 && (
               <FormSparkline results={homeForm.results} width={36} height={14} />
@@ -253,7 +256,7 @@ function AllGamesCardComponent({ game, prediction, h2hRecord, insight, index, on
 
         {/* Row 2: Confidence badge (hero) + Probability bar */}
         <View style={styles.row2}>
-          <ConfidenceBadge confidence={confidenceScore} size="md" />
+          <ConfidenceBadge confidence={confidenceScore} size="md" onInfoPress={onInfoPress} />
           <View style={styles.barContainer}>
             <View style={styles.barBg}>
               <View
@@ -301,7 +304,7 @@ function AllGamesCardComponent({ game, prediction, h2hRecord, insight, index, on
         <View style={styles.factorRow}>
           <View style={styles.factorChips}>
             {factorCount >= 2 && splits.mtm !== null && (
-              <View style={styles.factorChip}>
+              <Pressable onLongPress={() => onInfoPress?.('mtm')} delayLongPress={300} style={styles.factorChip}>
                 <View style={[
                   styles.factorDot,
                   { backgroundColor: splits.mtm === 'home'
@@ -311,10 +314,10 @@ function AllGamesCardComponent({ game, prediction, h2hRecord, insight, index, on
                     : theme.subtext },
                 ]} />
                 <Text style={styles.factorLabel}>MTM</Text>
-              </View>
+              </Pressable>
             )}
             {factorCount >= 2 && splits.rest !== null && (
-              <View style={styles.factorChip}>
+              <Pressable onLongPress={() => onInfoPress?.('rest')} delayLongPress={300} style={styles.factorChip}>
                 <View style={[
                   styles.factorDot,
                   { backgroundColor: splits.rest === 'home'
@@ -324,10 +327,10 @@ function AllGamesCardComponent({ game, prediction, h2hRecord, insight, index, on
                     : theme.subtext },
                 ]} />
                 <Text style={styles.factorLabel}>REST</Text>
-              </View>
+              </Pressable>
             )}
             {factorCount >= 2 && splits.h2h !== null && (
-              <View style={styles.factorChip}>
+              <Pressable onLongPress={() => onInfoPress?.('h2h')} delayLongPress={300} style={styles.factorChip}>
                 <View style={[
                   styles.factorDot,
                   { backgroundColor: splits.h2h === 'home'
@@ -337,7 +340,7 @@ function AllGamesCardComponent({ game, prediction, h2hRecord, insight, index, on
                     : theme.subtext },
                 ]} />
                 <Text style={styles.factorLabel}>H2H</Text>
-              </View>
+              </Pressable>
             )}
           </View>
           {onShare && (
@@ -381,8 +384,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   teamLogo: {
-    width: 20,
-    height: 20,
+    width: 28,
+    height: 28,
   },
   matchup: {
     fontSize: 16,

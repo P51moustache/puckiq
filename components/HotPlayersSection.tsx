@@ -1,7 +1,7 @@
 import { View, Text, FlatList, StyleSheet } from 'react-native';
 import Animated, { FadeInRight } from 'react-native-reanimated';
 import { theme } from '../constants/theme';
-import { getTeamColors } from '../constants/teamColors';
+import { getTeamColors, getAccessibleTextColor } from '../constants/teamColors';
 import type { TeamPlayerStats, PlayerStatLine } from '../types/gameResults';
 
 interface EdgePlayerData {
@@ -85,7 +85,7 @@ function HotPlayersSectionComponent({ playerStatsMap, games, edgePlayerData }: H
           <View style={[styles.topAccent, { backgroundColor: teamColor }]} />
           <View style={styles.cardContent}>
             <Text style={styles.playerName} numberOfLines={1}>{item.name}</Text>
-            <Text style={[styles.teamAbbrev, { color: teamColor }]}>{item.teamAbbrev}</Text>
+            <Text style={[styles.teamAbbrev, { color: getAccessibleTextColor(item.teamAbbrev) }]}>{item.teamAbbrev}</Text>
             {item.last5 ? (
               <Text style={styles.pointsLarge}>Last 5: {item.last5.goals}G {item.last5.assists}A</Text>
             ) : (

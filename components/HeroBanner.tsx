@@ -13,7 +13,7 @@ import { BlurView } from 'expo-blur';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../constants/theme';
-import { getTeamColors } from '../constants/teamColors';
+import { getTeamColors, getAccessibleTextColor } from '../constants/teamColors';
 import { getTeamLogoUrl } from '../utils/teamLogo';
 import { getHeroPhoto } from '../utils/heroPhoto';
 import { ConfidenceBadge } from './ConfidenceBadge';
@@ -32,6 +32,7 @@ interface HeroBannerProps {
   headline: string;
   onPress: () => void;
   onShare: () => void;
+  onInfoPress?: (glossaryKey: string) => void;
   awayForm?: TeamFormData | null;
   homeForm?: TeamFormData | null;
   isYourTeam?: boolean;
@@ -67,13 +68,14 @@ function buildInsightChips(
   h2hRecord: H2HRecord | null,
   situationalFactors: SituationalFactors | null,
 ) {
-  const chips: { label: string; bg: string; color: string }[] = [];
+  const chips: { label: string; bg: string; color: string; glossaryKey: string }[] = [];
 
   if (h2hRecord && h2hRecord.games.length > 0) {
     chips.push({
       label: `H2H ${h2hRecord.teamAWins}-${h2hRecord.teamBWins}`,
       bg: 'rgba(96, 165, 250, 0.2)',
       color: '#60a5fa',
+      glossaryKey: 'h2h',
     });
   }
 
@@ -84,6 +86,7 @@ function buildInsightChips(
         label: isHomeB2B ? 'B2B' : 'REST \u2713',
         bg: isHomeB2B ? 'rgba(239, 68, 68, 0.2)' : 'rgba(34, 197, 94, 0.2)',
         color: isHomeB2B ? '#ef4444' : '#22c55e',
+        glossaryKey: isHomeB2B ? 'b2b' : 'rest',
       });
     }
   }
@@ -100,6 +103,7 @@ function buildInsightChips(
       label: streakEntry,
       bg: 'rgba(34, 197, 94, 0.2)',
       color: '#22c55e',
+      glossaryKey: 'streak',
     });
   }
 
@@ -117,6 +121,7 @@ export default function HeroBanner({
   headline,
   onPress,
   onShare,
+  onInfoPress,
   isYourTeam,
 }: HeroBannerProps) {
   const scale = useSharedValue(1);
@@ -225,7 +230,7 @@ export default function HeroBanner({
                 style={styles.teamLogo}
                 contentFit="contain"
               />
-              <Text style={styles.teamAbbrev}>{awayAbbrev}</Text>
+              <Text style={[styles.teamAbbrev, { color: getAccessibleTextColor(awayAbbrev) }]}>{awayAbbrev}</Text>
               <Text style={styles.probNumber}>
                 {Math.round(prediction.awayWinProb)}%
               </Text>
@@ -234,7 +239,7 @@ export default function HeroBanner({
             {/* Center — VS + Confidence */}
             <View style={styles.centerDivider}>
               <Text style={styles.vsText}>VS</Text>
-              <ConfidenceBadge confidence={confidenceScore} size="lg" />
+              <ConfidenceBadge confidence={confidenceScore} size="lg" onInfoPress={onInfoPress} />
             </View>
 
             {/* Home side */}
@@ -244,7 +249,7 @@ export default function HeroBanner({
                 style={styles.teamLogo}
                 contentFit="contain"
               />
-              <Text style={styles.teamAbbrev}>{homeAbbrev}</Text>
+              <Text style={[styles.teamAbbrev, { color: getAccessibleTextColor(homeAbbrev) }]}>{homeAbbrev}</Text>
               <Text style={styles.probNumber}>
                 {Math.round(prediction.homeWinProb)}%
               </Text>
@@ -270,18 +275,22 @@ export default function HeroBanner({
           <BlurView intensity={60} tint="dark" style={styles.chipBar}>
             <View style={styles.chipsRow}>
               {chips.map((chip, i) => (
-                <View
+                <Pressable
                   key={i}
+                  onLongPress={() => onInfoPress?.(chip.glossaryKey)}
+                  delayLongPress={300}
                   style={[styles.chip, { backgroundColor: chip.bg }]}
                 >
                   <Text style={[styles.chipText, { color: chip.color }]}>
                     {chip.label}
                   </Text>
-                </View>
+                </Pressable>
               ))}
             </View>
             <View style={styles.chipBarRight}>
-              <Text style={styles.topEdgeLabel}>TOP EDGE</Text>
+              <Pressable onLongPress={() => onInfoPress?.('topEdge')} delayLongPress={300}>
+                <Text style={styles.topEdgeLabel}>TOP EDGE</Text>
+              </Pressable>
               <Pressable onPress={onShare} hitSlop={8}>
                 <Ionicons name="share-outline" size={18} color="#fff" />
               </Pressable>

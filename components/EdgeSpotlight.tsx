@@ -268,8 +268,8 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   teamLogoSmall: {
-    width: 16,
-    height: 16,
+    width: 20,
+    height: 20,
   },
   teamLabel: {
     fontSize: 10,

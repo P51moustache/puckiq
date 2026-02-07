@@ -1,8 +1,14 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import Animated, { FadeInUp } from 'react-native-reanimated';
+import Animated, {
+  FadeInUp,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { theme } from '../constants/theme';
 import { getTeamColors } from '../constants/teamColors';
 import { getTeamLogoUrl } from '../utils/teamLogo';
@@ -11,7 +17,17 @@ import type { Insight } from '../types/insights';
 interface StatOfTheNightProps {
   stat: Insight | null;
   onShare: () => void;
+  onInfoPress?: (glossaryKey: string) => void;
 }
+
+const CATEGORY_META: Record<string, { icon: string; label: string }> = {
+  streak:    { icon: 'flame-outline', label: 'STREAK' },
+  edge:      { icon: 'bar-chart-outline', label: 'EDGE' },
+  h2h:       { icon: 'swap-horizontal-outline', label: 'HEAD TO HEAD' },
+  rest:      { icon: 'moon-outline', label: 'REST ADVANTAGE' },
+  player:    { icon: 'star-outline', label: 'PLAYER' },
+  standings: { icon: 'trending-up-outline', label: 'STANDINGS' },
+};
 
 /**
  * Extract a hero number from the stat text.
@@ -19,12 +35,17 @@ interface StatOfTheNightProps {
  * Returns the number string and the remaining context text.
  */
 function extractHeroNumber(text: string): { hero: string; context: string } | null {
-  // Match patterns like "5 points", "4-game streak", "12 goals", etc.
-  const match = text.match(/(\d+)[\s-]+(point|goal|assist|game|win|save|shutout|streak)/i);
+  // Match "N keyword" patterns: "5 points", "4-game streak", "+3 momentum"
+  const match = text.match(/[+(]?(\d+)[)]?[\s-]+(point|goal|assist|game|win|save|shutout|streak|momentum)/i);
   if (match) {
     return { hero: match[1], context: text };
   }
-  // Match standalone large numbers
+  // Numbers in parentheses: (+5), (-3), (7)
+  const parenMatch = text.match(/\(([+-]?\d+)\)/);
+  if (parenMatch) {
+    return { hero: parenMatch[1], context: text };
+  }
+  // Match standalone large numbers (2+ digits)
   const numMatch = text.match(/\b(\d{2,})\b/);
   if (numMatch) {
     return { hero: numMatch[1], context: text };
@@ -32,13 +53,23 @@ function extractHeroNumber(text: string): { hero: string; context: string } | nu
   return null;
 }
 
-function StatOfTheNightComponent({ stat, onShare }: StatOfTheNightProps) {
+function StatOfTheNightComponent({ stat, onShare, onInfoPress }: StatOfTheNightProps) {
   if (!stat) return null;
 
   const teamAbbrev = stat.teamAbbrev ?? '';
   const teamColors = getTeamColors(teamAbbrev);
   const accentColor = teamColors.primary;
   const extracted = extractHeroNumber(stat.text);
+  const categoryMeta = CATEGORY_META[stat.category] ?? { icon: 'flash-outline', label: 'HIGHLIGHT' };
+
+  // Spring pop animation for hero number
+  const heroScale = useSharedValue(0.85);
+  React.useEffect(() => {
+    heroScale.value = withSpring(1, { damping: 12, stiffness: 120 });
+  }, []);
+  const heroAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: heroScale.value }],
+  }));
 
   return (
     <Animated.View
@@ -46,30 +77,64 @@ function StatOfTheNightComponent({ stat, onShare }: StatOfTheNightProps) {
       entering={FadeInUp.duration(400).delay(200)}
       style={styles.container}
     >
-      <View style={[styles.card, { borderLeftColor: accentColor }]}>
-        {/* Accent stripe is handled by borderLeftWidth/Color */}
-
-        {/* Team logo in top-right */}
+      <LinearGradient
+        colors={[accentColor + '30', accentColor + '08', theme.card]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.card, {
+          borderColor: accentColor + '40',
+          shadowColor: accentColor,
+        }]}
+      >
+        {/* Team logo in circle backdrop */}
         {teamAbbrev ? (
-          <Image
-            source={{ uri: getTeamLogoUrl(teamAbbrev) }}
-            style={styles.teamLogo}
-            contentFit="contain"
-          />
+          <View style={styles.logoContainer}>
+            <Image
+              source={{ uri: getTeamLogoUrl(teamAbbrev) }}
+              style={styles.teamLogo}
+              contentFit="contain"
+            />
+          </View>
         ) : null}
 
-        {/* Label chip */}
-        <Text style={styles.label}>STAT OF THE NIGHT</Text>
+        {/* Label with icon prefix */}
+        <View style={styles.labelRow}>
+          <Ionicons name={categoryMeta.icon as any} size={13} color={theme.accent} />
+          <Text style={styles.label}>STAT OF THE NIGHT</Text>
+        </View>
 
-        {/* Hero number */}
+        {/* Hero number with glow + spring animation */}
         {extracted ? (
-          <Text style={styles.heroNumber}>{extracted.hero}</Text>
+          <Animated.Text
+            style={[
+              styles.heroNumber,
+              heroAnimatedStyle,
+              {
+                textShadowColor: accentColor,
+                textShadowOffset: { width: 0, height: 0 },
+                textShadowRadius: 12,
+              },
+            ]}
+          >
+            {extracted.hero}
+          </Animated.Text>
         ) : null}
 
         {/* Context / stat text */}
         <Text style={styles.statText}>{stat.text}</Text>
 
-        {/* Share button */}
+        {/* Category chip */}
+        <Pressable
+          onLongPress={() => onInfoPress?.(stat.category)}
+          delayLongPress={300}
+          style={[styles.categoryChip, { backgroundColor: accentColor + '25' }]}
+        >
+          <Text style={[styles.categoryChipText, { color: accentColor }]}>
+            {categoryMeta.label}
+          </Text>
+        </Pressable>
+
+        {/* Share button with circle background */}
         <Pressable
           testID="stat-of-night-share"
           onPress={onShare}
@@ -79,9 +144,11 @@ function StatOfTheNightComponent({ stat, onShare }: StatOfTheNightProps) {
             pressed && { opacity: 0.7 },
           ]}
         >
-          <Ionicons name="share-outline" size={16} color={theme.accent} />
+          <View style={styles.shareCircle}>
+            <Ionicons name="share-outline" size={18} color={theme.accent} />
+          </View>
         </Pressable>
-      </View>
+      </LinearGradient>
     </Animated.View>
   );
 }
@@ -94,57 +161,87 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   card: {
-    backgroundColor: theme.card,
     borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    paddingLeft: 18,
+    paddingVertical: 20,
+    paddingHorizontal: 20,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
-    borderLeftWidth: 4,
-    borderLeftColor: theme.accent,
-    minHeight: 120,
+    minHeight: 160,
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 6,
+    overflow: 'hidden',
+  },
+  logoContainer: {
+    position: 'absolute',
+    top: 14,
+    right: 14,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   teamLogo: {
-    width: 20,
-    height: 20,
-    position: 'absolute',
-    top: 12,
-    right: 12,
+    width: 36,
+    height: 36,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 8,
   },
   label: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '800',
     color: theme.accent,
-    letterSpacing: 1.2,
+    letterSpacing: 1.5,
     textTransform: 'uppercase',
-    marginBottom: 6,
   },
   heroNumber: {
-    fontSize: 42,
+    fontSize: 56,
     fontWeight: '800',
-    color: theme.text,
+    color: '#FFFFFF',
     fontFamily: theme.fonts.mono,
     fontVariant: ['tabular-nums'],
-    lineHeight: 48,
-    marginBottom: 4,
+    lineHeight: 64,
+    marginBottom: 6,
   },
   statText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: theme.subtext,
-    lineHeight: 18,
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.text,
+    lineHeight: 20,
+    marginBottom: 10,
+  },
+  categoryChip: {
+    alignSelf: 'flex-start',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  categoryChipText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.8,
   },
   shareButton: {
     position: 'absolute',
-    bottom: 12,
-    right: 12,
-    padding: 6,
+    bottom: 14,
+    right: 14,
+    padding: 0,
+  },
+  shareCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

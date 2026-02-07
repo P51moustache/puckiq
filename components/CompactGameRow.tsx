@@ -5,7 +5,7 @@ import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../constants/theme';
-import { getTeamColors } from '../constants/teamColors';
+import { getTeamColors, getAccessibleTextColor } from '../constants/teamColors';
 import { getTeamLogoUrl } from '../utils/teamLogo';
 import { ConfidenceBadge } from './ConfidenceBadge';
 import type { NHLGameSummary } from '../types/predictions';
@@ -63,7 +63,7 @@ function CompactGameRowComponent({ game, prediction, onPress, index }: CompactGa
               style={styles.logo}
               contentFit="contain"
             />
-            <Text style={styles.abbrev}>{awayAbbrev}</Text>
+            <Text style={[styles.abbrev, { color: getAccessibleTextColor(awayAbbrev) }]}>{awayAbbrev}</Text>
           </View>
 
           {/* Center: @ */}
@@ -71,7 +71,7 @@ function CompactGameRowComponent({ game, prediction, onPress, index }: CompactGa
 
           {/* Center-right: Home team */}
           <View style={styles.teamSection}>
-            <Text style={styles.abbrev}>{homeAbbrev}</Text>
+            <Text style={[styles.abbrev, { color: getAccessibleTextColor(homeAbbrev) }]}>{homeAbbrev}</Text>
             <Image
               source={{ uri: getTeamLogoUrl(homeAbbrev) }}
               style={styles.logo}
@@ -128,8 +128,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   logo: {
-    width: 20,
-    height: 20,
+    width: 28,
+    height: 28,
   },
   abbrev: {
     fontSize: 14,

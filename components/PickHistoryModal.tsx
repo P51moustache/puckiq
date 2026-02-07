@@ -22,6 +22,7 @@ import {
   Pick,
   PickStats,
 } from '../services/pickTracking';
+import { theme } from '../constants/theme';
 import { useAnalytics } from '../hooks/useAnalytics';
 import AchievementBadge from './AchievementBadge';
 import PickResultModal from './PickResultModal';
@@ -200,8 +201,8 @@ export default function PickHistoryModal({ visible, onClose, onHistoryCleared }:
   const renderOverviewTab = () => {
     // Rank the pick types by accuracy
     const ranked = [
-      { title: 'Your Picks', stats: userStats, color: '#60a5fa', type: 'user' },
-      { title: 'Smart Picks', stats: smartStats, color: '#10b981', type: 'smart' },
+      { title: 'Your Picks', stats: userStats, color: theme.accent, type: 'user' },
+      { title: 'Smart Picks', stats: smartStats, color: theme.semantic.positive, type: 'smart' },
       { title: 'Lock of the Day', stats: lockStats, color: '#f59e0b', type: 'lock' },
     ].sort((a, b) => b.stats.accuracy - a.stats.accuracy);
 
@@ -395,9 +396,9 @@ export default function PickHistoryModal({ visible, onClose, onHistoryCleared }:
                     <Text style={styles.historyDayOfWeek}>{dayOfWeek}</Text>
                   </View>
                   <View style={styles.historyDayStats}>
-                    <Text style={[styles.historyWL, { color: '#10b981' }]}>{wins}W</Text>
+                    <Text style={[styles.historyWL, { color: theme.semantic.positive }]}>{wins}W</Text>
                     <Text style={styles.historyDash}>-</Text>
-                    <Text style={[styles.historyWL, { color: '#ef4444' }]}>{losses}L</Text>
+                    <Text style={[styles.historyWL, { color: theme.semantic.negative }]}>{losses}L</Text>
                   </View>
                 </View>
 
@@ -515,7 +516,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContainer: {
-    backgroundColor: '#071023',
+    backgroundColor: theme.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     height: '90%',
@@ -533,7 +534,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#e6eef8',
+    color: theme.text,
   },
   closeButton: {
     width: 32,
@@ -545,7 +546,7 @@ const styles = StyleSheet.create({
   },
   closeButtonText: {
     fontSize: 20,
-    color: '#e6eef8',
+    color: theme.text,
   },
   tabs: {
     flexDirection: 'row',
@@ -561,16 +562,16 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   tabActive: {
-    borderBottomColor: '#60a5fa',
+    borderBottomColor: theme.accent,
   },
   tabText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#98a6bf',
+    color: theme.subtext,
     textAlign: 'center',
   },
   tabTextActive: {
-    color: '#60a5fa',
+    color: theme.accent,
   },
   tabContent: {
     flex: 1,
@@ -584,24 +585,24 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 14,
-    color: '#98a6bf',
+    color: theme.subtext,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#e6eef8',
+    color: theme.text,
     marginBottom: 8,
   },
   sectionSubtitle: {
     fontSize: 12,
-    color: '#98a6bf',
+    color: theme.subtext,
     marginBottom: 16,
   },
   comparisonGrid: {
     gap: 12,
   },
   comparisonCard: {
-    backgroundColor: '#192e5eff',
+    backgroundColor: theme.card,
     borderRadius: 12,
     padding: 16,
     borderWidth: 2,
@@ -615,7 +616,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#e6eef8',
+    color: theme.text,
   },
   rankMedal: {
     fontSize: 24,
@@ -647,12 +648,12 @@ const styles = StyleSheet.create({
   cardStatValue: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#e6eef8',
+    color: theme.text,
     marginBottom: 4,
   },
   cardStatLabel: {
     fontSize: 10,
-    color: '#98a6bf',
+    color: theme.subtext,
     textTransform: 'uppercase',
   },
   achievementHeader: {
@@ -664,12 +665,12 @@ const styles = StyleSheet.create({
   achievementCount: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#60a5fa',
+    color: theme.accent,
   },
   subsectionTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#98a6bf',
+    color: theme.subtext,
     marginBottom: 12,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -696,16 +697,16 @@ const styles = StyleSheet.create({
   filterButtonActive: {
     backgroundColor: '#60a5fa22',
     borderWidth: 1,
-    borderColor: '#60a5fa',
+    borderColor: theme.accent,
   },
   filterText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#98a6bf',
+    color: theme.subtext,
     textAlign: 'center',
   },
   filterTextActive: {
-    color: '#60a5fa',
+    color: theme.accent,
   },
   emptyState: {
     alignItems: 'center',
@@ -715,14 +716,14 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#e6eef8',
+    color: theme.text,
   },
   emptySubtext: {
     fontSize: 12,
-    color: '#98a6bf',
+    color: theme.subtext,
   },
   historyDay: {
-    backgroundColor: '#192e5eff',
+    backgroundColor: theme.card,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -739,11 +740,11 @@ const styles = StyleSheet.create({
   historyDate: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#e6eef8',
+    color: theme.text,
   },
   historyDayOfWeek: {
     fontSize: 12,
-    color: '#98a6bf',
+    color: theme.subtext,
   },
   historyDayStats: {
     flexDirection: 'row',
@@ -756,7 +757,7 @@ const styles = StyleSheet.create({
   },
   historyDash: {
     fontSize: 14,
-    color: '#98a6bf',
+    color: theme.subtext,
   },
   historyPick: {
     flexDirection: 'row',
@@ -772,7 +773,7 @@ const styles = StyleSheet.create({
   },
   historyChevron: {
     fontSize: 18,
-    color: '#98a6bf',
+    color: theme.subtext,
     marginLeft: 'auto',
   },
   historyOutcome: {
@@ -785,16 +786,16 @@ const styles = StyleSheet.create({
   },
   historyOutcomeWin: {
     backgroundColor: '#10b98122',
-    borderColor: '#10b981',
+    borderColor: theme.semantic.positive,
   },
   historyOutcomeLoss: {
     backgroundColor: '#ef444422',
-    borderColor: '#ef4444',
+    borderColor: theme.semantic.negative,
   },
   historyOutcomeText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#e6eef8',
+    color: theme.text,
   },
   historyPickInfo: {
     flex: 1,
@@ -802,12 +803,12 @@ const styles = StyleSheet.create({
   historyMatchup: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#e6eef8',
+    color: theme.text,
     marginBottom: 2,
   },
   historyPrediction: {
     fontSize: 11,
-    color: '#98a6bf',
+    color: theme.subtext,
   },
   clearButton: {
     backgroundColor: '#ef444422',
@@ -816,12 +817,12 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 40,
     borderWidth: 1,
-    borderColor: '#ef4444',
+    borderColor: theme.semantic.negative,
   },
   clearButtonText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#ef4444',
+    color: theme.semantic.negative,
     textAlign: 'center',
   },
   infoBox: {
@@ -834,7 +835,7 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 12,
-    color: '#e6eef8',
+    color: theme.text,
     lineHeight: 18,
   },
   clearInfoBox: {
@@ -847,7 +848,7 @@ const styles = StyleSheet.create({
   },
   clearInfoText: {
     fontSize: 11,
-    color: '#e6eef8',
+    color: theme.text,
     lineHeight: 16,
   },
 });

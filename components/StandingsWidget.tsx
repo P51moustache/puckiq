@@ -4,6 +4,7 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { theme } from '../constants/theme';
+import { getTeamColors, getAccessibleTextColor } from '../constants/teamColors';
 import { getTeamLogoUrl } from '../utils/teamLogo';
 import type { StandingsData } from '../types/predictions';
 
@@ -95,7 +96,7 @@ function StandingsWidgetComponent({ standings, selectedTeam }: StandingsWidgetPr
                     style={styles.teamLogo}
                     contentFit="contain"
                   />
-                  <Text style={styles.teamAbbrev}>{team.abbrev}</Text>
+                  <Text style={[styles.teamAbbrev, { color: getAccessibleTextColor(team.abbrev) }]}>{team.abbrev}</Text>
                 </View>
                 <Text style={[styles.colStat, styles.statText]}>{team.wins}</Text>
                 <Text style={[styles.colStat, styles.statText]}>{team.losses}</Text>
@@ -205,8 +206,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   teamLogo: {
-    width: 16,
-    height: 16,
+    width: 20,
+    height: 20,
   },
   teamAbbrev: {
     fontSize: 13,

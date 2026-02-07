@@ -21,6 +21,10 @@ jest.mock('react-native-reanimated', () => {
   };
 });
 
+jest.mock('@expo/vector-icons', () => ({
+  Ionicons: 'Ionicons',
+}));
+
 jest.mock('../../constants/theme', () => ({
   theme: { text: '#fff', accent: '#60a5fa', subtext: '#aaa', card: '#123' },
 }));

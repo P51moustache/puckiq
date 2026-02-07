@@ -54,10 +54,85 @@ const TEAM_COLORS: Record<string, TeamColors> = {
 
 const DEFAULT_COLORS: TeamColors = { primary: '#60a5fa', secondary: '#334e8d' };
 
+/** App background color for contrast calculations */
+const APP_BACKGROUND = '#071023';
+
+/** WCAG AA minimum contrast ratio for normal text */
+const MIN_CONTRAST_RATIO = 4.5;
+
+function hexToRgb(hex: string): [number, number, number] {
+  const h = hex.replace('#', '');
+  return [
+    parseInt(h.substring(0, 2), 16),
+    parseInt(h.substring(2, 4), 16),
+    parseInt(h.substring(4, 6), 16),
+  ];
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  return '#' + [r, g, b].map(c => Math.round(c).toString(16).padStart(2, '0')).join('');
+}
+
+function relativeLuminance(hex: string): number {
+  const [r, g, b] = hexToRgb(hex);
+  const [rs, gs, bs] = [r / 255, g / 255, b / 255].map(c =>
+    c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+  );
+  return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+}
+
+function contrastRatio(hex1: string, hex2: string): number {
+  const l1 = relativeLuminance(hex1);
+  const l2 = relativeLuminance(hex2);
+  const lighter = Math.max(l1, l2);
+  const darker = Math.min(l1, l2);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function lightenColor(hex: string, amount: number): string {
+  const [r, g, b] = hexToRgb(hex);
+  return rgbToHex(
+    Math.min(255, r + (255 - r) * amount),
+    Math.min(255, g + (255 - g) * amount),
+    Math.min(255, b + (255 - b) * amount),
+  );
+}
+
 /**
  * Get team colors by abbreviation
  * Returns default accent colors if team not found
  */
 export function getTeamColors(abbrev: string): TeamColors {
   return TEAM_COLORS[abbrev] || DEFAULT_COLORS;
+}
+
+/**
+ * Get a team color that meets WCAG AA contrast against the app background.
+ * Lightens dark team colors (NYR, TOR, TBL, BUF, etc.) for text readability.
+ * Use this for team-colored TEXT — not for backgrounds or gradients.
+ */
+export function getAccessibleTextColor(abbrev: string): string {
+  const colors = TEAM_COLORS[abbrev] || DEFAULT_COLORS;
+  const primary = colors.primary;
+
+  // If primary already has sufficient contrast, use it
+  if (contrastRatio(primary, APP_BACKGROUND) >= MIN_CONTRAST_RATIO) {
+    return primary;
+  }
+
+  // Try secondary color
+  if (contrastRatio(colors.secondary, APP_BACKGROUND) >= MIN_CONTRAST_RATIO) {
+    return colors.secondary;
+  }
+
+  // Lighten primary until it passes contrast check
+  let lightened = primary;
+  for (let step = 0.1; step <= 0.9; step += 0.05) {
+    lightened = lightenColor(primary, step);
+    if (contrastRatio(lightened, APP_BACKGROUND) >= MIN_CONTRAST_RATIO) {
+      return lightened;
+    }
+  }
+
+  return lightened;
 }

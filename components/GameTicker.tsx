@@ -1,7 +1,7 @@
 import { View, Text, FlatList, Pressable, StyleSheet } from 'react-native';
 import Animated, { FadeInRight } from 'react-native-reanimated';
 import { theme } from '../constants/theme';
-import { getTeamColors } from '../constants/teamColors';
+import { getTeamColors, getAccessibleTextColor } from '../constants/teamColors';
 
 interface GameTickerProps {
   games: any[];
@@ -52,7 +52,9 @@ export default function GameTicker({ games, predictions, h2hMap, onGamePress }: 
         >
           <View style={[styles.confidenceDot, { backgroundColor: getConfidenceColor(confScore) }]} />
           <Text style={styles.teamNames}>
-            {game.awayTeam?.abbrev ?? '???'} | {game.homeTeam?.abbrev ?? '???'}
+            <Text style={{ color: getAccessibleTextColor(game.awayTeam?.abbrev ?? '???') }}>{game.awayTeam?.abbrev ?? '???'}</Text>
+            {' | '}
+            <Text style={{ color: getAccessibleTextColor(game.homeTeam?.abbrev ?? '???') }}>{game.homeTeam?.abbrev ?? '???'}</Text>
           </Text>
           <View style={styles.barBg}>
             <View style={[styles.barFill, { width: `${Math.round(homeProb)}%`, backgroundColor: fillColor }]} />

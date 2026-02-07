@@ -7,15 +7,17 @@ import Animated, {
   withTiming,
   withSpring,
 } from 'react-native-reanimated';
+import { Image } from 'expo-image';
 import { useEffect } from 'react';
 import { theme } from '../constants/theme';
+import { getTeamLogoUrl } from '../utils/teamLogo';
 
 interface LiveNowBarProps {
   games: any[];
   onGamePress: (game: any) => void;
 }
 
-function formatLiveScore(game: any): string {
+function getLiveScoreData(game: any) {
   const away = game.awayTeam?.abbrev ?? '???';
   const home = game.homeTeam?.abbrev ?? '???';
   const awayScore = game.awayTeam?.score ?? 0;
@@ -29,7 +31,7 @@ function formatLiveScore(game: any): string {
   }
 
   const clockStr = clock && periodLabel ? `${periodLabel} ${clock}` : periodLabel;
-  return `${away} ${awayScore} - ${home} ${homeScore}  ${clockStr}`.trim();
+  return { away, home, awayScore, homeScore, clockStr };
 }
 
 function PulsingDot() {
@@ -66,7 +68,17 @@ function LiveScoreChip({ game, onPress }: { game: any; onPress: () => void }) {
       onPressOut={() => { scale.value = withSpring(1, { damping: 15, stiffness: 150 }); }}
     >
       <Animated.View style={[styles.scoreChip, pressStyle]}>
-        <Text style={styles.scoreText}>{formatLiveScore(game)}</Text>
+        {(() => {
+          const d = getLiveScoreData(game);
+          return (
+            <View style={styles.chipContent}>
+              <Image source={{ uri: getTeamLogoUrl(d.away) }} style={styles.chipLogo} contentFit="contain" />
+              <Text style={styles.scoreText}>{d.away} {d.awayScore} - {d.home} {d.homeScore}</Text>
+              <Image source={{ uri: getTeamLogoUrl(d.home) }} style={styles.chipLogo} contentFit="contain" />
+              {d.clockStr ? <Text style={styles.clockText}>{d.clockStr}</Text> : null}
+            </View>
+          );
+        })()}
       </Animated.View>
     </Pressable>
   );
@@ -154,11 +166,27 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: 'rgba(239, 68, 68, 0.08)',
   },
+  chipContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  chipLogo: {
+    width: 16,
+    height: 16,
+  },
   scoreText: {
     fontSize: 12,
     fontWeight: '600',
     color: theme.text,
     fontFamily: theme.fonts.mono,
     fontVariant: ['tabular-nums'],
+  },
+  clockText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: theme.subtext,
+    fontFamily: theme.fonts.mono,
+    marginLeft: 2,
   },
 });

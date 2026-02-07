@@ -1,8 +1,9 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 
 interface ConfidenceBadgeProps {
   confidence: number; // 0-100
   size?: 'sm' | 'md' | 'lg';
+  onInfoPress?: (glossaryKey: string) => void;
 }
 
 type ConfidenceTier = {
@@ -33,35 +34,46 @@ const SIZE_CONFIG = {
   lg: { fontSize: 14, paddingH: 14, paddingV: 7, borderRadius: 10 },
 };
 
-export function ConfidenceBadge({ confidence, size = 'md' }: ConfidenceBadgeProps) {
+export function ConfidenceBadge({ confidence, size = 'md', onInfoPress }: ConfidenceBadgeProps) {
   const tier = getTier(confidence);
   const sizeConfig = SIZE_CONFIG[size];
+  const glossaryKey = tier.label.toLowerCase().replace('-', '');
+
+  const badgeStyle = [
+    styles.badge,
+    {
+      backgroundColor: tier.bgColor,
+      borderColor: tier.color,
+      paddingHorizontal: sizeConfig.paddingH,
+      paddingVertical: sizeConfig.paddingV,
+      borderRadius: sizeConfig.borderRadius,
+    },
+  ];
+
+  const labelStyle = [
+    styles.label,
+    {
+      color: tier.color,
+      fontSize: sizeConfig.fontSize,
+    },
+  ];
+
+  if (onInfoPress) {
+    return (
+      <Pressable
+        testID="confidence-badge"
+        onLongPress={() => onInfoPress(glossaryKey)}
+        delayLongPress={300}
+        style={badgeStyle}
+      >
+        <Text style={labelStyle}>{tier.label}</Text>
+      </Pressable>
+    );
+  }
 
   return (
-    <View
-      testID="confidence-badge"
-      style={[
-        styles.badge,
-        {
-          backgroundColor: tier.bgColor,
-          borderColor: tier.color,
-          paddingHorizontal: sizeConfig.paddingH,
-          paddingVertical: sizeConfig.paddingV,
-          borderRadius: sizeConfig.borderRadius,
-        },
-      ]}
-    >
-      <Text
-        style={[
-          styles.label,
-          {
-            color: tier.color,
-            fontSize: sizeConfig.fontSize,
-          },
-        ]}
-      >
-        {tier.label}
-      </Text>
+    <View testID="confidence-badge" style={badgeStyle}>
+      <Text style={labelStyle}>{tier.label}</Text>
     </View>
   );
 }

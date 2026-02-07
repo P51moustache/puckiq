@@ -5,6 +5,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Dimensions, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
 import { makeStyles, theme } from '../constants/theme';
 import { getAccuracyTrends } from '../utils/accuracyTracking';
@@ -78,7 +79,7 @@ export default function AccuracyTrendsCard() {
           Prediction Accuracy
         </Text>
         <EmptyState
-          icon="📊"
+          icon="stats-chart-outline"
           title="No Data Yet"
           message="Predictions will be tracked automatically after games complete. Make some picks to get started!"
         />
@@ -86,17 +87,17 @@ export default function AccuracyTrendsCard() {
     );
   }
 
-  // Determine trend emoji and color
-  let trendEmoji = '➡️';
+  // Determine trend icon and color
+  let trendIcon: keyof typeof Ionicons.glyphMap = 'remove-outline';
   let trendText = 'Stable';
   let trendColor = '#f59e0b';
 
   if (trends.trend === 'improving') {
-    trendEmoji = '📈';
+    trendIcon = 'trending-up';
     trendText = 'Improving';
     trendColor = '#10b981';
   } else if (trends.trend === 'declining') {
-    trendEmoji = '📉';
+    trendIcon = 'trending-down';
     trendText = 'Declining';
     trendColor = '#ef4444';
   }
@@ -122,7 +123,7 @@ export default function AccuracyTrendsCard() {
             fontWeight: '800',
             letterSpacing: 0.5,
           }}>
-            {trendEmoji} {trendText}
+            <Ionicons name={trendIcon} size={10} color={trendColor} /> {trendText}
           </Text>
         </View>
       </View>

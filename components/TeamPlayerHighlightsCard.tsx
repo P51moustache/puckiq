@@ -209,7 +209,7 @@ export default function TeamPlayerHighlightsCard({ teamAbbrev }: TeamPlayerHighl
     return (
       <View style={styles.card}>
         <EmptyState
-          icon="🏒"
+          icon="disc-outline"
           title="Select a Team"
           message="Choose a team above to see their top player stats"
         />
@@ -243,7 +243,7 @@ export default function TeamPlayerHighlightsCard({ teamAbbrev }: TeamPlayerHighl
     return (
       <View style={styles.card}>
         <EmptyState
-          icon="⚠️"
+          icon="alert-circle-outline"
           title="Failed to load player highlights"
           message={error}
         />
@@ -257,7 +257,7 @@ export default function TeamPlayerHighlightsCard({ teamAbbrev }: TeamPlayerHighl
     return (
       <View style={styles.card}>
         <EmptyState
-          icon="📊"
+          icon="stats-chart-outline"
           title="No Stats Available"
           message="Player stats for this team are not yet available"
         />

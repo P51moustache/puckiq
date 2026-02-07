@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import AnalyticsService from '../../services/analytics/AnalyticsService';
 import { AnalyticsEvent } from '../../services/analytics/types';
+import { theme } from '../../constants/theme';
 
 interface AnalyticsDashboardProps {
   visible: boolean;
@@ -55,12 +56,12 @@ export default function AnalyticsDashboard({ visible, onClose }: AnalyticsDashbo
 
   const getEventColor = (eventName: string) => {
     switch (eventName) {
-      case 'screen_view': return '#4CAF50';
-      case 'user_action': return '#2196F3';
-      case 'feature_usage': return '#FF9800';
+      case 'screen_view': return theme.semantic.positive;
+      case 'user_action': return theme.accent;
+      case 'feature_usage': return theme.semantic.neutral;
       case 'performance': return '#9C27B0';
-      case 'error': return '#F44336';
-      default: return '#757575';
+      case 'error': return theme.semantic.negative;
+      default: return theme.subtext;
     }
   };
 
@@ -149,7 +150,7 @@ export default function AnalyticsDashboard({ visible, onClose }: AnalyticsDashbo
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: theme.background,
     paddingTop: 60,
   },
   header: {
@@ -159,12 +160,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: 'rgba(255,255,255,0.08)',
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
+    color: theme.text,
   },
   headerButtons: {
     flexDirection: 'row',
@@ -176,28 +177,28 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   clearButton: {
-    backgroundColor: '#f44336',
+    backgroundColor: theme.semantic.negative,
   },
   refreshButton: {
-    backgroundColor: '#2196f3',
+    backgroundColor: theme.accent,
   },
   closeButton: {
-    backgroundColor: '#666',
+    backgroundColor: theme.subtext,
   },
   buttonText: {
-    color: '#fff',
+    color: theme.text,
     fontSize: 12,
     fontWeight: '600',
   },
   statsContainer: {
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: 'rgba(255,255,255,0.08)',
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
+    color: theme.text,
     marginBottom: 10,
   },
   statsGrid: {
@@ -208,7 +209,7 @@ const styles = StyleSheet.create({
   statItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2a2a2a',
+    backgroundColor: theme.card,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
@@ -220,7 +221,7 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   statText: {
-    color: '#ccc',
+    color: theme.subtext,
     fontSize: 12,
   },
   eventsContainer: {
@@ -231,18 +232,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   loadingText: {
-    color: '#ccc',
+    color: theme.subtext,
     textAlign: 'center',
     marginTop: 20,
   },
   emptyText: {
-    color: '#ccc',
+    color: theme.subtext,
     textAlign: 'center',
     marginTop: 20,
     fontStyle: 'italic',
   },
   eventItem: {
-    backgroundColor: '#2a2a2a',
+    backgroundColor: theme.card,
     borderRadius: 8,
     marginBottom: 8,
     padding: 12,
@@ -259,23 +260,23 @@ const styles = StyleSheet.create({
   },
   eventName: {
     flex: 1,
-    color: '#fff',
+    color: theme.text,
     fontSize: 14,
     fontWeight: '600',
   },
   eventTime: {
-    color: '#ccc',
+    color: theme.subtext,
     fontSize: 12,
   },
   eventProperties: {
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#444',
+    borderTopColor: 'rgba(255,255,255,0.1)',
   },
   propertiesText: {
-    color: '#ccc',
+    color: theme.subtext,
     fontSize: 11,
-    fontFamily: 'monospace',
+    fontFamily: theme.fonts.mono,
   },
 });

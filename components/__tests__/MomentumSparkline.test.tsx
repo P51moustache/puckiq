@@ -20,6 +20,7 @@ jest.mock('../../constants/theme', () => ({
 
 jest.mock('../../constants/teamColors', () => ({
   getTeamColors: () => ({ primary: '#00205B', secondary: '#fff' }),
+  getAccessibleTextColor: () => '#4488cc',
 }));
 
 import React from 'react';
