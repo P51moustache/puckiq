@@ -1,0 +1,90 @@
+name: NHL Data Sync
+
+# Schedule:
+#   - Twice daily (noon + midnight ET): core data, game extras, aggregates, game logs
+#   - Weekly (Monday 6am ET): advanced per-game stats (Corsi, Fenwick, PDO, scoring rates)
+#
+# Most NHL games end by 11pm ET, so midnight catches all final scores.
+# Noon catches any late-night West Coast games and updates standings.
+# Monday morning is ideal for weekly advanced stats — full weekend data, low API load.
+on:
+  schedule:
+    - cron: '0 5 * * *'    # Midnight ET (5:00 UTC) — daily
+    - cron: '0 17 * * *'   # Noon ET (17:00 UTC) — daily
+    - cron: '0 11 * * 1'   # Monday 6am ET (11:00 UTC) — weekly advanced stats
+  workflow_dispatch:
+    inputs:
+      sync_mode:
+        description: 'Sync mode'
+        required: false
+        default: 'incremental'
+        type: choice
+        options:
+          - incremental
+          - full
+          - weekly
+
+jobs:
+  sync:
+    name: Sync NHL Data
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install @supabase/supabase-js dotenv
+
+      - name: Determine sync mode
+        id: mode
+        run: |
+          MODE="${{ github.event.inputs.sync_mode || 'auto' }}"
+          if [ "$MODE" = "auto" ]; then
+            # Check if this is the weekly Monday 6am schedule
+            DAY_OF_WEEK=$(date -u +%u)  # 1=Monday
+            HOUR_UTC=$(date -u +%H)
+            if [ "$DAY_OF_WEEK" = "1" ] && [ "$HOUR_UTC" = "11" ]; then
+              MODE="weekly"
+            else
+              MODE="incremental"
+            fi
+          fi
+          echo "mode=$MODE" >> $GITHUB_OUTPUT
+          echo "Sync mode: $MODE"
+
+      - name: Run sync
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          MODE="${{ steps.mode.outputs.mode }}"
+          if [ "$MODE" = "full" ]; then
+            node scripts/sync/sync-all.mjs --full --weekly
+          elif [ "$MODE" = "weekly" ]; then
+            node scripts/sync/sync-all.mjs --weekly
+          else
+            node scripts/sync/sync-all.mjs
+          fi
+
+      - name: Health check
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: node scripts/sync/sync-health.mjs
+
+      - name: Post failure notification
+        if: failure()
+        run: |
+          echo "::error::NHL Data Sync failed! Check the logs above for details."
+          echo "To re-run manually: go to Actions > NHL Data Sync > Run workflow"
