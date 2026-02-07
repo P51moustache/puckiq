@@ -64,9 +64,9 @@ Relatively simple screen:
 
 ---
 
-### MY IQ — `app/(tabs)/myiq.tsx` — 293 lines
+### MY IQ — `app/(tabs)/myiq.tsx` — 405 lines
 
-User progress dashboard:
+User progress dashboard (connected to real data in Cycle 9):
 
 1. **Header** — "My Hockey IQ" + "Track your progress"
 2. **Overall Stats Card** — Large accuracy % center, total picks + current streak below
@@ -74,11 +74,13 @@ User progress dashboard:
 4. **Room to Grow** — 3 weakest factors (<55%), growth tip
 5. **Milestones** — 3-card grid: longest streak, best week, lessons completed
 6. **Encouragement Message** — Motivational text
+7. **Loading State** — Skeleton while fetching real data
+8. **Empty State** — "Make your first pick!" when no pick history exists
 
-**Note:** Currently uses hardcoded mock data (USER_STATS, FACTOR_ACCURACY arrays). Not connected to real user pick history yet.
+**Note:** Connected to real pick history via getAllPicks/getStreakData. Factor accuracy still uses mock data (factor-level tracking not yet implemented).
 
 **CEO Translation Guide:**
-- "Feels fake" → It IS mock data right now. Connecting to real pickTracking service is the fix.
+- ~~"Feels fake"~~ → Now uses real data. Factor accuracy section still mock.
 - "Not rewarding enough" → Milestones section is basic (3 cards). Needs more achievements, celebration animations, progress bars.
 - "Boring" → No animations, no color beyond theme defaults, no team identity.
 
@@ -113,18 +115,18 @@ Power user screen (mostly Shark territory):
 
 ---
 
-### PROFILE — `app/(tabs)/profile.tsx` — 594 lines
+### PROFILE — `app/(tabs)/profile.tsx` — 285 lines
 
-Settings + stats:
+Stats + achievements (deduplicated in Cycle 9 — notification settings moved to Settings):
 
-1. Notification settings (toggles, time picker)
-2. AccuracyTrendsCard, PickPerformanceChart, StreakBadge
-3. Overall stats (accuracy %, total picks, win/loss)
-4. Achievements list
-5. Data management (clear picks, clear AI history)
+1. StreakBadge + "Your Stats" header
+2. Stats grid (accuracy %, wins, losses, total picks)
+3. Streak info (current, longest, total days active)
+4. Achievements (unlocked badges + in-progress with progress bars)
+5. AccuracyTrendsCard, PickPerformanceChart
 
 **CEO Translation Guide:**
-- "Too similar to My IQ" → Profile and My IQ overlap (both show accuracy/stats). Needs differentiation — Profile = settings/account, My IQ = gamified progress.
+- ~~"Too similar to My IQ"~~ → Differentiated in Cycle 9: Profile = stats/achievements, My IQ = gamified progress, Settings = preferences/data management.
 
 ---
 
@@ -177,10 +179,10 @@ Settings + stats:
 
 ## Known UX Gaps
 
-- **My IQ uses mock data** — not connected to real pick history
+- ~~My IQ uses mock data~~ — FIXED in Cycle 9 (connected to real pick/streak data via getAllPicks, getStreakData)
 - **Learn lessons are placeholders** — Coach's Corner cards lead nowhere (hidden route)
-- **Profile and My IQ overlap** — both show accuracy stats (both hidden routes)
+- ~~Profile and My IQ overlap~~ — FIXED in Cycle 9 (Profile = stats/achievements, My IQ = gamified progress, Settings = preferences)
 - **No onboarding** — new user lands on Tonight with no context
-- **YOUR TEAM badge not wired** — `isYourTeam` prop exists on HeroBanner but not passed since YourTeamCard removal. Could re-wire to show when user's team is the hero game.
+- ~~YOUR TEAM badge not wired~~ — FIXED in Cycle 9 (HeroBanner shows badge when user's favorite team is in hero game)
 - ~~GameDeepDiveModal TS errors~~ — FIXED in Cycle 9 (0 TS errors codebase-wide)
-- **Settings duplicated** — Profile and Settings screens show same notification controls
+- ~~Settings duplicated~~ — FIXED in Cycle 9 (Profile slimmed from 595→285 lines, notification controls only in Settings)
