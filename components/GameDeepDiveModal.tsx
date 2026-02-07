@@ -17,11 +17,19 @@ import SpeedGauge from './SpeedGauge';
 import type { TeamEdgeDetail, MomentumData, ClutchRating as ClutchRatingType } from '../types/edgeStats';
 import type { NHLGameSummary } from '../types/predictions';
 
+interface EnhancedPrediction {
+  homeWinProb: number;
+  awayWinProb: number;
+  goalieAdvantage?: 'home' | 'away' | 'neutral';
+  hotPlayersImpact?: number;
+  playerFactorsApplied?: boolean;
+}
+
 interface GameDeepDiveModalProps {
   visible: boolean;
   onClose: () => void;
   game: NHLGameSummary;
-  prediction: { homeWinProb: number; awayWinProb: number };
+  prediction: EnhancedPrediction;
   restMap?: Map<string, number>;
 }
 
@@ -62,8 +70,8 @@ export default function GameDeepDiveModal({
   const [awayClutch, setAwayClutch] = useState<ClutchRatingType | null>(null);
   const [loadingEdge, setLoadingEdge] = useState(false);
 
-  const homeAbbrev = game?.homeTeam?.abbrev || game?.homeTeam?.teamAbbrev?.default || 'HOME';
-  const awayAbbrev = game?.awayTeam?.abbrev || game?.awayTeam?.teamAbbrev?.default || 'AWAY';
+  const homeAbbrev = game?.homeTeam?.abbrev || 'HOME';
+  const awayAbbrev = game?.awayTeam?.abbrev || 'AWAY';
   const homeTeamId: number | undefined = game?.homeTeam?.id;
   const awayTeamId: number | undefined = game?.awayTeam?.id;
   const favored = prediction?.homeWinProb > prediction?.awayWinProb ? homeAbbrev : awayAbbrev;
@@ -333,7 +341,7 @@ export default function GameDeepDiveModal({
       </View>
 
       {/* Player Advantage (when player factors are applied) */}
-      {prediction.playerFactorsApplied && (
+      {prediction.playerFactorsApplied === true && (
         <View style={{ marginBottom: 20 }}>
           <Text style={{ fontSize: 16, fontWeight: '700', color: '#e6eef8', marginBottom: 12 }}>
             Player Factors
@@ -344,53 +352,55 @@ export default function GameDeepDiveModal({
             padding: 16,
           }}>
             {/* Goalie Matchup */}
-            <Pressable
-              onPress={() => setShowGoalieInfo(true)}
-              style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: prediction.hotPlayersImpact !== 0 ? 12 : 0,
-              }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Ionicons name="hand-left-outline" size={16} color="#98a6bf" style={{ marginRight: 8 }} />
-                <Text style={{ fontSize: 13, color: '#98a6bf', fontWeight: '600' }}>
-                  Goalie Advantage
-                </Text>
-                <View style={{
-                  marginLeft: 6,
-                  width: 16,
-                  height: 16,
-                  borderRadius: 8,
-                  backgroundColor: '#192e5e',
-                  justifyContent: 'center',
+            {prediction.goalieAdvantage && (
+              <Pressable
+                onPress={() => setShowGoalieInfo(true)}
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
                   alignItems: 'center',
-                }}>
-                  <Text style={{ fontSize: 10, color: '#60a5fa', fontWeight: '700' }}>?</Text>
+                  marginBottom: (prediction.hotPlayersImpact ?? 0) !== 0 ? 12 : 0,
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Ionicons name="hand-left-outline" size={16} color="#98a6bf" style={{ marginRight: 8 }} />
+                  <Text style={{ fontSize: 13, color: '#98a6bf', fontWeight: '600' }}>
+                    Goalie Advantage
+                  </Text>
+                  <View style={{
+                    marginLeft: 6,
+                    width: 16,
+                    height: 16,
+                    borderRadius: 8,
+                    backgroundColor: '#192e5e',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}>
+                    <Text style={{ fontSize: 10, color: '#60a5fa', fontWeight: '700' }}>?</Text>
+                  </View>
                 </View>
-              </View>
-              <View style={{
-                backgroundColor: prediction.goalieAdvantage === 'home' ? '#f59e0b22' :
-                               prediction.goalieAdvantage === 'away' ? '#60a5fa22' : '#98a6bf22',
-                paddingHorizontal: 10,
-                paddingVertical: 4,
-                borderRadius: 8,
-              }}>
-                <Text style={{
-                  fontSize: 12,
-                  fontWeight: '700',
-                  color: prediction.goalieAdvantage === 'home' ? '#f59e0b' :
-                         prediction.goalieAdvantage === 'away' ? '#60a5fa' : '#98a6bf',
+                <View style={{
+                  backgroundColor: prediction.goalieAdvantage === 'home' ? '#f59e0b22' :
+                                 prediction.goalieAdvantage === 'away' ? '#60a5fa22' : '#98a6bf22',
+                  paddingHorizontal: 10,
+                  paddingVertical: 4,
+                  borderRadius: 8,
                 }}>
-                  {prediction.goalieAdvantage === 'home' ? homeAbbrev :
-                   prediction.goalieAdvantage === 'away' ? awayAbbrev : 'Even'}
-                </Text>
-              </View>
-            </Pressable>
+                  <Text style={{
+                    fontSize: 12,
+                    fontWeight: '700',
+                    color: prediction.goalieAdvantage === 'home' ? '#f59e0b' :
+                           prediction.goalieAdvantage === 'away' ? '#60a5fa' : '#98a6bf',
+                  }}>
+                    {prediction.goalieAdvantage === 'home' ? homeAbbrev :
+                     prediction.goalieAdvantage === 'away' ? awayAbbrev : 'Even'}
+                  </Text>
+                </View>
+              </Pressable>
+            )}
 
             {/* Hot Players Impact */}
-            {prediction.hotPlayersImpact !== 0 && (
+            {(prediction.hotPlayersImpact ?? 0) !== 0 && (
               <Pressable
                 onPress={() => setShowHotPlayersInfo(true)}
                 style={{
@@ -420,7 +430,7 @@ export default function GameDeepDiveModal({
                   </View>
                 </View>
                 <View style={{
-                  backgroundColor: prediction.hotPlayersImpact > 0 ? '#f59e0b22' : '#60a5fa22',
+                  backgroundColor: (prediction.hotPlayersImpact ?? 0) > 0 ? '#f59e0b22' : '#60a5fa22',
                   paddingHorizontal: 10,
                   paddingVertical: 4,
                   borderRadius: 8,
@@ -428,9 +438,9 @@ export default function GameDeepDiveModal({
                   <Text style={{
                     fontSize: 12,
                     fontWeight: '700',
-                    color: prediction.hotPlayersImpact > 0 ? '#f59e0b' : '#60a5fa',
+                    color: (prediction.hotPlayersImpact ?? 0) > 0 ? '#f59e0b' : '#60a5fa',
                   }}>
-                    +{Math.round(Math.abs(prediction.hotPlayersImpact / 1.5))} {prediction.hotPlayersImpact > 0 ? homeAbbrev : awayAbbrev}
+                    +{Math.round(Math.abs((prediction.hotPlayersImpact ?? 0) / 1.5))} {(prediction.hotPlayersImpact ?? 0) > 0 ? homeAbbrev : awayAbbrev}
                   </Text>
                 </View>
               </Pressable>
@@ -824,9 +834,7 @@ export default function GameDeepDiveModal({
           </View>
           {/* Stats Rows */}
           {[
-            { label: 'Record', away: `${game.awayTeam?.wins || 0}-${game.awayTeam?.losses || 0}`, home: `${game.homeTeam?.wins || 0}-${game.homeTeam?.losses || 0}` },
-            { label: 'Points', away: game.awayTeam?.points || 0, home: game.homeTeam?.points || 0 },
-            { label: 'Goal Diff', away: (game.awayTeam?.goalFor || 0) - (game.awayTeam?.goalAgainst || 0), home: (game.homeTeam?.goalFor || 0) - (game.homeTeam?.goalAgainst || 0) },
+            { label: 'Score', away: game.awayTeam?.score ?? '-', home: game.homeTeam?.score ?? '-' },
           ].map((stat, idx) => (
             <View
               key={idx}
@@ -863,21 +871,15 @@ export default function GameDeepDiveModal({
       {/* Away Team Recent Form */}
       <View style={{ marginBottom: 20 }}>
         <Text style={{ fontSize: 14, fontWeight: '600', color: '#60a5fa', marginBottom: 8 }}>
-          {awayAbbrev} - {game.awayTeam?.streakCode || 'N/A'}
+          {awayAbbrev} {game.awayTeam?.streakCode ? `- ${game.awayTeam.streakCode}` : ''}
         </Text>
         <View style={{
           backgroundColor: '#071a3699',
           borderRadius: 12,
           padding: 16,
         }}>
-          <Text style={{ fontSize: 12, color: '#98a6bf', marginBottom: 8 }}>
-            Recent Record: {game.awayTeam?.wins || 0}-{game.awayTeam?.losses || 0}-{game.awayTeam?.otLosses || 0}
-          </Text>
-          <Text style={{ fontSize: 12, color: '#98a6bf', marginBottom: 8 }}>
-            Goals For/Against: {game.awayTeam?.goalFor || 0} / {game.awayTeam?.goalAgainst || 0}
-          </Text>
-          <Text style={{ fontSize: 12, color: '#98a6bf' }}>
-            Point %: {((game.awayTeam?.pointPctg || 0) * 100).toFixed(1)}%
+          <Text style={{ fontSize: 12, color: '#98a6bf', textAlign: 'center' }}>
+            Recent form data available in Stats and H2H tabs
           </Text>
         </View>
       </View>
@@ -885,21 +887,15 @@ export default function GameDeepDiveModal({
       {/* Home Team Recent Form */}
       <View>
         <Text style={{ fontSize: 14, fontWeight: '600', color: '#f59e0b', marginBottom: 8 }}>
-          {homeAbbrev} - {game.homeTeam?.streakCode || 'N/A'}
+          {homeAbbrev} {game.homeTeam?.streakCode ? `- ${game.homeTeam.streakCode}` : ''}
         </Text>
         <View style={{
           backgroundColor: '#071a3699',
           borderRadius: 12,
           padding: 16,
         }}>
-          <Text style={{ fontSize: 12, color: '#98a6bf', marginBottom: 8 }}>
-            Recent Record: {game.homeTeam?.wins || 0}-{game.homeTeam?.losses || 0}-{game.homeTeam?.otLosses || 0}
-          </Text>
-          <Text style={{ fontSize: 12, color: '#98a6bf', marginBottom: 8 }}>
-            Goals For/Against: {game.homeTeam?.goalFor || 0} / {game.homeTeam?.goalAgainst || 0}
-          </Text>
-          <Text style={{ fontSize: 12, color: '#98a6bf' }}>
-            Point %: {((game.homeTeam?.pointPctg || 0) * 100).toFixed(1)}%
+          <Text style={{ fontSize: 12, color: '#98a6bf', textAlign: 'center' }}>
+            Recent form data available in Stats and H2H tabs
           </Text>
         </View>
       </View>

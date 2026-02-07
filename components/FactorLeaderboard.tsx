@@ -10,7 +10,7 @@ interface FactorRanking {
 }
 
 interface FactorLeaderboardProps {
-  rankings: FactorRanking[];
+  rankings?: FactorRanking[];
   season?: string;
 }
 
