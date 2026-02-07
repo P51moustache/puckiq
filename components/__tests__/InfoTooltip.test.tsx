@@ -8,7 +8,7 @@ jest.mock('react-native', () => ({
   Pressable: 'Pressable',
   View: 'View',
   Text: 'Text',
-  StyleSheet: { create: (s: any) => s, absoluteFill: {} },
+  StyleSheet: { create: (s: any) => s, absoluteFill: {}, absoluteFillObject: {} },
 }));
 
 jest.mock('react-native-reanimated', () => ({
@@ -17,7 +17,7 @@ jest.mock('react-native-reanimated', () => ({
     View: 'AnimatedView',
   },
   FadeIn: { duration: () => ({}) },
-  SlideInDown: { duration: () => ({ springify: () => ({ damping: () => ({}) }) }) },
+  SlideInUp: { duration: () => ({}) },
 }));
 
 jest.mock('@expo/vector-icons', () => ({

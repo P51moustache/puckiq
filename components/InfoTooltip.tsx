@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
+import Animated, { FadeIn, SlideInUp } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../constants/theme';
 import type { GlossaryEntry } from '../constants/glossary';
@@ -32,53 +32,46 @@ export default function InfoTooltip({ visible, entry, onClose }: InfoTooltipProp
       onRequestClose={onClose}
     >
       <Pressable style={styles.backdrop} onPress={onClose}>
-        <Animated.View entering={FadeIn.duration(150)} style={StyleSheet.absoluteFill} />
+        <Animated.View entering={FadeIn.duration(200)} style={StyleSheet.absoluteFill} />
       </Pressable>
-      <Animated.View entering={SlideInDown.duration(250).springify().damping(20)} style={styles.sheet}>
-        <View style={styles.handle} />
-        <View style={styles.content}>
-          <View style={styles.headerRow}>
-            <Ionicons name={iconName as any} size={18} color={theme.accent} />
-            <Text style={styles.term}>{entry.term}</Text>
+      <View style={styles.centerWrapper}>
+        <Animated.View entering={SlideInUp.duration(300)} style={styles.card}>
+          <View style={styles.content}>
+            <View style={styles.headerRow}>
+              <Ionicons name={iconName as any} size={18} color={theme.accent} />
+              <Text style={styles.term}>{entry.term}</Text>
+            </View>
+            <Text style={styles.explanation}>{entry.explanation}</Text>
           </View>
-          <Text style={styles.explanation}>{entry.explanation}</Text>
-        </View>
-        <Pressable onPress={onClose} style={styles.dismissButton}>
-          <Text style={styles.dismissText}>Got it</Text>
-        </Pressable>
-      </Animated.View>
+          <Pressable onPress={onClose} style={styles.dismissButton}>
+            <Text style={styles.dismissText}>Got it</Text>
+          </Pressable>
+        </Animated.View>
+      </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   backdrop: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
-  sheet: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: theme.card,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: 34,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.08)',
+  centerWrapper: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    pointerEvents: 'box-none',
   },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    alignSelf: 'center',
-    marginTop: 10,
-    marginBottom: 16,
+  card: {
+    width: '85%',
+    backgroundColor: theme.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
   content: {
-    paddingHorizontal: 20,
+    padding: 20,
     gap: 10,
   },
   headerRow: {
@@ -98,8 +91,9 @@ const styles = StyleSheet.create({
     color: theme.subtext,
   },
   dismissButton: {
-    marginTop: 16,
+    marginTop: 0,
     marginHorizontal: 20,
+    marginBottom: 20,
     backgroundColor: theme.accent + '22',
     paddingVertical: 12,
     borderRadius: 10,
