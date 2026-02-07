@@ -111,7 +111,7 @@ This cycle introduces NHL Edge IQ puck/player tracking data into PuckIQ. The NHL
 
 **Key architectural decisions:**
 1. **New service layer**: `services/edgeStats.ts` — centralized Edge API client with caching
-2. **New derived stats service**: `services/derivedStats.ts` — momentum, clutch, xG approximation from existing data
+2. **New derived stats service**: `services/derivedStats.ts` — momentum, clutch, rest advantage from existing data (xG approximation removed — real xG will come from Supabase)
 3. **Supabase table**: `team_rolling_stats` for derived stat persistence (momentum, clutch ratings computed from game_results)
 4. **No game_edge_stats table** (revised from strategy) — Edge API provides current-season data directly via `/now` endpoints. No need to store per-game Edge data in Supabase since the API serves season aggregates with percentiles.
 5. **New types**: `types/edgeStats.ts` — TypeScript interfaces for all Edge API responses
@@ -389,7 +389,7 @@ This cycle introduces NHL Edge IQ puck/player tracking data into PuckIQ. The NHL
    - `calculateMomentum(teamAbbrev, gameResults[])` → MomentumData (score -10 to +10, trend arrow)
    - `calculateClutchRating(teamAbbrev, gameResults[])` → ClutchRating (ICE COLD / CLUTCH / CLOSER)
    - `calculateRestAdvantage(team, games, schedule)` → number (0-100%)
-   - `calculateXGApprox(teamEdge, standings)` → { xGF, actual, delta }
+   - ~~`calculateXGApprox`~~ — REMOVED (fake approximation deleted; real xG will come from Supabase Edge IQ data)
    - **AC**: All functions compile and return correct types. Momentum categorizes trends. Clutch assigns badges. Rest returns 0-100.
 
 4. [ ] **Add `team_rolling_stats` table to Supabase** — Schema + seed script

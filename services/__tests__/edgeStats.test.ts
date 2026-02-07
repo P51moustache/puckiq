@@ -1,7 +1,19 @@
 /**
  * Tests for services/edgeStats.ts
- * Tests: cache TTL, fetch behavior, error handling, all endpoint functions
+ * Tests: cache TTL, fetch behavior, error handling, all endpoint functions.
+ * Supabase is mocked to return null so all tests exercise the NHL API fallback path.
  */
+
+// Mock Supabase before importing the module under test
+const mockSingle = jest.fn().mockResolvedValue({ data: null, error: { message: 'mock' } });
+const mockLimit = jest.fn().mockReturnValue({ single: mockSingle });
+const mockEq = jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ single: mockSingle, limit: mockLimit }), single: mockSingle, limit: mockLimit }), single: mockSingle, limit: mockLimit }), single: mockSingle, limit: mockLimit });
+const mockSelect = jest.fn().mockReturnValue({ eq: mockEq });
+const mockFrom = jest.fn().mockReturnValue({ select: mockSelect });
+
+jest.mock('../../lib/supabase', () => ({
+  supabase: { from: mockFrom },
+}));
 
 import {
   fetchEdgeSkaterLanding,
@@ -22,6 +34,7 @@ global.fetch = mockFetch;
 
 beforeEach(() => {
   mockFetch.mockReset();
+  mockSingle.mockResolvedValue({ data: null, error: { message: 'mock' } });
   clearEdgeCache();
 });
 

@@ -11,16 +11,7 @@ import {
   DisciplineStats,
   CategoryWinner,
 } from '../types/teamStats';
-
-// Map team abbreviation to team ID (NHL API uses IDs for some endpoints)
-const TEAM_ID_MAP: Record<string, number> = {
-  'ANA': 24, 'BOS': 6, 'BUF': 7, 'CAR': 12, 'CBJ': 29, 'CGY': 20,
-  'CHI': 16, 'COL': 21, 'DAL': 25, 'DET': 17, 'EDM': 22, 'FLA': 13,
-  'LAK': 26, 'MIN': 30, 'MTL': 8, 'NJD': 1, 'NSH': 18, 'NYI': 2,
-  'NYR': 3, 'OTT': 9, 'PHI': 4, 'PIT': 5, 'SEA': 55, 'SJS': 28,
-  'STL': 19, 'TBL': 14, 'TOR': 10, 'VAN': 23, 'VGK': 54, 'WPG': 52,
-  'WSH': 15, 'ARI': 53,
-};
+import { supabase } from '../lib/supabase';
 
 /**
  * Fetch comprehensive team statistics for comparison
@@ -29,12 +20,75 @@ export async function getTeamComparisonData(
   teamAbbrev: string,
   standingsData?: any
 ): Promise<TeamComparisonStats> {
+  // --- Supabase-first: try standings + team_stat_categories + skater_season_stats ---
   try {
-    const teamId = TEAM_ID_MAP[teamAbbrev];
-    if (!teamId) {
-      throw new Error(`Unknown team abbreviation: ${teamAbbrev}`);
-    }
+    const [standingsRes, summaryRes, skatersRes] = await Promise.all([
+      supabase
+        .from('standings')
+        .select('*')
+        .order('snapshot_date', { ascending: false })
+        .limit(32), // Latest snapshot for all teams
+      supabase
+        .from('team_stat_categories')
+        .select('*')
+        .eq('team_abbrev', teamAbbrev)
+        .eq('stat_category', 'summary')
+        .limit(1),
+      supabase
+        .from('skater_season_stats')
+        .select('*')
+        .eq('team_abbrev', teamAbbrev),
+    ]);
 
+    if (!standingsRes.error && standingsRes.data && standingsRes.data.length > 0) {
+      const allStandings = standingsRes.data;
+      const teamStanding = allStandings.find((t: any) => t.team_abbrev === teamAbbrev);
+
+      if (teamStanding) {
+        // Extract team summary from team_stat_categories JSONB
+        let teamSummary: any = null;
+        if (!summaryRes.error && summaryRes.data && summaryRes.data.length > 0) {
+          teamSummary = summaryRes.data[0].data;
+        }
+
+        // Build club stats from skater_season_stats for power play goals aggregation
+        let clubStats: any = null;
+        if (!skatersRes.error && skatersRes.data && skatersRes.data.length > 0) {
+          clubStats = {
+            skaters: skatersRes.data.map((s: any) => ({
+              powerPlayGoals: s.power_play_goals || 0,
+            })),
+          };
+        }
+
+        // Transform Supabase standings row to NHL API-like shape for buildTeamStats
+        const standingsForBuilder = allStandings.map((s: any) => ({
+          teamAbbrev: s.team_abbrev,
+          teamId: s.team_id,
+          gamesPlayed: s.games_played,
+          wins: s.wins,
+          losses: s.losses,
+          otLosses: s.ot_losses,
+          points: s.points,
+          goalFor: s.goals_for,
+          goalAgainst: s.goals_against,
+        }));
+
+        const teamStandingMapped = standingsForBuilder.find((t: any) => t.teamAbbrev === teamAbbrev);
+        if (teamStandingMapped) {
+          const teamId = teamSummary?.teamId ?? teamStanding.team_id ?? 0;
+          console.log(`[TEAM COMPARISON] [SUPABASE] Loaded stats for ${teamAbbrev}`);
+          return buildTeamStats(teamId, teamAbbrev, standingsForBuilder, teamStandingMapped, clubStats, teamSummary);
+        }
+      }
+    }
+    console.warn(`[TEAM COMPARISON] [SUPABASE] No data for ${teamAbbrev}, falling back to NHL API`);
+  } catch (sbErr) {
+    console.warn(`[TEAM COMPARISON] [SUPABASE] Error, falling back to NHL API`, sbErr);
+  }
+
+  // --- Fallback: NHL API ---
+  try {
     // Fetch standings, club stats, and team summary in parallel
     const [standingsRes, clubStatsRes, teamSummaryRes] = await Promise.allSettled([
       standingsData
@@ -62,10 +116,11 @@ export async function getTeamComparisonData(
     }
 
     // Extract team summary (has REAL PP%, PK%, shots data)
+    // Match by teamTriCode instead of hardcoded team ID map
     let teamSummary = null;
     if (teamSummaryRes.status === 'fulfilled' && teamSummaryRes.value.ok) {
       const data = await teamSummaryRes.value.json();
-      teamSummary = data.data?.find((t: any) => t.teamId === teamId);
+      teamSummary = data.data?.find((t: any) => t.teamTriCode === teamAbbrev || t.teamFullName?.includes(teamAbbrev));
     }
 
     // Find team in standings
@@ -76,6 +131,9 @@ export async function getTeamComparisonData(
     if (!teamStanding) {
       throw new Error(`Team ${teamAbbrev} not found in standings`);
     }
+
+    // Get teamId from team summary or standings if available
+    const teamId = teamSummary?.teamId ?? teamStanding?.teamId ?? 0;
 
     // Build stats object from all data sources
     return buildTeamStats(teamId, teamAbbrev, standings, teamStanding, clubStats, teamSummary);
@@ -258,10 +316,6 @@ function calculateAllRankings(allTeamsStandings: any[], teamAbbrev: string, club
     };
   });
 
-  // If we have club stats for this team, we can calculate additional rankings
-  // For now, we'll use placeholder rankings for stats we can't rank without all teams' club stats
-  const hasClubStats = clubStats?.skaters?.length > 0;
-
   // Helper to get rank
   const getRank = (metric: string, higherIsBetter: boolean = true) => {
     const sorted = [...allTeamsMetrics]
@@ -272,22 +326,18 @@ function calculateAllRankings(allTeamsStandings: any[], teamAbbrev: string, club
     return teamIndex >= 0 ? teamIndex + 1 : undefined;
   };
 
-  // Return rankings for available stats
-  // For stats we can calculate from club data, use estimated rankings based on goals
-  const goalsRank = getRank('goalsPerGame', true);
-  const goalsAgainstRank = getRank('goalsAgainstPerGame', false);
-
+  // Only return rankings we can actually calculate from standings data
+  // TODO: Connect to Supabase for real per-stat rankings
   return {
-    goalsPerGameRank: goalsRank,
-    goalsAgainstPerGameRank: goalsAgainstRank,
-    // Estimated rankings based on offensive/defensive performance
-    shotsPerGameRank: hasClubStats ? goalsRank : undefined,
-    shotsAgainstPerGameRank: hasClubStats ? goalsAgainstRank : undefined,
-    shootingPctRank: hasClubStats ? goalsRank : undefined,
-    savePctRank: hasClubStats ? goalsAgainstRank : undefined,
-    powerPlayPctRank: hasClubStats ? goalsRank : undefined,
-    penaltyKillPctRank: hasClubStats ? goalsAgainstRank : undefined,
-    powerPlayGoalsRank: hasClubStats ? goalsRank : undefined,
+    goalsPerGameRank: getRank('goalsPerGame', true),
+    goalsAgainstPerGameRank: getRank('goalsAgainstPerGame', false),
+    shotsPerGameRank: undefined,
+    shotsAgainstPerGameRank: undefined,
+    shootingPctRank: undefined,
+    savePctRank: undefined,
+    powerPlayPctRank: undefined,
+    penaltyKillPctRank: undefined,
+    powerPlayGoalsRank: undefined,
   };
 }
 

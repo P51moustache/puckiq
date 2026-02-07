@@ -10,6 +10,7 @@ import {
   NHLRawSkater,
   NHLRawGoalie,
 } from '../types/gameResults';
+import { supabase } from '../lib/supabase';
 
 // ---------------------------------------------------------------------------
 // In-memory cache
@@ -38,6 +39,59 @@ export async function getTeamPlayerStats(
     return cached;
   }
 
+  // --- Supabase-first: try reading from skater_season_stats + goalie_season_stats ---
+  try {
+    const [skaterRes, goalieRes] = await Promise.all([
+      supabase
+        .from('skater_season_stats')
+        .select('*, players!inner(first_name, last_name)')
+        .eq('team_abbrev', teamAbbrev)
+        .order('points', { ascending: false }),
+      supabase
+        .from('goalie_season_stats')
+        .select('*, players!inner(first_name, last_name)')
+        .eq('team_abbrev', teamAbbrev)
+        .order('wins', { ascending: false }),
+    ]);
+
+    if (!skaterRes.error && !goalieRes.error && skaterRes.data && goalieRes.data && (skaterRes.data.length > 0 || goalieRes.data.length > 0)) {
+      const skaters: PlayerStatLine[] = skaterRes.data.map((row: any): PlayerStatLine => ({
+        playerId: row.player_id,
+        firstName: row.players.first_name,
+        lastName: row.players.last_name,
+        positionCode: row.position || 'C',
+        gamesPlayed: row.games_played || 0,
+        goals: row.goals || 0,
+        assists: row.assists || 0,
+        points: row.points || 0,
+        plusMinus: row.plus_minus || 0,
+        shots: row.shots || 0,
+        shootingPctg: row.shooting_pctg || 0,
+      }));
+
+      const goalies: GoalieStatLine[] = goalieRes.data.map((row: any): GoalieStatLine => ({
+        playerId: row.player_id,
+        firstName: row.players.first_name,
+        lastName: row.players.last_name,
+        gamesPlayed: row.games_played || 0,
+        wins: row.wins || 0,
+        losses: row.losses || 0,
+        otLosses: row.ot_losses || 0,
+        goalsAgainstAvg: row.goals_against_avg || 0,
+        savePctg: row.save_pctg || 0,
+      }));
+
+      const result: TeamPlayerStats = { skaters, goalies };
+      statsCache.set(teamAbbrev, result);
+      console.log(`[PLAYER STATS] [SUPABASE] Loaded ${skaters.length} skaters + ${goalies.length} goalies for ${teamAbbrev}`);
+      return result;
+    }
+    console.warn(`[PLAYER STATS] [SUPABASE] No data for ${teamAbbrev}, falling back to NHL API`);
+  } catch (sbError) {
+    console.warn(`[PLAYER STATS] [SUPABASE] Error, falling back to NHL API`, sbError);
+  }
+
+  // --- Fallback: NHL API ---
   try {
     const response = await fetch(
       `https://api-web.nhle.com/v1/club-stats/${teamAbbrev}/now`,

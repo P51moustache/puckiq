@@ -41,6 +41,7 @@ export const mockTeamSummaryData = {
   data: [
     {
       teamId: 10,
+      teamTriCode: 'TOR',
       shotsForPerGame: 31.5,
       shotsAgainstPerGame: 29.0,
       powerPlayPct: 0.225,
@@ -48,6 +49,7 @@ export const mockTeamSummaryData = {
     },
     {
       teamId: 6,
+      teamTriCode: 'BOS',
       shotsForPerGame: 33.0,
       shotsAgainstPerGame: 28.5,
       powerPlayPct: 0.240,
@@ -56,6 +58,7 @@ export const mockTeamSummaryData = {
     },
     {
       teamId: 8,
+      teamTriCode: 'MTL',
       shotsForPerGame: 28.0,
       shotsAgainstPerGame: 32.0,
       powerPlayPct: 0.190,

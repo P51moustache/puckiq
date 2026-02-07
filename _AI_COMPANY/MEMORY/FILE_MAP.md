@@ -64,7 +64,7 @@
 - `TeamSearchBar.tsx` - Search component for teams
 - `TeamStatusBadges.tsx` - Team status indicator badges
 - `StatComparisonRow.tsx` - Side-by-side team stat comparison
-- `AdvancedStatCard.tsx` - Advanced analytics card (Corsi, xG)
+- `AdvancedStatCard.tsx` - Advanced analytics card (Corsi, Fenwick)
 
 ### User Progress & Engagement
 - `StreakBadge.tsx` - Current streak with dynamic styling
@@ -148,12 +148,12 @@
 - `modelPrediction.ts` - Prediction engine with model weights
 - `modelStorage.ts` - Model persistence (AsyncStorage)
 - `backtesting.ts` - Model validation against historical games
-- `historicalGames.ts` - Historical game data seeding
+- ~~`historicalGames.ts`~~ - DELETED (replaced by Supabase sync)
 - `insightGenerator.ts` - Generates analytical Insight[] from game data (H2H, streaks, player stats, standings, Edge IQ)
 
 ### Analysis & Stats
 - `factorAnalysis.ts` - Factor importance calculations
-- `advancedTeamStats.ts` - Advanced metrics (Corsi, Fenwick, xG)
+- ~~`advancedTeamStats.ts`~~ - DELETED (fake data removed, replaced by Supabase)
 - `teamComparison.ts` - Head-to-head team comparison
 - `playerPrediction.ts` - Player-level prediction factors
 - `weeklyTheme.ts` - Educational theme rotation
@@ -162,7 +162,7 @@
 
 ### Edge Analytics (Cycle 5)
 - `edgeStats.ts` - Edge API client with 5-min in-memory cache: `fetchSkaterEdge`, `fetchTeamEdge`, `fetchGoalieEdge`, `fetchTeamZoneTime`, `fetchEdgeByTheNumbers`, `fetchEdgeSkaterLanding`, `fetchEdgeGoalieLanding`, `fetchEdgeTeamLanding`, `clearEdgeCache`
-- `derivedStats.ts` - Derived stat calculations: `calculateMomentum`, `calculateClutchRating`, `calculateRestAdvantage`, `calculateXGApprox`, `buildEdgeQuickStats`
+- `derivedStats.ts` - Derived stat calculations: `calculateMomentum`, `calculateClutchRating`, `calculateRestAdvantage`, `buildEdgeQuickStats`
 
 ### User Preferences
 - `teamFavorites.ts` - Favorite teams management
@@ -199,7 +199,7 @@
 - `gameResults.test.ts` - Supabase game results: formatH2HSummary, getH2HRecord, getH2HForGames, seedCurrentSeason, syncRecentResults. 31 tests.
 - `playerStats.test.ts` - NHL API player stats: cache, fetching, name mapping, sorting, errors, parallel fetch. 15 tests.
 - `edgeStats.test.ts` - Edge API client: mock fetch, cache TTL, error handling, all endpoints. 16 tests.
-- `derivedStats.test.ts` - Momentum/clutch/rest/xG/buildEdgeQuickStats calculations, edge cases. 34 tests.
+- `derivedStats.test.ts` - Momentum/clutch/rest/buildEdgeQuickStats calculations, edge cases.
 
 ### Component Tests (`components/__tests__/`)
 - `HeroMatchup.test.tsx` - Matchup text, TOP EDGE label, onPress/onShare callbacks, H2H chip, game time, ConfidenceBadge. 7 tests.
@@ -265,9 +265,30 @@
 ### Hero Banner Photos (`assets/images/topimages/`)
 - `image1.jpg` through `image8.jpg` — 8 bundled hockey arena/atmosphere photos used by HeroBanner. Daily rotation via day-of-year modulo. (Cycle 7 — previously unused)
 
+## Sync Infrastructure (`scripts/sync/`)
+- `nhl-api.mjs` - Shared NHL API helpers: endpoints, fetchWithRetry, ALL_TEAMS, getCurrentSeason, formatDate, sleep
+- `supabase-client.mjs` - Supabase client for sync scripts (prefers service role key, loads .env)
+- `sync-games.mjs` - Game results sync (incremental: yesterday+today, or --full: all 32 teams)
+- `sync-standings.mjs` - Standings sync (full refresh from standings/now)
+- `sync-teams.mjs` - Team stats sync (aggregated from club-stats per team)
+- `sync-players.mjs` - Player stats sync (skaters + goalies from club-stats per team)
+- `sync-all.mjs` - Orchestrator: runs all sync modules in sequence, prints summary
+- `sync-health.mjs` - Health check: verifies data freshness and row counts per table
+
+## Database Migrations (`supabase/migrations/`)
+- `20260207050239_create_game_results.sql` - Legacy game_results table (game_id, teams, scores, H2H indexes)
+- `20260207140000_comprehensive_nhl_schema.sql` - Full schema: 15 tables (teams, players, games, game_goals, game_skater_stats, game_goalie_stats, skater_season_stats, goalie_season_stats, standings, edge_skater_stats, edge_goalie_stats, edge_team_stats, game_penalties, game_three_stars, sync_log). Includes RLS policies, indexes, updated_at triggers.
+- `20260207150000_stat_category_tables.sql` - Raw JSONB stat tables: team_stat_categories, skater_stat_categories, goalie_stat_categories, team_game_stats. Stores all NHL stats REST API categories as raw JSONB. GIN indexes on data columns.
+
+## CI/CD (`.github/workflows/`)
+- `nhl-data-sync.yml` - Twice-daily NHL data sync (midnight + noon ET), manual dispatch, health check
+
+## Documentation (`docs/`)
+- `DATABASE_REFERENCE.md` - Complete Supabase schema reference: all tables, columns, data sources, example queries, sync schedule
+
 ## Config
 - `lib/firebase.ts` - Firebase initialization
-- `lib/supabase.ts` - Supabase client
+- `lib/supabase.ts` - Supabase client (app-side, uses EXPO_PUBLIC env vars + AsyncStorage)
 
 ## Deleted in Cycle 3
 - `components/TopPickCard.tsx` - Replaced by HeroMatchup

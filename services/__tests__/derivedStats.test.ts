@@ -1,13 +1,12 @@
 /**
  * Tests for derivedStats service
- * Tests: momentum, clutch rating, rest advantage, xG, edge quick stats
+ * Tests: momentum, clutch rating, rest advantage, edge quick stats
  */
 
 import {
   calculateMomentum,
   calculateClutchRating,
   calculateRestAdvantage,
-  calculateXGApprox,
   buildEdgeQuickStats,
 } from '../derivedStats';
 import type { GameResult } from '../../types/gameResults';
@@ -277,77 +276,6 @@ describe('calculateRestAdvantage', () => {
       makeGame({ home_team: 'MTL', away_team: 'TOR', game_date: '2026-01-19' }),
     ];
     expect(calculateRestAdvantage('TOR', '2026-01-20', games)).toBe(50);
-  });
-});
-
-// ============================================
-// calculateXGApprox
-// ============================================
-describe('calculateXGApprox', () => {
-  it('returns default for null standings', () => {
-    const result = calculateXGApprox(null, 'TOR');
-    expect(result.label).toBe('N/A');
-    expect(result.delta).toBe(0);
-  });
-
-  it('returns default when team not found', () => {
-    const standings = { standings: [{ teamAbbrev: 'MTL', gamesPlayed: 50 }] };
-    const result = calculateXGApprox(standings, 'TOR');
-    expect(result.label).toBe('N/A');
-  });
-
-  it('returns Over-performing for positive goal diff', () => {
-    const standings = {
-      standings: [{
-        teamAbbrev: 'TOR',
-        gamesPlayed: 50,
-        goalFor: 175,
-        goalAgainst: 125,
-      }],
-    };
-    const result = calculateXGApprox(standings, 'TOR');
-    expect(result.label).toBe('Over-performing');
-    expect(result.delta).toBeGreaterThan(0);
-  });
-
-  it('returns Under-performing for negative goal diff', () => {
-    const standings = {
-      standings: [{
-        teamAbbrev: 'TOR',
-        gamesPlayed: 50,
-        goalFor: 125,
-        goalAgainst: 175,
-      }],
-    };
-    const result = calculateXGApprox(standings, 'TOR');
-    expect(result.label).toBe('Under-performing');
-    expect(result.delta).toBeLessThan(0);
-  });
-
-  it('returns As Expected for small goal diff', () => {
-    const standings = {
-      standings: [{
-        teamAbbrev: 'TOR',
-        gamesPlayed: 50,
-        goalFor: 150,
-        goalAgainst: 148,
-      }],
-    };
-    const result = calculateXGApprox(standings, 'TOR');
-    expect(result.label).toBe('As Expected');
-  });
-
-  it('handles teamAbbrev as object with default', () => {
-    const standings = {
-      standings: [{
-        teamAbbrev: { default: 'TOR' },
-        gamesPlayed: 50,
-        goalFor: 175,
-        goalAgainst: 125,
-      }],
-    };
-    const result = calculateXGApprox(standings, 'TOR');
-    expect(result.label).toBe('Over-performing');
   });
 });
 

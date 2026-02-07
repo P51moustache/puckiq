@@ -13,10 +13,11 @@ import { getActiveModel, loadModels, setActiveModel as setActiveModelStorage } f
 import { generateInsights } from '../services/insightGenerator';
 import { getTeamPlayerStats } from '../services/playerStats';
 import logger from '../utils/logger';
+import { supabase } from '../lib/supabase';
 import type { PlayerPredictionFactors, PredictionModel } from '../types/predictions';
 import type { Insight } from '../types/insights';
 import type { TeamPlayerStats } from '../types/gameResults';
-import { syncRecentResults, getH2HForGames, fetchGameResults } from '../services/gameResults';
+import { getH2HForGames, fetchGameResults } from '../services/gameResults';
 import type { H2HRecord } from '../types/gameResults';
 import { fetchEdgeSkaterLanding, fetchEdgeTeamLanding, fetchEdgeByTheNumbers } from '../services/edgeStats';
 import { calculateMomentum, calculateClutchRating, calculateRestAdvantage } from '../services/derivedStats';
@@ -140,18 +141,6 @@ export function useTonightData(): TonightData {
   const [lastFetchTime, setLastFetchTime] = useState<Date | null>(null);
 
   // ============================================
-  // Initial data loading (sync recent results)
-  // ============================================
-  useEffect(() => {
-    async function loadInitialData() {
-      logger.log('[INIT] Starting initial data load...');
-      await Promise.allSettled([syncRecentResults()]);
-      logger.log('[INIT] Initial data load complete');
-    }
-    loadInitialData();
-  }, []);
-
-  // ============================================
   // Win probability calculator
   // ============================================
   const calculateWinProbability = useCallback(
@@ -175,16 +164,112 @@ export function useTonightData(): TonightData {
       const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
       logger.log('[NHL Data] Fetching games for date:', todayStr);
 
-      const [gamesRes, standingsRes, skaterLandingRes, teamLandingRes, byTheNumbersRes] = await Promise.allSettled([
-        fetch(`https://api-web.nhle.com/v1/score/${todayStr}`),
-        fetch('https://api-web.nhle.com/v1/standings/now'),
-        fetchEdgeSkaterLanding(),
-        fetchEdgeTeamLanding(),
-        fetchEdgeByTheNumbers(),
-      ]);
-
+      // --- Supabase-first: today's games ---
       let gamesData: any = null;
-      if (gamesRes.status === 'fulfilled' && gamesRes.value.ok) {
+      let standingsData: any = null;
+      let supabaseGamesOk = false;
+      let supabaseStandingsOk = false;
+
+      try {
+        const [gamesResult, standingsResult] = await Promise.allSettled([
+          supabase.from('games').select('*').eq('game_date', todayStr),
+          supabase.from('standings').select('*').order('snapshot_date', { ascending: false }).limit(32),
+        ]);
+
+        // Transform Supabase games rows to NHL API shape
+        if (gamesResult.status === 'fulfilled' && !gamesResult.value.error && gamesResult.value.data && gamesResult.value.data.length > 0) {
+          const rows = gamesResult.value.data;
+          gamesData = {
+            games: rows.map((row: any) => ({
+              id: row.id,
+              season: row.season,
+              gameType: row.game_type,
+              gameDate: row.game_date,
+              startTimeUTC: row.start_time_utc,
+              venue: row.venue,
+              gameState: row.game_state,
+              gameScheduleState: row.game_schedule_state,
+              homeTeam: {
+                id: row.home_team_id,
+                abbrev: row.home_team_abbrev,
+                score: row.home_score,
+                sog: row.home_sog,
+              },
+              awayTeam: {
+                id: row.away_team_id,
+                abbrev: row.away_team_abbrev,
+                score: row.away_score,
+                sog: row.away_sog,
+              },
+              period: row.period,
+              periodType: row.period_type,
+            })),
+          };
+          supabaseGamesOk = true;
+          logger.info('[SUPABASE] Loaded', rows.length, 'games for', todayStr);
+        } else {
+          logger.warn('[SUPABASE] No games data for', todayStr, '— falling back to NHL API');
+        }
+
+        // Transform Supabase standings rows to NHL API shape
+        if (standingsResult.status === 'fulfilled' && !standingsResult.value.error && standingsResult.value.data && standingsResult.value.data.length > 0) {
+          const rows = standingsResult.value.data;
+          standingsData = {
+            standings: rows.map((row: any) => ({
+              teamAbbrev: row.team_abbrev,
+              teamLogo: row.logo_url,
+              pointPctg: row.point_pctg,
+              wins: row.wins,
+              losses: row.losses,
+              otLosses: row.ot_losses,
+              points: row.points,
+              goalFor: row.goals_for,
+              goalAgainst: row.goals_against,
+              gamesPlayed: row.games_played,
+              streakCode: row.streak_code,
+              streakCount: row.streak_count,
+              divisionName: row.division,
+              conferenceName: row.conference,
+              regulationWins: row.regulation_wins,
+              regulationPlusOtWins: row.regulation_plus_ot_wins,
+              goalDifferential: row.goal_differential,
+              l10Wins: row.l10_wins,
+              l10Losses: row.l10_losses,
+              l10OtLosses: row.l10_ot_losses,
+              homeWins: row.home_wins,
+              homeLosses: row.home_losses,
+              homeOtLosses: row.home_ot_losses,
+              roadWins: row.road_wins,
+              roadLosses: row.road_losses,
+              roadOtLosses: row.road_ot_losses,
+            })),
+          };
+          supabaseStandingsOk = true;
+          logger.info('[SUPABASE] Loaded', rows.length, 'standings rows');
+        } else {
+          logger.warn('[SUPABASE] No standings data — falling back to NHL API');
+        }
+      } catch (supabaseErr) {
+        logger.warn('[SUPABASE] Error querying games/standings, falling back to NHL API', supabaseErr);
+      }
+
+      // --- NHL API fallback for anything Supabase didn't cover ---
+      const fetchPromises: Promise<any>[] = [];
+      // Only fetch from NHL API if Supabase didn't return data
+      fetchPromises.push(
+        supabaseGamesOk ? Promise.resolve(null) : fetch(`https://api-web.nhle.com/v1/score/${todayStr}`),
+      );
+      fetchPromises.push(
+        supabaseStandingsOk ? Promise.resolve(null) : fetch('https://api-web.nhle.com/v1/standings/now'),
+      );
+      fetchPromises.push(fetchEdgeSkaterLanding());
+      fetchPromises.push(fetchEdgeTeamLanding());
+      fetchPromises.push(fetchEdgeByTheNumbers());
+
+      const [gamesRes, standingsRes, skaterLandingRes, teamLandingRes, byTheNumbersRes] = await Promise.allSettled(fetchPromises);
+
+      // NHL API fallback: games
+      if (!supabaseGamesOk && gamesRes.status === 'fulfilled' && gamesRes.value && gamesRes.value.ok) {
         try {
           gamesData = await gamesRes.value.json();
           logger.log('[NHL Data] Games loaded:', gamesData?.games?.length || 0, 'games');
@@ -206,14 +291,15 @@ export function useTonightData(): TonightData {
 
       if (mounted && gamesData) setTodaysGames(gamesData);
 
-      if (standingsRes.status === 'fulfilled' && standingsRes.value.ok) {
+      // NHL API fallback: standings
+      if (!supabaseStandingsOk && standingsRes.status === 'fulfilled' && standingsRes.value && standingsRes.value.ok) {
         try {
-          const standingsData = await standingsRes.value.json();
-          if (mounted) setCurrentStandings(standingsData);
+          standingsData = await standingsRes.value.json();
         } catch (parseErr) {
           logger.warn('[NHL Data] Failed to parse standings JSON:', parseErr);
         }
       }
+      if (mounted && standingsData) setCurrentStandings(standingsData);
       // Edge landing data (optional — graceful fallback)
       if (skaterLandingRes.status === 'fulfilled' && skaterLandingRes.value) {
         if (mounted) setEdgeSkaterLanding(skaterLandingRes.value);

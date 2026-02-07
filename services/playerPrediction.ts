@@ -16,6 +16,7 @@ import type {
   TeamHotPlayers,
   PlayerPredictionFactors,
 } from '../types/predictions';
+import { supabase } from '../lib/supabase';
 
 // Cache for player data (expires after 30 minutes)
 const CACHE_DURATION = 30 * 60 * 1000;
@@ -47,6 +48,39 @@ export async function fetchTeamRoster(teamAbbrev: string): Promise<PlayerInfo[]>
   const cached = getCachedData<PlayerInfo[]>(cacheKey);
   if (cached) return cached;
 
+  // --- Supabase-first: try reading from players table ---
+  try {
+    const { data: sbPlayers, error: sbError } = await supabase
+      .from('players')
+      .select('*')
+      .eq('current_team_abbrev', teamAbbrev)
+      .eq('is_active', true);
+
+    if (!sbError && sbPlayers && sbPlayers.length > 0) {
+      const players: PlayerInfo[] = sbPlayers.map((p: any): PlayerInfo => {
+        const position = p.position || 'C';
+        const positionType: 'F' | 'D' | 'G' = position === 'G' ? 'G' : (position === 'D' ? 'D' : 'F');
+        return {
+          id: p.id,
+          firstName: p.first_name || '',
+          lastName: p.last_name || '',
+          fullName: `${p.first_name || ''} ${p.last_name || ''}`.trim(),
+          teamAbbrev,
+          position: position as PlayerInfo['position'],
+          positionType,
+          sweaterNumber: p.sweater_number,
+        };
+      });
+      console.log(`[Player Prediction] [SUPABASE] Loaded ${players.length} players for ${teamAbbrev}`);
+      setCachedData(cacheKey, players);
+      return players;
+    }
+    console.warn(`[Player Prediction] [SUPABASE] No roster data for ${teamAbbrev}, falling back to NHL API`);
+  } catch (sbErr) {
+    console.warn(`[Player Prediction] [SUPABASE] Error, falling back to NHL API`, sbErr);
+  }
+
+  // --- Fallback: NHL API ---
   try {
     const res = await fetch(`https://api-web.nhle.com/v1/roster/${teamAbbrev}/current`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -111,6 +145,48 @@ export async function fetchPlayerStats(playerId: number): Promise<{
   const cached = getCachedData<any>(cacheKey);
   if (cached) return cached;
 
+  // --- Supabase-first: try player_career_data + season stats ---
+  try {
+    const { data: careerData, error: careerErr } = await supabase
+      .from('player_career_data')
+      .select('*')
+      .eq('player_id', playerId)
+      .single();
+
+    if (!careerErr && careerData) {
+      // Extract featured stats from the career data JSONB
+      const featured = careerData.featured_stats;
+      const subSeason = featured?.regularSeason?.subSeason;
+      const last5 = careerData.last_5_games || [];
+
+      const result = {
+        skaterStats: subSeason,
+        goalieStats: subSeason && 'wins' in subSeason ? {
+          gamesPlayed: subSeason.gamesPlayed || 0,
+          gamesStarted: subSeason.gamesStarted || subSeason.gamesPlayed || 0,
+          wins: subSeason.wins || 0,
+          losses: subSeason.losses || 0,
+          otLosses: subSeason.otLosses || 0,
+          savePercentage: subSeason.savePctg || subSeason.savePercentage || 0,
+          goalsAgainstAverage: subSeason.goalsAgainstAvg || subSeason.gaa || 0,
+          shutouts: subSeason.shutouts || 0,
+          shotsAgainst: subSeason.shotsAgainst || 0,
+          saves: subSeason.saves || 0,
+          avgTimeOnIce: subSeason.avgToi || subSeason.timeOnIce || '0:00',
+        } as GoalieStats : undefined,
+        last5Games: last5,
+      };
+
+      console.log(`[Player Prediction] [SUPABASE] Loaded career data for player ${playerId}`);
+      setCachedData(cacheKey, result);
+      return result;
+    }
+    console.warn(`[Player Prediction] [SUPABASE] No career data for player ${playerId}, falling back to NHL API`);
+  } catch (sbErr) {
+    console.warn(`[Player Prediction] [SUPABASE] Error, falling back to NHL API`, sbErr);
+  }
+
+  // --- Fallback: NHL API ---
   try {
     const res = await fetch(`https://api-web.nhle.com/v1/player/${playerId}/landing`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);

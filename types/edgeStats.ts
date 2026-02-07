@@ -299,23 +299,6 @@ export interface ClutchRating {
   thirdPeriodGoalDiff: number;
 }
 
-/** xG approximation data */
-export interface XGApprox {
-  xGF: number;
-  actualGoals: number;
-  delta: number; // positive = lucky, negative = unlucky
-  label: string; // "Lucky" | "Unlucky" | "As Expected"
-}
-
-/** Complete derived stats for a team */
-export interface DerivedTeamStats {
-  momentum: MomentumData;
-  clutch: ClutchRating;
-  restAdvantage: number; // 0-100
-  xg: XGApprox;
-  ppTrend?: number; // rolling PP%
-}
-
 /** Edge stats summary for QuickStatsBar */
 export interface EdgeQuickStats {
   topShotSpeed: { value: number; playerName: string } | null;

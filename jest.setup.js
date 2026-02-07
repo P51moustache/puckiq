@@ -18,6 +18,41 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   clear: jest.fn(() => Promise.resolve()),
 }));
 
+// Mock Supabase client — chainable query builder that resolves to empty data
+jest.mock('./lib/supabase', () => {
+  function createQueryBuilder() {
+    const result = { data: [], error: null };
+    const builder = {
+      select: jest.fn().mockReturnThis(),
+      insert: jest.fn().mockReturnThis(),
+      upsert: jest.fn().mockReturnThis(),
+      update: jest.fn().mockReturnThis(),
+      delete: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      neq: jest.fn().mockReturnThis(),
+      in: jest.fn().mockReturnThis(),
+      gte: jest.fn().mockReturnThis(),
+      lte: jest.fn().mockReturnThis(),
+      or: jest.fn().mockReturnThis(),
+      order: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      single: jest.fn(() => Promise.resolve({ data: null, error: null })),
+      // Make the builder itself thenable so `await supabase.from(x).select().eq()` works
+      then: (resolve) => Promise.resolve(result).then(resolve),
+    };
+    // Each chainable method should return the same builder
+    for (const method of ['select', 'insert', 'upsert', 'update', 'delete', 'eq', 'neq', 'in', 'gte', 'lte', 'or', 'order', 'limit']) {
+      builder[method].mockReturnValue(builder);
+    }
+    return builder;
+  }
+  return {
+    supabase: {
+      from: jest.fn(() => createQueryBuilder()),
+    },
+  };
+});
+
 // Mock Firebase
 jest.mock('./lib/firebase', () => ({
   analytics: {

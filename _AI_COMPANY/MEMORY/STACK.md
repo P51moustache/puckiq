@@ -10,9 +10,22 @@
 - AsyncStorage (persistence)
 
 ## Backend / Data
-- Supabase (auth, database)
+- Supabase (auth, database — PostgreSQL)
+  - Tables: `game_results`, `standings`, `team_stats`, `player_stats`
+  - RLS: public read, service role write
+  - Client: `lib/supabase.ts` (app), `scripts/sync/supabase-client.mjs` (sync)
 - NHL API (live data feeds)
+  - `api-web.nhle.com/v1/` — Scores, standings, rosters, schedules, Edge stats
+  - `api.nhle.com/stats/rest/en/` — Team summary stats
 - Firebase Analytics
+
+## Data Sync Infrastructure
+- **Schedule:** Twice daily via GitHub Actions (midnight + noon ET)
+- **Workflow:** `.github/workflows/nhl-data-sync.yml`
+- **Scripts:** `scripts/sync/` — Modular sync modules (games, standings, teams, players)
+- **Manual:** `npm run sync` (incremental), `npm run seed:all` (full)
+- **Health:** `npm run sync:check` — Verify data freshness and completeness
+- **Docs:** `docs/DATABASE_REFERENCE.md` — Full schema reference
 
 ## UI
 - React Native built-in components

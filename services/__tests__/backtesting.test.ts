@@ -3,8 +3,6 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as backtesting from '../backtesting';
-import * as historicalGames from '../historicalGames';
 import * as modelStorage from '../modelStorage';
 import type { PredictionModel } from '../../types/predictions';
 
@@ -17,13 +15,10 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   multiRemove: jest.fn(),
 }));
 
+import * as backtesting from '../backtesting';
+
 // Mock fetch
 global.fetch = jest.fn();
-
-// Mock historicalGames
-jest.mock('../historicalGames', () => ({
-  getGamesInRange: jest.fn(),
-}));
 
 // Create test model
 function createTestModel(overrides: Partial<PredictionModel> = {}): PredictionModel {
@@ -96,8 +91,11 @@ function createMockStandings() {
 }
 
 describe('backtesting', () => {
+  const mockGetGamesInRange = jest.fn().mockResolvedValue([]);
+
   beforeEach(() => {
     jest.clearAllMocks();
+    backtesting.deps.getGamesInRange = mockGetGamesInRange;
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
     (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
     (AsyncStorage.removeItem as jest.Mock).mockResolvedValue(undefined);
@@ -107,7 +105,7 @@ describe('backtesting', () => {
 
   describe('runBacktest', () => {
     it('returns empty results when no games found', async () => {
-      (historicalGames.getGamesInRange as jest.Mock).mockResolvedValue([]);
+      mockGetGamesInRange.mockResolvedValue([]);
 
       const model = createTestModel();
       const results = await backtesting.runBacktest(model, {
@@ -122,7 +120,7 @@ describe('backtesting', () => {
 
     it('calculates accuracy correctly for simple games', async () => {
       // Mock games
-      (historicalGames.getGamesInRange as jest.Mock).mockResolvedValue([
+      mockGetGamesInRange.mockResolvedValue([
         { id: 1, date: '2024-10-15', homeTeam: 'TOR', awayTeam: 'MTL', homeScore: 4, awayScore: 2, winner: 'home' },
         { id: 2, date: '2024-10-15', homeTeam: 'BOS', awayTeam: 'MTL', homeScore: 5, awayScore: 1, winner: 'home' },
         { id: 3, date: '2024-10-16', homeTeam: 'MTL', awayTeam: 'TOR', homeScore: 3, awayScore: 2, winner: 'home' }, // Upset
@@ -191,11 +189,11 @@ describe('backtesting', () => {
 
       expect(results).toEqual(cachedResults);
       // Should not fetch games since we used cache
-      expect(historicalGames.getGamesInRange).not.toHaveBeenCalled();
+      expect(mockGetGamesInRange).not.toHaveBeenCalled();
     });
 
     it('reports progress during backtest', async () => {
-      (historicalGames.getGamesInRange as jest.Mock).mockResolvedValue([
+      mockGetGamesInRange.mockResolvedValue([
         { id: 1, date: '2024-10-15', homeTeam: 'TOR', awayTeam: 'MTL', homeScore: 4, awayScore: 2, winner: 'home' },
         { id: 2, date: '2024-10-15', homeTeam: 'BOS', awayTeam: 'MTL', homeScore: 5, awayScore: 1, winner: 'home' },
       ]);
@@ -223,7 +221,7 @@ describe('backtesting', () => {
     });
 
     it('caches standings fetches', async () => {
-      (historicalGames.getGamesInRange as jest.Mock).mockResolvedValue([
+      mockGetGamesInRange.mockResolvedValue([
         { id: 1, date: '2024-10-15', homeTeam: 'TOR', awayTeam: 'MTL', homeScore: 4, awayScore: 2, winner: 'home' },
         { id: 2, date: '2024-10-15', homeTeam: 'BOS', awayTeam: 'MTL', homeScore: 5, awayScore: 1, winner: 'home' },
       ]);
@@ -247,7 +245,7 @@ describe('backtesting', () => {
     });
 
     it('calculates improvement over baseline correctly', async () => {
-      (historicalGames.getGamesInRange as jest.Mock).mockResolvedValue([
+      mockGetGamesInRange.mockResolvedValue([
         { id: 1, date: '2024-10-15', homeTeam: 'TOR', awayTeam: 'MTL', homeScore: 4, awayScore: 2, winner: 'home' },
         { id: 2, date: '2024-10-15', homeTeam: 'BOS', awayTeam: 'TOR', homeScore: 3, awayScore: 2, winner: 'home' },
       ]);
@@ -397,7 +395,7 @@ describe('backtesting', () => {
         }
       }
 
-      (historicalGames.getGamesInRange as jest.Mock).mockResolvedValue(games);
+      mockGetGamesInRange.mockResolvedValue(games);
 
       // Mock cached standings
       const standingsJson = JSON.stringify({
