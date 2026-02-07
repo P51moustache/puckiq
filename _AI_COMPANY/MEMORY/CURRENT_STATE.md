@@ -182,5 +182,5 @@ Settings + stats:
 - **Profile and My IQ overlap** — both show accuracy stats (both hidden routes)
 - **No onboarding** — new user lands on Tonight with no context
 - **YOUR TEAM badge not wired** — `isYourTeam` prop exists on HeroBanner but not passed since YourTeamCard removal. Could re-wire to show when user's team is the hero game.
-- **GameDeepDiveModal has 30 TS errors** — Pre-existing type issues with `game: any` prop (fix in progress, Cycle 9)
+- ~~GameDeepDiveModal TS errors~~ — FIXED in Cycle 9 (0 TS errors codebase-wide)
 - **Settings duplicated** — Profile and Settings screens show same notification controls
