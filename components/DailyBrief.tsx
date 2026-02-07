@@ -103,7 +103,7 @@ export default function DailyBrief({
           <Text style={{
             fontSize: 24,
             fontWeight: '900',
-            color: pickTheme.confidence.bestBet,
+            color: pickTheme.confidence.topPick,
           }}>
             {topPicksCount}
           </Text>

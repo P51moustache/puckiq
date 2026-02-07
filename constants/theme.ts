@@ -1,5 +1,13 @@
 import { Platform, StyleSheet } from 'react-native';
 
+const selectFont = (options: { ios: string; android: string; default: string }): string => {
+  try {
+    return Platform.select?.(options) ?? options.default;
+  } catch {
+    return options.default;
+  }
+};
+
 // Dark Mode Hockey Theme
 export const theme = {
   // Original colors that work with your dark mode app
@@ -61,6 +69,45 @@ export const theme = {
     md: 16,
     lg: 24,
     xl: 32,
+  },
+
+  // Semantic data colors
+  semantic: {
+    positive: '#10b981',
+    negative: '#ef4444',
+    neutral: '#fbbf24',
+    info: '#60a5fa',
+  },
+
+  // Elevation levels
+  elevation: {
+    low: { shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
+    medium: { shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 4 },
+    high: { shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.2, shadowRadius: 12, elevation: 8 },
+    glow: { shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 16, elevation: 10 },
+  },
+
+  // Glassmorphism tokens
+  glass: {
+    bg: 'rgba(255, 255, 255, 0.08)',
+    bgHover: 'rgba(255, 255, 255, 0.12)',
+    border: 'rgba(255, 255, 255, 0.15)',
+    borderBright: 'rgba(255, 255, 255, 0.25)',
+    blur: 60,
+  },
+
+  // Font tokens
+  fonts: {
+    mono: selectFont({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+    system: selectFont({ ios: 'System', android: 'Roboto', default: 'System' }),
+  },
+
+  // Animation timing tokens
+  animation: {
+    spring: { damping: 15, stiffness: 150 },
+    entryDuration: 400,
+    staggerDelay: 80,
+    flashDuration: 600,
   },
 };
 
@@ -128,9 +175,7 @@ export const makeStyles = () => {
       alignItems: 'center',
     },
     scrollContainer: {
-      alignItems: 'center',
       paddingBottom: 40,
-      paddingHorizontal: 16,
       width: '100%',
     },
     header: {
@@ -426,7 +471,7 @@ export const pickTheme = {
 
   // Confidence colors - renamed for clarity
   confidence: {
-    bestBet: '#10b981',    // Best Bet - highest confidence
+    topPick: '#10b981',    // Top Pick - highest confidence
     solid: '#3b82f6',      // Solid pick
     good: '#f59e0b',       // Good pick
     tossUp: '#ef4444',     // Toss-up
@@ -463,7 +508,7 @@ export const insiderTheme = {
   // Old confidence names mapped to new ones
   confidence: {
     ...pickTheme.confidence,
-    lock: pickTheme.confidence.bestBet,
+    lock: pickTheme.confidence.topPick,
     strong: pickTheme.confidence.solid,
     moderate: pickTheme.confidence.good,
   },

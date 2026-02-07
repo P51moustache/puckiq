@@ -25,34 +25,29 @@ export default function TabLayout() {
           },
         }),
       }}>
-      {/* Main 3 tabs */}
+      {/* Main 2 tabs */}
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Today',
+          title: 'Tonight',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="hockey.puck.fill" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="learn"
+        name="stats"
         options={{
-          title: 'Learn',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="book.fill" color={color} />,
+          title: 'Explore',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="chart.bar.fill" color={color} />,
         }}
       />
-      <Tabs.Screen
-        name="myiq"
-        options={{
-          title: 'My IQ',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="chart.line.uptrend.xyaxis" color={color} />,
-        }}
-      />
+      <Tabs.Screen name="mypicks" options={{ href: null }} />
       {/* Hidden screens - kept for routing but not in tab bar */}
+      <Tabs.Screen name="learn" options={{ href: null }} />
+      <Tabs.Screen name="myiq" options={{ href: null }} />
       <Tabs.Screen name="explore" options={{ href: null }} />
       <Tabs.Screen name="models" options={{ href: null }} />
       <Tabs.Screen name="profile" options={{ href: null }} />
       <Tabs.Screen name="picks" options={{ href: null }} />
-      <Tabs.Screen name="mypicks" options={{ href: null }} />
       <Tabs.Screen name="teams" options={{ href: null }} />
       <Tabs.Screen name="more" options={{ href: null }} />
       <Tabs.Screen name="settings" options={{ href: null }} />

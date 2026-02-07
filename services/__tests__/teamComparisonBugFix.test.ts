@@ -1,6 +1,66 @@
 // Test file to reproduce stats display bugs in GameDeepDiveModal
 import { getTeamComparisonData, formatStatValue } from '../teamComparison';
 
+// Mock standings and team summary for tests that call getTeamComparisonData
+const mockStandings = [
+  {
+    teamAbbrev: { default: 'TOR' },
+    gamesPlayed: 20,
+    goalFor: 70,
+    goalsFor: 70,
+    goalAgainst: 56,
+    goalsAgainst: 56,
+    wins: 12,
+    losses: 6,
+    otLosses: 2,
+    points: 26,
+  },
+];
+
+const mockTeamSummaryData = {
+  data: [
+    {
+      teamId: 10,
+      shotsForPerGame: 31.5,
+      shotsAgainstPerGame: 29.0,
+      powerPlayPct: 0.225,
+      penaltyKillPct: 0.800,
+    },
+  ],
+};
+
+const mockClubStats = {
+  skaters: [{ powerPlayGoals: 8 }, { powerPlayGoals: 5 }],
+};
+
+beforeEach(() => {
+  (global.fetch as jest.Mock) = jest.fn((url: string) => {
+    if (url.includes('standings')) {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ standings: mockStandings }),
+      });
+    }
+    if (url.includes('club-stats')) {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockClubStats),
+      });
+    }
+    if (url.includes('team/summary')) {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockTeamSummaryData),
+      });
+    }
+    return Promise.resolve({ ok: false });
+  });
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
+
 describe('teamComparison bug fixes', () => {
   describe('formatStatValue', () => {
     it('should not double-format save percentage', () => {

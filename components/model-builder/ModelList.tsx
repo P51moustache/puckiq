@@ -11,6 +11,7 @@ import {
   Modal,
   TextInput,
   Pressable,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../constants/theme';
@@ -378,7 +379,12 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: 'transparent',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   cardActive: {
     borderColor: '#10b981',
@@ -445,6 +451,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: theme.text,
+    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+    fontVariant: ['tabular-nums'] as any,
   },
   accuracyPositive: {
     color: '#10b981',
@@ -532,6 +540,13 @@ const styles = StyleSheet.create({
     padding: 24,
     width: '100%',
     maxWidth: 400,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   modalTitle: {
     fontSize: 18,

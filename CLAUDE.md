@@ -124,6 +124,42 @@ PuckIQ has custom slash commands that follow a consistent TDD methodology. All c
 # → Creates prioritized plan and implements fixes incrementally
 ```
 
+## AI Company Pipeline Commands
+
+PuckIQ has a 17-agent pipeline system for structured product development. Each squad is a `/slash-command` that runs in your current Claude Code session with full context.
+
+### Pipeline Flow
+```
+/strategy [request]  →  /blueprint  →  /build  →  /verify  →  /ops
+     ↑                                                          |
+     └──────────────────── /rework [#] [reason] ←───────────────┘
+```
+
+### Available Commands
+
+| Command | Purpose | Args |
+|---------|---------|------|
+| `/pipeline` | Show current status, suggest next command | none |
+| `/strategy [request]` | Greenlight Meeting — 4 agents debate, present 3 options, wait for CEO approval | request description |
+| `/blueprint` | Create technical spec from approved strategy | none |
+| `/build` | Implement the technical spec as code | none |
+| `/verify` | Audit the build (test, security, QA, legal, persona checks) | none |
+| `/ops` | Fix issues, update docs, close the cycle | none |
+| `/quick-fix [desc]` | Small 1-3 file changes, skip full pipeline | fix description |
+| `/rework [#] [reason]` | Send work back to squad 1 (strategy), 2 (blueprint), or 3 (execution) | squad number + reason |
+
+### Pipeline State
+- State is stored in `_AI_COMPANY/MEMORY/PIPELINE_STATUS.md`
+- `/blueprint`, `/build`, `/verify`, `/ops` enforce stage gates — they refuse to run if the pipeline is at the wrong stage
+- Inter-squad communication happens via MEMORY files in `_AI_COMPANY/MEMORY/`
+- The old `_AI_COMPANY/run.sh` script is deprecated — use these slash commands instead
+
+### When to Use Which
+- **New feature or major change** → `/strategy` (start the full pipeline)
+- **Cosmetic/trivial fix (1-3 files)** → `/quick-fix`
+- **Something went wrong** → `/rework [squad#] [reason]`
+- **Check where you are** → `/pipeline`
+
 ## Core Architecture
 
 ### Key Files to Always Check First
@@ -290,35 +326,30 @@ xcrun simctl openurl booted "exp+learning-project://explore"    # Explore tab
 xcrun simctl openurl booted "exp+learning-project://profile"    # Profile tab
 ```
 
-### Screenshots (Fast Method)
-Use simctl directly - it's instant:
+### Simulator Automation (`./scripts/sim-control.sh`)
+
+Full programmatic control of the iOS simulator — no manual interaction needed.
+Requires: `idb-companion` (brew), `fb-idb` (pip, Python 3.13), `ios-simulator-skill` (`~/.claude/skills/`).
+
 ```bash
-xcrun simctl io booted screenshot /tmp/sim_screenshot.png
-```
-Then use the Read tool on `/tmp/sim_screenshot.png` to view it.
+# Full page audit — 3 screenshots (top/mid/bottom)
+./scripts/sim-control.sh scroll-screenshot /tmp/audit
 
-**Avoid** `mcp__expo-mcp-local__automation_take_screenshot` - it uses XCTest and is slow.
-
-### Simulator Interactions (Taps, Scrolls, etc.)
-
-**DO NOT use cliclick or automated tap tools** - they are unreliable and waste time with coordinate calculations.
-
-**Instead, ask the user to perform interactions:**
-1. Tell the user exactly what to tap/scroll (be specific about location and element)
-2. Wait for user to confirm they did it (e.g., "done" or "tapped")
-3. Take a screenshot to verify the result
-
-**Example workflow:**
-```
-Claude: "Please tap on the 'PuckIQ Classic ▼' pill in the header (below 'Smart NHL Picks')"
-User: "done"
-Claude: [takes screenshot to verify]
+# Individual operations
+./scripts/sim-control.sh screenshot /tmp/screen.png       # Single screenshot
+./scripts/sim-control.sh scroll-down                       # Scroll content down
+./scripts/sim-control.sh scroll-up                         # Scroll back up
+./scripts/sim-control.sh navigate models                   # Deep link to route
+./scripts/sim-control.sh screen_mapper                     # List UI elements on screen
+./scripts/sim-control.sh navigator --find-text "Login" --tap  # Tap element by text
+./scripts/sim-control.sh tap 200 400                       # Tap at coordinates
 ```
 
-**For navigation, use deep links instead of taps** - they're instant and reliable:
-```bash
-xcrun simctl openurl booted "exp+learning-project://models"
-```
+**Post-implementation verification workflow:**
+1. `./scripts/sim-control.sh navigate [route]` — go to the screen
+2. `sleep 2` — wait for data to load
+3. `./scripts/sim-control.sh scroll-screenshot /tmp/verify_[feature]` — capture full page
+4. Read all PNGs with Read tool — compare against spec
 
 ### Available Routes
 ```

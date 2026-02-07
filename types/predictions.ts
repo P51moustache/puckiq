@@ -13,6 +13,8 @@ export interface TeamStandings {
   goalAgainst?: number;
   gamesPlayed?: number;
   streakCode?: string;
+  divisionName?: string;
+  teamLogo?: string;
 }
 
 export interface StandingsData {
@@ -31,6 +33,29 @@ export interface GameData {
   };
   gameState?: string;
   startTimeUTC?: string;
+}
+
+/** Full game object from NHL score API (api-web.nhle.com/v1/score/{date}) */
+export interface NHLGameSummary {
+  id: number;
+  homeTeam: {
+    id?: number;
+    abbrev: string;
+    score?: number;
+    streakCode?: string;
+  };
+  awayTeam: {
+    id?: number;
+    abbrev: string;
+    score?: number;
+    streakCode?: string;
+  };
+  gameState: string;
+  startTimeUTC: string;
+  period?: number;
+  clock?: {
+    timeRemaining?: string;
+  };
 }
 
 export interface ConfidenceWeights {
@@ -252,4 +277,49 @@ export interface ExtendedConfidenceWeights extends ConfidenceWeights {
   goalieMatchupImpact: number;     // Impact of starting goalie comparison
   hotPlayersImpact: number;        // Impact of hot/cold player differential
   starPlayerImpact: number;        // Impact of star player availability
+}
+
+// ============================================
+// Prediction Model Types
+// ============================================
+
+/**
+ * Player-based weight factors for models
+ * These control the impact of player-specific prediction factors
+ */
+export interface PlayerWeights {
+  goalieMatchupImpact: number;     // Multiplier for goalie comparison impact (default: 1.0)
+  hotPlayersImpact: number;        // Multiplier for hot/cold player differential (default: 1.5)
+}
+
+/**
+ * Results from backtesting a prediction model against historical data
+ */
+export interface ModelBacktestResults {
+  period: {
+    start: string;  // ISO date string (YYYY-MM-DD)
+    end: string;    // ISO date string (YYYY-MM-DD)
+  };
+  totalGames: number;           // Number of games tested
+  correctPicks: number;         // Number of correct predictions
+  accuracy: number;             // 0-100 percentage accuracy
+  baselineAccuracy: number;     // Classic model accuracy for comparison
+  ranAt: string;                // ISO timestamp when backtest was executed
+}
+
+/**
+ * A user-created or system prediction model
+ * Models customize the existing CONFIDENCE_WEIGHTS and PLAYER_WEIGHTS
+ * to generate different predictions via calculateConfidenceScore()
+ */
+export interface PredictionModel {
+  id: string;                     // Unique identifier (UUID)
+  name: string;                   // User-friendly model name
+  createdAt: string;              // ISO timestamp
+  updatedAt: string;              // ISO timestamp
+  weights: ConfidenceWeights;     // The 9 core prediction factors
+  playerWeights: PlayerWeights;   // Player-based weight factors
+  isActive: boolean;              // Currently selected model for predictions
+  isDefault: boolean;             // System default (Classic) - cannot be deleted
+  backtestResults?: ModelBacktestResults;  // Optional backtest results
 }

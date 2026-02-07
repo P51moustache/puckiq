@@ -1,29 +1,18 @@
 // Test to identify which stats are showing as 0, NaN, or undefined
 import { getTeamComparisonData } from '../teamComparison';
+import { setupTeamComparisonMocks } from './fixtures/teamComparisonMocks';
+
+beforeEach(() => {
+  setupTeamComparisonMocks();
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
 
 describe('Stats Display Issues', () => {
   it('should identify stats that are 0 or undefined', async () => {
     const stats = await getTeamComparisonData('TOR');
-
-    console.log('\n=== OFFENSE STATS ===');
-    console.log('Goals/Game:', stats.offense.goalsPerGame, '(rank:', stats.offense.goalsPerGameRank, ')');
-    console.log('Shots/Game:', stats.offense.shotsPerGame, '(rank:', stats.offense.shotsPerGameRank, ')');
-    console.log('Shooting %:', stats.offense.shootingPct, '(rank:', stats.offense.shootingPctRank, ')');
-    console.log('PP %:', stats.offense.powerPlayPct, '(rank:', stats.offense.powerPlayPctRank, ')');
-
-    console.log('\n=== DEFENSE STATS ===');
-    console.log('GA/Game:', stats.defense.goalsAgainstPerGame, '(rank:', stats.defense.goalsAgainstPerGameRank, ')');
-    console.log('SA/Game:', stats.defense.shotsAgainstPerGame, '(rank:', stats.defense.shotsAgainstPerGameRank, ')');
-    console.log('PK %:', stats.defense.penaltyKillPct, '(rank:', stats.defense.penaltyKillPctRank, ')');
-
-    console.log('\n=== SPECIAL TEAMS STATS ===');
-    console.log('PP %:', stats.specialTeams.powerPlayPct, '(rank:', stats.specialTeams.powerPlayPctRank, ')');
-    console.log('PK %:', stats.specialTeams.penaltyKillPct, '(rank:', stats.specialTeams.penaltyKillPctRank, ')');
-    console.log('PP Goals:', stats.specialTeams.powerPlayGoalsFor, '(rank:', stats.specialTeams.powerPlayGoalsForRank, ')');
-
-    console.log('\n=== GOALTENDING STATS ===');
-    console.log('Save %:', stats.goaltending.savePct, '(rank:', stats.goaltending.savePctRank, ')');
-    console.log('GAA:', stats.goaltending.goalsAgainstAverage, '(rank:', stats.goaltending.goalsAgainstAverageRank, ')');
 
     // Check for problem stats
     const problems: string[] = [];
@@ -46,16 +35,9 @@ describe('Stats Display Issues', () => {
     if (isNaN(stats.defense.shotsAgainstPerGame)) problems.push('Shots Against/Game is NaN');
     if (isNaN(stats.goaltending.savePct)) problems.push('Save % is NaN');
 
-    console.log('\n=== PROBLEMS FOUND ===');
-    if (problems.length > 0) {
-      problems.forEach(p => console.log('⚠️', p));
-    } else {
-      console.log('✅ No obvious problems found');
-    }
-
     // Fail the test if there are problems
     expect(problems).toEqual([]);
-  }, 30000);
+  });
 
   it('should have valid data for all displayed stats', async () => {
     const stats = await getTeamComparisonData('BOS');
@@ -76,5 +58,5 @@ describe('Stats Display Issues', () => {
     // All these should have rankings
     expect(stats.offense.goalsPerGameRank).toBeDefined();
     expect(stats.defense.goalsAgainstPerGameRank).toBeDefined();
-  }, 30000);
+  });
 });
