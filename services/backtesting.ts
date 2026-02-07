@@ -14,7 +14,68 @@ import type {
   PlayerWeights,
 } from '../types/predictions';
 import { createDefaultModel } from './modelStorage';
-import { getGamesInRange, type HistoricalGame } from './historicalGames';
+import { supabase } from '../lib/supabase';
+
+interface HistoricalGame {
+  id: number;
+  date: string;
+  homeTeam: string;
+  awayTeam: string;
+  homeScore: number;
+  awayScore: number;
+  winner: 'home' | 'away';
+  homeGoalie?: string;
+  awayGoalie?: string;
+}
+
+/** Internal implementation — exposed via `deps` for testability */
+async function _getGamesInRangeImpl(startDate: string, endDate: string): Promise<HistoricalGame[]> {
+  try {
+    const { data, error } = await supabase
+      .from('games')
+      .select('id, game_date, home_team_abbrev, away_team_abbrev, home_score, away_score, period_type')
+      .gte('game_date', startDate)
+      .lte('game_date', endDate)
+      .in('game_state', ['FINAL', 'OFF'])
+      .eq('game_type', 2) // regular season only
+      .order('game_date');
+
+    if (error) {
+      console.error('[BACKTEST] Supabase error fetching games:', error.message);
+      return [];
+    }
+
+    if (!data || data.length === 0) {
+      console.warn(`[BACKTEST] No games found in Supabase for ${startDate} to ${endDate}`);
+      return [];
+    }
+
+    const games: HistoricalGame[] = data.map((row) => ({
+      id: row.id,
+      date: row.game_date,
+      homeTeam: row.home_team_abbrev,
+      awayTeam: row.away_team_abbrev,
+      homeScore: row.home_score ?? 0,
+      awayScore: row.away_score ?? 0,
+      winner: (row.home_score ?? 0) > (row.away_score ?? 0) ? 'home' as const : 'away' as const,
+    }));
+
+    console.log(`[BACKTEST] Fetched ${games.length} games from Supabase (${startDate} to ${endDate})`);
+    return games;
+  } catch (err) {
+    console.error('[BACKTEST] Error fetching games from Supabase:', err);
+    return [];
+  }
+}
+
+/** Mockable dependency bag for testing */
+export const deps = {
+  getGamesInRange: _getGamesInRangeImpl,
+};
+
+export async function getGamesInRange(startDate: string, endDate: string): Promise<HistoricalGame[]> {
+  return deps.getGamesInRange(startDate, endDate);
+}
 
 // Storage keys
 const STANDINGS_CACHE_PREFIX = 'puckiq_standings_cache_';
@@ -166,17 +227,50 @@ async function cacheStandings(date: string, standings: TeamStandings[]): Promise
 }
 
 /**
- * Fetch standings as of a specific date from NHL API
+ * Fetch standings as of a specific date
+ * Primary: Supabase (exact date match, then closest prior date)
+ * Fallback: NHL API
  */
 async function fetchStandingsForDate(date: string): Promise<TeamStandings[] | null> {
   try {
-    // First check cache
+    // First check AsyncStorage cache
     const cached = await getCachedStandings(date);
     if (cached) {
       return cached;
     }
 
-    // Fetch from API
+    // Try Supabase — exact date match
+    const { data: exactData, error: exactError } = await supabase
+      .from('standings')
+      .select('*')
+      .eq('snapshot_date', date);
+
+    if (!exactError && exactData && exactData.length > 0) {
+      const standings = mapSupabaseStandings(exactData);
+      if (standings.length > 0) {
+        await cacheStandings(date, standings);
+        return standings;
+      }
+    }
+
+    // Supabase — closest prior date (up to 32 teams)
+    const { data: nearData, error: nearError } = await supabase
+      .from('standings')
+      .select('*')
+      .lte('snapshot_date', date)
+      .order('snapshot_date', { ascending: false })
+      .limit(32);
+
+    if (!nearError && nearData && nearData.length > 0) {
+      const standings = mapSupabaseStandings(nearData);
+      if (standings.length > 0) {
+        await cacheStandings(date, standings);
+        return standings;
+      }
+    }
+
+    // Fallback: NHL API
+    console.log(`[BACKTEST] Supabase miss for standings ${date}, falling back to NHL API`);
     const url = `https://api-web.nhle.com/v1/standings/${date}`;
     const response = await fetch(url);
 
@@ -185,8 +279,8 @@ async function fetchStandingsForDate(date: string): Promise<TeamStandings[] | nu
       return null;
     }
 
-    const data = await response.json();
-    const standings: TeamStandings[] = data.standings || [];
+    const apiData = await response.json();
+    const standings: TeamStandings[] = apiData.standings || [];
 
     // Cache the result
     if (standings.length > 0) {
@@ -198,6 +292,26 @@ async function fetchStandingsForDate(date: string): Promise<TeamStandings[] | nu
     console.error(`[BACKTEST] Error fetching standings for ${date}:`, error);
     return null;
   }
+}
+
+/**
+ * Map Supabase standings rows to TeamStandings interface
+ */
+function mapSupabaseStandings(rows: Record<string, unknown>[]): TeamStandings[] {
+  return rows.map((row) => ({
+    teamAbbrev: row.team_abbrev as string,
+    pointPctg: row.point_pctg as number | undefined,
+    wins: row.wins as number | undefined,
+    losses: row.losses as number | undefined,
+    otLosses: row.ot_losses as number | undefined,
+    points: row.points as number | undefined,
+    goalFor: row.goals_for as number | undefined,
+    goalAgainst: row.goals_against as number | undefined,
+    gamesPlayed: row.games_played as number | undefined,
+    streakCode: row.streak_code
+      ? `${row.streak_code}${row.streak_count ?? ''}`
+      : undefined,
+  }));
 }
 
 /**
@@ -418,7 +532,7 @@ export async function runBacktest(
   console.log(`[BACKTEST] Running fresh backtest (skipCache: ${skipCache})`);
 
   // Get historical games
-  const games = await getGamesInRange(dateRange.start, dateRange.end);
+  const games = await deps.getGamesInRange(dateRange.start, dateRange.end);
 
   if (games.length === 0) {
     console.warn('[BACKTEST] No games found in date range');

@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createDailyAccuracyRecord, saveDailyAccuracy } from '../utils/accuracyTracking';
+import { supabase } from '../lib/supabase';
+import logger from '../utils/logger';
 
 export interface Pick {
   gameId: string;
@@ -303,13 +305,40 @@ export async function checkAndUpdateYesterdaysGames(): Promise<void> {
   const picks = await getPicksForDate(yesterday);
   if (!picks) return;
 
-  // Fetch yesterday's scores
+  // Fetch yesterday's scores — Supabase first, NHL API fallback
   try {
-    const response = await fetch(`https://api-web.nhle.com/v1/score/${yesterday}`);
-    if (!response.ok) throw new Error('Failed to fetch scores');
+    let games: any[] = [];
 
-    const data = await response.json();
-    const games = data.games || [];
+    // Try Supabase first
+    try {
+      const { data, error } = await supabase
+        .from('games')
+        .select('*')
+        .eq('game_date', yesterday)
+        .in('game_state', ['FINAL', 'OFF']);
+
+      if (!error && data && data.length > 0) {
+        // Transform Supabase rows to the shape the result mapper expects
+        games = data.map((row: any) => ({
+          id: row.id,
+          homeTeam: { abbrev: row.home_team_abbrev, score: row.home_score },
+          awayTeam: { abbrev: row.away_team_abbrev, score: row.away_score },
+        }));
+        logger.info('[SUPABASE] Loaded', data.length, 'completed games for', yesterday);
+      } else {
+        logger.warn('[SUPABASE] No completed games for', yesterday, '— falling back to NHL API');
+      }
+    } catch (supabaseErr) {
+      logger.warn('[SUPABASE] Error querying yesterday games, falling back to NHL API', supabaseErr);
+    }
+
+    // NHL API fallback
+    if (games.length === 0) {
+      const response = await fetch(`https://api-web.nhle.com/v1/score/${yesterday}`);
+      if (!response.ok) throw new Error('Failed to fetch scores');
+      const data = await response.json();
+      games = data.games || [];
+    }
 
     const results = games.map((game: any) => {
       const homeScore = game.homeTeam?.score || 0;

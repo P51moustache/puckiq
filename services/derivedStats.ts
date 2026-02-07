@@ -1,6 +1,6 @@
 /**
  * Derived Stats Service
- * Calculates momentum, clutch rating, rest advantage, and xG approximation
+ * Calculates momentum, clutch rating, and rest advantage
  * from existing game_results data + standings.
  */
 
@@ -9,28 +9,11 @@ import type {
   MomentumTrend,
   ClutchRating,
   ClutchRatingLevel,
-  XGApprox,
-  DerivedTeamStats,
   EdgeQuickStats,
   NHLNameField,
 } from '../types/edgeStats';
 import type { GameResult } from '../types/gameResults';
 import type { EdgeSkaterLanding } from '../types/edgeStats';
-
-/** Standings entry shape from NHL standings API */
-interface StandingsEntry {
-  teamAbbrev: string | { default: string };
-  gamesPlayed?: number;
-  goalFor?: number;
-  goalAgainst?: number;
-  [key: string]: unknown;
-}
-
-/** Standings response shape from NHL API */
-interface StandingsResponse {
-  standings?: StandingsEntry[];
-  [key: string]: unknown;
-}
 
 /** Game shape from NHL schedule API (used in buildEdgeQuickStats) */
 interface ScheduleGame {
@@ -205,54 +188,6 @@ export function calculateRestAdvantage(
   if (daysSinceLastGame === 1) return 50;  // 1 day rest
   if (daysSinceLastGame === 2) return 75;  // 2 days rest
   return 100;                               // 3+ days rest
-}
-
-// ============================================
-// xG Approximation
-// ============================================
-
-/**
- * Approximate xG from shot volume and goal totals.
- * Uses a simple heuristic: league average shooting % (~10%) applied to shots.
- * Delta > 0 means team is scoring more than expected ("lucky").
- */
-export function calculateXGApprox(
-  standings: StandingsResponse | null | undefined,
-  teamAbbrev: string
-): XGApprox {
-  const DEFAULT: XGApprox = { xGF: 0, actualGoals: 0, delta: 0, label: 'N/A' };
-
-  const entries: StandingsEntry[] = standings?.standings ?? [];
-  if (!Array.isArray(entries)) return DEFAULT;
-
-  const team = entries.find((e: StandingsEntry) => {
-    const abbrev = typeof e.teamAbbrev === 'string' ? e.teamAbbrev : e.teamAbbrev?.default;
-    return abbrev === teamAbbrev;
-  });
-
-  if (!team || !team.gamesPlayed) return DEFAULT;
-
-  const gp = team.gamesPlayed ?? 0;
-  const actualGoals = team.goalFor ?? 0;
-  // Approximate xGF using league average shooting % (~10%)
-  // Shots per game approximated from goal differential context
-  const shotsPerGame = actualGoals / (gp || 1) / 0.10; // back-calculate
-  const xGF = shotsPerGame * (gp || 1) * 0.10; // This equals actualGoals by design
-
-  // Use goalDifferential as a proxy for luck
-  const goalDiff = (team.goalFor ?? 0) - (team.goalAgainst ?? 0);
-  const delta = goalDiff / (gp || 1);
-
-  let label = 'As Expected';
-  if (delta > 0.3) label = 'Over-performing';
-  if (delta < -0.3) label = 'Under-performing';
-
-  return {
-    xGF: Math.round(xGF),
-    actualGoals,
-    delta: Math.round(delta * 10) / 10,
-    label,
-  };
 }
 
 // ============================================

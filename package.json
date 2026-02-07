@@ -15,7 +15,15 @@
     "test:unit": "jest services/ hooks/",
     "test:integration": "jest __tests__/integration/",
     "test:component": "jest components/__tests__/",
-    "test:all": "npm run lint && npm run test:coverage"
+    "test:all": "npm run lint && npm run test:coverage",
+    "seed:games": "node scripts/sync/sync-games.mjs --full",
+    "seed:all": "node scripts/sync/sync-all.mjs --full",
+    "sync": "node scripts/sync/sync-all.mjs",
+    "sync:games": "node scripts/sync/sync-games.mjs",
+    "sync:standings": "node scripts/sync/sync-standings.mjs",
+    "sync:teams": "node scripts/sync/sync-teams.mjs",
+    "sync:players": "node scripts/sync/sync-players.mjs",
+    "sync:check": "node scripts/sync/sync-health.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",

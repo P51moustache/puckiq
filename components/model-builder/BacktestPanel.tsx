@@ -19,7 +19,15 @@ import {
   type BacktestResults,
   type BacktestProgressCallback,
 } from '../../services/backtesting';
-import { isSeasonSeeded, getCurrentSeasonId } from '../../services/historicalGames';
+// TODO: Connect to Supabase for seeding status
+async function isSeasonSeeded(_seasonId: string): Promise<boolean> { return false; }
+function getCurrentSeasonId(): string {
+  const now = new Date();
+  const month = now.getMonth();
+  const year = now.getFullYear();
+  if (month >= 0 && month <= 5) return `${year - 1}${year}`;
+  return `${year}${year + 1}`;
+}
 
 /**
  * Date range options for backtesting

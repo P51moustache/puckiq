@@ -14,13 +14,19 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../constants/theme';
-import {
-  seedSeason,
-  getCurrentSeasonId,
-  isSeasonSeeded,
-  type SeedingProgressCallback,
-} from '../services/historicalGames';
-import { seedCurrentSeason } from '../services/gameResults';
+import { supabase } from '../lib/supabase';
+
+async function checkDataAvailability(): Promise<{ available: boolean; gameCount: number }> {
+  try {
+    const { count, error } = await supabase
+      .from('games')
+      .select('*', { count: 'exact', head: true });
+    if (error) return { available: false, gameCount: 0 };
+    return { available: (count ?? 0) > 0, gameCount: count ?? 0 };
+  } catch {
+    return { available: false, gameCount: 0 };
+  }
+}
 
 interface DataSeedingModalProps {
   visible: boolean;
@@ -75,48 +81,28 @@ export default function DataSeedingModal({
     }
   }, [progress]);
 
-  // Handle starting the seeding process
-  const handleStartSeeding = useCallback(async () => {
+  // Check if data is available (read-only — data is synced by server)
+  const handleCheckData = useCallback(async () => {
     setIsSeeding(true);
     setError(null);
-    setProgress(null);
     abortRef.current = false;
 
-    const seasonId = getCurrentSeasonId();
-
     try {
-      // Check if already seeded
-      const alreadySeeded = await isSeasonSeeded(seasonId);
-      if (alreadySeeded) {
-        setIsComplete(true);
-        setIsSeeding(false);
-        onSeedingComplete?.();
-        return;
-      }
-
-      // Start seeding with progress callback
-      const progressCallback: SeedingProgressCallback = (prog) => {
-        if (abortRef.current) return;
-        setProgress(prog);
-      };
-
-      // Seed both stores in parallel:
-      // 1. AsyncStorage (for backtesting via historicalGames)
-      // 2. Supabase game_results (for momentum, clutch, H2H)
-      const [gamesCount] = await Promise.all([
-        seedSeason(seasonId, progressCallback),
-        seedCurrentSeason(),
-      ]);
+      const { available, gameCount } = await checkDataAvailability();
 
       if (!abortRef.current) {
-        setTotalGames(gamesCount);
-        setIsComplete(true);
-        onSeedingComplete?.();
+        if (available) {
+          setTotalGames(gameCount);
+          setIsComplete(true);
+          onSeedingComplete?.();
+        } else {
+          setError('Game data is still being synced. Data updates automatically twice daily — please check back soon.');
+        }
       }
     } catch (err) {
-      console.error('[DataSeedingModal] Seeding error:', err);
+      console.error('[DataSeedingModal] Check error:', err);
       if (!abortRef.current) {
-        setError(err instanceof Error ? err.message : 'Failed to seed data');
+        setError('Unable to check data status. Please try again later.');
       }
     } finally {
       if (!abortRef.current) {
@@ -240,7 +226,7 @@ export default function DataSeedingModal({
                 </Pressable>
                 <Pressable
                   style={styles.primaryButton}
-                  onPress={handleStartSeeding}
+                  onPress={handleCheckData}
                 >
                   <Text style={styles.primaryButtonText}>Retry</Text>
                 </Pressable>
@@ -253,11 +239,10 @@ export default function DataSeedingModal({
                 <Ionicons name="stats-chart" size={24} color="#60a5fa" />
               </View>
               <Text style={styles.description}>
-                To backtest your models against historical games, we need to
-                download game results from this season.
+                Checking if game data is available for backtesting your models.
               </Text>
               <Text style={styles.note}>
-                This only needs to be done once and takes about 2-3 minutes.
+                Data is synced automatically twice daily. No action required.
               </Text>
               <View style={styles.buttonRow}>
                 <Pressable
@@ -268,9 +253,9 @@ export default function DataSeedingModal({
                 </Pressable>
                 <Pressable
                   style={styles.primaryButton}
-                  onPress={handleStartSeeding}
+                  onPress={handleCheckData}
                 >
-                  <Text style={styles.primaryButtonText}>Seed Data</Text>
+                  <Text style={styles.primaryButtonText}>Check Data</Text>
                 </Pressable>
               </View>
             </View>

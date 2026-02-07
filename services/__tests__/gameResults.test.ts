@@ -9,6 +9,7 @@ import {
   getH2HForGames,
   seedCurrentSeason,
   syncRecentResults,
+  fetchGameResults,
   _resetCircuitBreaker,
 } from '../gameResults';
 
@@ -17,12 +18,12 @@ import {
 let mockQueryResult: { data: any; error: any } = { data: [], error: null };
 let mockCountResult: { count: number | null; error: any } = { count: 10, error: null };
 
-const mockOrder = jest.fn(() => mockQueryResult);
+const mockLimit = jest.fn(() => mockQueryResult);
+const mockOrder = jest.fn(() => ({ limit: mockLimit, ...mockQueryResult }));
 const mockOr = jest.fn(() => ({ order: mockOrder }));
 const mockIn = jest.fn(() => ({ or: mockOr }));
-const mockEq = jest.fn(() => ({ in: mockIn, ...mockCountResult }));
+const mockEq = jest.fn(() => ({ in: mockIn, order: mockOrder, ...mockCountResult }));
 const mockSelect = jest.fn(() => ({ eq: mockEq }));
-const mockLimit = jest.fn(() => mockQueryResult);
 const mockUpsert = jest.fn((): { error: any } => ({ error: null }));
 const mockFrom = jest.fn(() => ({
   select: mockSelect,
@@ -594,6 +595,215 @@ describe('syncRecentResults', () => {
       '[GAME RESULTS] syncRecentResults upsert error:',
       'upsert failed',
     );
+    consoleSpy.mockRestore();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// fetchGameResults — fetches all game results for current season
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('fetchGameResults', () => {
+  it('returns game results from Supabase', async () => {
+    const games = [
+      makeGameResult({ game_id: 2024020100 }),
+      makeGameResult({ game_id: 2024020101 }),
+    ];
+    mockQueryResult = { data: games, error: null };
+
+    const result = await fetchGameResults();
+
+    expect(result).toHaveLength(2);
+    expect(mockFrom).toHaveBeenCalledWith('game_results');
+    expect(mockSelect).toHaveBeenCalledWith('*');
+  });
+
+  it('returns empty array on Supabase error', async () => {
+    mockQueryResult = { data: null, error: { message: 'Connection refused' } };
+
+    const consoleSpy = jest.spyOn(console, 'debug').mockImplementation();
+    const result = await fetchGameResults();
+
+    expect(result).toEqual([]);
+    consoleSpy.mockRestore();
+  });
+
+  it('returns empty array when data is null without error', async () => {
+    mockQueryResult = { data: null, error: null };
+
+    const result = await fetchGameResults();
+
+    expect(result).toEqual([]);
+  });
+
+  it('returns empty array on exception', async () => {
+    mockLimit.mockImplementationOnce(() => {
+      throw new Error('Unexpected error');
+    });
+
+    const consoleSpy = jest.spyOn(console, 'debug').mockImplementation();
+    const result = await fetchGameResults();
+
+    expect(result).toEqual([]);
+    consoleSpy.mockRestore();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Circuit breaker behavior
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('circuit breaker', () => {
+  it('returns null/empty after 3 consecutive Supabase failures', async () => {
+    // Trigger 3 failures via getH2HRecord
+    mockQueryResult = { data: null, error: { message: 'DB down' } };
+    const consoleSpy = jest.spyOn(console, 'debug').mockImplementation();
+
+    await getH2HRecord('TOR', 'MTL');
+    await getH2HRecord('TOR', 'MTL');
+    await getH2HRecord('TOR', 'MTL');
+
+    // 4th call should be short-circuited — Supabase not even called
+    mockFrom.mockClear();
+    const result = await getH2HRecord('TOR', 'MTL');
+
+    expect(result).toBeNull();
+    // mockFrom should NOT have been called since circuit breaker is open
+    expect(mockFrom).not.toHaveBeenCalled();
+
+    consoleSpy.mockRestore();
+  });
+
+  it('resets after _resetCircuitBreaker is called', async () => {
+    mockQueryResult = { data: null, error: { message: 'DB down' } };
+    const consoleSpy = jest.spyOn(console, 'debug').mockImplementation();
+
+    // Trigger 3 failures
+    await getH2HRecord('TOR', 'MTL');
+    await getH2HRecord('TOR', 'MTL');
+    await getH2HRecord('TOR', 'MTL');
+
+    // Reset
+    _resetCircuitBreaker();
+
+    // Should call Supabase again
+    mockQueryResult = { data: [], error: null };
+    mockFrom.mockClear();
+    const result = await getH2HRecord('TOR', 'MTL');
+
+    expect(result).not.toBeNull();
+    expect(mockFrom).toHaveBeenCalled();
+
+    consoleSpy.mockRestore();
+  });
+
+  it('resets on a successful call after failures', async () => {
+    const consoleSpy = jest.spyOn(console, 'debug').mockImplementation();
+
+    // 2 failures (not enough to trip breaker)
+    mockQueryResult = { data: null, error: { message: 'DB down' } };
+    await getH2HRecord('TOR', 'MTL');
+    await getH2HRecord('TOR', 'MTL');
+
+    // 1 success — should reset counter
+    mockQueryResult = { data: [], error: null };
+    await getH2HRecord('TOR', 'MTL');
+
+    // 1 failure — counter should be at 1, not 3
+    mockQueryResult = { data: null, error: { message: 'DB down again' } };
+    mockFrom.mockClear();
+    await getH2HRecord('TOR', 'MTL');
+
+    // Should still call Supabase (breaker not tripped)
+    expect(mockFrom).toHaveBeenCalled();
+
+    consoleSpy.mockRestore();
+  });
+
+  it('circuit breaker affects fetchGameResults too', async () => {
+    const consoleSpy = jest.spyOn(console, 'debug').mockImplementation();
+
+    // Trigger circuit breaker via H2H errors
+    mockQueryResult = { data: null, error: { message: 'DB down' } };
+    await getH2HRecord('TOR', 'MTL');
+    await getH2HRecord('TOR', 'MTL');
+    await getH2HRecord('TOR', 'MTL');
+
+    // fetchGameResults should return empty without calling Supabase
+    mockFrom.mockClear();
+    const result = await fetchGameResults();
+
+    expect(result).toEqual([]);
+    expect(mockFrom).not.toHaveBeenCalled();
+
+    consoleSpy.mockRestore();
+  });
+
+  it('circuit breaker affects getH2HForGames too', async () => {
+    const consoleSpy = jest.spyOn(console, 'debug').mockImplementation();
+
+    // Trigger circuit breaker
+    mockQueryResult = { data: null, error: { message: 'DB down' } };
+    await getH2HRecord('TOR', 'MTL');
+    await getH2HRecord('TOR', 'MTL');
+    await getH2HRecord('TOR', 'MTL');
+
+    // getH2HForGames should return empty map without calling Supabase
+    mockFrom.mockClear();
+    const result = await getH2HForGames([
+      { homeTeam: { abbrev: 'MTL' }, awayTeam: { abbrev: 'TOR' } },
+    ]);
+
+    expect(result.size).toBe(0);
+    expect(mockFrom).not.toHaveBeenCalled();
+
+    consoleSpy.mockRestore();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// syncRecentResults — full seed when table is empty
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('syncRecentResults — empty table triggers full seed', () => {
+  it('triggers full season seed when count is 0', async () => {
+    // Mock the count check to return 0
+    mockCountResult = { count: 0, error: null };
+
+    // Mock fetch for the full seed (32 teams)
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ games: [] }),
+    });
+
+    await syncRecentResults();
+
+    // Should have called fetch 32 times (once per team for full seed)
+    expect(global.fetch).toHaveBeenCalledTimes(32);
+  }, 30000);
+
+  it('does not trigger full seed when count > 0', async () => {
+    mockCountResult = { count: 500, error: null };
+
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ games: [] }),
+    });
+
+    await syncRecentResults();
+
+    // Should have called fetch only twice (yesterday + today)
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns early when count check fails', async () => {
+    mockCountResult = { count: null, error: { message: 'Permission denied' } };
+
+    const consoleSpy = jest.spyOn(console, 'debug').mockImplementation();
+    await syncRecentResults();
+
+    // Should not fetch any games
+    expect(global.fetch).not.toHaveBeenCalled();
     consoleSpy.mockRestore();
   });
 });

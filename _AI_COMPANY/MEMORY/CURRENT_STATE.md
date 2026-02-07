@@ -158,16 +158,16 @@ Settings + stats:
 | modelPrediction.ts | ~200 | Production |
 | modelStorage.ts | ~150 | Production |
 | backtesting.ts | ~150 | Production |
-| historicalGames.ts | ~150 | Production |
+| ~~historicalGames.ts~~ | -- | DELETED (replaced by Supabase sync) |
 | gameResults.ts | ~200 | Production (Supabase H2H) |
 | playerStats.ts | ~150 | Production (NHL API + cache) |
 | edgeStats.ts | ~200 | Production (Edge API + 5-min cache) |
-| derivedStats.ts | ~150 | Production (momentum, clutch, rest, xG) |
+| derivedStats.ts | ~150 | Production (momentum, clutch, rest) |
 | insightGenerator.ts | ~200 | Production (Insight[] generation) |
 | analytics/AnalyticsService.ts | ~200 | Production |
 | weeklyTheme.ts | ~80 | Production |
 | factorAnalysis.ts | ~100 | Production |
-| advancedTeamStats.ts | ~100 | Production |
+| ~~advancedTeamStats.ts~~ | -- | DELETED (fake data removed) |
 | teamComparison.ts | ~80 | Production |
 | teamFavorites.ts | ~60 | Production |
 | playerPrediction.ts | ~80 | Production |

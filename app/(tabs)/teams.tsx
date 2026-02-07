@@ -12,17 +12,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LineChart, BarChart } from 'react-native-chart-kit';
-import AdvancedStatCard from '../../components/AdvancedStatCard';
 import TeamCard from '../../components/TeamCard';
 import TeamModal from '../../components/TeamModal';
 import TeamStatusBadges from '../../components/TeamStatusBadges';
 import { ThemedView } from '../../components/ThemedView';
-import { ADVANCED_METRICS } from '../../constants/advancedMetrics';
 import { makeStyles, theme } from '../../constants/theme';
-import {
-  AdvancedTeamStats,
-  getAdvancedTeamStats,
-} from '../../services/advancedTeamStats';
+// TODO: Connect to Supabase for real advanced team stats
 import {
   getFavoriteTeams,
   toggleFavoriteTeam,
@@ -69,12 +64,6 @@ type TeamStats = {
   scoreboard?: any;
   lastSeasonStats?: any;
 };
-
-type AdvancedStatsState = Record<string, {
-  stats: AdvancedTeamStats | null;
-  loading: boolean;
-  error: string | null;
-}>;
 
 type StandingsData = {
   currentRanks: { league: number | null; conf: number | null; div: number | null };
@@ -123,9 +112,6 @@ export default function TeamsScreen({ embedded = false }: TeamsScreenProps) {
     loading: false,
     error: null,
   });
-
-  // Advanced stats state (keyed by team abbreviation)
-  const [advancedStats, setAdvancedStats] = useState<AdvancedStatsState>({});
 
   // Load teams and favorites on mount
   useEffect(() => {
@@ -340,43 +326,7 @@ export default function TeamsScreen({ embedded = false }: TeamsScreenProps) {
     }
   }
 
-  async function loadAdvancedStats(teamAbbrev: string, forceReload: boolean = false) {
-    const teamCache = advancedStats[teamAbbrev];
-
-    // Don't reload if already loading or already loaded (unless force reload)
-    if (teamCache?.loading) return;
-    if (teamCache?.stats && !forceReload) return;
-
-    // Set loading state for this team
-    setAdvancedStats(prev => ({
-      ...prev,
-      [teamAbbrev]: { stats: null, loading: true, error: null }
-    }));
-
-    try {
-      const stats = await getAdvancedTeamStats(teamAbbrev, teamStats?.currentStats);
-      setAdvancedStats(prev => ({
-        ...prev,
-        [teamAbbrev]: { stats, loading: false, error: null }
-      }));
-    } catch (error: any) {
-      console.error('Error loading advanced stats for', teamAbbrev, ':', error);
-      setAdvancedStats(prev => ({
-        ...prev,
-        [teamAbbrev]: { stats: null, loading: false, error: error.message }
-      }));
-    }
-  }
-
-  // Load advanced stats when team stats are available
-  useEffect(() => {
-    if (showModal && selectedTeam && teamStats?.currentStats) {
-      const teamCache = advancedStats[selectedTeam];
-      if (!teamCache?.stats && !teamCache?.loading) {
-        loadAdvancedStats(selectedTeam);
-      }
-    }
-  }, [showModal, selectedTeam, teamStats?.currentStats]);
+  // TODO: Connect to Supabase for real advanced team stats
 
   // Memoize tabs array to prevent unnecessary re-renders
   const modalTabs = useMemo(() => [
@@ -883,9 +833,6 @@ export default function TeamsScreen({ embedded = false }: TeamsScreenProps) {
     const teamStanding = teams.find(t => t.abbrev === selectedTeam);
     const stats = teamStats?.currentStats;
 
-    // Get team-specific advanced stats from cache
-    const teamAdvancedStats = selectedTeam ? advancedStats[selectedTeam] : undefined;
-
     if (!teamStanding && !stats) {
       return (
         <View>
@@ -1001,152 +948,7 @@ export default function TeamsScreen({ embedded = false }: TeamsScreenProps) {
           </View>
         </View>
 
-        {/* Advanced Analytics */}
-        <Text style={[styles.greeting, { fontSize: 16, marginTop: 20, marginBottom: 12 }]}>
-          Advanced Analytics
-        </Text>
-
-        {teamAdvancedStats?.loading && (
-          <View style={{ padding: 20, alignItems: 'center' }}>
-            <ActivityIndicator size="small" color={theme.accent} />
-            <Text style={styles.subtext}>Loading advanced stats...</Text>
-          </View>
-        )}
-
-        {teamAdvancedStats?.error && (
-          <View style={{ padding: 20, alignItems: 'center' }}>
-            <Text style={[styles.subtext, { color: '#ef4444' }]}>{teamAdvancedStats.error}</Text>
-          </View>
-        )}
-
-        {teamAdvancedStats?.stats && (
-          <>
-            {/* Shot Metrics */}
-            <Text style={[styles.subtext, { fontSize: 14, fontWeight: '600' }]}>
-              Shot Metrics
-            </Text>
-            <View style={styles.factboxrow}>
-              <AdvancedStatCard
-                metric={ADVANCED_METRICS.corsiFor}
-                value={teamAdvancedStats.stats.corsiFor}
-                leagueRank={teamAdvancedStats.stats.corsiForRank}
-                leagueThresholds={teamAdvancedStats.stats.leagueThresholds?.corsiFor}
-              />
-              <AdvancedStatCard
-                metric={ADVANCED_METRICS.fenwickFor}
-                value={teamAdvancedStats.stats.fenwickFor}
-                leagueRank={teamAdvancedStats.stats.fenwickForRank}
-                leagueThresholds={teamAdvancedStats.stats.leagueThresholds?.fenwickFor}
-              />
-              <AdvancedStatCard
-                metric={ADVANCED_METRICS.shotsOnGoalPct}
-                value={teamAdvancedStats.stats.shotsOnGoalPct}
-                leagueRank={teamAdvancedStats.stats.shotsOnGoalPctRank}
-                leagueThresholds={teamAdvancedStats.stats.leagueThresholds?.shotsOnGoalPct}
-              />
-            </View>
-
-            {/* Expected Goals */}
-            <Text style={[styles.subtext, { fontSize: 14, fontWeight: '600', marginTop: 20 }]}>
-              Expected Goals
-            </Text>
-            <View style={styles.factboxrow}>
-              <AdvancedStatCard
-                metric={ADVANCED_METRICS.expectedGoals}
-                value={teamAdvancedStats.stats.expectedGoals}
-                leagueRank={teamAdvancedStats.stats.expectedGoalsRank}
-                leagueThresholds={teamAdvancedStats.stats.leagueThresholds?.expectedGoals}
-              />
-              <AdvancedStatCard
-                metric={ADVANCED_METRICS.expectedGoalsDiff}
-                value={teamAdvancedStats.stats.expectedGoalsDiff}
-                leagueRank={teamAdvancedStats.stats.expectedGoalsDiffRank}
-                leagueThresholds={teamAdvancedStats.stats.leagueThresholds?.expectedGoalsDiff}
-              />
-            </View>
-
-            <View style={[styles.factboxrow, { marginTop: 8 }]}>
-              <AdvancedStatCard
-                metric={ADVANCED_METRICS.highDangerChances}
-                value={teamAdvancedStats.stats.highDangerChances}
-                leagueRank={teamAdvancedStats.stats.highDangerChancesRank}
-                leagueThresholds={teamAdvancedStats.stats.leagueThresholds?.highDangerChances}
-              />
-              <AdvancedStatCard
-                metric={ADVANCED_METRICS.shootingTalent}
-                value={teamAdvancedStats.stats.shootingTalent}
-                leagueRank={teamAdvancedStats.stats.shootingTalentRank}
-                leagueThresholds={teamAdvancedStats.stats.leagueThresholds?.shootingTalent}
-              />
-            </View>
-
-            {/* PDO */}
-            <Text style={[styles.subtext, { fontSize: 14, fontWeight: '600', marginTop: 20 }]}>
-              Luck & Sustainability
-            </Text>
-            <View style={styles.factboxrow}>
-              <AdvancedStatCard
-                metric={ADVANCED_METRICS.pdo}
-                value={teamAdvancedStats.stats.pdo}
-                leagueRank={teamAdvancedStats.stats.pdoRank}
-                leagueThresholds={teamAdvancedStats.stats.leagueThresholds?.pdo}
-              />
-            </View>
-
-            {/* Special Teams */}
-            <Text style={[styles.subtext, { fontSize: 14, fontWeight: '600', marginTop: 20 }]}>
-              Special Teams
-            </Text>
-            <View style={styles.factboxrow}>
-              <AdvancedStatCard
-                metric={ADVANCED_METRICS.powerPlayXG}
-                value={teamAdvancedStats.stats.powerPlayXG}
-                leagueRank={teamAdvancedStats.stats.powerPlayXGRank}
-                leagueThresholds={teamAdvancedStats.stats.leagueThresholds?.powerPlayXG}
-              />
-              <AdvancedStatCard
-                metric={ADVANCED_METRICS.penaltyKillXGA}
-                value={teamAdvancedStats.stats.penaltyKillXGA}
-                leagueRank={teamAdvancedStats.stats.penaltyKillXGARank}
-                leagueThresholds={teamAdvancedStats.stats.leagueThresholds?.penaltyKillXGA}
-              />
-            </View>
-
-            {/* Goaltending */}
-            <Text style={[styles.subtext, { fontSize: 14, fontWeight: '600', marginTop: 20 }]}>
-              Goaltending
-            </Text>
-            <View style={styles.factboxrow}>
-              <AdvancedStatCard
-                metric={ADVANCED_METRICS.goalsAllowedAboveExpected}
-                value={teamAdvancedStats.stats.goalsAllowedAboveExpected}
-                leagueRank={teamAdvancedStats.stats.goalsAllowedAboveExpectedRank}
-                leagueThresholds={teamAdvancedStats.stats.leagueThresholds?.goalsAllowedAboveExpected}
-              />
-              <AdvancedStatCard
-                metric={ADVANCED_METRICS.highDangerSavePct}
-                value={teamAdvancedStats.stats.highDangerSavePct}
-                leagueRank={teamAdvancedStats.stats.highDangerSavePctRank}
-                leagueThresholds={teamAdvancedStats.stats.leagueThresholds?.highDangerSavePct}
-              />
-            </View>
-
-            <View style={[styles.factboxrow, { marginTop: 8 }]}>
-              <AdvancedStatCard
-                metric={ADVANCED_METRICS.reboundControl}
-                value={teamAdvancedStats.stats.reboundControl}
-                leagueRank={teamAdvancedStats.stats.reboundControlRank}
-                leagueThresholds={teamAdvancedStats.stats.leagueThresholds?.reboundControl}
-              />
-              <AdvancedStatCard
-                metric={ADVANCED_METRICS.qualityStart}
-                value={teamAdvancedStats.stats.qualityStart}
-                leagueRank={teamAdvancedStats.stats.qualityStartRank}
-                leagueThresholds={teamAdvancedStats.stats.leagueThresholds?.qualityStart}
-              />
-            </View>
-          </>
-        )}
+        {/* TODO: Connect to Supabase for real advanced analytics */}
 
       </View>
     );
@@ -1360,52 +1162,6 @@ export default function TeamsScreen({ embedded = false }: TeamsScreenProps) {
           </Text>
         </View>
 
-        {/* Advanced Stats Comparison */}
-        {selectedTeam && advancedStats[selectedTeam]?.stats && (() => {
-          const advStats = advancedStats[selectedTeam]!.stats!;
-          return (
-            <>
-              <Text style={[styles.greeting, { fontSize: 16, marginTop: 20, marginBottom: 12 }]}>
-                Advanced Stats Snapshot
-              </Text>
-              <View style={[styles.factbox, { padding: 16 }]}>
-                <BarChart
-                  data={{
-                    labels: ['Corsi', 'Fenwick', 'xG', 'PDO'],
-                    datasets: [
-                      {
-                        data: [
-                          sanitizeValue(advStats.corsiFor, 50),
-                          sanitizeValue(advStats.fenwickFor, 50),
-                          sanitizeValue(advStats.expectedGoals / 2, 50),
-                          sanitizeValue(advStats.pdo - 900, 100),
-                        ],
-                      },
-                    ],
-                  }}
-                  width={screenWidth - 32}
-                  height={220}
-                  yAxisLabel=""
-                  yAxisSuffix=""
-                  chartConfig={{
-                    ...chartConfig,
-                    barPercentage: 0.7,
-                  }}
-                  style={{
-                    marginVertical: 8,
-                    borderRadius: 16,
-                  }}
-                  fromZero={true}
-                  showValuesOnTopOfBars={true}
-                />
-                <Text style={[styles.subtext, { fontSize: 11, textAlign: 'center', marginTop: 8 }]}>
-                  Key advanced metrics (values normalized for visualization)
-                </Text>
-              </View>
-            </>
-          );
-        })()}
-
         {/* Conference Standing Visualization */}
         <Text style={[styles.greeting, { fontSize: 16, marginTop: 20, marginBottom: 12 }]}>
           Conference Position
@@ -1570,10 +1326,8 @@ export default function TeamsScreen({ embedded = false }: TeamsScreenProps) {
           tabs={modalTabs}
           renderTabContent={renderTabContent}
           initialTab="overview"
-          onTabChange={(tabId) => {
-            if (tabId === 'stats' && selectedTeam && teamStats?.currentStats) {
-              loadAdvancedStats(selectedTeam, true); // Force reload
-            }
+          onTabChange={(_tabId) => {
+            // TODO: Connect to Supabase for real advanced stats
           }}
         />
       )}

@@ -143,12 +143,12 @@ The Personal Terminal — Tonight Tab Overhaul. Implemented Option B (Bold). Str
 ---
 
 ## Cycle 5 Build Summary
-The Analytics Engine — Integrated NHL Edge IQ tracking data (shot speed, skating speed, zone time, shot location) and derived stats (momentum index, clutch rating, rest advantage, xG approximation) across the entire app. 4 phases: Foundation (types + services), Core UI (6 new components), Integration (9 existing files wired), Polish (MEMORY updates). 82 new tests across 8 test suites, all passing.
+The Analytics Engine — Integrated NHL Edge IQ tracking data (shot speed, skating speed, zone time, shot location) and derived stats (momentum index, clutch rating, rest advantage) across the entire app. Note: xG approximation was later removed in favor of real data from Supabase. 4 phases: Foundation (types + services), Core UI (6 new components), Integration (9 existing files wired), Polish (MEMORY updates). 82 new tests across 8 test suites, all passing.
 
 ### Files Created (Cycle 5)
 - `types/edgeStats.ts` — TypeScript interfaces for all Edge API responses (~250 lines). Key types: SkaterEdgeDetail, TeamEdgeDetail, GoalieEdgeDetail, EdgeByTheNumbers, EdgeSkaterLanding, EdgeGoalieLanding, EdgeTeamLanding, ShotLocationZone, ZoneTimeDetail, SpeedStat, DistanceStat, MomentumData, ClutchRating, EdgeQuickStats, DerivedTeamStats
 - `services/edgeStats.ts` — Edge API client with 5-min in-memory cache, generic `fetchEdge<T>()`. 8 endpoint functions for landing + detail data.
-- `services/derivedStats.ts` — Derived stat calculations: `calculateMomentum` (5-game rolling, -10..+10), `calculateClutchRating` (CLUTCH/CLOSER/ICE COLD), `calculateRestAdvantage` (0-100), `calculateXGApprox`, `buildEdgeQuickStats`
+- `services/derivedStats.ts` — Derived stat calculations: `calculateMomentum` (5-game rolling, -10..+10), `calculateClutchRating` (CLUTCH/CLOSER/ICE COLD), `calculateRestAdvantage` (0-100), `buildEdgeQuickStats` (xG removed)
 - `components/SpeedGauge.tsx` — Speed display with animated count-up, percentile bar, league avg comparison
 - `components/MomentumSparkline.tsx` — SVG sparkline with trend arrow, compact (80x24) and full modes
 - `components/ClutchBadge.tsx` — Performance badge (CLUTCH=#22c55e, CLOSER=#eab308, ICE COLD=#94a3b8)
@@ -156,7 +156,7 @@ The Analytics Engine — Integrated NHL Edge IQ tracking data (shot speed, skati
 - `components/ShotLocationMap.tsx` — Half-rink SVG with 17 zones, hot/cold coloring, tap tooltip
 - `components/EdgeIntelSection.tsx` — 2x2 grid of Edge stat cards with FadeInUp stagger animation
 - `services/__tests__/edgeStats.test.ts` — 16 tests: mock fetch, cache TTL, error handling, JSON parse failures
-- `services/__tests__/derivedStats.test.ts` — 34 tests: momentum (9), clutch (7), rest (8), xG (6), quickStats (4)
+- `services/__tests__/derivedStats.test.ts` — 28 tests: momentum (9), clutch (7), rest (8), quickStats (4) (xG tests removed)
 - `components/__tests__/SpeedGauge.test.tsx` — 6 tests
 - `components/__tests__/MomentumSparkline.test.tsx` — 6 tests
 - `components/__tests__/ClutchBadge.test.tsx` — 4 tests

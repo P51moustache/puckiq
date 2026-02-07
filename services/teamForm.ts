@@ -5,6 +5,8 @@
  */
 
 import type { TeamFormData } from '../types/teamForm';
+import { supabase } from '../lib/supabase';
+import logger from '../utils/logger';
 
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
@@ -84,42 +86,84 @@ export async function fetchTeamForm(
   if (cached) return cached;
 
   try {
-    // Fetch current month and previous month to ensure we have enough completed games
-    const now = new Date();
-    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    // --- Supabase-first: last 10 completed games for this team ---
+    let recentGames: any[] = [];
+    let supabaseOk = false;
 
-    const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const prevMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
+    try {
+      const { data, error } = await supabase
+        .from('games')
+        .select('*')
+        .or(`home_team_abbrev.eq.${teamAbbrev},away_team_abbrev.eq.${teamAbbrev}`)
+        .in('game_state', ['FINAL', 'OFF'])
+        .order('game_date', { ascending: false })
+        .limit(10);
 
-    const [currentRes, prevRes] = await Promise.allSettled([
-      fetch(`https://api-web.nhle.com/v1/club-schedule/${teamAbbrev}/month/${currentMonth}`),
-      fetch(`https://api-web.nhle.com/v1/club-schedule/${teamAbbrev}/month/${prevMonth}`),
-    ]);
-
-    const games: any[] = [];
-
-    for (const res of [prevRes, currentRes]) {
-      if (res.status === 'fulfilled' && res.value.ok) {
-        const data = await res.value.json();
-        if (Array.isArray(data.games)) {
-          games.push(...data.games);
-        }
+      if (!error && data && data.length > 0) {
+        // Transform Supabase rows to the shape determineResult() expects
+        recentGames = data.map((row: any) => ({
+          gameDate: row.game_date,
+          gameState: row.game_state,
+          homeTeam: {
+            abbrev: row.home_team_abbrev,
+            score: row.home_score,
+          },
+          awayTeam: {
+            abbrev: row.away_team_abbrev,
+            score: row.away_score,
+          },
+          gameOutcome: {
+            lastPeriodType: row.period_type,
+          },
+        }));
+        supabaseOk = true;
+        logger.info('[SUPABASE] Loaded', data.length, 'recent games for', teamAbbrev);
+      } else {
+        logger.warn('[SUPABASE] No completed games for', teamAbbrev, '— falling back to NHL API');
       }
+    } catch (supabaseErr) {
+      logger.warn('[SUPABASE] Error querying team form, falling back to NHL API', supabaseErr);
     }
 
-    // Filter to completed games only
-    const completedGames = games.filter(
-      (g) => g.gameState === 'OFF' || g.gameState === 'FINAL',
-    );
+    // --- NHL API fallback ---
+    if (!supabaseOk) {
+      const now = new Date();
+      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-    // Sort by game date descending (most recent first)
-    completedGames.sort(
-      (a, b) =>
-        new Date(b.gameDate).getTime() - new Date(a.gameDate).getTime(),
-    );
+      const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const prevMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
 
-    // Take last 10 and determine results
-    const recentGames = completedGames.slice(0, 10);
+      const [currentRes, prevRes] = await Promise.allSettled([
+        fetch(`https://api-web.nhle.com/v1/club-schedule/${teamAbbrev}/month/${currentMonth}`),
+        fetch(`https://api-web.nhle.com/v1/club-schedule/${teamAbbrev}/month/${prevMonth}`),
+      ]);
+
+      const games: any[] = [];
+
+      for (const res of [prevRes, currentRes]) {
+        if (res.status === 'fulfilled' && res.value.ok) {
+          const data = await res.value.json();
+          if (Array.isArray(data.games)) {
+            games.push(...data.games);
+          }
+        }
+      }
+
+      // Filter to completed games only
+      const completedGames = games.filter(
+        (g) => g.gameState === 'OFF' || g.gameState === 'FINAL',
+      );
+
+      // Sort by game date descending (most recent first)
+      completedGames.sort(
+        (a, b) =>
+          new Date(b.gameDate).getTime() - new Date(a.gameDate).getTime(),
+      );
+
+      recentGames = completedGames.slice(0, 10);
+    }
+
+    // Determine results from whichever source provided games
     const results: ('W' | 'L' | 'OTL')[] = [];
 
     for (const game of recentGames) {
