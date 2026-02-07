@@ -1,5 +1,63 @@
 # Implementation Log
 
+## Cycle 9 Sprint Summary — Supabase Data Infrastructure + Service Migration (2026-02-07)
+
+Massive data infrastructure sprint: seeded ALL NHL API data into Supabase, migrated all 8 app services from direct NHL API calls to Supabase-first reads with API fallback.
+
+### Phase 1: Supabase Schema & Seeding
+
+**7 Migration Files** creating 29 tables + 8 views:
+- `comprehensive_nhl_schema.sql` — Core tables: teams, players, games, standings, game_skater_stats, game_goalie_stats, skater_season_stats, goalie_season_stats
+- `stat_category_tables.sql` — JSONB storage: team/skater/goalie stat categories (season + per-game)
+- `edge_iq_comprehensive.sql` — Edge IQ: edge_skater_stats, edge_goalie_stats, edge_team_stats, edge_detailed_stats, edge_leaderboards
+- `game_and_player_extras.sql` — game_goals, game_penalties, game_three_stars, game_play_by_play, game_details, player_career_data
+- `supplemental_data.sql` — supplemental_data catch-all, sync_log
+- `player_game_categories.sql` — skater_game_categories, goalie_game_categories, player_game_logs
+- `player_trend_views.sql` — 8 SQL views: rolling stats, hot/cold detection, pace projections, advanced trends
+
+**15 Seed Scripts** (`scripts/seed-*.mjs`):
+- Teams, players, games, standings, game details, player game stats, Edge stats, stat categories, supplemental data, play-by-play, player career data, player game logs
+
+**Sync Pipeline** (`scripts/sync/`):
+- 7 sync modules: games, standings, teams, players, game-extras, aggregates, player-trends
+- GitHub Actions workflow: daily midnight/noon ET + weekly Monday 6am ET
+- sync-all.mjs orchestrator with `--full` and `--weekly` modes
+
+### Phase 2: Service Migration to Supabase
+
+Migrated 18 NHL API endpoints across 8 services to Supabase-first reads:
+
+| Service | Functions Migrated | Supabase Tables |
+|---------|-------------------|-----------------|
+| useTonightData.ts | loadNHLData (games + standings) | games, standings |
+| pickTracking.ts | checkAndUpdateYesterdaysGames | games |
+| teamForm.ts | fetchTeamForm | games |
+| playerStats.ts | getTeamPlayerStats | skater_season_stats, goalie_season_stats, players |
+| playerPrediction.ts | fetchTeamRoster, fetchPlayerStats | players, *_season_stats, player_career_data |
+| teamComparison.ts | getTeamComparisonData (3 endpoints) | standings, team_stat_categories |
+| edgeStats.ts | All 8 Edge functions | edge_leaderboards, edge_detailed_stats |
+| backtesting.ts | fetchStandingsForDate, getGamesInRange | standings, games |
+
+**Pattern**: Supabase query → if error/empty → fall back to NHL API → transform to existing type shape.
+
+### Phase 3: Cleanup
+
+- Deleted `services/advancedTeamStats.ts` (343 lines of fake data)
+- Deleted `services/historicalGames.ts` (421 lines, replaced by Supabase)
+- Removed stale xG references (calculateXGApprox was deleted in prior cycle)
+- Converted `DataSeedingModal.tsx` to read-only data checker
+- Removed `syncRecentResults()` client write from useTonightData
+- Added global Supabase mock to `jest.setup.js`
+- Updated MEMORY files (FILE_MAP, CURRENT_STATE, TECHNICAL_SPEC)
+
+### Build Health
+
+- **Tests**: 74 suites, 1251 passing, 0 failures
+- **TypeScript**: Pre-existing GameDeepDiveModal errors only (30 errors, no new ones)
+- **Status**: GREEN
+
+---
+
 ## Cycle 8 Sprint Summary — YourTeamCard Removal + StatOfTheNight Redesign (2026-02-07)
 
 Two focused changes to the Tonight screen: removed YourTeamCard component entirely, and redesigned StatOfTheNight with a cinematic hero-number treatment.

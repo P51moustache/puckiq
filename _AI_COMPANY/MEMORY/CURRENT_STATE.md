@@ -153,27 +153,27 @@ Settings + stats:
 
 | Service | Lines | Status |
 |---------|-------|--------|
-| pickTracking.ts | 364 | Production (critical path) |
+| pickTracking.ts | 364 | Production — Supabase-first + API fallback |
 | streakTracking.ts | 149 | Production (critical path) |
 | modelPrediction.ts | ~200 | Production |
 | modelStorage.ts | ~150 | Production |
-| backtesting.ts | ~150 | Production |
-| ~~historicalGames.ts~~ | -- | DELETED (replaced by Supabase sync) |
+| backtesting.ts | ~280 | Production — Supabase-first + API fallback |
 | gameResults.ts | ~200 | Production (Supabase H2H) |
-| playerStats.ts | ~150 | Production (NHL API + cache) |
-| edgeStats.ts | ~200 | Production (Edge API + 5-min cache) |
-| derivedStats.ts | ~150 | Production (momentum, clutch, rest) |
+| playerStats.ts | ~200 | Production — Supabase-first + API fallback |
+| edgeStats.ts | ~300 | Production — Supabase-first + API fallback (8 endpoints) |
+| derivedStats.ts | ~100 | Production (momentum, clutch, rest) |
 | insightGenerator.ts | ~200 | Production (Insight[] generation) |
 | analytics/AnalyticsService.ts | ~200 | Production |
 | weeklyTheme.ts | ~80 | Production |
 | factorAnalysis.ts | ~100 | Production |
-| ~~advancedTeamStats.ts~~ | -- | DELETED (fake data removed) |
-| teamComparison.ts | ~80 | Production |
+| teamComparison.ts | ~180 | Production — Supabase-first + API fallback |
+| teamForm.ts | ~200 | Production — Supabase-first + API fallback |
 | teamFavorites.ts | ~60 | Production |
-| playerPrediction.ts | ~80 | Production |
+| playerPrediction.ts | ~160 | Production — Supabase-first + API fallback |
 | notificationSettings.ts | ~80 | Production |
 | notifications.ts | ~100 | Production |
 | walletService.ts | ~50 | Placeholder |
+| **Deleted:** historicalGames.ts, advancedTeamStats.ts | -- | Replaced by Supabase |
 
 ## Known UX Gaps
 
@@ -182,5 +182,5 @@ Settings + stats:
 - **Profile and My IQ overlap** — both show accuracy stats (both hidden routes)
 - **No onboarding** — new user lands on Tonight with no context
 - **YOUR TEAM badge not wired** — `isYourTeam` prop exists on HeroBanner but not passed since YourTeamCard removal. Could re-wire to show when user's team is the hero game.
-- **GameDeepDiveModal has 20+ TS errors** — Pre-existing type issues with `game: any` prop (deferred since Cycle 5)
+- **GameDeepDiveModal has 30 TS errors** — Pre-existing type issues with `game: any` prop (fix in progress, Cycle 9)
 - **Settings duplicated** — Profile and Settings screens show same notification controls
