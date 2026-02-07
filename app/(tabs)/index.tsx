@@ -208,6 +208,7 @@ export default function TonightScreen() {
             onInfoPress={glossary.showTerm}
             awayForm={formMap.get(heroGame.awayTeam?.abbrev) ?? null}
             homeForm={formMap.get(heroGame.homeTeam?.abbrev) ?? null}
+            isYourTeam={selectedTeam ? (heroGame.homeTeam?.abbrev === selectedTeam || heroGame.awayTeam?.abbrev === selectedTeam) : false}
           />
         )}
 

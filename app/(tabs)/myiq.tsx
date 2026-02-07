@@ -1,18 +1,12 @@
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { theme } from '../../constants/theme';
 import { IconSymbol } from '../../components/ui/IconSymbol';
+import { getAllPicks, calculatePickStats } from '../../services/pickTracking';
+import { getStreakData } from '../../services/streakTracking';
+import { getAccuracyHistory } from '../../utils/accuracyTracking';
 
-// Mock data - would come from pick tracking service
-const USER_STATS = {
-  overallAccuracy: 64,
-  totalPicks: 247,
-  currentStreak: 5,
-  longestStreak: 11,
-  bestWeek: { theme: 'Goaltending', accuracy: 82 },
-  lessonsCompleted: 12,
-  totalLessons: 24,
-};
-
+// Mock factor data - TODO: implement factor-level tracking in pick service
 const FACTOR_ACCURACY = [
   { name: 'Goaltending', accuracy: 73, picks: 45 },
   { name: 'Home Ice', accuracy: 66, picks: 89 },
@@ -22,9 +16,100 @@ const FACTOR_ACCURACY = [
   { name: 'Divisional', accuracy: 51, picks: 28 },
 ];
 
+interface UserStats {
+  overallAccuracy: number;
+  totalPicks: number;
+  currentStreak: number;
+  longestStreak: number;
+  bestWeek: { theme: string; accuracy: number };
+  lessonsCompleted: number;
+  totalLessons: number;
+}
+
 export default function MyIQScreen() {
+  const [loading, setLoading] = useState(true);
+  const [userStats, setUserStats] = useState<UserStats>({
+    overallAccuracy: 0,
+    totalPicks: 0,
+    currentStreak: 0,
+    longestStreak: 0,
+    bestWeek: { theme: 'Goaltending', accuracy: 0 },
+    lessonsCompleted: 0,
+    totalLessons: 24,
+  });
+
+  useEffect(() => {
+    loadUserData();
+  }, []);
+
+  async function loadUserData() {
+    try {
+      setLoading(true);
+
+      // Fetch all picks and calculate stats
+      const allPicks = await getAllPicks();
+      const pickStats = calculatePickStats(allPicks);
+
+      // Fetch streak data
+      const streakData = await getStreakData();
+
+      // Fetch accuracy history to find best week
+      const accuracyHistory = await getAccuracyHistory();
+      const sortedDates = Object.keys(accuracyHistory).sort().reverse();
+
+      // Find best week (highest accuracy in last 7 days of any period)
+      let bestWeekAccuracy = 0;
+      for (let i = 0; i < sortedDates.length - 6; i++) {
+        const weekDates = sortedDates.slice(i, i + 7);
+        const weekAvg = Math.round(
+          weekDates.reduce((sum, date) => sum + accuracyHistory[date].overallAccuracy, 0) / weekDates.length
+        );
+        if (weekAvg > bestWeekAccuracy) {
+          bestWeekAccuracy = weekAvg;
+        }
+      }
+
+      setUserStats({
+        overallAccuracy: pickStats.accuracy,
+        totalPicks: pickStats.total,
+        currentStreak: streakData.currentStreak,
+        longestStreak: streakData.longestStreak,
+        bestWeek: { theme: 'Overall', accuracy: bestWeekAccuracy },
+        lessonsCompleted: 0, // TODO: implement lessons tracking
+        totalLessons: 24,
+      });
+    } catch (error) {
+      console.error('[My IQ] Error loading user data:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   const strengths = FACTOR_ACCURACY.filter(f => f.accuracy >= 60).slice(0, 3);
   const weaknesses = FACTOR_ACCURACY.filter(f => f.accuracy < 55).slice(0, 3);
+
+  // Show loading state
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <ActivityIndicator size="large" color={theme.accent} />
+        <Text style={styles.loadingText}>Loading your stats...</Text>
+      </View>
+    );
+  }
+
+  // Show empty state if no picks yet
+  if (userStats.totalPicks === 0) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <IconSymbol name="chart.bar.fill" size={64} color={theme.subtext} />
+        <Text style={styles.emptyTitle}>No picks yet!</Text>
+        <Text style={styles.emptySubtitle}>
+          Make your first pick on the Today tab to start tracking your Hockey IQ.
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -37,17 +122,17 @@ export default function MyIQScreen() {
       {/* Overall Stats Card */}
       <View style={styles.statsCard}>
         <View style={styles.mainStat}>
-          <Text style={styles.mainStatValue}>{USER_STATS.overallAccuracy}%</Text>
+          <Text style={styles.mainStatValue}>{userStats.overallAccuracy}%</Text>
           <Text style={styles.mainStatLabel}>Overall Accuracy</Text>
         </View>
         <View style={styles.statsDivider} />
         <View style={styles.secondaryStats}>
           <View style={styles.secondaryStat}>
-            <Text style={styles.secondaryStatValue}>{USER_STATS.totalPicks}</Text>
+            <Text style={styles.secondaryStatValue}>{userStats.totalPicks}</Text>
             <Text style={styles.secondaryStatLabel}>Picks</Text>
           </View>
           <View style={styles.secondaryStat}>
-            <Text style={styles.secondaryStatValue}>{USER_STATS.currentStreak}</Text>
+            <Text style={styles.secondaryStatValue}>{userStats.currentStreak}</Text>
             <Text style={styles.secondaryStatLabel}>Streak</Text>
           </View>
         </View>
@@ -106,17 +191,21 @@ export default function MyIQScreen() {
         </View>
         <View style={styles.milestoneGrid}>
           <View style={styles.milestoneCard}>
-            <Text style={styles.milestoneValue}>{USER_STATS.longestStreak}</Text>
+            <Text style={styles.milestoneValue}>{userStats.longestStreak}</Text>
             <Text style={styles.milestoneLabel}>Longest Streak</Text>
           </View>
           <View style={styles.milestoneCard}>
-            <Text style={styles.milestoneValue}>{USER_STATS.bestWeek.accuracy}%</Text>
+            <Text style={styles.milestoneValue}>
+              {userStats.bestWeek.accuracy > 0 ? `${userStats.bestWeek.accuracy}%` : 'N/A'}
+            </Text>
             <Text style={styles.milestoneLabel}>Best Week</Text>
-            <Text style={styles.milestoneDetail}>{USER_STATS.bestWeek.theme}</Text>
+            {userStats.bestWeek.accuracy > 0 && (
+              <Text style={styles.milestoneDetail}>{userStats.bestWeek.theme}</Text>
+            )}
           </View>
           <View style={styles.milestoneCard}>
             <Text style={styles.milestoneValue}>
-              {USER_STATS.lessonsCompleted}/{USER_STATS.totalLessons}
+              {userStats.lessonsCompleted}/{userStats.totalLessons}
             </Text>
             <Text style={styles.milestoneLabel}>Lessons</Text>
           </View>
@@ -142,6 +231,29 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingTop: 60,
     paddingBottom: 100,
+  },
+  centerContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: theme.subtext,
+    marginTop: 16,
+  },
+  emptyTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: theme.text,
+    marginTop: 16,
+  },
+  emptySubtitle: {
+    fontSize: 16,
+    color: theme.subtext,
+    textAlign: 'center',
+    marginTop: 8,
+    paddingHorizontal: 32,
   },
   header: {
     marginBottom: 24,
