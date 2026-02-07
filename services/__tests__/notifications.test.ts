@@ -369,7 +369,7 @@ describe('notifications', () => {
       expect(mockNotifications.scheduleNotificationAsync).toHaveBeenCalledWith(
         expect.objectContaining({
           content: expect.objectContaining({
-            title: 'Test Notification 🏒',
+            title: 'Test Notification',
             body: 'No results available yet. Make some picks!',
           }),
           trigger: null,

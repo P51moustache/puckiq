@@ -35,15 +35,20 @@ const CATEGORY_META: Record<string, { icon: string; label: string }> = {
  * Returns the number string and the remaining context text.
  */
 function extractHeroNumber(text: string): { hero: string; context: string } | null {
-  // Match "N keyword" patterns: "5 points", "4-game streak", "+3 momentum"
-  const match = text.match(/[+(]?(\d+)[)]?[\s-]+(point|goal|assist|game|win|save|shutout|streak|momentum)/i);
+  // Match "N keyword" patterns: "5 points", "4-game streak", "+3 momentum", "0.93 save"
+  const match = text.match(/([+-]?\d+(?:\.\d+)?)[\s-]+(point|goal|assist|game|win|save|shutout|streak|momentum)/i);
   if (match) {
     return { hero: match[1], context: text };
   }
   // Numbers in parentheses: (+5), (-3), (7)
-  const parenMatch = text.match(/\(([+-]?\d+)\)/);
+  const parenMatch = text.match(/\(([+-]?\d+(?:\.\d+)?)\)/);
   if (parenMatch) {
     return { hero: parenMatch[1], context: text };
+  }
+  // Standalone +N values: "+5", "+12"
+  const plusMatch = text.match(/\+(\d+)/);
+  if (plusMatch) {
+    return { hero: '+' + plusMatch[1], context: text };
   }
   // Match standalone large numbers (2+ digits)
   const numMatch = text.match(/\b(\d{2,})\b/);

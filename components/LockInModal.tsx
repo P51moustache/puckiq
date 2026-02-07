@@ -305,7 +305,7 @@ export default function LockInModal({
                   color: insiderTheme.confidence.lock,
                 }}>
                   +{potentialReturn} Pucks
-                  {isChallengingAI && ' 🎯'}
+                  {isChallengingAI && ' [AI]'}
                 </Text>
               </View>
             </View>
@@ -359,7 +359,7 @@ export default function LockInModal({
                       color: '#fff',
                       letterSpacing: 0.5,
                     }}>
-                      {canAfford ? 'LOCK IT IN 🔒' : 'INSUFFICIENT PUCKS'}
+                      {canAfford ? 'LOCK IT IN' : 'INSUFFICIENT PUCKS'}
                     </Text>
                   )}
                 </LinearGradient>

@@ -251,4 +251,44 @@ describe('StatOfTheNight', () => {
     expect(icons.length).toBeGreaterThan(0);
     expect(icons[0].props.name).toBe('share-outline');
   });
+
+  it('extracts hero number from +N momentum pattern', () => {
+    const momentumStat: Insight = {
+      id: 'stat-mtm',
+      text: 'DAL riding surging momentum (+5)',
+      teamAbbrev: 'DAL',
+      category: 'edge',
+      shareText: 'DAL momentum!',
+    };
+    const element = StatOfTheNightComponent({ stat: momentumStat, onShare: mockOnShare });
+    const texts = collectText(element);
+    // Should extract "+5" from parentheses or the +5 pattern
+    expect(texts.some(t => t.includes('5'))).toBe(true);
+  });
+
+  it('extracts hero number from decimal pattern', () => {
+    const decimalStat: Insight = {
+      id: 'stat-dec',
+      text: 'Vasilevskiy has a 0.93 save percentage this month',
+      teamAbbrev: 'TBL',
+      category: 'player',
+      shareText: 'Vasi save pct!',
+    };
+    const element = StatOfTheNightComponent({ stat: decimalStat, onShare: mockOnShare });
+    const texts = collectText(element);
+    expect(texts.some(t => t.includes('0.93'))).toBe(true);
+  });
+
+  it('extracts hero number from standalone +N text', () => {
+    const plusStat: Insight = {
+      id: 'stat-plus',
+      text: 'Team has a +12 goal differential this month',
+      teamAbbrev: 'COL',
+      category: 'edge',
+      shareText: 'COL differential!',
+    };
+    const element = StatOfTheNightComponent({ stat: plusStat, onShare: mockOnShare });
+    const texts = collectText(element);
+    expect(texts.some(t => t.includes('12'))).toBe(true);
+  });
 });

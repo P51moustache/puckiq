@@ -123,14 +123,14 @@ export function getStreakBadgeText(streak: number): string {
 }
 
 // Get streak milestone info
-export function getStreakMilestone(streak: number): { emoji: string; message: string } | null {
+export function getStreakMilestone(streak: number): { icon: string; message: string } | null {
   const milestones = [
-    { days: 7, emoji: '🔥', message: '7 day streak!' },
-    { days: 14, emoji: '💪', message: '2 week streak!' },
-    { days: 30, emoji: '⭐', message: '30 day streak!' },
-    { days: 50, emoji: '🏆', message: '50 day streak!' },
-    { days: 100, emoji: '👑', message: '100 day streak!' },
-    { days: 365, emoji: '🎉', message: '1 year streak!' },
+    { days: 7, icon: 'flame', message: '7 day streak!' },
+    { days: 14, icon: 'fitness', message: '2 week streak!' },
+    { days: 30, icon: 'star', message: '30 day streak!' },
+    { days: 50, icon: 'trophy', message: '50 day streak!' },
+    { days: 100, icon: 'ribbon', message: '100 day streak!' },
+    { days: 365, icon: 'sparkles', message: '1 year streak!' },
   ];
 
   const milestone = milestones.find(m => m.days === streak);

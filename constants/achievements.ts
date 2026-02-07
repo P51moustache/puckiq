@@ -1,8 +1,10 @@
+import type { Ionicons } from '@expo/vector-icons';
+
 export interface Achievement {
   id: string;
   title: string;
   description: string;
-  icon: string;
+  icon: keyof typeof Ionicons.glyphMap;
   requirement: {
     type: 'picks' | 'accuracy' | 'streak' | 'comparison' | 'consistency';
     value: number;
@@ -16,7 +18,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: 'first_pick',
     title: 'First Pick',
     description: 'Make your first prediction',
-    icon: '🎯',
+    icon: 'locate-outline',
     requirement: {
       type: 'picks',
       value: 1,
@@ -26,7 +28,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: 'analyst',
     title: 'Analyst',
     description: 'Make 10 picks',
-    icon: '📊',
+    icon: 'stats-chart-outline',
     requirement: {
       type: 'picks',
       value: 10,
@@ -36,7 +38,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: 'expert',
     title: 'Expert',
     description: 'Make 50 picks',
-    icon: '🏆',
+    icon: 'trophy-outline',
     requirement: {
       type: 'picks',
       value: 50,
@@ -46,7 +48,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: 'master',
     title: 'Master',
     description: 'Make 100 picks',
-    icon: '💎',
+    icon: 'diamond-outline',
     requirement: {
       type: 'picks',
       value: 100,
@@ -56,7 +58,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: 'legend',
     title: 'Legend',
     description: 'Make 250 picks',
-    icon: '👑',
+    icon: 'ribbon-outline',
     requirement: {
       type: 'picks',
       value: 250,
@@ -68,7 +70,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: 'student',
     title: 'Student',
     description: 'Reach 60% accuracy',
-    icon: '🎓',
+    icon: 'school-outline',
     requirement: {
       type: 'accuracy',
       value: 60,
@@ -78,7 +80,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: 'professor',
     title: 'Professor',
     description: 'Reach 70% accuracy',
-    icon: '👨‍🏫',
+    icon: 'book-outline',
     requirement: {
       type: 'accuracy',
       value: 70,
@@ -88,7 +90,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: 'genius',
     title: 'Genius',
     description: 'Reach 80% accuracy',
-    icon: '🧠',
+    icon: 'bulb-outline',
     requirement: {
       type: 'accuracy',
       value: 80,
@@ -100,7 +102,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: 'hot_streak',
     title: 'Hot Streak',
     description: 'Win 5 picks in a row',
-    icon: '🔥',
+    icon: 'flame',
     requirement: {
       type: 'streak',
       value: 5,
@@ -111,7 +113,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: 'lightning_round',
     title: 'Lightning Round',
     description: 'Win 10 picks in a row',
-    icon: '⚡',
+    icon: 'flash',
     requirement: {
       type: 'streak',
       value: 10,
@@ -122,7 +124,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: 'perfect_week',
     title: 'Perfect Week',
     description: 'Win 7 picks in a row',
-    icon: '🎪',
+    icon: 'star-outline',
     requirement: {
       type: 'streak',
       value: 7,
@@ -133,7 +135,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: 'unstoppable',
     title: 'Unstoppable',
     description: 'Win 15 picks in a row',
-    icon: '🚀',
+    icon: 'rocket-outline',
     requirement: {
       type: 'streak',
       value: 15,
@@ -146,7 +148,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: 'better_than_ai',
     title: 'Better Than AI',
     description: 'Beat Smart Picks accuracy',
-    icon: '🤖',
+    icon: 'hardware-chip-outline',
     requirement: {
       type: 'comparison',
       value: 0, // Will be checked dynamically
@@ -158,7 +160,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: 'dedicated',
     title: 'Dedicated',
     description: 'Make picks on 7 consecutive days',
-    icon: '📅',
+    icon: 'calendar-outline',
     requirement: {
       type: 'consistency',
       value: 7,

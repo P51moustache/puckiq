@@ -1,5 +1,6 @@
 import React from 'react';
 import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../constants/theme';
 
 const screenWidth = Dimensions.get('window').width;
@@ -37,7 +38,7 @@ export default function TeamCard({
         }}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       >
-        <Text style={styles.favoriteStar}>{isFavorite ? '⭐' : '☆'}</Text>
+        <Ionicons name={isFavorite ? 'star' : 'star-outline'} size={18} color={isFavorite ? '#f59e0b' : theme.subtext} />
       </TouchableOpacity>
 
       {/* Content Container */}

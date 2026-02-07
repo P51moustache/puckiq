@@ -22,6 +22,7 @@ import {
   Pick,
   PickStats,
 } from '../services/pickTracking';
+import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../constants/theme';
 import { useAnalytics } from '../hooks/useAnalytics';
 import AchievementBadge from './AchievementBadge';
@@ -157,18 +158,20 @@ export default function PickHistoryModal({ visible, onClose, onHistoryCleared }:
 
   // Render comparison card
   const renderComparisonCard = (title: string, stats: PickStats, color: string, rank: number) => {
-    const getRankMedal = () => {
-      if (rank === 1) return '🥇';
-      if (rank === 2) return '🥈';
-      if (rank === 3) return '🥉';
-      return '';
+    const getRankIcon = (): { name: keyof typeof Ionicons.glyphMap; color: string } | null => {
+      if (rank === 1) return { name: 'trophy', color: '#fbbf24' };
+      if (rank === 2) return { name: 'medal-outline', color: '#c0c0c0' };
+      if (rank === 3) return { name: 'medal-outline', color: '#cd7f32' };
+      return null;
     };
+
+    const rankIcon = getRankIcon();
 
     return (
       <View style={[styles.comparisonCard, { borderColor: color }]}>
         <View style={styles.cardHeader}>
           <Text style={styles.cardTitle}>{title}</Text>
-          {rank <= 3 && <Text style={styles.rankMedal}>{getRankMedal()}</Text>}
+          {rankIcon && <Ionicons name={rankIcon.name} size={24} color={rankIcon.color} />}
         </View>
 
         {/* Circular Progress */}
@@ -239,7 +242,7 @@ export default function PickHistoryModal({ visible, onClose, onHistoryCleared }:
           <>
             <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Your Streak</Text>
             <Text style={styles.sectionSubtitle}>
-              Track your hot and cold runs. 🔥 appears at 3+ wins, ❄️ at 3+ losses
+              Track your hot and cold runs. Hot streaks appear at 3+ wins, cold streaks at 3+ losses.
             </Text>
             <StreakIndicator
               currentStreak={streakInfo.current}
@@ -333,7 +336,7 @@ export default function PickHistoryModal({ visible, onClose, onHistoryCleared }:
         {/* Info Box */}
         <View style={styles.infoBox}>
           <Text style={styles.infoText}>
-            View all completed picks by date. 🔒 = Lock of the Day, 🤖 = AI Smart Pick. Filter by pick type to compare performance.
+            View all completed picks by date. LOCK = Lock of the Day, AI = Smart Pick. Filter by pick type to compare performance.
           </Text>
         </View>
 
@@ -425,11 +428,17 @@ export default function PickHistoryModal({ visible, onClose, onHistoryCleared }:
                       <Text style={styles.historyMatchup}>
                         {pick.awayTeam} @ {pick.homeTeam}
                       </Text>
-                      <Text style={styles.historyPrediction}>
-                        Picked: {pick.predictedWinner}
-                        {pick.type === 'lock' && ' 🔒'}
-                        {pick.type === 'smart-pick' && ' 🤖'}
-                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <Text style={styles.historyPrediction}>
+                          Picked: {pick.predictedWinner}
+                        </Text>
+                        {pick.type === 'lock' && (
+                          <Ionicons name="lock-closed" size={11} color={theme.subtext} />
+                        )}
+                        {pick.type === 'smart-pick' && (
+                          <Ionicons name="hardware-chip-outline" size={11} color={theme.subtext} />
+                        )}
+                      </View>
                     </View>
                     <Text style={styles.historyChevron}>›</Text>
                   </Pressable>
@@ -464,7 +473,7 @@ export default function PickHistoryModal({ visible, onClose, onHistoryCleared }:
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Pick History</Text>
             <Pressable onPress={onClose} style={styles.closeButton}>
-              <Text style={styles.closeButtonText}>✕</Text>
+              <Ionicons name="close" size={20} color={theme.text} />
             </Pressable>
           </View>
 
@@ -544,10 +553,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  closeButtonText: {
-    fontSize: 20,
-    color: theme.text,
-  },
   tabs: {
     flexDirection: 'row',
     paddingHorizontal: 16,
@@ -617,9 +622,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: theme.text,
-  },
-  rankMedal: {
-    fontSize: 24,
   },
   progressCircleContainer: {
     alignItems: 'center',

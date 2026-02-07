@@ -681,7 +681,7 @@ export default function GameDeepDiveModal({
             borderColor: '#192e5e',
           }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-              <Text style={{ fontSize: 24, marginRight: 10 }}>⭐</Text>
+              <Ionicons name="star" size={24} color="#fbbf24" style={{ marginRight: 10 }} />
               <Text style={{ fontSize: 18, fontWeight: '700', color: '#e6eef8' }}>
                 Favored Team
               </Text>

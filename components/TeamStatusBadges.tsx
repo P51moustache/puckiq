@@ -66,7 +66,7 @@ function getTeamBadges(teamStats: any, standings?: any): TeamBadge[] {
   const isWinStreak = streakCode?.includes('W');
   const isLossStreak = streakCode?.includes('L');
 
-  // 🔥 ON FIRE - 5+ game win streak
+  // ON FIRE - 5+ game win streak
   if (isWinStreak && streakNum >= 5) {
     badges.push({
       id: 'on_fire',
@@ -77,7 +77,7 @@ function getTeamBadges(teamStats: any, standings?: any): TeamBadge[] {
     });
   }
 
-  // ❄️ ICE COLD - 5+ game losing streak
+  // ICE COLD - 5+ game losing streak
   if (isLossStreak && streakNum >= 5) {
     badges.push({
       id: 'ice_cold',
@@ -88,7 +88,7 @@ function getTeamBadges(teamStats: any, standings?: any): TeamBadge[] {
     });
   }
 
-  // 🛡️ DEFENSIVE WALL - Top tier goals against
+  // DEFENSIVE WALL - Top tier goals against
   if (goalsAgainstPerGame <= 2.5) {
     badges.push({
       id: 'defensive_wall',
@@ -99,7 +99,7 @@ function getTeamBadges(teamStats: any, standings?: any): TeamBadge[] {
     });
   }
 
-  // ⚡ OFFENSIVE POWERHOUSE - Top tier goals for
+  // OFFENSIVE POWERHOUSE - Top tier goals for
   if (goalsPerGame >= 3.5) {
     badges.push({
       id: 'offensive_powerhouse',
@@ -110,7 +110,7 @@ function getTeamBadges(teamStats: any, standings?: any): TeamBadge[] {
     });
   }
 
-  // 📈 TRENDING UP - 8-2 or better in last 10
+  // TRENDING UP - 8-2 or better in last 10
   if (last10Wins >= 8) {
     badges.push({
       id: 'trending_up',
@@ -121,7 +121,7 @@ function getTeamBadges(teamStats: any, standings?: any): TeamBadge[] {
     });
   }
 
-  // 📉 STRUGGLING - 2-8 or worse in last 10
+  // STRUGGLING - 2-8 or worse in last 10
   if (last10Wins <= 2 && (last10Wins + last10Losses) >= 8) {
     badges.push({
       id: 'struggling',
@@ -132,7 +132,7 @@ function getTeamBadges(teamStats: any, standings?: any): TeamBadge[] {
     });
   }
 
-  // 🏆 CUP CONTENDER - High win %, positive goal diff, in playoff spot
+  // CUP CONTENDER - High win %, positive goal diff, in playoff spot
   const standingsRank = standings?.conferenceSequence || 99;
   if (winPct >= 0.60 && goalDifferential > 20 && standingsRank <= 8) {
     badges.push({
@@ -144,7 +144,7 @@ function getTeamBadges(teamStats: any, standings?: any): TeamBadge[] {
     });
   }
 
-  // ⭐ UNDERDOG STORY - Playoff position despite negative goal differential
+  // UNDERDOG STORY - Playoff position despite negative goal differential
   if (standingsRank <= 8 && goalDifferential < 0) {
     badges.push({
       id: 'underdog',
@@ -155,7 +155,7 @@ function getTeamBadges(teamStats: any, standings?: any): TeamBadge[] {
     });
   }
 
-  // 💪 RESILIENT - Above .500 despite high GA
+  // RESILIENT - Above .500 despite high GA
   if (winPct > 0.50 && goalsAgainstPerGame > 3.2) {
     badges.push({
       id: 'resilient',
@@ -166,7 +166,7 @@ function getTeamBadges(teamStats: any, standings?: any): TeamBadge[] {
     });
   }
 
-  // 🎯 BALANCED - Similar GF and GA, around .500
+  // BALANCED - Similar GF and GA, around .500
   const goalDiff = Math.abs(goalsPerGame - goalsAgainstPerGame);
   if (goalDiff < 0.3 && winPct >= 0.45 && winPct <= 0.55) {
     badges.push({
@@ -178,7 +178,7 @@ function getTeamBadges(teamStats: any, standings?: any): TeamBadge[] {
     });
   }
 
-  // 🚀 HOT START - Early season success
+  // HOT START - Early season success
   if (gamesPlayed < 15 && winPct >= 0.65) {
     badges.push({
       id: 'hot_start',
