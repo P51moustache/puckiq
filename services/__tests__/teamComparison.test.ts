@@ -1,9 +1,90 @@
 import { getTeamComparisonData, calculateCategoryWinners, determineWinner } from '../teamComparison';
 
+// Mock standings data for TOR
+const mockStandings = [
+  {
+    teamAbbrev: { default: 'TOR' },
+    gamesPlayed: 50,
+    goalFor: 160,
+    goalAgainst: 130,
+    wins: 28,
+    losses: 16,
+    otLosses: 6,
+    points: 62,
+  },
+  {
+    teamAbbrev: { default: 'BOS' },
+    gamesPlayed: 50,
+    goalFor: 155,
+    goalAgainst: 120,
+    wins: 30,
+    losses: 14,
+    otLosses: 6,
+    points: 66,
+  },
+];
+
+// Mock team summary data (from stats API)
+const mockTeamSummaryData = {
+  data: [
+    {
+      teamId: 10, // TOR
+      shotsForPerGame: 31.5,
+      shotsAgainstPerGame: 29.0,
+      powerPlayPct: 0.225,
+      penaltyKillPct: 0.800,
+    },
+    {
+      teamId: 6, // BOS
+      shotsForPerGame: 33.0,
+      shotsAgainstPerGame: 28.5,
+      powerPlayPct: 0.240,
+      penaltyKillPct: 0.820,
+    },
+  ],
+};
+
+// Mock club stats data
+const mockClubStats = {
+  skaters: [
+    { powerPlayGoals: 8 },
+    { powerPlayGoals: 5 },
+    { powerPlayGoals: 3 },
+  ],
+};
+
+// Set up fetch mock
+beforeEach(() => {
+  (global.fetch as jest.Mock) = jest.fn((url: string) => {
+    if (url.includes('standings')) {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ standings: mockStandings }),
+      });
+    }
+    if (url.includes('club-stats')) {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockClubStats),
+      });
+    }
+    if (url.includes('team/summary')) {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockTeamSummaryData),
+      });
+    }
+    return Promise.resolve({ ok: false });
+  });
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
+
 describe('teamComparison', () => {
   describe('getTeamComparisonData', () => {
-    it('should return real team stats from NHL API', async () => {
-      // Test with a real team (Toronto Maple Leafs)
+    it('should return team stats from NHL API', async () => {
       const stats = await getTeamComparisonData('TOR');
 
       // Should have real goals per game data
@@ -14,13 +95,13 @@ describe('teamComparison', () => {
       expect(stats.defense.goalsAgainstPerGame).toBeGreaterThan(0);
       expect(stats.defense.goalsAgainstPerGameRank).toBeDefined();
 
-      // Should have real shots data (aggregated from players)
+      // Should have real shots data (from team summary)
       expect(stats.offense.shotsPerGame).toBeGreaterThan(0);
 
       // Should have real shooting percentage
       expect(stats.offense.shootingPct).toBeGreaterThan(0);
       expect(stats.offense.shootingPct).toBeLessThan(100);
-    }, 30000);
+    });
 
     it('should calculate category winners correctly with real data', () => {
       const homeStats = {

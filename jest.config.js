@@ -30,6 +30,7 @@ module.exports = {
     '^@/(.*)$': '<rootDir>/$1',
     '^expo/src/winter/(.*)$': '<rootDir>/__mocks__/expo-winter.js',
     '^@expo/metro-runtime$': '<rootDir>/__mocks__/expo-winter.js',
+    '\\.(jpg|jpeg|png|gif|webp|svg)$': '<rootDir>/__mocks__/fileMock.js',
   },
   coverageThreshold: {
     global: {

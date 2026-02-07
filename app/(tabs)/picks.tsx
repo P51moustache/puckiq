@@ -721,7 +721,7 @@ const s = StyleSheet.create({
     fontWeight: '700',
     color: theme.subtext,
   },
-  bestBetTag: {
+  topPickTag: {
     fontSize: 10,
     color: '#fbbf24',
     fontWeight: '700',

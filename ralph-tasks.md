@@ -42,30 +42,6 @@ Every task MUST include these production-ready behaviors. If a task doesn't expl
 - Handle offline state gracefully
 - Cache data where appropriate
 
-### UI Verification (For Tasks with UI Changes)
-After implementing UI changes, Claude MUST:
-1. **Ask the user to navigate** to the new/modified UI feature
-   - Be specific: "Please tap on [element] to navigate to [screen]"
-   - Or use deep links when available: `xcrun simctl openurl booted "exp+learning-project://[route]"`
-2. **Take screenshots** to verify the implementation
-   - Use: `xcrun simctl io booted screenshot /tmp/[descriptive_name].png`
-   - Take multiple screenshots if the feature has multiple states (expanded/collapsed, loading/loaded, empty/populated)
-3. **Review screenshots** with the user to confirm:
-   - Feature works as expected
-   - Styling matches the app theme
-   - No visual bugs or layout issues
-4. **DO NOT use cliclick or automated tap tools** - they are unreliable
-   - Instead, ask the user to perform taps/interactions
-   - Wait for user confirmation ("done") before taking screenshots
-
-### Post-Completion (After Every Ralph Loop)
-After outputting the completion promise, Claude MUST:
-1. **Create a git commit** with a descriptive message summarizing the changes
-   - Include what was added/modified
-   - Reference the task number (e.g., "Task 4.3: Track picks by model")
-2. **Run `git status`** to verify the commit was successful
-3. If there are TypeScript errors or test failures, fix them before committing
-
 ---
 
 ## Key Discovery: Existing Prediction System

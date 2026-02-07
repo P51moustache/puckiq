@@ -1,5 +1,19 @@
 #!/bin/bash
 
+# ⚠️  DEPRECATED: This script is replaced by native Claude Code skills.
+# Use these slash commands instead (they run in your current session with full context):
+#
+#   /pipeline            - Show status, suggest next command
+#   /strategy [request]  - Greenlight meeting (debate options, pick one)
+#   /blueprint           - Create technical spec from approved strategy
+#   /build               - Implement the spec
+#   /verify              - Audit the build (test, security, QA, legal, persona)
+#   /ops                 - Fix issues, update docs, close the cycle
+#   /quick-fix [desc]    - Small 1-3 file changes, skip pipeline
+#   /rework [#] [reason] - Send work back to squad 1, 2, or 3
+#
+# This script will be removed in a future update.
+
 # Colors
 BOLD='\033[1m'
 DIM='\033[2m'

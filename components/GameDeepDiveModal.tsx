@@ -3,12 +3,25 @@ import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from 'rea
 import { getTeamComparisonData, calculateCategoryWinners } from '../services/teamComparison';
 import { TeamComparisonStats, StatCategory } from '../types/teamStats';
 import StatComparisonRow from './StatComparisonRow';
+import { getH2HRecord } from '../services/gameResults';
+import { getKeyPlayersForGame } from '../services/playerStats';
+import type { H2HRecord, TeamPlayerStats } from '../types/gameResults';
+import { fetchTeamEdge } from '../services/edgeStats';
+import { fetchGameResults } from '../services/gameResults';
+import { calculateMomentum, calculateClutchRating } from '../services/derivedStats';
+import MomentumSparkline from './MomentumSparkline';
+import ClutchBadge from './ClutchBadge';
+import ZoneTimeChart from './ZoneTimeChart';
+import SpeedGauge from './SpeedGauge';
+import type { TeamEdgeDetail, MomentumData, ClutchRating as ClutchRatingType } from '../types/edgeStats';
+import type { NHLGameSummary } from '../types/predictions';
 
 interface GameDeepDiveModalProps {
   visible: boolean;
   onClose: () => void;
-  game: any;
-  prediction: any;
+  game: NHLGameSummary;
+  prediction: { homeWinProb: number; awayWinProb: number };
+  restMap?: Map<string, number>;
 }
 
 export default function GameDeepDiveModal({
@@ -16,10 +29,14 @@ export default function GameDeepDiveModal({
   onClose,
   game,
   prediction,
+  restMap,
 }: GameDeepDiveModalProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'stats' | 'recent' | 'h2h' | 'schedule'>('overview');
-  const [h2hGames, setH2hGames] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<'overview' | 'stats' | 'recent' | 'h2h' | 'players' | 'edge' | 'schedule'>('overview');
+  const [h2hRecord, setH2hRecord] = useState<H2HRecord | null>(null);
   const [loadingH2H, setLoadingH2H] = useState(false);
+  const [homePlayerStats, setHomePlayerStats] = useState<TeamPlayerStats | null>(null);
+  const [awayPlayerStats, setAwayPlayerStats] = useState<TeamPlayerStats | null>(null);
+  const [loadingPlayers, setLoadingPlayers] = useState(false);
   const [homeComparisonStats, setHomeComparisonStats] = useState<TeamComparisonStats | null>(null);
   const [awayComparisonStats, setAwayComparisonStats] = useState<TeamComparisonStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(false);
@@ -36,9 +53,18 @@ export default function GameDeepDiveModal({
   const [showHomeIceInfo, setShowHomeIceInfo] = useState(false);
   const [showFavoredInfo, setShowFavoredInfo] = useState(false);
   const [showEdgeInfo, setShowEdgeInfo] = useState(false);
+  const [homeEdgeDetail, setHomeEdgeDetail] = useState<TeamEdgeDetail | null>(null);
+  const [awayEdgeDetail, setAwayEdgeDetail] = useState<TeamEdgeDetail | null>(null);
+  const [homeMomentum, setHomeMomentum] = useState<MomentumData | null>(null);
+  const [awayMomentum, setAwayMomentum] = useState<MomentumData | null>(null);
+  const [homeClutch, setHomeClutch] = useState<ClutchRatingType | null>(null);
+  const [awayClutch, setAwayClutch] = useState<ClutchRatingType | null>(null);
+  const [loadingEdge, setLoadingEdge] = useState(false);
 
   const homeAbbrev = game?.homeTeam?.abbrev || game?.homeTeam?.teamAbbrev?.default || 'HOME';
   const awayAbbrev = game?.awayTeam?.abbrev || game?.awayTeam?.teamAbbrev?.default || 'AWAY';
+  const homeTeamId: number | undefined = game?.homeTeam?.id;
+  const awayTeamId: number | undefined = game?.awayTeam?.id;
   const favored = prediction?.homeWinProb > prediction?.awayWinProb ? homeAbbrev : awayAbbrev;
 
   // Fetch team comparison stats when Stats tab is active
@@ -67,35 +93,18 @@ export default function GameDeepDiveModal({
     fetchComparisonStats();
   }, [visible, activeTab, homeAbbrev, awayAbbrev]);
 
-  // Fetch head-to-head data when H2H tab is active
+  // Fetch head-to-head data when H2H tab is active (from Supabase)
   useEffect(() => {
     if (!visible || activeTab !== 'h2h' || !homeAbbrev || !awayAbbrev) return;
 
     async function fetchH2HData() {
       setLoadingH2H(true);
       try {
-        const currentYear = new Date().getFullYear();
-        const season = `${currentYear}${currentYear + 1}`;
-
-        // Fetch the current season schedule for the home team
-        const response = await fetch(`https://api-web.nhle.com/v1/club-schedule-season/${homeAbbrev}/${season}`);
-        if (!response.ok) throw new Error('Failed to fetch schedule');
-
-        const data = await response.json();
-        const games = data.games || [];
-
-        // Filter for games against the away team (completed games only)
-        const matchups = games.filter((g: any) => {
-          const opponent = g.homeTeam?.abbrev === homeAbbrev
-            ? g.awayTeam?.abbrev
-            : g.homeTeam?.abbrev;
-          return opponent === awayAbbrev && (g.gameState === 'OFF' || g.gameState === 'FINAL');
-        }).slice(0, 10); // Get last 10 matchups
-
-        setH2hGames(matchups);
+        const record = await getH2HRecord(awayAbbrev, homeAbbrev);
+        setH2hRecord(record);
       } catch (error) {
-        console.error('Error fetching H2H data:', error);
-        setH2hGames([]);
+        console.error('[H2H] Error fetching H2H data:', error);
+        setH2hRecord(null);
       } finally {
         setLoadingH2H(false);
       }
@@ -104,11 +113,69 @@ export default function GameDeepDiveModal({
     fetchH2HData();
   }, [visible, activeTab, homeAbbrev, awayAbbrev]);
 
+  // Fetch key players when Players tab is active
+  useEffect(() => {
+    if (!visible || activeTab !== 'players' || !homeAbbrev || !awayAbbrev) return;
+
+    async function fetchPlayerStats() {
+      setLoadingPlayers(true);
+      try {
+        const { home, away } = await getKeyPlayersForGame(homeAbbrev, awayAbbrev);
+        setHomePlayerStats(home);
+        setAwayPlayerStats(away);
+      } catch (error) {
+        console.error('[PLAYER STATS] Error fetching player stats:', error);
+        setHomePlayerStats(null);
+        setAwayPlayerStats(null);
+      } finally {
+        setLoadingPlayers(false);
+      }
+    }
+
+    fetchPlayerStats();
+  }, [visible, activeTab, homeAbbrev, awayAbbrev]);
+
+  // Fetch Edge IQ data when Edge tab is active
+  useEffect(() => {
+    if (!visible || activeTab !== 'edge' || !homeAbbrev || !awayAbbrev) return;
+    if (!homeTeamId || !awayTeamId) return; // Need team IDs for Edge API
+    if (homeEdgeDetail || awayEdgeDetail) return; // Already fetched
+
+    async function fetchEdgeData() {
+      setLoadingEdge(true);
+      try {
+        const [homeEdge, awayEdge, gameResults] = await Promise.all([
+          fetchTeamEdge(homeTeamId!),
+          fetchTeamEdge(awayTeamId!),
+          fetchGameResults(),
+        ]);
+
+        setHomeEdgeDetail(homeEdge);
+        setAwayEdgeDetail(awayEdge);
+
+        if (gameResults.length > 0) {
+          setHomeMomentum(calculateMomentum(homeAbbrev, gameResults));
+          setAwayMomentum(calculateMomentum(awayAbbrev, gameResults));
+          setHomeClutch(calculateClutchRating(homeAbbrev, gameResults));
+          setAwayClutch(calculateClutchRating(awayAbbrev, gameResults));
+        }
+      } catch (error) {
+        console.error('[EDGE IQ] Error fetching edge data:', error);
+      } finally {
+        setLoadingEdge(false);
+      }
+    }
+
+    fetchEdgeData();
+  }, [visible, activeTab, homeAbbrev, awayAbbrev, homeTeamId, awayTeamId, homeEdgeDetail, awayEdgeDetail]);
+
   const tabs = [
     { id: 'overview', label: 'Overview', icon: '' },
     // { id: 'stats', label: 'Stats', icon: '' }, // Disabled temporarily
     { id: 'recent', label: 'Recent Form', icon: '' },
     { id: 'h2h', label: 'Head-to-Head', icon: '' },
+    { id: 'players', label: 'Key Players', icon: '' },
+    { id: 'edge', label: 'Edge IQ', icon: '' },
     { id: 'schedule', label: 'Schedule', icon: '' },
   ];
 
@@ -868,7 +935,7 @@ export default function GameDeepDiveModal({
       );
     }
 
-    if (h2hGames.length === 0) {
+    if (!h2hRecord || h2hRecord.games.length === 0) {
       return (
         <View>
           <Text style={{ fontSize: 16, fontWeight: '700', color: '#e6eef8', marginBottom: 12 }}>
@@ -886,25 +953,6 @@ export default function GameDeepDiveModal({
         </View>
       );
     }
-
-    // Calculate season series record
-    let homeWins = 0;
-    let awayWins = 0;
-
-    h2hGames.forEach((g: any) => {
-      const homeTeamAbbrev = g.homeTeam?.abbrev || g.homeTeam?.teamAbbrev?.default;
-      const awayTeamAbbrev = g.awayTeam?.abbrev || g.awayTeam?.teamAbbrev?.default;
-      const homeScore = g.homeTeam?.score || 0;
-      const awayScore = g.awayTeam?.score || 0;
-
-      if (homeScore > awayScore) {
-        if (homeTeamAbbrev === homeAbbrev) homeWins++;
-        else awayWins++;
-      } else if (awayScore > homeScore) {
-        if (awayTeamAbbrev === awayAbbrev) awayWins++;
-        else homeWins++;
-      }
-    });
 
     return (
       <View>
@@ -927,7 +975,7 @@ export default function GameDeepDiveModal({
               {awayAbbrev}
             </Text>
             <Text style={{ fontSize: 28, fontWeight: '800', color: '#e6eef8' }}>
-              {awayWins}
+              {h2hRecord.teamAWins}
             </Text>
           </View>
           <Text style={{ fontSize: 20, color: '#98a6bf', fontWeight: '700' }}>-</Text>
@@ -936,7 +984,7 @@ export default function GameDeepDiveModal({
               {homeAbbrev}
             </Text>
             <Text style={{ fontSize: 28, fontWeight: '800', color: '#e6eef8' }}>
-              {homeWins}
+              {h2hRecord.teamBWins}
             </Text>
           </View>
         </View>
@@ -945,24 +993,19 @@ export default function GameDeepDiveModal({
           Recent Matchups
         </Text>
 
-        {/* Game History */}
-        {h2hGames.map((g: any, idx: number) => {
-          const gameHomeTeam = g.homeTeam?.abbrev || g.homeTeam?.teamAbbrev?.default;
-          const gameAwayTeam = g.awayTeam?.abbrev || g.awayTeam?.teamAbbrev?.default;
-          const homeScore = g.homeTeam?.score || 0;
-          const awayScore = g.awayTeam?.score || 0;
-          const gameDate = new Date(g.gameDate).toLocaleDateString('en-US', {
+        {/* Game History from Supabase */}
+        {h2hRecord.games.map((g, idx) => {
+          const winner = g.home_score > g.away_score ? g.home_team : g.away_team;
+          const isHomeWin = winner === homeAbbrev;
+          const gameDate = new Date(g.game_date).toLocaleDateString('en-US', {
             month: 'short',
             day: 'numeric',
-            year: 'numeric'
+            year: 'numeric',
           });
-
-          const winner = homeScore > awayScore ? gameHomeTeam : gameAwayTeam;
-          const isHomeWin = winner === homeAbbrev;
 
           return (
             <View
-              key={idx}
+              key={g.game_id}
               style={{
                 backgroundColor: '#071a3699',
                 borderRadius: 10,
@@ -990,25 +1033,153 @@ export default function GameDeepDiveModal({
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                   <Text style={{ fontSize: 13, fontWeight: '700', color: '#e6eef8' }}>
-                    {gameAwayTeam}
+                    {g.away_team}
                   </Text>
                   <Text style={{ fontSize: 16, fontWeight: '800', color: '#e6eef8', marginLeft: 8 }}>
-                    {awayScore}
+                    {g.away_score}
                   </Text>
                 </View>
                 <Text style={{ fontSize: 11, color: '#98a6bf', marginHorizontal: 8 }}>@</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, justifyContent: 'flex-end' }}>
                   <Text style={{ fontSize: 16, fontWeight: '800', color: '#e6eef8', marginRight: 8 }}>
-                    {homeScore}
+                    {g.home_score}
                   </Text>
                   <Text style={{ fontSize: 13, fontWeight: '700', color: '#e6eef8' }}>
-                    {gameHomeTeam}
+                    {g.home_team}
                   </Text>
                 </View>
               </View>
             </View>
           );
         })}
+      </View>
+    );
+  };
+
+  const renderPlayersTab = () => {
+    if (loadingPlayers) {
+      return (
+        <View style={{ alignItems: 'center', padding: 40 }}>
+          <ActivityIndicator size="large" color="#60a5fa" />
+          <Text style={{ color: '#98a6bf', marginTop: 12 }}>Loading player stats...</Text>
+        </View>
+      );
+    }
+
+    const renderTeamSkaters = (teamAbbrev: string, stats: TeamPlayerStats | null, color: string) => {
+      const skaters = stats?.skaters?.slice(0, 5) ?? [];
+      if (skaters.length === 0) {
+        return (
+          <View style={{ backgroundColor: '#071a3699', borderRadius: 12, padding: 16 }}>
+            <Text style={{ fontSize: 12, color: '#98a6bf', textAlign: 'center' }}>
+              No player data available
+            </Text>
+          </View>
+        );
+      }
+
+      return (
+        <View style={{ backgroundColor: '#071a3699', borderRadius: 12, padding: 16 }}>
+          {/* Header */}
+          <View style={{ flexDirection: 'row', marginBottom: 10, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#192e5e44' }}>
+            <Text style={{ flex: 1, fontSize: 10, fontWeight: '700', color: '#98a6bf' }}>PLAYER</Text>
+            <Text style={{ width: 30, fontSize: 10, fontWeight: '700', color: '#98a6bf', textAlign: 'center' }}>GP</Text>
+            <Text style={{ width: 25, fontSize: 10, fontWeight: '700', color: '#98a6bf', textAlign: 'center' }}>G</Text>
+            <Text style={{ width: 25, fontSize: 10, fontWeight: '700', color: '#98a6bf', textAlign: 'center' }}>A</Text>
+            <Text style={{ width: 30, fontSize: 10, fontWeight: '700', color: '#98a6bf', textAlign: 'center' }}>PTS</Text>
+            <Text style={{ width: 30, fontSize: 10, fontWeight: '700', color: '#98a6bf', textAlign: 'center' }}>+/-</Text>
+          </View>
+          {skaters.map((player, idx) => (
+            <View
+              key={player.playerId}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingVertical: 6,
+                borderBottomWidth: idx < skaters.length - 1 ? 1 : 0,
+                borderBottomColor: '#192e5e22',
+              }}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: '#e6eef8' }}>
+                  {player.firstName[0]}. {player.lastName}
+                </Text>
+                <Text style={{ fontSize: 9, color: '#98a6bf' }}>{player.positionCode}</Text>
+              </View>
+              <Text style={{ width: 30, fontSize: 11, color: '#98a6bf', textAlign: 'center' }}>{player.gamesPlayed}</Text>
+              <Text style={{ width: 25, fontSize: 11, color: '#e6eef8', fontWeight: '600', textAlign: 'center' }}>{player.goals}</Text>
+              <Text style={{ width: 25, fontSize: 11, color: '#e6eef8', fontWeight: '600', textAlign: 'center' }}>{player.assists}</Text>
+              <Text style={{ width: 30, fontSize: 11, color: color, fontWeight: '700', textAlign: 'center' }}>{player.points}</Text>
+              <Text style={{
+                width: 30,
+                fontSize: 11,
+                fontWeight: '600',
+                textAlign: 'center',
+                color: player.plusMinus > 0 ? '#10b981' : player.plusMinus < 0 ? '#ef4444' : '#98a6bf',
+              }}>
+                {player.plusMinus > 0 ? '+' : ''}{player.plusMinus}
+              </Text>
+            </View>
+          ))}
+        </View>
+      );
+    };
+
+    const renderTeamGoalies = (stats: TeamPlayerStats | null, color: string) => {
+      const goalies = stats?.goalies?.slice(0, 2) ?? [];
+      if (goalies.length === 0) return null;
+
+      return (
+        <View style={{ backgroundColor: '#071a3699', borderRadius: 12, padding: 16, marginTop: 8 }}>
+          {/* Header */}
+          <View style={{ flexDirection: 'row', marginBottom: 10, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#192e5e44' }}>
+            <Text style={{ flex: 1, fontSize: 10, fontWeight: '700', color: '#98a6bf' }}>GOALIE</Text>
+            <Text style={{ width: 30, fontSize: 10, fontWeight: '700', color: '#98a6bf', textAlign: 'center' }}>GP</Text>
+            <Text style={{ width: 30, fontSize: 10, fontWeight: '700', color: '#98a6bf', textAlign: 'center' }}>W</Text>
+            <Text style={{ width: 30, fontSize: 10, fontWeight: '700', color: '#98a6bf', textAlign: 'center' }}>L</Text>
+            <Text style={{ width: 35, fontSize: 10, fontWeight: '700', color: '#98a6bf', textAlign: 'center' }}>GAA</Text>
+            <Text style={{ width: 40, fontSize: 10, fontWeight: '700', color: '#98a6bf', textAlign: 'center' }}>SV%</Text>
+          </View>
+          {goalies.map((goalie, idx) => (
+            <View
+              key={goalie.playerId}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingVertical: 6,
+                borderBottomWidth: idx < goalies.length - 1 ? 1 : 0,
+                borderBottomColor: '#192e5e22',
+              }}
+            >
+              <Text style={{ flex: 1, fontSize: 12, fontWeight: '600', color: '#e6eef8' }}>
+                {goalie.firstName[0]}. {goalie.lastName}
+              </Text>
+              <Text style={{ width: 30, fontSize: 11, color: '#98a6bf', textAlign: 'center' }}>{goalie.gamesPlayed}</Text>
+              <Text style={{ width: 30, fontSize: 11, color: '#10b981', fontWeight: '600', textAlign: 'center' }}>{goalie.wins}</Text>
+              <Text style={{ width: 30, fontSize: 11, color: '#ef4444', fontWeight: '600', textAlign: 'center' }}>{goalie.losses}</Text>
+              <Text style={{ width: 35, fontSize: 11, color: '#e6eef8', fontWeight: '600', textAlign: 'center' }}>{goalie.goalsAgainstAvg.toFixed(2)}</Text>
+              <Text style={{ width: 40, fontSize: 11, color: color, fontWeight: '700', textAlign: 'center' }}>{(goalie.savePctg * 100).toFixed(1)}%</Text>
+            </View>
+          ))}
+        </View>
+      );
+    };
+
+    return (
+      <View>
+        {/* Away Team */}
+        <Text style={{ fontSize: 14, fontWeight: '600', color: '#60a5fa', marginBottom: 8 }}>
+          {awayAbbrev} - Top Skaters
+        </Text>
+        {renderTeamSkaters(awayAbbrev, awayPlayerStats, '#60a5fa')}
+        {renderTeamGoalies(awayPlayerStats, '#60a5fa')}
+
+        {/* Home Team */}
+        <Text style={{ fontSize: 14, fontWeight: '600', color: '#f59e0b', marginTop: 20, marginBottom: 8 }}>
+          {homeAbbrev} - Top Skaters
+        </Text>
+        {renderTeamSkaters(homeAbbrev, homePlayerStats, '#f59e0b')}
+        {renderTeamGoalies(homePlayerStats, '#f59e0b')}
       </View>
     );
   };
@@ -1367,9 +1538,288 @@ export default function GameDeepDiveModal({
     );
   };
 
+  const renderEdgeTab = () => {
+    if (loadingEdge) {
+      return (
+        <View style={{ alignItems: 'center', padding: 40 }}>
+          <ActivityIndicator size="large" color="#60a5fa" />
+          <Text style={{ color: '#98a6bf', marginTop: 12 }}>Loading Edge IQ data...</Text>
+        </View>
+      );
+    }
+
+    if (!homeEdgeDetail && !awayEdgeDetail) {
+      return (
+        <View style={{
+          backgroundColor: '#071a3699',
+          borderRadius: 12,
+          padding: 16,
+        }}>
+          <Text style={{ fontSize: 12, color: '#98a6bf', textAlign: 'center', lineHeight: 18 }}>
+            Edge IQ data not available for this matchup yet. Check back closer to game time.
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <View>
+        {/* Shot Speed Comparison */}
+        <Text style={{ fontSize: 16, fontWeight: '700', color: '#e6eef8', marginBottom: 12 }}>
+          Shot Speed
+        </Text>
+        <View style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          marginBottom: 20,
+        }}>
+          <View style={{ flex: 1, marginRight: 8 }}>
+            <Text style={{ fontSize: 12, fontWeight: '600', color: '#60a5fa', marginBottom: 8, textAlign: 'center' }}>
+              {awayAbbrev}
+            </Text>
+            {awayEdgeDetail?.shotSpeed?.topShotSpeed ? (
+              <SpeedGauge
+                value={awayEdgeDetail.shotSpeed.topShotSpeed.imperial}
+                label="Top Shot"
+                unit="mph"
+                percentile={awayEdgeDetail.shotSpeed.topShotSpeed.percentile}
+                leagueAvg={awayEdgeDetail.shotSpeed.topShotSpeed.leagueAvg?.imperial}
+              />
+            ) : (
+              <View style={{ backgroundColor: '#071a3699', borderRadius: 10, padding: 12, alignItems: 'center' }}>
+                <Text style={{ fontSize: 11, color: '#98a6bf' }}>No data</Text>
+              </View>
+            )}
+          </View>
+          <View style={{ flex: 1, marginLeft: 8 }}>
+            <Text style={{ fontSize: 12, fontWeight: '600', color: '#f59e0b', marginBottom: 8, textAlign: 'center' }}>
+              {homeAbbrev}
+            </Text>
+            {homeEdgeDetail?.shotSpeed?.topShotSpeed ? (
+              <SpeedGauge
+                value={homeEdgeDetail.shotSpeed.topShotSpeed.imperial}
+                label="Top Shot"
+                unit="mph"
+                percentile={homeEdgeDetail.shotSpeed.topShotSpeed.percentile}
+                leagueAvg={homeEdgeDetail.shotSpeed.topShotSpeed.leagueAvg?.imperial}
+              />
+            ) : (
+              <View style={{ backgroundColor: '#071a3699', borderRadius: 10, padding: 12, alignItems: 'center' }}>
+                <Text style={{ fontSize: 11, color: '#98a6bf' }}>No data</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Skating Speed Comparison */}
+        <Text style={{ fontSize: 16, fontWeight: '700', color: '#e6eef8', marginBottom: 12 }}>
+          Skating Speed
+        </Text>
+        <View style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          marginBottom: 20,
+        }}>
+          <View style={{ flex: 1, marginRight: 8 }}>
+            {awayEdgeDetail?.skatingSpeed?.speedMax ? (
+              <SpeedGauge
+                value={awayEdgeDetail.skatingSpeed.speedMax.imperial}
+                label="Top Speed"
+                unit="mph"
+                percentile={awayEdgeDetail.skatingSpeed.speedMax.percentile}
+                leagueAvg={awayEdgeDetail.skatingSpeed.speedMax.leagueAvg?.imperial}
+              />
+            ) : (
+              <View style={{ backgroundColor: '#071a3699', borderRadius: 10, padding: 12, alignItems: 'center' }}>
+                <Text style={{ fontSize: 11, color: '#98a6bf' }}>No data</Text>
+              </View>
+            )}
+          </View>
+          <View style={{ flex: 1, marginLeft: 8 }}>
+            {homeEdgeDetail?.skatingSpeed?.speedMax ? (
+              <SpeedGauge
+                value={homeEdgeDetail.skatingSpeed.speedMax.imperial}
+                label="Top Speed"
+                unit="mph"
+                percentile={homeEdgeDetail.skatingSpeed.speedMax.percentile}
+                leagueAvg={homeEdgeDetail.skatingSpeed.speedMax.leagueAvg?.imperial}
+              />
+            ) : (
+              <View style={{ backgroundColor: '#071a3699', borderRadius: 10, padding: 12, alignItems: 'center' }}>
+                <Text style={{ fontSize: 11, color: '#98a6bf' }}>No data</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Zone Time Comparison */}
+        {(homeEdgeDetail?.zoneTimeDetails || awayEdgeDetail?.zoneTimeDetails) && (
+          <>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: '#e6eef8', marginBottom: 12 }}>
+              Zone Time
+            </Text>
+            <View style={{ marginBottom: 20 }}>
+              {awayEdgeDetail?.zoneTimeDetails && (
+                <View style={{ marginBottom: 12 }}>
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: '#60a5fa', marginBottom: 6 }}>
+                    {awayAbbrev}
+                  </Text>
+                  <ZoneTimeChart
+                    offPctg={awayEdgeDetail.zoneTimeDetails.offensiveZonePctg}
+                    neutPctg={awayEdgeDetail.zoneTimeDetails.neutralZonePctg}
+                    defPctg={awayEdgeDetail.zoneTimeDetails.defensiveZonePctg}
+                  />
+                </View>
+              )}
+              {homeEdgeDetail?.zoneTimeDetails && (
+                <View>
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: '#f59e0b', marginBottom: 6 }}>
+                    {homeAbbrev}
+                  </Text>
+                  <ZoneTimeChart
+                    offPctg={homeEdgeDetail.zoneTimeDetails.offensiveZonePctg}
+                    neutPctg={homeEdgeDetail.zoneTimeDetails.neutralZonePctg}
+                    defPctg={homeEdgeDetail.zoneTimeDetails.defensiveZonePctg}
+                  />
+                </View>
+              )}
+            </View>
+          </>
+        )}
+
+        {/* Momentum */}
+        {(homeMomentum || awayMomentum) && (
+          <>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: '#e6eef8', marginBottom: 12 }}>
+              Momentum
+            </Text>
+            <View style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              marginBottom: 20,
+            }}>
+              <View style={{ flex: 1, marginRight: 8, alignItems: 'center' }}>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: '#60a5fa', marginBottom: 8 }}>
+                  {awayAbbrev}
+                </Text>
+                {awayMomentum ? (
+                  <MomentumSparkline data={awayMomentum.history} trend={awayMomentum.trend} teamAbbrev={awayAbbrev} compact={false} />
+                ) : (
+                  <Text style={{ fontSize: 11, color: '#98a6bf' }}>No data</Text>
+                )}
+              </View>
+              <View style={{ flex: 1, marginLeft: 8, alignItems: 'center' }}>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: '#f59e0b', marginBottom: 8 }}>
+                  {homeAbbrev}
+                </Text>
+                {homeMomentum ? (
+                  <MomentumSparkline data={homeMomentum.history} trend={homeMomentum.trend} teamAbbrev={homeAbbrev} compact={false} />
+                ) : (
+                  <Text style={{ fontSize: 11, color: '#98a6bf' }}>No data</Text>
+                )}
+              </View>
+            </View>
+          </>
+        )}
+
+        {/* Clutch Performance */}
+        {(homeClutch || awayClutch) && (
+          <>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: '#e6eef8', marginBottom: 12 }}>
+              Clutch Performance
+            </Text>
+            <View style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              marginBottom: 20,
+            }}>
+              <View style={{ flex: 1, marginRight: 8, alignItems: 'center' }}>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: '#60a5fa', marginBottom: 8 }}>
+                  {awayAbbrev}
+                </Text>
+                {awayClutch ? (
+                  <>
+                    <ClutchBadge rating={awayClutch.rating} />
+                    <Text style={{ fontSize: 10, color: '#98a6bf', marginTop: 4 }}>
+                      {awayClutch.oneGoalRecord} in 1-goal games
+                    </Text>
+                  </>
+                ) : (
+                  <Text style={{ fontSize: 11, color: '#98a6bf' }}>No data</Text>
+                )}
+              </View>
+              <View style={{ flex: 1, marginLeft: 8, alignItems: 'center' }}>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: '#f59e0b', marginBottom: 8 }}>
+                  {homeAbbrev}
+                </Text>
+                {homeClutch ? (
+                  <>
+                    <ClutchBadge rating={homeClutch.rating} />
+                    <Text style={{ fontSize: 10, color: '#98a6bf', marginTop: 4 }}>
+                      {homeClutch.oneGoalRecord} in 1-goal games
+                    </Text>
+                  </>
+                ) : (
+                  <Text style={{ fontSize: 11, color: '#98a6bf' }}>No data</Text>
+                )}
+              </View>
+            </View>
+          </>
+        )}
+
+        {/* High-Danger Shots Summary */}
+        {(homeEdgeDetail?.sogSummary || awayEdgeDetail?.sogSummary) && (
+          <>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: '#e6eef8', marginBottom: 12 }}>
+              Shot Quality
+            </Text>
+            <View style={{
+              backgroundColor: '#071a3699',
+              borderRadius: 12,
+              padding: 16,
+            }}>
+              {/* Header */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: '#60a5fa', width: 60 }}>{awayAbbrev}</Text>
+                <Text style={{ fontSize: 11, color: '#98a6bf', fontWeight: '600', flex: 1, textAlign: 'center' }}>Zone</Text>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: '#f59e0b', width: 60, textAlign: 'right' }}>{homeAbbrev}</Text>
+              </View>
+              {['high', 'mid', 'long'].map((zone) => {
+                const awayZone = awayEdgeDetail?.sogSummary?.find(s => s.locationCode === zone);
+                const homeZone = homeEdgeDetail?.sogSummary?.find(s => s.locationCode === zone);
+                const zoneLabel = zone === 'high' ? 'High Danger' : zone === 'mid' ? 'Mid Range' : 'Long Range';
+                return (
+                  <View key={zone} style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    paddingVertical: 8,
+                    borderTopWidth: 1,
+                    borderTopColor: '#192e5e44',
+                  }}>
+                    <Text style={{ fontSize: 11, color: '#e6eef8', width: 60 }}>
+                      {awayZone ? `${awayZone.goals}G / ${awayZone.shots}S` : '—'}
+                    </Text>
+                    <Text style={{ fontSize: 10, color: '#98a6bf', flex: 1, textAlign: 'center' }}>{zoneLabel}</Text>
+                    <Text style={{ fontSize: 11, color: '#e6eef8', width: 60, textAlign: 'right' }}>
+                      {homeZone ? `${homeZone.goals}G / ${homeZone.shots}S` : '—'}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          </>
+        )}
+      </View>
+    );
+  };
+
   const renderScheduleTab = () => {
-    const homeRestDays = Math.floor(Math.random() * 3) + 1; // Mock data
-    const awayRestDays = Math.floor(Math.random() * 3) + 1; // Mock data
+    const homeRestScore = restMap?.get(homeAbbrev) ?? 50;
+    const awayRestScore = restMap?.get(awayAbbrev) ?? 50;
+    // Convert rest score (0-100) to approximate days: 0-30 = 1d, 30-60 = 2d, 60+ = 3d+
+    const homeRestDays = homeRestScore >= 60 ? 3 : homeRestScore >= 30 ? 2 : 1;
+    const awayRestDays = awayRestScore >= 60 ? 3 : awayRestScore >= 30 ? 2 : 1;
 
     return (
       <View>
@@ -1445,7 +1895,7 @@ export default function GameDeepDiveModal({
               Travel Distance
             </Text>
             <Text style={{ fontSize: 12, color: '#98a6bf' }}>
-              {awayAbbrev} traveled ~{Math.floor(Math.random() * 1500 + 500)} miles for this game
+              {awayAbbrev} is the visiting team
             </Text>
           </View>
           <View>
@@ -1520,7 +1970,7 @@ export default function GameDeepDiveModal({
             {tabs.map((tab) => (
               <Pressable
                 key={tab.id}
-                onPress={() => setActiveTab(tab.id as any)}
+                onPress={() => setActiveTab(tab.id as typeof activeTab)}
                 style={{
                   flex: 1,
                   paddingVertical: 12,
@@ -1550,6 +2000,8 @@ export default function GameDeepDiveModal({
             {activeTab === 'stats' && renderStatsTab()}
             {activeTab === 'recent' && renderRecentFormTab()}
             {activeTab === 'h2h' && renderH2HTab()}
+            {activeTab === 'players' && renderPlayersTab()}
+            {activeTab === 'edge' && renderEdgeTab()}
             {activeTab === 'schedule' && renderScheduleTab()}
           </ScrollView>
         </View>
