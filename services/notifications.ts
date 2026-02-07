@@ -118,20 +118,20 @@ async function createNotificationContent(): Promise<{
     // Format body text
     let body: string;
     if (pushes > 0) {
-      body = `Yesterday: ${wins}-${losses}-${pushes} (${accuracy}%) 🏒`;
+      body = `Yesterday: ${wins}-${losses}-${pushes} (${accuracy}%)`;
     } else {
-      body = `Yesterday: ${wins}-${losses} (${accuracy}%) 🏒`;
+      body = `Yesterday: ${wins}-${losses} (${accuracy}%)`;
     }
 
-    // Add emoji for perfect or terrible days
+    // Add suffix for perfect or terrible days
     if (accuracy === 100 && total > 0) {
-      body = body.replace('🏒', '🔥');
+      body += ' - On fire!';
     } else if (accuracy === 0 && total > 0) {
-      body = body.replace('🏒', '❄️');
+      body += ' - Ice cold';
     }
 
     return {
-      title: 'Your Pick Results 🏒',
+      title: 'Your Pick Results',
       body,
       data: { screen: 'pickHistory' },
     };
@@ -168,7 +168,7 @@ export async function scheduleDailyNotification(time: string = '09:00'): Promise
     // So we schedule a repeating notification and generate content on trigger
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'Your Pick Results 🏒',
+        title: 'Your Pick Results',
         body: 'Check how you did yesterday!',
         data: { screen: 'pickHistory' },
         sound: 'default',
@@ -226,7 +226,7 @@ export async function triggerTestNotification(): Promise<void> {
     if (!content) {
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: 'Test Notification 🏒',
+          title: 'Test Notification',
           body: 'No results available yet. Make some picks!',
           data: { screen: 'pickHistory' },
         },

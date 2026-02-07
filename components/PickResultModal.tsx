@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { makeStyles, theme } from '../constants/theme';
 import { useAnalytics } from '../hooks/useAnalytics';
 import { Pick } from '../services/pickTracking';
@@ -281,7 +282,7 @@ export default function PickResultModal({
               justifyContent: 'center',
               alignItems: 'center',
             }}>
-              <Text style={{ fontSize: 16, color: theme.text }}>✕</Text>
+              <Ionicons name="close" size={16} color={theme.text} />
             </Pressable>
           </View>
 

@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Achievement } from '../constants/achievements';
 
 interface AchievementBadgeProps {
@@ -11,9 +12,12 @@ export default function AchievementBadge({ achievement }: AchievementBadgeProps)
     <View style={[styles.container, !achievement.unlocked && styles.locked]}>
       {/* Icon */}
       <View style={[styles.iconContainer, !achievement.unlocked && styles.iconLocked]}>
-        <Text style={[styles.icon, !achievement.unlocked && styles.iconTextLocked]}>
-          {achievement.icon}
-        </Text>
+        <Ionicons
+          name={achievement.icon}
+          size={28}
+          color={achievement.unlocked ? '#60a5fa' : '#98a6bf'}
+          style={!achievement.unlocked ? { opacity: 0.4 } : undefined}
+        />
       </View>
 
       {/* Title and Description */}
@@ -72,12 +76,6 @@ const styles = StyleSheet.create({
   },
   iconLocked: {
     backgroundColor: '#192e5e44',
-  },
-  icon: {
-    fontSize: 32,
-  },
-  iconTextLocked: {
-    opacity: 0.4,
   },
   textContainer: {
     gap: 4,

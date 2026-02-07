@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { LineChart, BarChart } from 'react-native-chart-kit';
 import AdvancedStatCard from '../../components/AdvancedStatCard';
 import TeamCard from '../../components/TeamCard';
@@ -443,7 +444,10 @@ export default function TeamsScreen({ embedded = false }: TeamsScreenProps) {
         ListHeaderComponent={
           favoriteList.length > 0 ? (
             <View style={localStyles.sectionHeader}>
-              <Text style={localStyles.sectionTitle}>⭐ My Teams</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Ionicons name="star" size={14} color="#fbbf24" />
+                <Text style={localStyles.sectionTitle}>My Teams</Text>
+              </View>
             </View>
           ) : null
         }
@@ -1528,7 +1532,7 @@ export default function TeamsScreen({ embedded = false }: TeamsScreenProps) {
                   favoritesOnlyFilter && localStyles.filterButtonTextActive,
                 ]}
               >
-                ⭐ Favorites
+                Favorites
               </Text>
             </TouchableOpacity>
           </View>

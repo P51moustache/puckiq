@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../constants/theme';
 
 export interface Team {
@@ -59,7 +60,7 @@ export default function TeamSearchBar({
         style={styles.searchButton}
         onPress={() => setModalVisible(true)}
       >
-        <Text style={styles.searchIcon}>🔍</Text>
+        <Ionicons name="search" size={16} color={theme.subtext} />
         <Text style={styles.searchText} numberOfLines={1}>
           {selectedTeamName}
         </Text>
@@ -88,7 +89,7 @@ export default function TeamSearchBar({
           >
             {/* Search Input */}
             <View style={styles.searchInputContainer}>
-              <Text style={styles.searchIcon}>🔍</Text>
+              <Ionicons name="search" size={16} color={theme.subtext} />
               <TextInput
                 style={styles.searchInput}
                 placeholder="Search teams..."
@@ -99,7 +100,7 @@ export default function TeamSearchBar({
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <Text style={styles.clearButton}>✕</Text>
+                  <Ionicons name="close-circle" size={18} color={theme.subtext} />
                 </TouchableOpacity>
               )}
             </View>
@@ -109,7 +110,10 @@ export default function TeamSearchBar({
               {favoritesList.length > 0 && (
                 <>
                   <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>⭐ MY TEAMS</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Ionicons name="star" size={12} color="#fbbf24" />
+                      <Text style={styles.sectionTitle}>MY TEAMS</Text>
+                    </View>
                   </View>
                   {favoritesList.map(team => (
                     <View key={team.triCode} style={styles.teamRow}>
@@ -127,7 +131,7 @@ export default function TeamSearchBar({
                         style={styles.starButton}
                         onPress={() => onToggleFavorite(team.triCode, team.fullName)}
                       >
-                        <Text style={styles.starFilled}>⭐</Text>
+                        <Ionicons name="star" size={20} color="#fbbf24" />
                       </TouchableOpacity>
                     </View>
                   ))}
@@ -158,7 +162,7 @@ export default function TeamSearchBar({
                         style={styles.starButton}
                         onPress={() => onToggleFavorite(team.triCode, team.fullName)}
                       >
-                        <Text style={styles.starEmpty}>☆</Text>
+                        <Ionicons name="star-outline" size={20} color={theme.subtext} />
                       </TouchableOpacity>
                     </View>
                   ))}

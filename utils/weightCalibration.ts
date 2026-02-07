@@ -85,11 +85,11 @@ export function suggestWeightAdjustments(
   if (highConfRange && highConfRange.predictions >= 5) {
     if (highConfRange.accuracy >= expectedAccuracies['80-100']) {
       improvements.push(
-        `✅ High confidence predictions (80-100) are ${highConfRange.accuracy}% accurate. System is well-calibrated at high confidence levels.`
+        `[OK] High confidence predictions (80-100) are ${highConfRange.accuracy}% accurate. System is well-calibrated at high confidence levels.`
       );
     } else if (highConfRange.accuracy < 70) {
       improvements.push(
-        `⚠️ High confidence predictions (80-100) are only ${highConfRange.accuracy}% accurate. Consider reducing overall weight multipliers by 10-15% to lower confidence scores.`
+        `[WARN] High confidence predictions (80-100) are only ${highConfRange.accuracy}% accurate. Consider reducing overall weight multipliers by 10-15% to lower confidence scores.`
       );
 
       // Suggest reducing weights
@@ -103,7 +103,7 @@ export function suggestWeightAdjustments(
   if (medRange && medRange.predictions >= 5) {
     if (medRange.accuracy >= expectedAccuracies['60-69']) {
       improvements.push(
-        `✅ Medium confidence predictions (60-69) are ${medRange.accuracy}% accurate. Good calibration.`
+        `[OK] Medium confidence predictions (60-69) are ${medRange.accuracy}% accurate. Good calibration.`
       );
     }
   }
@@ -119,7 +119,7 @@ export function suggestWeightAdjustments(
 
   if (avgAccuracy > 70) {
     improvements.push(
-      `📈 Overall accuracy is ${Math.round(avgAccuracy)}%. System is performing well. Consider increasing weight multipliers by 5-10% to generate higher confidence scores for strong predictions.`
+      `[GOOD] Overall accuracy is ${Math.round(avgAccuracy)}%. System is performing well. Consider increasing weight multipliers by 5-10% to generate higher confidence scores for strong predictions.`
     );
 
     // Suggest increasing weights slightly
@@ -127,7 +127,7 @@ export function suggestWeightAdjustments(
     suggestedWeights.recentFormImpact = Math.round(currentWeights.recentFormImpact * 1.05);
   } else if (avgAccuracy < 55) {
     improvements.push(
-      `⚠️ Overall accuracy is ${Math.round(avgAccuracy)}%. Predictions are barely better than coin flips. Consider reviewing factor calculations or reducing weight multipliers significantly.`
+      `[WARN] Overall accuracy is ${Math.round(avgAccuracy)}%. Predictions are barely better than coin flips. Consider reviewing factor calculations or reducing weight multipliers significantly.`
     );
 
     // Suggest significant reduction
@@ -135,7 +135,7 @@ export function suggestWeightAdjustments(
     suggestedWeights.recentFormImpact = Math.round(currentWeights.recentFormImpact * 0.7);
   } else {
     improvements.push(
-      `📊 Overall accuracy is ${Math.round(avgAccuracy)}%. System confidence scores correlate well with actual outcomes.`
+      `[INFO] Overall accuracy is ${Math.round(avgAccuracy)}%. System confidence scores correlate well with actual outcomes.`
     );
   }
 

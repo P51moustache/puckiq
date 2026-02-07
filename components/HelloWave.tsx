@@ -7,8 +7,7 @@ import Animated, {
     withSequence,
     withTiming,
 } from 'react-native-reanimated';
-
-import { ThemedText } from './ThemedText';
+import { Ionicons } from '@expo/vector-icons';
 
 export function HelloWave() {
   const rotationAnimation = useSharedValue(0);
@@ -26,7 +25,7 @@ export function HelloWave() {
 
   return (
     <Animated.View style={animatedStyle}>
-      <ThemedText style={styles.text}>👋</ThemedText>
+      <Ionicons name="hand-left-outline" size={28} color="#e6eef8" />
     </Animated.View>
   );
 }
