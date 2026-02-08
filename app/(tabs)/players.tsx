@@ -1,10 +1,10 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   Platform,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,90 +13,58 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import Dropdown from '../../components/Dropdown';
+import CompactPlayerRow from '../../components/CompactPlayerRow';
+import ElevatedPlayerRow from '../../components/ElevatedPlayerRow';
+import GoalieSpotlightCard from '../../components/GoalieSpotlightCard';
+import HeroLeaderCard from '../../components/HeroLeaderCard';
 import PlayerDetailModal from '../../components/PlayerDetailModal';
+import PlayerProjectionCard from '../../components/PlayerProjectionCard';
 import { ThemedView } from '../../components/ThemedView';
 import { theme } from '../../constants/theme';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import {
-  getLeagueLeaders,
-  getGoalieLeaders,
   searchPlayers,
-  getTeamRoster,
-  type SkaterCategory,
-  type SkaterPosition,
-  type GoalieCategory,
-  type SkaterLeader,
-  type GoalieLeader,
   type PlayerSearchResult,
-  type RosterPlayer,
 } from '../../services/playerLeaders';
+import {
+  getTrendingPlayers,
+  getPlayerProjections,
+  getLeaderTrends,
+  getTrendingGoalies,
+  batchGetHitRates,
+  getPlayerL10GameStats,
+  clearTrendsCache,
+  type TrendingPlayer,
+  type TrendingGoalie,
+  type PlayerProjection,
+  type LeaderTrend,
+  type StatCategory,
+  type HitRateResult,
+  type L10GameStat,
+} from '../../services/playerTrends';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const SKATER_CATEGORIES: { key: SkaterCategory; label: string }[] = [
-  { key: 'points', label: 'Points' },
+const STAT_CATEGORIES: { key: StatCategory; label: string }[] = [
   { key: 'goals', label: 'Goals' },
   { key: 'assists', label: 'Assists' },
-  { key: 'plusMinus', label: '+/-' },
+  { key: 'points', label: 'Points' },
   { key: 'shots', label: 'Shots' },
 ];
 
-const GOALIE_CATEGORIES: { key: GoalieCategory; label: string }[] = [
-  { key: 'wins', label: 'Wins' },
-  { key: 'savePctg', label: 'SV%' },
-  { key: 'goalsAgainstAvg', label: 'GAA' },
-];
-
-type PositionFilter = 'All' | SkaterPosition | 'G';
+type PositionFilter = 'ALL' | 'F' | 'D' | 'G';
 const POSITION_FILTERS: { key: PositionFilter; label: string }[] = [
-  { key: 'All', label: 'All' },
-  { key: 'C', label: 'C' },
-  { key: 'L', label: 'LW' },
-  { key: 'R', label: 'RW' },
+  { key: 'ALL', label: 'All' },
+  { key: 'F', label: 'F' },
   { key: 'D', label: 'D' },
   { key: 'G', label: 'G' },
 ];
 
-const ALL_TEAMS = [
-  'ANA', 'BOS', 'BUF', 'CAR', 'CBJ', 'CGY', 'CHI', 'COL', 'DAL', 'DET',
-  'EDM', 'FLA', 'LAK', 'MIN', 'MTL', 'NJD', 'NSH', 'NYI', 'NYR', 'OTT',
-  'PHI', 'PIT', 'SEA', 'SJS', 'STL', 'TBL', 'TOR', 'UTA', 'VAN', 'VGK',
-  'WPG', 'WSH',
-];
-
+const FORWARD_POSITIONS = new Set(['C', 'LW', 'RW', 'L', 'R']);
 const SEARCH_DEBOUNCE_MS = 300;
-const LEADER_ROW_HEIGHT = 72; // leaderRow padding(12*2) + headshot(40) + marginBottom(8)
-
-// ---------------------------------------------------------------------------
-// Stat value formatters
-// ---------------------------------------------------------------------------
-
-function formatStatValue(leader: SkaterLeader, category: SkaterCategory): string {
-  switch (category) {
-    case 'points': return String(leader.points);
-    case 'goals': return String(leader.goals);
-    case 'assists': return String(leader.assists);
-    case 'plusMinus': return leader.plusMinus > 0 ? `+${leader.plusMinus}` : String(leader.plusMinus);
-    case 'shots': return String(leader.shots);
-    default: return '';
-  }
-}
-
-function formatGoalieValue(leader: GoalieLeader, category: GoalieCategory): string {
-  switch (category) {
-    case 'wins': return String(leader.wins);
-    case 'savePctg': {
-      const pctg = leader.savePctg;
-      if (pctg >= 1) return pctg.toFixed(3);
-      return `.${Math.round(pctg * 1000)}`;
-    }
-    case 'goalsAgainstAvg': return leader.goalsAgainstAvg.toFixed(2);
-    default: return '';
-  }
-}
+const SEARCH_ROW_HEIGHT = 64;
 
 // ---------------------------------------------------------------------------
 // Component
@@ -105,16 +73,22 @@ function formatGoalieValue(leader: GoalieLeader, category: GoalieCategory): stri
 export default function PlayersScreen() {
   const analytics = useAnalytics('PlayersTab');
 
-  // State — leaders
-  const [skaterCategory, setSkaterCategory] = useState<SkaterCategory>('points');
-  const [goalieCategory, setGoalieCategory] = useState<GoalieCategory>('wins');
-  const [positionFilter, setPositionFilter] = useState<PositionFilter>('All');
-  const [teamFilter, setTeamFilter] = useState<string | null>(null);
+  // State -- filters
+  const [statCategory, setStatCategory] = useState<StatCategory>('points');
+  const [positionFilter, setPositionFilter] = useState<PositionFilter>('ALL');
 
-  const [skaterLeaders, setSkaterLeaders] = useState<SkaterLeader[]>([]);
-  const [goalieLeaders, setGoalieLeaders] = useState<GoalieLeader[]>([]);
-  const [loadingSkaters, setLoadingSkaters] = useState(true);
-  const [loadingGoalies, setLoadingGoalies] = useState(true);
+  // State — trending players
+  const [trendingUp, setTrendingUp] = useState<TrendingPlayer[]>([]);
+  const [trendingDown, setTrendingDown] = useState<TrendingPlayer[]>([]);
+  const [projections, setProjections] = useState<PlayerProjection[]>([]);
+  const [leaderTrends, setLeaderTrends] = useState<Map<number, LeaderTrend>>(new Map());
+  const [trendingGoalies, setTrendingGoalies] = useState<TrendingGoalie[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // State — hit rates and L10 stats (loaded per-player)
+  const [hitRates, setHitRates] = useState<Map<number, HitRateResult>>(new Map());
+  const [l10Stats, setL10Stats] = useState<Map<number, L10GameStat[]>>(new Map());
 
   // State — search
   const [searchQuery, setSearchQuery] = useState('');
@@ -122,10 +96,6 @@ export default function PlayersScreen() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [isSearchActive, setIsSearchActive] = useState(false);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // State — team roster
-  const [roster, setRoster] = useState<{ forwards: RosterPlayer[]; defense: RosterPlayer[]; goalies: RosterPlayer[] } | null>(null);
-  const [rosterLoading, setRosterLoading] = useState(false);
 
   // State — player detail modal
   const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null);
@@ -138,85 +108,120 @@ export default function PlayersScreen() {
     };
   }, []);
 
-  // Load saved team preference
-  useEffect(() => {
-    async function loadSavedTeam() {
-      try {
-        const saved = await AsyncStorage.getItem('selectedTeam');
-        if (saved) setTeamFilter(saved);
-      } catch {
-        // Ignore
+  // ---------------------------------------------------------------------------
+  // Filtered data (apply position filter in JS)
+  // ---------------------------------------------------------------------------
+
+  const filterByPosition = useCallback((players: TrendingPlayer[]): TrendingPlayer[] => {
+    if (positionFilter === 'ALL' || positionFilter === 'G') return players;
+    if (positionFilter === 'F') return players.filter(p => FORWARD_POSITIONS.has(p.position));
+    if (positionFilter === 'D') return players.filter(p => p.position === 'D');
+    return players;
+  }, [positionFilter]);
+
+  const filteredUp = useMemo(() => filterByPosition(trendingUp), [trendingUp, filterByPosition]);
+  const filteredDown = useMemo(() => filterByPosition(trendingDown), [trendingDown, filterByPosition]);
+
+  // ---------------------------------------------------------------------------
+  // Data loading
+  // ---------------------------------------------------------------------------
+
+  const loadTrendingData = useCallback(async () => {
+    try {
+      const [up, down, tonight, goalies] = await Promise.all([
+        getTrendingPlayers('up', 10),
+        getTrendingPlayers('down', 10),
+        getPlayerProjections(15),
+        getTrendingGoalies('up', 3),
+      ]);
+      setTrendingUp(up);
+      setTrendingDown(down);
+      setProjections(tonight);
+      setTrendingGoalies(goalies);
+
+      // Batch-load hit rates, L10 stats, and leader trends for ALL visible players
+      const allPlayerIds = [
+        ...tonight.map(p => p.playerId),
+        ...up.map(p => p.playerId),
+        ...down.map(p => p.playerId),
+      ];
+      const uniqueIds = [...new Set(allPlayerIds)];
+
+      if (uniqueIds.length > 0) {
+        // Load hit rates, L10 stats, and leader trends in parallel
+        const [rates, l10Map, trends] = await Promise.all([
+          batchGetHitRates(uniqueIds, statCategory),
+          (async () => {
+            const map = new Map<number, L10GameStat[]>();
+            await Promise.all(
+              uniqueIds.map(async (id) => {
+                const stats = await getPlayerL10GameStats(id, statCategory);
+                if (stats.length > 0) map.set(id, stats);
+              }),
+            );
+            return map;
+          })(),
+          getLeaderTrends(up.map(p => p.playerId)),
+        ]);
+        setHitRates(rates);
+        setL10Stats(l10Map);
+        setLeaderTrends(trends);
       }
+    } catch (err) {
+      console.error('[PLAYERS TAB] Error loading trending data:', err);
     }
-    loadSavedTeam();
+  }, [statCategory]);
+
+  // Initial load + reload on stat category change
+  useEffect(() => {
+    let mounted = true;
+    async function load() {
+      setLoading(true);
+      await loadTrendingData();
+      if (mounted) setLoading(false);
+    }
+    load();
+    return () => { mounted = false; };
+  }, [loadTrendingData]);
+
+  // Pull-to-refresh
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    clearTrendsCache();
+    await loadTrendingData();
+    setRefreshing(false);
+    analytics.trackCustomEvent('players_refresh', {});
+  }, [loadTrendingData, analytics]);
+
+  // ---------------------------------------------------------------------------
+  // Handlers
+  // ---------------------------------------------------------------------------
+
+  const handleStatCategoryChange = useCallback((cat: StatCategory) => {
+    setStatCategory(cat);
+    analytics.trackCustomEvent('players_stat_category', { category: cat });
+  }, [analytics]);
+
+  const handlePositionFilterChange = useCallback((pos: PositionFilter) => {
+    setPositionFilter(pos);
+    analytics.trackCustomEvent('players_position_filter', { position: pos });
+  }, [analytics]);
+
+  const handlePlayerTap = useCallback((playerId: number) => {
+    setSelectedPlayerId(playerId);
+    setDetailModalVisible(true);
+    analytics.trackCustomEvent('players_player_tap', { playerId });
+  }, [analytics]);
+
+  const handleDetailModalClose = useCallback(() => {
+    setDetailModalVisible(false);
+    setSelectedPlayerId(null);
   }, []);
-
-  // Fetch skater leaders
-  useEffect(() => {
-    let mounted = true;
-    async function load() {
-      setLoadingSkaters(true);
-      try {
-        const pos = positionFilter === 'All' || positionFilter === 'G' ? null : positionFilter as SkaterPosition;
-        const data = await getLeagueLeaders(skaterCategory, pos, teamFilter, 10);
-        if (mounted) setSkaterLeaders(data);
-      } catch {
-        if (mounted) setSkaterLeaders([]);
-      } finally {
-        if (mounted) setLoadingSkaters(false);
-      }
-    }
-    load();
-    return () => { mounted = false; };
-  }, [skaterCategory, teamFilter, positionFilter]);
-
-  // Fetch goalie leaders
-  useEffect(() => {
-    let mounted = true;
-    async function load() {
-      setLoadingGoalies(true);
-      try {
-        const data = await getGoalieLeaders(goalieCategory, teamFilter, 5);
-        if (mounted) setGoalieLeaders(data);
-      } catch {
-        if (mounted) setGoalieLeaders([]);
-      } finally {
-        if (mounted) setLoadingGoalies(false);
-      }
-    }
-    load();
-    return () => { mounted = false; };
-  }, [goalieCategory, teamFilter]);
-
-  // Fetch team roster when a team is selected
-  useEffect(() => {
-    if (!teamFilter) {
-      setRoster(null);
-      return;
-    }
-    let mounted = true;
-    async function load() {
-      setRosterLoading(true);
-      try {
-        const data = await getTeamRoster(teamFilter!);
-        if (mounted) setRoster(data);
-      } catch {
-        if (mounted) setRoster(null);
-      } finally {
-        if (mounted) setRosterLoading(false);
-      }
-    }
-    load();
-    return () => { mounted = false; };
-  }, [teamFilter]);
 
   // Debounced search
   const handleSearchChange = useCallback((text: string) => {
     setSearchQuery(text);
-
-    if (searchTimerRef.current) {
-      clearTimeout(searchTimerRef.current);
-    }
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
 
     if (text.trim().length < 2) {
       setIsSearchActive(false);
@@ -248,61 +253,29 @@ export default function PlayersScreen() {
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
   }, []);
 
-  // Handlers
-  const handleSkaterCategoryChange = useCallback((cat: SkaterCategory) => {
-    setSkaterCategory(cat);
-    analytics.trackCustomEvent('players_skater_category', { category: cat });
-  }, [analytics]);
-
-  const handleGoalieCategoryChange = useCallback((cat: GoalieCategory) => {
-    setGoalieCategory(cat);
-    analytics.trackCustomEvent('players_goalie_category', { category: cat });
-  }, [analytics]);
-
-  const handlePositionFilterChange = useCallback((pos: PositionFilter) => {
-    setPositionFilter(pos);
-    analytics.trackCustomEvent('players_position_filter', { position: pos });
-  }, [analytics]);
-
-  const handleTeamFilterChange = useCallback((val: string | null) => {
-    setTeamFilter(val);
-    analytics.trackCustomEvent('players_team_filter', { team: val || 'all' });
-  }, [analytics]);
-
-  const handlePlayerTap = useCallback((playerId: number) => {
-    setSelectedPlayerId(playerId);
-    setDetailModalVisible(true);
-    analytics.trackCustomEvent('players_player_tap', { playerId });
-  }, [analytics]);
-
-  const handleDetailModalClose = useCallback(() => {
-    setDetailModalVisible(false);
-    setSelectedPlayerId(null);
-  }, []);
-
   // ---------------------------------------------------------------------------
   // Render: Search results
   // ---------------------------------------------------------------------------
 
   const renderSearchResult = useCallback(({ item }: { item: PlayerSearchResult }) => (
     <TouchableOpacity
-      style={styles.leaderRow}
+      style={styles.searchRow}
       onPress={() => handlePlayerTap(item.playerId)}
       testID={`search-result-${item.playerId}`}
     >
       <Image
         source={{ uri: item.headshotUrl }}
-        style={styles.headshot}
+        style={styles.searchHeadshot}
         contentFit="cover"
         cachePolicy="memory-disk"
         recyclingKey={`search-${item.playerId}`}
         accessibilityLabel={`${item.firstName} ${item.lastName} headshot`}
       />
-      <View style={styles.playerDetails}>
-        <Text style={styles.playerName} numberOfLines={1}>
+      <View style={styles.searchInfo}>
+        <Text style={styles.searchName} numberOfLines={1}>
           {item.firstName} {item.lastName}
         </Text>
-        <Text style={styles.playerMeta}>
+        <Text style={styles.searchMeta}>
           {item.teamAbbrev} / {item.position}{item.sweaterNumber ? ` / #${item.sweaterNumber}` : ''}
         </Text>
       </View>
@@ -311,364 +284,29 @@ export default function PlayersScreen() {
   ), [handlePlayerTap]);
 
   // ---------------------------------------------------------------------------
-  // Render: Skater leader row
+  // Render: Section header
   // ---------------------------------------------------------------------------
 
-  const renderSkaterRow = useCallback(({ item, index }: { item: SkaterLeader; index: number }) => {
-    const rank = index + 1;
-    const statValue = formatStatValue(item, skaterCategory);
-    const isTopThree = rank <= 3;
-
-    return (
-      <TouchableOpacity
-        style={styles.leaderRow}
-        onPress={() => handlePlayerTap(item.playerId)}
-        testID={`skater-leader-${rank}`}
-      >
-        <Text style={[styles.rankNumber, isTopThree && styles.rankTopThree]}>
-          {rank}
-        </Text>
-        <Image
-          source={{ uri: item.headshotUrl }}
-          style={styles.headshot}
-          contentFit="cover"
-          cachePolicy="memory-disk"
-          recyclingKey={`skater-${item.playerId}`}
-          accessibilityLabel={`${item.firstName} ${item.lastName} headshot`}
-        />
-        <View style={styles.playerDetails}>
-          <Text style={styles.playerName} numberOfLines={1}>
-            {item.firstName} {item.lastName}
-          </Text>
-          <Text style={styles.playerMeta}>
-            {item.teamAbbrev} {item.position ? `/ ${item.position}` : ''}
-          </Text>
-        </View>
-        <Text style={[styles.statValue, isTopThree && styles.statValueTopThree]}>
-          {statValue}
-        </Text>
-      </TouchableOpacity>
-    );
-  }, [skaterCategory, handlePlayerTap]);
-
-  // ---------------------------------------------------------------------------
-  // Render: Goalie leader row
-  // ---------------------------------------------------------------------------
-
-  const renderGoalieRow = useCallback(({ item, index }: { item: GoalieLeader; index: number }) => {
-    const rank = index + 1;
-    const statValue = formatGoalieValue(item, goalieCategory);
-
-    return (
-      <TouchableOpacity
-        style={styles.leaderRow}
-        onPress={() => handlePlayerTap(item.playerId)}
-        testID={`goalie-leader-${rank}`}
-      >
-        <Text style={[styles.rankNumber, rank <= 3 && styles.rankTopThree]}>
-          {rank}
-        </Text>
-        <Image
-          source={{ uri: item.headshotUrl }}
-          style={styles.headshot}
-          contentFit="cover"
-          cachePolicy="memory-disk"
-          recyclingKey={`goalie-${item.playerId}`}
-          accessibilityLabel={`${item.firstName} ${item.lastName} headshot`}
-        />
-        <View style={styles.playerDetails}>
-          <Text style={styles.playerName} numberOfLines={1}>
-            {item.firstName} {item.lastName}
-          </Text>
-          <Text style={styles.playerMeta}>
-            {item.teamAbbrev} / {item.wins}W-{item.losses}L-{item.otLosses}OT
-          </Text>
-        </View>
-        <Text style={[styles.statValue, rank <= 3 && styles.statValueTopThree]}>
-          {statValue}
-        </Text>
-      </TouchableOpacity>
-    );
-  }, [goalieCategory, handlePlayerTap]);
-
-  // ---------------------------------------------------------------------------
-  // Render: Roster player card
-  // ---------------------------------------------------------------------------
-
-  const renderRosterCard = useCallback((player: RosterPlayer) => (
-    <TouchableOpacity
-      key={player.playerId}
-      style={styles.rosterCard}
-      onPress={() => handlePlayerTap(player.playerId)}
-      testID={`roster-player-${player.playerId}`}
-    >
-      <Image
-        source={{ uri: player.headshotUrl }}
-        style={styles.rosterHeadshot}
-        contentFit="cover"
-        cachePolicy="memory-disk"
-        recyclingKey={`roster-${player.playerId}`}
-      />
-      <View style={styles.rosterInfo}>
-        <Text style={styles.rosterName} numberOfLines={1}>
-          {player.sweaterNumber ? `#${player.sweaterNumber} ` : ''}{player.firstName} {player.lastName}
-        </Text>
-        {player.points !== undefined && (
-          <Text style={styles.rosterStats}>
-            {player.gamesPlayed}GP / {player.goals}G / {player.assists}A / {player.points}P
-          </Text>
-        )}
-      </View>
-    </TouchableOpacity>
-  ), [handlePlayerTap]);
-
-  // ---------------------------------------------------------------------------
-  // Render: Roster section
-  // ---------------------------------------------------------------------------
-
-  const renderRosterSection = () => {
-    if (!teamFilter) return null;
-
-    if (rosterLoading) {
-      return (
-        <View style={styles.rosterSection}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionLabel}>TEAM ROSTER</Text>
-            <View style={styles.accentBar} />
-          </View>
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color={theme.accent} />
-          </View>
-        </View>
-      );
-    }
-
-    if (!roster || (roster.forwards.length === 0 && roster.defense.length === 0 && roster.goalies.length === 0)) {
-      return null;
-    }
-
-    return (
-      <View style={styles.rosterSection}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionLabel}>TEAM ROSTER</Text>
-          <View style={styles.accentBar} />
-        </View>
-
-        {roster.forwards.length > 0 && (
-          <View style={styles.rosterGroup}>
-            <Text style={styles.rosterGroupLabel}>Forwards ({roster.forwards.length})</Text>
-            {roster.forwards.map(renderRosterCard)}
-          </View>
-        )}
-
-        {roster.defense.length > 0 && (
-          <View style={styles.rosterGroup}>
-            <Text style={styles.rosterGroupLabel}>Defense ({roster.defense.length})</Text>
-            {roster.defense.map(renderRosterCard)}
-          </View>
-        )}
-
-        {roster.goalies.length > 0 && (
-          <View style={styles.rosterGroup}>
-            <Text style={styles.rosterGroupLabel}>Goalies ({roster.goalies.length})</Text>
-            {roster.goalies.map(renderRosterCard)}
-          </View>
-        )}
-      </View>
-    );
-  };
-
-  // ---------------------------------------------------------------------------
-  // Render: List header (search + filters + skater section header)
-  // ---------------------------------------------------------------------------
-
-  const renderListHeader = () => (
-    <View>
-      {/* Search bar */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchBarRow}>
-          <Ionicons name="search" size={18} color={theme.subtext} style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search players..."
-            placeholderTextColor={theme.subtext}
-            value={searchQuery}
-            onChangeText={handleSearchChange}
-            returnKeyType="search"
-            autoCapitalize="none"
-            autoCorrect={false}
-            testID="player-search-input"
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={clearSearch} testID="search-clear-button" style={styles.clearButton}>
-              <Ionicons name="close-circle" size={20} color={theme.subtext} />
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-
-      {/* Team filter */}
-      <View style={styles.filterContainer}>
-        <Dropdown
-          label="Filter by Team"
-          placeholder="All Teams"
-          options={[
-            { label: 'All Teams', value: null },
-            ...ALL_TEAMS.map(t => ({ label: t, value: t })),
-          ]}
-          value={teamFilter}
-          onChange={handleTeamFilterChange}
-          disabled={false}
-          loading={false}
-        />
-      </View>
-
-      {/* Position filter pills */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.positionFilterScroll}
-        contentContainerStyle={styles.positionFilterContent}
-      >
-        {POSITION_FILTERS.map(pos => {
-          const isActive = positionFilter === pos.key;
-          return (
-            <TouchableOpacity
-              key={pos.key}
-              testID={`position-filter-${pos.key}`}
-              style={[styles.positionPill, isActive && styles.positionPillActive]}
-              onPress={() => handlePositionFilterChange(pos.key)}
-            >
-              <Text style={[styles.positionPillText, isActive && styles.positionPillTextActive]}>
-                {pos.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-
-      {/* Skater Leaders section header */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionLabel}>
-          {positionFilter === 'G' ? 'GOALIE LEADERS' : 'SKATER LEADERS'}
-        </Text>
-        <View style={styles.accentBar} />
-      </View>
-
-      {/* Category selector — show skater or goalie categories based on position filter */}
-      {positionFilter === 'G' ? (
-        <View style={styles.categorySelector}>
-          {GOALIE_CATEGORIES.map(cat => {
-            const isActive = goalieCategory === cat.key;
-            return (
-              <TouchableOpacity
-                key={cat.key}
-                testID={`goalie-cat-${cat.key}`}
-                style={[styles.categoryPill, isActive && styles.categoryPillActive]}
-                onPress={() => handleGoalieCategoryChange(cat.key)}
-              >
-                <Text style={[styles.categoryText, isActive && styles.categoryTextActive]}>
-                  {cat.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      ) : (
-        <View style={styles.categorySelector}>
-          {SKATER_CATEGORIES.map(cat => {
-            const isActive = skaterCategory === cat.key;
-            return (
-              <TouchableOpacity
-                key={cat.key}
-                testID={`skater-cat-${cat.key}`}
-                style={[styles.categoryPill, isActive && styles.categoryPillActive]}
-                onPress={() => handleSkaterCategoryChange(cat.key)}
-              >
-                <Text style={[styles.categoryText, isActive && styles.categoryTextActive]}>
-                  {cat.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      )}
+  const renderSectionHeader = (label: string) => (
+    <View style={styles.sectionHeader}>
+      <Text style={styles.sectionLabel}>{label}</Text>
+      <View style={styles.accentBar} />
     </View>
   );
 
   // ---------------------------------------------------------------------------
-  // Render: List footer (goalie leaders when not in goalie mode + roster)
+  // Render: Search view
   // ---------------------------------------------------------------------------
 
-  const renderListFooter = () => (
-    <View>
-      {/* Show goalie leaders section only when not already showing goalies via position filter */}
-      {positionFilter !== 'G' && (
-        <View style={styles.goalieSection}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionLabel}>GOALIE LEADERS</Text>
-            <View style={styles.accentBar} />
-          </View>
-
-          <View style={styles.categorySelector}>
-            {GOALIE_CATEGORIES.map(cat => {
-              const isActive = goalieCategory === cat.key;
-              return (
-                <TouchableOpacity
-                  key={cat.key}
-                  testID={`goalie-cat-footer-${cat.key}`}
-                  style={[styles.categoryPill, isActive && styles.categoryPillActive]}
-                  onPress={() => handleGoalieCategoryChange(cat.key)}
-                >
-                  <Text style={[styles.categoryText, isActive && styles.categoryTextActive]}>
-                    {cat.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {loadingGoalies ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color={theme.accent} />
-            </View>
-          ) : goalieLeaders.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No goalie data available</Text>
-            </View>
-          ) : (
-            goalieLeaders.map((goalie, index) => (
-              <View key={goalie.playerId}>
-                {renderGoalieRow({ item: goalie, index })}
-              </View>
-            ))
-          )}
-        </View>
-      )}
-
-      {/* Team roster browser */}
-      {renderRosterSection()}
-
-      {/* Bottom padding for tab bar */}
-      <View style={{ height: 100 }} />
-    </View>
-  );
-
-  // ---------------------------------------------------------------------------
-  // Main render
-  // ---------------------------------------------------------------------------
-
-  // When search is active, show search results instead of leaders
   if (isSearchActive) {
     return (
       <ThemedView style={styles.container} testID="players-tab">
         <View style={styles.header}>
           <Text style={styles.title}>Players</Text>
-          <Text style={styles.subtitle}>League leaders and player stats</Text>
+          <Text style={styles.subtitle}>Edge Finder</Text>
         </View>
 
-        {/* Search bar (always visible) */}
-        <View style={[styles.searchContainer, { paddingHorizontal: 16 }]}>
+        <View style={styles.searchContainerActive}>
           <View style={styles.searchBarRow}>
             <Ionicons name="search" size={18} color={theme.subtext} style={styles.searchIcon} />
             <TextInput
@@ -699,12 +337,11 @@ export default function PlayersScreen() {
             renderItem={renderSearchResult}
             keyExtractor={item => String(item.playerId)}
             getItemLayout={(_data, index) => ({
-              length: LEADER_ROW_HEIGHT,
-              offset: LEADER_ROW_HEIGHT * index,
+              length: SEARCH_ROW_HEIGHT,
+              offset: SEARCH_ROW_HEIGHT * index,
               index,
             })}
             initialNumToRender={10}
-            maxToRenderPerBatch={10}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={
@@ -727,52 +364,192 @@ export default function PlayersScreen() {
     );
   }
 
-  // Determine which data to show in main list based on position filter
-  const isGoalieMode = positionFilter === 'G';
-  const mainListData = isGoalieMode ? [] : skaterLeaders;
-  const isMainListLoading = isGoalieMode ? loadingGoalies : loadingSkaters;
+  // ---------------------------------------------------------------------------
+  // Main render: Edge Finder
+  // ---------------------------------------------------------------------------
 
   return (
     <ThemedView style={styles.container} testID="players-tab">
       <View style={styles.header}>
-        <Text style={styles.title}>Players</Text>
-        <Text style={styles.subtitle}>League leaders and player stats</Text>
+        <View style={styles.headerRow}>
+          <View>
+            <Text style={styles.title}>Players</Text>
+            <Text style={styles.subtitle}>Edge Finder</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.searchButton}
+            onPress={() => setIsSearchActive(true)}
+            testID="search-toggle"
+          >
+            <Ionicons name="search" size={22} color={theme.subtext} />
+          </TouchableOpacity>
+        </View>
       </View>
 
-      <FlatList
-        data={isGoalieMode
-          ? (goalieLeaders as any[])
-          : mainListData
-        }
-        renderItem={isGoalieMode
-          ? (({ item, index }) => renderGoalieRow({ item: item as GoalieLeader, index }))
-          : renderSkaterRow
-        }
-        keyExtractor={item => String(item.playerId)}
-        getItemLayout={(_data, index) => ({
-          length: LEADER_ROW_HEIGHT,
-          offset: LEADER_ROW_HEIGHT * index,
-          index,
-        })}
-        initialNumToRender={10}
-        maxToRenderPerBatch={10}
-        ListHeaderComponent={renderListHeader}
-        ListFooterComponent={renderListFooter}
-        ListEmptyComponent={
-          isMainListLoading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={theme.accent} />
-            </View>
-          ) : (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No data available</Text>
-            </View>
-          )
-        }
-        contentContainerStyle={styles.listContent}
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        testID="players-leaders-list"
-      />
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={theme.accent}
+          />
+        }
+      >
+        {/* Stat category selector */}
+        <View style={styles.categorySelector}>
+          {STAT_CATEGORIES.map(cat => {
+            const isActive = statCategory === cat.key;
+            return (
+              <TouchableOpacity
+                key={cat.key}
+                testID={`stat-cat-${cat.key}`}
+                style={[styles.categoryPill, isActive && styles.categoryPillActive]}
+                onPress={() => handleStatCategoryChange(cat.key)}
+              >
+                <Text style={[styles.categoryText, isActive && styles.categoryTextActive]}>
+                  {cat.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Position filter pills */}
+        <View style={styles.filterRow}>
+          {POSITION_FILTERS.map(pf => {
+            const isActive = positionFilter === pf.key;
+            return (
+              <TouchableOpacity
+                key={pf.key}
+                testID={`pos-filter-${pf.key}`}
+                style={[styles.positionPill, isActive && styles.positionPillActive]}
+                onPress={() => handlePositionFilterChange(pf.key)}
+              >
+                <Text style={[styles.positionPillText, isActive && styles.positionPillTextActive]}>
+                  {pf.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={theme.accent} />
+            <Text style={styles.loadingText}>Finding edges...</Text>
+          </View>
+        ) : (
+          <>
+            {/* TONIGHT'S EDGE section — projection cards */}
+            {projections.length > 0 && (
+              <View style={styles.section}>
+                {renderSectionHeader("TONIGHT'S EDGE")}
+                {projections.slice(0, 10).map(proj => (
+                  <PlayerProjectionCard
+                    key={proj.playerId}
+                    projection={proj}
+                    featuredStats={[statCategory]}
+                    onPress={handlePlayerTap}
+                  />
+                ))}
+              </View>
+            )}
+
+            {/* No games today fallback */}
+            {projections.length === 0 && !loading && (
+              <View style={styles.noGamesContainer}>
+                <Ionicons name="calendar-outline" size={28} color={theme.subtext} />
+                <Text style={styles.noGamesText}>No games scheduled today</Text>
+              </View>
+            )}
+
+            {/* LEAGUE LEADERS -- tiered layout */}
+            {filteredUp.length > 0 && positionFilter !== 'G' && (
+              <View style={styles.section}>
+                {renderSectionHeader('LEAGUE LEADERS')}
+                {/* Hero card: #1 player */}
+                <HeroLeaderCard
+                  player={filteredUp[0]}
+                  leaderTrend={leaderTrends.get(filteredUp[0].playerId)}
+                  hitRate={hitRates.get(filteredUp[0].playerId)}
+                  statCategory={statCategory}
+                  onPress={handlePlayerTap}
+                />
+                {/* Elevated rows: #2-5 */}
+                {filteredUp.slice(1, 5).map((player, i) => (
+                  <ElevatedPlayerRow
+                    key={player.playerId}
+                    player={player}
+                    rank={i + 2}
+                    hitRate={hitRates.get(player.playerId)}
+                    statCategory={statCategory}
+                    onPress={handlePlayerTap}
+                  />
+                ))}
+                {/* Compact rows: #6-10 */}
+                {filteredUp.length > 5 && (
+                  <View style={styles.compactContainer}>
+                    {filteredUp.slice(5, 10).map((player, i) => (
+                      <CompactPlayerRow
+                        key={player.playerId}
+                        player={player}
+                        rank={i + 6}
+                        statCategory={statCategory}
+                        onPress={handlePlayerTap}
+                      />
+                    ))}
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* GOALIE SPOTLIGHT */}
+            {trendingGoalies.length > 0 && positionFilter !== 'F' && positionFilter !== 'D' && (
+              <View style={styles.section}>
+                {renderSectionHeader('GOALIE SPOTLIGHT')}
+                <GoalieSpotlightCard
+                  goalie={trendingGoalies[0]}
+                  onPress={handlePlayerTap}
+                />
+              </View>
+            )}
+
+            {/* STREAKING LESS section */}
+            {filteredDown.length > 0 && positionFilter !== 'G' && (
+              <View style={styles.section}>
+                {renderSectionHeader('STREAKING LESS')}
+                {filteredDown.slice(0, 5).map((player, i) => (
+                  <CompactPlayerRow
+                    key={player.playerId}
+                    player={player}
+                    rank={i + 1}
+                    statCategory={statCategory}
+                    onPress={handlePlayerTap}
+                  />
+                ))}
+              </View>
+            )}
+
+            {/* Empty state */}
+            {trendingUp.length === 0 && trendingDown.length === 0 && projections.length === 0 && (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="trending-up" size={48} color={theme.subtext} />
+                <Text style={styles.emptyTitle}>No Trend Data Available</Text>
+                <Text style={styles.emptyText}>
+                  Player trend data requires at least 10 games played.
+                  Check back once more games have been completed.
+                </Text>
+              </View>
+            )}
+
+            {/* Bottom padding for tab bar */}
+            <View style={{ height: 100 }} />
+          </>
+        )}
+      </ScrollView>
 
       <PlayerDetailModal
         visible={detailModalVisible}
@@ -797,6 +574,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
   },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
   title: {
     fontSize: 28,
     fontWeight: '700',
@@ -804,15 +586,113 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 14,
-    color: theme.subtext,
+    color: theme.accent,
+    fontWeight: '600',
     marginTop: 4,
+  },
+  searchButton: {
+    padding: 8,
+    marginTop: 4,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 20,
   },
   listContent: {
     paddingHorizontal: 16,
     paddingBottom: 20,
   },
-  // Search
-  searchContainer: {
+  // Category selector
+  categorySelector: {
+    flexDirection: 'row',
+    backgroundColor: theme.card,
+    borderRadius: 10,
+    padding: 3,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  categoryPill: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+  },
+  categoryPillActive: {
+    backgroundColor: theme.accent,
+  },
+  categoryText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.subtext,
+  },
+  categoryTextActive: {
+    color: theme.text,
+    fontWeight: '700',
+  },
+  // Position filter
+  filterRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
+  positionPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  positionPillActive: {
+    backgroundColor: theme.accent + '22',
+    borderColor: theme.accent,
+  },
+  positionPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.subtext,
+  },
+  positionPillTextActive: {
+    color: theme.accent,
+  },
+  // Section
+  section: {
+    marginBottom: 20,
+  },
+  sectionHeader: {
+    marginBottom: 10,
+  },
+  sectionLabel: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: theme.accent,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+  },
+  accentBar: {
+    width: 32,
+    height: 2,
+    backgroundColor: theme.accent,
+    borderRadius: 1,
+    marginTop: 4,
+    opacity: 0.6,
+  },
+  // Compact rows container
+  compactContainer: {
+    backgroundColor: theme.card,
+    borderRadius: 10,
+    marginTop: 6,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.04)',
+  },
+  // Search (active mode)
+  searchContainerActive: {
+    paddingHorizontal: 16,
     marginBottom: 12,
   },
   searchBarRow: {
@@ -837,87 +717,8 @@ const styles = StyleSheet.create({
     padding: 4,
     marginLeft: 4,
   },
-  // Filter
-  filterContainer: {
-    marginBottom: 12,
-  },
-  // Position filter
-  positionFilterScroll: {
-    marginBottom: 12,
-  },
-  positionFilterContent: {
-    gap: 6,
-  },
-  positionPill: {
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: theme.card,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  positionPillActive: {
-    backgroundColor: theme.accent + '22',
-    borderColor: theme.accent,
-  },
-  positionPillText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: theme.subtext,
-  },
-  positionPillTextActive: {
-    color: theme.accent,
-    fontWeight: '700',
-  },
-  // Section headers
-  sectionHeader: {
-    marginBottom: 8,
-  },
-  sectionLabel: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: theme.accent,
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-  },
-  accentBar: {
-    width: 32,
-    height: 2,
-    backgroundColor: theme.accent,
-    borderRadius: 1,
-    marginTop: 4,
-    opacity: 0.6,
-  },
-  // Category pills
-  categorySelector: {
-    flexDirection: 'row',
-    backgroundColor: theme.card,
-    borderRadius: 10,
-    padding: 3,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  categoryPill: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8,
-  },
-  categoryPillActive: {
-    backgroundColor: theme.accent,
-  },
-  categoryText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: theme.subtext,
-  },
-  categoryTextActive: {
-    color: theme.text,
-  },
-  // Leader rows
-  leaderRow: {
+  // Search results
+  searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: theme.card,
@@ -927,110 +728,68 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.06)',
   },
-  rankNumber: {
-    width: 28,
-    fontSize: 16,
-    fontWeight: '700',
-    color: theme.subtext,
-    textAlign: 'center',
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
-    fontVariant: ['tabular-nums'] as any,
-  },
-  rankTopThree: {
-    color: theme.accent,
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  headshot: {
+  searchHeadshot: {
     width: 40,
     height: 40,
     borderRadius: 20,
     backgroundColor: theme.subtle,
-    marginHorizontal: 10,
-  },
-  playerDetails: {
-    flex: 1,
-  },
-  playerName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.text,
-    marginBottom: 2,
-  },
-  playerMeta: {
-    fontSize: 12,
-    color: theme.subtext,
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: theme.text,
-    minWidth: 48,
-    textAlign: 'right',
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
-    fontVariant: ['tabular-nums'] as any,
-  },
-  statValueTopThree: {
-    color: theme.accent,
-  },
-  // Goalie section
-  goalieSection: {
-    marginTop: 24,
-  },
-  // Roster section
-  rosterSection: {
-    marginTop: 24,
-  },
-  rosterGroup: {
-    marginBottom: 16,
-  },
-  rosterGroupLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: theme.text,
-    marginBottom: 8,
-  },
-  rosterCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.card,
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-  },
-  rosterHeadshot: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: theme.subtle,
     marginRight: 10,
   },
-  rosterInfo: {
+  searchInfo: {
     flex: 1,
   },
-  rosterName: {
-    fontSize: 13,
+  searchName: {
+    fontSize: 14,
     fontWeight: '600',
     color: theme.text,
     marginBottom: 2,
   },
-  rosterStats: {
-    fontSize: 11,
+  searchMeta: {
+    fontSize: 12,
     color: theme.subtext,
   },
   // Loading / Empty
   loadingContainer: {
-    paddingVertical: 40,
+    paddingVertical: 60,
     alignItems: 'center',
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: theme.subtext,
   },
   emptyContainer: {
-    paddingVertical: 32,
+    paddingVertical: 40,
     alignItems: 'center',
+    gap: 12,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: theme.text,
   },
   emptyText: {
     fontSize: 14,
+    color: theme.subtext,
+    textAlign: 'center',
+    paddingHorizontal: 24,
+  },
+  // No games fallback
+  noGamesContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 16,
+    marginBottom: 12,
+    backgroundColor: theme.card,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  noGamesText: {
+    fontSize: 14,
+    fontWeight: '600',
     color: theme.subtext,
   },
 });
