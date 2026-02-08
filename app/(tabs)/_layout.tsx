@@ -30,7 +30,14 @@ export default function TabLayout() {
           },
         }),
       }}>
-      {/* Main 3 tabs */}
+      {/* Main 3 tabs — Upcoming in center */}
+      <Tabs.Screen
+        name="players"
+        options={{
+          title: 'Players',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.2.fill" color={color} />,
+        }}
+      />
       <Tabs.Screen
         name="index"
         options={{
@@ -43,13 +50,6 @@ export default function TabLayout() {
         options={{
           title: 'Explore',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="chart.bar.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="players"
-        options={{
-          title: 'Players',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.2.fill" color={color} />,
         }}
       />
       {/* Hidden screens - loaded by stats.tsx via lazy import, not in tab bar */}

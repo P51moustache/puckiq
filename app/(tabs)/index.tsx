@@ -12,7 +12,7 @@ import CompactGameRow from '../../components/CompactGameRow';
 import StandingsWidget from '../../components/StandingsWidget';
 import InsightFeed from '../../components/InsightFeed';
 import { ThemedView } from '../../components/ThemedView';
-import { SkeletonPickCard, Skeleton } from '../../components/ui/SkeletonLoader';
+import { Skeleton } from '../../components/ui/SkeletonLoader';
 import { SettingsButton } from '../../components/SettingsButton';
 import { makeStyles, theme } from '../../constants/theme';
 import Toast from '../../components/Toast';
@@ -195,19 +195,39 @@ export default function TonightScreen() {
               </View>
               <SettingsButton />
             </View>
-            <View style={{ paddingHorizontal: 16 }}>
-              <SkeletonPickCard variant="top" />
-              <View style={{ marginTop: 16 }}>
-                <Skeleton width={120} height={14} style={{ marginBottom: 12 }} />
-                <Skeleton width="100%" height={80} style={{ borderRadius: 14, marginBottom: 12 }} />
-                <Skeleton width="100%" height={80} style={{ borderRadius: 14 }} />
+            {/* Hero skeleton */}
+            <View style={{ marginHorizontal: 16, backgroundColor: theme.card, borderRadius: 18, padding: 20, height: 260, borderWidth: 1.5, borderColor: theme.factbox }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
+                <Skeleton width={40} height={40} borderRadius={20} />
+                <Skeleton width={24} height={14} style={{ marginHorizontal: 12 }} />
+                <Skeleton width={40} height={40} borderRadius={20} />
               </View>
+              <Skeleton width="60%" height={24} style={{ alignSelf: 'center', marginBottom: 14 }} />
+              <Skeleton width="80%" height={32} borderRadius={16} style={{ alignSelf: 'center', marginBottom: 14 }} />
+              <Skeleton width={100} height={14} style={{ alignSelf: 'center' }} />
+            </View>
+
+            {/* Section header skeleton */}
+            <View style={{ paddingHorizontal: 16, marginTop: 20, marginBottom: 14 }}>
+              <Skeleton width={80} height={14} style={{ marginBottom: 6 }} />
+              <Skeleton width={32} height={2} />
+            </View>
+
+            {/* Game card skeletons */}
+            <View style={{ paddingHorizontal: 16, gap: 12 }}>
+              {[1, 2].map((i) => (
+                <View key={i} style={{ backgroundColor: theme.card, borderRadius: 14, padding: 16, height: 120, borderWidth: 1, borderColor: theme.subtle }}>
+                  <Skeleton width={80} height={14} style={{ marginBottom: 8 }} />
+                  <Skeleton width={80} height={14} style={{ marginBottom: 14 }} />
+                  <Skeleton width="60%" height={20} borderRadius={10} />
+                </View>
+              ))}
             </View>
           </View>
         )}
 
         {/* HERO BANNER — cinematic hero zone with photo background */}
-        {!isLoading && heroGame && (
+        {heroGame && (
           <HeroBanner
             game={heroGame}
             prediction={heroPrediction}
@@ -224,7 +244,7 @@ export default function TonightScreen() {
         )}
 
         {/* LIVE NOW BAR — below hero during live games */}
-        {!isLoading && gameCount > 0 && (
+        {gameCount > 0 && (
           <LiveNowBar
             games={todaysGames?.games ?? []}
             onGamePress={handleOpenDeepDive}
@@ -233,7 +253,7 @@ export default function TonightScreen() {
 
 
         {/* STAT OF THE NIGHT — bold single-stat visual break */}
-        {!isLoading && gameCount > 0 && (
+        {statOfTheNight && (
           <View style={{ marginTop: 24 }}>
             <StatOfTheNight
               stat={statOfTheNight}
@@ -244,7 +264,7 @@ export default function TonightScreen() {
         )}
 
         {/* UPCOMING GAMES — featured full cards (first 2) */}
-        {!isLoading && featuredGames.length > 0 && (
+        {featuredGames.length > 0 && (
           <View style={{ marginTop: 24, width: '100%' }}>
             <View style={{ paddingHorizontal: 16, marginBottom: 12 }}>
               <Text style={{
@@ -297,7 +317,7 @@ export default function TonightScreen() {
         )}
 
         {/* SPOTLIGHT — hot players + edge stats in one scroll */}
-        {!isLoading && gameCount > 0 && (
+        {gameCount > 0 && (
           <View style={{ marginTop: 24 }}>
             <Spotlight
               playerStatsMap={playerStatsMap}
@@ -309,7 +329,7 @@ export default function TonightScreen() {
         )}
 
         {/* MORE GAMES — compact rows for remaining games */}
-        {!isLoading && compactGames.length > 0 && (
+        {compactGames.length > 0 && (
           <View style={{ marginTop: 24, paddingHorizontal: 16 }}>
             <View style={{ marginBottom: 12 }}>
               <Text style={{
@@ -346,7 +366,7 @@ export default function TonightScreen() {
         )}
 
         {/* TONIGHT'S INTEL — insight cards */}
-        {!isLoading && data.insights.length > 0 && (
+        {data.insights.length > 0 && (
           <View style={{ marginTop: 24 }}>
             <InsightFeed
               insights={data.insights}
@@ -357,7 +377,7 @@ export default function TonightScreen() {
         )}
 
         {/* DIVISION STANDINGS — compact table */}
-        {!isLoading && currentStandings && (
+        {currentStandings && (
           <View style={{ marginTop: 24 }}>
             <StandingsWidget
               standings={currentStandings}

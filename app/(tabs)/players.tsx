@@ -13,7 +13,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import Animated, { FadeInDown, FadeInRight, FadeInUp } from 'react-native-reanimated';
 import { getTeamColors } from '../../constants/teamColors';
 import { Ionicons } from '@expo/vector-icons';
 import CompactPlayerRow from '../../components/CompactPlayerRow';
@@ -22,6 +21,7 @@ import GoalieSpotlightCard from '../../components/GoalieSpotlightCard';
 import HeroLeaderCard from '../../components/HeroLeaderCard';
 import PlayerDetailModal from '../../components/PlayerDetailModal';
 import PlayerProjectionCard from '../../components/PlayerProjectionCard';
+import { Skeleton } from '../../components/ui/SkeletonLoader';
 import { ThemedView } from '../../components/ThemedView';
 import { theme } from '../../constants/theme';
 import { useAnalytics } from '../../hooks/useAnalytics';
@@ -357,15 +357,79 @@ export default function PlayersScreen() {
         }
       >
         {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={theme.accent} />
-            <Text style={styles.loadingText}>Loading players...</Text>
+          <View style={styles.skeletonContainer}>
+            {/* SPOTLIGHT skeleton — section header + 3 horizontal cards */}
+            <View style={styles.skeletonSection}>
+              <Skeleton width={100} height={13} borderRadius={4} style={{ marginBottom: 6 }} />
+              <Skeleton width={32} height={2} borderRadius={1} style={{ marginBottom: 12 }} />
+              <View style={styles.skeletonSpotlightRow}>
+                {[1, 2, 3].map((i) => (
+                  <View key={i} style={styles.skeletonSpotlightCard}>
+                    <Skeleton width={52} height={52} borderRadius={26} style={{ alignSelf: 'center', marginBottom: 10 }} />
+                    <Skeleton width={90} height={12} borderRadius={4} style={{ alignSelf: 'center', marginBottom: 4 }} />
+                    <Skeleton width={60} height={10} borderRadius={4} style={{ alignSelf: 'center', marginBottom: 8 }} />
+                    <Skeleton width={40} height={28} borderRadius={6} style={{ alignSelf: 'center', marginBottom: 4 }} />
+                    <Skeleton width={36} height={9} borderRadius={3} style={{ alignSelf: 'center' }} />
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            {/* TONIGHT'S EDGE skeleton — section header + 3 projection cards */}
+            <View style={styles.skeletonSection}>
+              <Skeleton width={130} height={13} borderRadius={4} style={{ marginBottom: 6 }} />
+              <Skeleton width={32} height={2} borderRadius={1} style={{ marginBottom: 12 }} />
+              {[1, 2, 3].map((i) => (
+                <View key={i} style={styles.skeletonProjectionCard}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+                    <Skeleton width={40} height={40} borderRadius={20} style={{ marginRight: 10 }} />
+                    <View style={{ flex: 1 }}>
+                      <Skeleton width={120} height={14} borderRadius={4} style={{ marginBottom: 6 }} />
+                      <Skeleton width={80} height={11} borderRadius={4} />
+                    </View>
+                    <Skeleton width={48} height={24} borderRadius={6} />
+                  </View>
+                  <Skeleton width="100%" height={10} borderRadius={4} />
+                </View>
+              ))}
+            </View>
+
+            {/* LEAGUE LEADERS skeleton — section header + hero card + 3 rows */}
+            <View style={styles.skeletonSection}>
+              <Skeleton width={140} height={13} borderRadius={4} style={{ marginBottom: 6 }} />
+              <Skeleton width={32} height={2} borderRadius={1} style={{ marginBottom: 12 }} />
+              {/* Hero card */}
+              <View style={styles.skeletonHeroCard}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                  <Skeleton width={64} height={64} borderRadius={32} style={{ marginRight: 14 }} />
+                  <View style={{ flex: 1 }}>
+                    <Skeleton width={140} height={18} borderRadius={4} style={{ marginBottom: 6 }} />
+                    <Skeleton width={90} height={12} borderRadius={4} />
+                  </View>
+                  <Skeleton width={56} height={32} borderRadius={8} />
+                </View>
+                <Skeleton width="100%" height={12} borderRadius={4} style={{ marginBottom: 6 }} />
+                <Skeleton width="70%" height={12} borderRadius={4} />
+              </View>
+              {/* Rows #2-4 */}
+              {[1, 2, 3].map((i) => (
+                <View key={i} style={styles.skeletonRow}>
+                  <Skeleton width={20} height={16} borderRadius={4} style={{ marginRight: 10 }} />
+                  <Skeleton width={36} height={36} borderRadius={18} style={{ marginRight: 10 }} />
+                  <View style={{ flex: 1 }}>
+                    <Skeleton width={110} height={13} borderRadius={4} style={{ marginBottom: 4 }} />
+                    <Skeleton width={70} height={10} borderRadius={4} />
+                  </View>
+                  <Skeleton width={40} height={20} borderRadius={6} />
+                </View>
+              ))}
+            </View>
           </View>
         ) : (
           <>
             {/* SPOTLIGHT — players outperforming their season averages */}
             {trendingUp.length >= 3 && (
-              <Animated.View entering={FadeInDown.duration(400)}>
+              <View>
                 {renderSectionHeader('SPOTLIGHT')}
                 <Text style={styles.spotlightSubtitle}>Outperforming their season averages</Text>
                 <FlatList
@@ -381,7 +445,7 @@ export default function PlayersScreen() {
                     const recentPpg = item.avgPoints5g;
                     const aboveAvgPct = seasonPpg > 0 ? Math.round(((recentPpg - seasonPpg) / seasonPpg) * 100) : 0;
                     return (
-                      <Animated.View entering={FadeInRight.duration(300).delay(index * 80)}>
+                      <View>
                         <Pressable
                           onPress={() => handlePlayerTap(item.playerId)}
                           style={({ pressed }) => [
@@ -424,57 +488,53 @@ export default function PlayersScreen() {
                             )}
                           </View>
                         </Pressable>
-                      </Animated.View>
+                      </View>
                     );
                   }}
                 />
-              </Animated.View>
+              </View>
             )}
 
             {/* TONIGHT'S EDGE section — projection cards */}
             {projections.length > 0 && (
-              <Animated.View entering={FadeInDown.duration(400).delay(100)} style={styles.section}>
+              <View style={styles.section}>
                 {renderSectionHeader("TONIGHT'S EDGE")}
-                {projections.slice(0, 10).map((proj, i) => (
-                  <Animated.View key={proj.playerId} entering={FadeInUp.duration(400).delay(i * 80)}>
-                    <PlayerProjectionCard
-                      projection={proj}
-                      featuredStats={[statCategory]}
-                      onPress={handlePlayerTap}
-                    />
-                  </Animated.View>
+                {projections.slice(0, 10).map((proj) => (
+                  <PlayerProjectionCard
+                    key={proj.playerId}
+                    projection={proj}
+                    featuredStats={[statCategory]}
+                    onPress={handlePlayerTap}
+                  />
                 ))}
-              </Animated.View>
+              </View>
             )}
 
             {/* LEAGUE LEADERS -- tiered layout, sorted by actual stats */}
             {leagueLeaders.length > 0 && (
-              <Animated.View entering={FadeInUp.duration(400).delay(100)} style={styles.section}>
+              <View style={styles.section}>
                 {renderSectionHeader('LEAGUE LEADERS')}
                 {/* Hero card: #1 player */}
-                <Animated.View entering={FadeInUp.duration(400).delay(180)}>
-                  <HeroLeaderCard
-                    player={leagueLeaders[0]}
-                    leaderTrend={leaderTrends.get(leagueLeaders[0].playerId)}
+                <HeroLeaderCard
+                  player={leagueLeaders[0]}
+                  leaderTrend={leaderTrends.get(leagueLeaders[0].playerId)}
+                  statCategory={statCategory}
+                  onPress={handlePlayerTap}
+                />
+                {/* Elevated rows: #2-5 */}
+                {leagueLeaders.slice(1, 5).map((player, i) => (
+                  <ElevatedPlayerRow
+                    key={player.playerId}
+                    player={player}
+                    rank={i + 2}
+                    hitRate={hitRates.get(player.playerId)}
                     statCategory={statCategory}
                     onPress={handlePlayerTap}
                   />
-                </Animated.View>
-                {/* Elevated rows: #2-5 */}
-                {leagueLeaders.slice(1, 5).map((player, i) => (
-                  <Animated.View key={player.playerId} entering={FadeInUp.duration(400).delay(260 + i * 80)}>
-                    <ElevatedPlayerRow
-                      player={player}
-                      rank={i + 2}
-                      hitRate={hitRates.get(player.playerId)}
-                      statCategory={statCategory}
-                      onPress={handlePlayerTap}
-                    />
-                  </Animated.View>
                 ))}
                 {/* Compact rows: #6-10 */}
                 {leagueLeaders.length > 5 && (
-                  <Animated.View entering={FadeInUp.duration(400).delay(580)} style={styles.compactContainer}>
+                  <View style={styles.compactContainer}>
                     {leagueLeaders.slice(5, 10).map((player, i) => (
                       <CompactPlayerRow
                         key={player.playerId}
@@ -484,27 +544,27 @@ export default function PlayersScreen() {
                         onPress={handlePlayerTap}
                       />
                     ))}
-                  </Animated.View>
+                  </View>
                 )}
-              </Animated.View>
+              </View>
             )}
 
             {/* TRENDING HOT section removed — SPOTLIGHT above covers these players */}
 
             {/* GOALIE SPOTLIGHT — always show when goalies available */}
             {trendingGoalies.length > 0 && (
-              <Animated.View entering={FadeInUp.duration(400).delay(300)} style={styles.section}>
+              <View style={styles.section}>
                 {renderSectionHeader('GOALIE SPOTLIGHT')}
                 <GoalieSpotlightCard
                   goalie={trendingGoalies[0]}
                   onPress={handlePlayerTap}
                 />
-              </Animated.View>
+              </View>
             )}
 
             {/* COOLING DOWN section */}
             {trendingDown.length > 0 && (
-              <Animated.View entering={FadeInUp.duration(400).delay(300)} style={styles.section}>
+              <View style={styles.section}>
                 {renderSectionHeader('COOLING DOWN')}
                 <View style={styles.compactContainer}>
                   {trendingDown.slice(0, 5).map((player, i) => (
@@ -517,7 +577,7 @@ export default function PlayersScreen() {
                     />
                   ))}
                 </View>
-              </Animated.View>
+              </View>
             )}
 
             {/* Empty state */}
@@ -790,6 +850,54 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 14,
     color: theme.subtext,
+  },
+  // Skeleton loading
+  skeletonContainer: {
+    paddingTop: 4,
+  },
+  skeletonSection: {
+    marginBottom: 24,
+  },
+  skeletonSpotlightRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  skeletonSpotlightCard: {
+    width: 140,
+    height: 210,
+    backgroundColor: theme.card,
+    borderRadius: 14,
+    padding: 12,
+    justifyContent: 'flex-start',
+    paddingTop: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  skeletonProjectionCard: {
+    backgroundColor: theme.card,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  skeletonHeroCard: {
+    backgroundColor: theme.card,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  skeletonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.card,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.04)',
   },
   emptyContainer: {
     paddingVertical: 40,
