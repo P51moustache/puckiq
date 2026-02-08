@@ -12,7 +12,7 @@
  */
 
 import { supabase, logConnectionInfo } from './supabase-client.mjs';
-import { getCurrentSeason, sleep } from './nhl-api.mjs';
+import { getCurrentSeason, sleep, parseSeasonArg } from './nhl-api.mjs';
 
 const NHL_API = 'https://api-web.nhle.com/v1';
 const EDGE = '/edge';
@@ -294,11 +294,17 @@ async function syncGoalieEdge(season) {
 // Main
 // ============================================
 
+const { season: parsedSeason } = parseSeasonArg();
+const hasSeasonFlag = process.argv.includes('--season') || process.argv.find(a => a.startsWith('--season='));
+
 logConnectionInfo();
+if (hasSeasonFlag) {
+  console.log(`[sync-edge-details] Using season override: ${parsedSeason}`);
+}
 console.log('[sync-edge-details] Syncing Edge IQ detailed stats (weekly)...');
 
 try {
-  const season = getCurrentSeason();
+  const season = hasSeasonFlag ? parsedSeason : getCurrentSeason();
   let total = 0;
 
   total += await syncTeamEdge(season);

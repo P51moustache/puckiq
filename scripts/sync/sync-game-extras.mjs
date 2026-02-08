@@ -8,23 +8,33 @@
  */
 
 import { supabase, logConnectionInfo } from './supabase-client.mjs';
-import { formatDate, fetchWithRetry, sleep } from './nhl-api.mjs';
+import { formatDate, fetchWithRetry, sleep, parseSeasonArg } from './nhl-api.mjs';
 
 const NHL_API = 'https://api-web.nhle.com/v1';
 const isFullSync = process.argv.includes('--full');
+const { season: parsedSeason } = parseSeasonArg();
+const hasSeasonFlag = process.argv.includes('--season') || process.argv.find(a => a.startsWith('--season='));
+const seasonFilter = hasSeasonFlag ? parsedSeason : null;
 
 /**
  * Find completed games that don't yet have play-by-play, right-rail, or boxscore data.
  * In incremental mode, only look at yesterday + today games.
+ * When --season is provided, filters to only that season's games.
  */
 async function findNewCompletedGames() {
   if (isFullSync) {
     // Full mode: find ALL completed games missing play-by-play
-    const { data: allCompleted } = await supabase
+    let query = supabase
       .from('games')
       .select('id')
       .in('game_state', ['FINAL', 'OFF'])
       .order('id');
+
+    if (seasonFilter) {
+      query = query.eq('season', seasonFilter);
+    }
+
+    const { data: allCompleted } = await query;
 
     const { data: existingPbp } = await supabase
       .from('game_play_by_play')
@@ -40,11 +50,17 @@ async function findNewCompletedGames() {
   yesterday.setDate(yesterday.getDate() - 1);
   const dates = [formatDate(yesterday), formatDate(today)];
 
-  const { data: recentGames } = await supabase
+  let query = supabase
     .from('games')
     .select('id')
     .in('game_state', ['FINAL', 'OFF'])
     .in('game_date', dates);
+
+  if (seasonFilter) {
+    query = query.eq('season', seasonFilter);
+  }
+
+  const { data: recentGames } = await query;
 
   return (recentGames || []).map(g => g.id);
 }
@@ -252,6 +268,9 @@ async function syncBoxscores(gameIds) {
 
 // Main
 logConnectionInfo();
+if (seasonFilter) {
+  console.log(`[sync-game-extras] Using season override: ${seasonFilter}`);
+}
 console.log(`[sync-game-extras] Mode: ${isFullSync ? 'FULL' : 'INCREMENTAL'}`);
 
 try {

@@ -12,6 +12,9 @@ const STORAGE_KEY = 'puckiq_prediction_models';
 // Classic model ID - used for identification
 const CLASSIC_MODEL_ID = 'classic';
 
+// ML model ID - server-side LightGBM predictions
+export const ML_MODEL_ID = 'ml_lightgbm_v1';
+
 /**
  * Generate a unique ID for new models
  */
@@ -42,8 +45,34 @@ export function createDefaultModel(): PredictionModel {
 }
 
 /**
+ * Create the "PuckIQ AI" ML model entry.
+ * This is a synthetic model — predictions are computed server-side by the ML pipeline.
+ * It uses placeholder weights since the actual prediction logic is in Supabase,
+ * but needs an entry so it appears in the model picker.
+ */
+export function createMLModel(): PredictionModel {
+  const now = new Date().toISOString();
+
+  return {
+    id: ML_MODEL_ID,
+    name: 'PuckIQ AI',
+    createdAt: now,
+    updatedAt: now,
+    weights: { ...CONFIDENCE_WEIGHTS },     // Placeholder — ML model doesn't use client-side weights
+    playerWeights: {
+      goalieMatchupImpact: PLAYER_WEIGHTS.goalieMatchupImpact,
+      hotPlayersImpact: PLAYER_WEIGHTS.hotPlayersImpact,
+    },
+    isActive: false,
+    isDefault: false,
+    type: 'ml',
+  };
+}
+
+/**
  * Load all models from storage
  * If no models exist, creates and saves the Classic model
+ * Always includes the ML model entry (injected at runtime, not persisted)
  */
 export async function loadModels(): Promise<PredictionModel[]> {
   try {

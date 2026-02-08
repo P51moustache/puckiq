@@ -36,6 +36,27 @@ export function getCurrentSeasonStr() {
 }
 
 /**
+ * Parse --season flag from process.argv, or fall back to current season.
+ * Accepts both `--season 20242025` and `--season=20242025` formats.
+ * Returns { season: number, seasonStr: string }.
+ */
+export function parseSeasonArg(argv = process.argv) {
+  const idx = argv.indexOf('--season');
+  let raw = null;
+  if (idx !== -1 && idx + 1 < argv.length) {
+    raw = argv[idx + 1];
+  } else {
+    const eqArg = argv.find(a => a.startsWith('--season='));
+    if (eqArg) raw = eqArg.split('=')[1];
+  }
+  if (raw && /^\d{8}$/.test(raw)) {
+    const season = parseInt(raw);
+    return { season, seasonStr: raw };
+  }
+  return { season: getCurrentSeason(), seasonStr: getCurrentSeasonStr() };
+}
+
+/**
  * Format a Date as YYYY-MM-DD.
  */
 export function formatDate(d) {

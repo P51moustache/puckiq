@@ -15,7 +15,7 @@
  */
 
 import { supabase, logConnectionInfo } from './supabase-client.mjs';
-import { getCurrentSeason, fetchWithRetry, sleep } from './nhl-api.mjs';
+import { getCurrentSeason, fetchWithRetry, sleep, parseSeasonArg } from './nhl-api.mjs';
 
 const NHL_API = 'https://api-web.nhle.com/v1';
 
@@ -42,9 +42,9 @@ async function fetchEdge(path) {
   }
 }
 
-async function syncEdgeLanding() {
+async function syncEdgeLanding(seasonOverride) {
   console.log('  [edge] Syncing landing pages...');
-  const season = getCurrentSeason();
+  const season = seasonOverride || getCurrentSeason();
   const rows = [];
 
   for (const page of EDGE_LANDING) {
@@ -72,9 +72,9 @@ async function syncEdgeLanding() {
   return rows.length;
 }
 
-async function syncEdgeTop10() {
+async function syncEdgeTop10(seasonOverride) {
   console.log('  [edge] Syncing top-10 lists...');
-  const season = getCurrentSeason();
+  const season = seasonOverride || getCurrentSeason();
   const rows = [];
 
   for (const endpoint of EDGE_TOP_10) {
@@ -113,13 +113,20 @@ async function syncStatLeaders() {
 }
 
 // Main
+const { season: parsedSeason } = parseSeasonArg();
+const hasSeasonFlag = process.argv.includes('--season') || process.argv.find(a => a.startsWith('--season='));
+const seasonOverride = hasSeasonFlag ? parsedSeason : null;
+
 logConnectionInfo();
+if (seasonOverride) {
+  console.log(`[sync-aggregates] Using season override: ${seasonOverride}`);
+}
 console.log('[sync-aggregates] Syncing daily aggregate data...');
 
 try {
   let total = 0;
-  total += await syncEdgeLanding();
-  total += await syncEdgeTop10();
+  total += await syncEdgeLanding(seasonOverride);
+  total += await syncEdgeTop10(seasonOverride);
   total += await syncStatLeaders();
 
   // Log

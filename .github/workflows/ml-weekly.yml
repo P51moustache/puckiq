@@ -1,0 +1,55 @@
+name: ML Weekly Retrain
+
+# Runs Monday 9am ET (14:00 UTC) — after Monday weekly NHL data sync completes.
+# Retrains models on the latest full week of game data.
+on:
+  schedule:
+    - cron: '0 14 * * 1'
+  workflow_dispatch: {}
+
+concurrency:
+  group: ml-weekly
+  cancel-in-progress: false
+
+jobs:
+  weekly-retrain:
+    name: Retrain Models
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ml-deps-${{ hashFiles('ml/requirements.txt') }}
+          restore-keys: ml-deps-
+
+      - name: Install dependencies
+        run: pip install -r ml/requirements.txt
+
+      - name: Run weekly retrain
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PYTHONPATH: ${{ github.workspace }}
+        run: python -m ml.pipeline.weekly_retrain
+
+      - name: Ping healthcheck
+        if: success()
+        run: curl -fsS --retry 3 https://hc-ping.com/${{ secrets.HC_PING_UUID_WEEKLY }} || true
+
+      - name: Post failure notification
+        if: failure()
+        run: |
+          curl -s -H "Content-Type: application/json" \
+            -d "{\"content\":\"**ML Weekly Retrain Failed**\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+            ${{ secrets.DISCORD_WEBHOOK_URL }} || true

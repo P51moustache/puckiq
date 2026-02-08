@@ -19,7 +19,7 @@
  */
 
 import { supabase, logConnectionInfo } from './supabase-client.mjs';
-import { getCurrentSeason, getCurrentSeasonStr, formatDate, fetchWithRetry, sleep } from './nhl-api.mjs';
+import { getCurrentSeason, getCurrentSeasonStr, formatDate, fetchWithRetry, sleep, parseSeasonArg } from './nhl-api.mjs';
 
 const NHL_API = 'https://api-web.nhle.com/v1';
 const STATS_API = 'https://api.nhle.com/stats/rest/en';
@@ -67,8 +67,8 @@ async function fetchStats(url, retries = 3) {
 // Paginated Stats REST API fetch
 // ============================================
 
-async function fetchAllGamePages(entity, category) {
-  const season = getCurrentSeason();
+async function fetchAllGamePages(entity, category, seasonOverride) {
+  const season = seasonOverride || getCurrentSeason();
   const allData = [];
   let start = 0;
   let total = Infinity;
@@ -89,16 +89,16 @@ async function fetchAllGamePages(entity, category) {
 // WEEKLY: Sync per-game advanced stats
 // ============================================
 
-async function syncAdvancedStats() {
+async function syncAdvancedStats(seasonOverride) {
   console.log('  [advanced] Syncing per-game advanced stats (weekly refresh)...');
-  const season = getCurrentSeason();
+  const season = seasonOverride || getCurrentSeason();
   let totalRows = 0;
 
   // Skater categories
   for (const cat of SKATER_GAME_CATEGORIES) {
     try {
       console.log(`    [skater/${cat}] Fetching...`);
-      const data = await fetchAllGamePages('skater', cat);
+      const data = await fetchAllGamePages('skater', cat, season);
       if (!data || data.length === 0) {
         console.log(`    [skater/${cat}] No data`);
         continue;
@@ -136,7 +136,7 @@ async function syncAdvancedStats() {
   for (const cat of GOALIE_GAME_CATEGORIES) {
     try {
       console.log(`    [goalie/${cat}] Fetching...`);
-      const data = await fetchAllGamePages('goalie', cat);
+      const data = await fetchAllGamePages('goalie', cat, season);
       if (!data || data.length === 0) {
         console.log(`    [goalie/${cat}] No data`);
         continue;
@@ -188,7 +188,14 @@ async function syncRecentGameLogs() {
 // Main
 // ============================================
 
+const { season: parsedSeason } = parseSeasonArg();
+const hasSeasonFlag = process.argv.includes('--season') || process.argv.find(a => a.startsWith('--season='));
+const seasonOverride = hasSeasonFlag ? parsedSeason : null;
+
 logConnectionInfo();
+if (seasonOverride) {
+  console.log(`[sync-player-trends] Using season override: ${seasonOverride}`);
+}
 console.log(`[sync-player-trends] Mode: ${isWeekly ? 'WEEKLY (advanced + game logs)' : 'DAILY (game logs only)'}`);
 
 try {
@@ -196,7 +203,7 @@ try {
 
   // Weekly: full advanced stats refresh
   if (isWeekly) {
-    total += await syncAdvancedStats();
+    total += await syncAdvancedStats(seasonOverride);
   }
 
   // Always: sync recent game logs

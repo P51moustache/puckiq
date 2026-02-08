@@ -11,14 +11,13 @@
  */
 
 import { supabase, logConnectionInfo } from './supabase-client.mjs';
-import { ALL_TEAMS, getCurrentSeason, getCurrentSeasonStr, formatDate, fetchWithRetry, sleep, endpoints } from './nhl-api.mjs';
+import { ALL_TEAMS, getCurrentSeason, getCurrentSeasonStr, formatDate, fetchWithRetry, sleep, endpoints, parseSeasonArg } from './nhl-api.mjs';
 
 /**
  * Full season sync: fetch all team schedules, upsert all games.
  */
-async function syncFullSeason() {
-  const season = getCurrentSeason();
-  const seasonStr = getCurrentSeasonStr();
+async function syncFullSeason(seasonOverride) {
+  const { season, seasonStr } = seasonOverride || { season: getCurrentSeason(), seasonStr: getCurrentSeasonStr() };
   console.log(`[sync-games] Full season sync for ${season}`);
 
   const gameMap = new Map();
@@ -50,9 +49,8 @@ async function syncFullSeason() {
 /**
  * Incremental sync: fetch yesterday + today scores only.
  */
-async function syncIncremental() {
-  const season = getCurrentSeason();
-  const seasonStr = getCurrentSeasonStr();
+async function syncIncremental(seasonOverride) {
+  const { season, seasonStr } = seasonOverride || { season: getCurrentSeason(), seasonStr: getCurrentSeasonStr() };
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
@@ -164,10 +162,17 @@ async function logSync(syncType, recordsProcessed, errorCount) {
 
 // Main
 const isFullSync = process.argv.includes('--full');
+const parsedSeason = parseSeasonArg();
+const seasonOverride = process.argv.includes('--season') || process.argv.find(a => a.startsWith('--season='))
+  ? parsedSeason : null;
+
 logConnectionInfo();
+if (seasonOverride) {
+  console.log(`[sync-games] Using season override: ${seasonOverride.seasonStr}`);
+}
 
 try {
-  const result = isFullSync ? await syncFullSeason() : await syncIncremental();
+  const result = isFullSync ? await syncFullSeason(seasonOverride) : await syncIncremental(seasonOverride);
   if (result.errors > 0) {
     process.exit(1);
   }

@@ -1,0 +1,55 @@
+name: ML Daily Predictions
+
+# Runs at 10am ET (15:00 UTC) — after overnight NHL data sync completes.
+# Generates predictions for today's games using the latest model.
+on:
+  schedule:
+    - cron: '0 15 * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: ml-daily
+  cancel-in-progress: false
+
+jobs:
+  daily-predictions:
+    name: Generate Daily Predictions
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ml-deps-${{ hashFiles('ml/requirements.txt') }}
+          restore-keys: ml-deps-
+
+      - name: Install dependencies
+        run: pip install -r ml/requirements.txt
+
+      - name: Run daily pipeline
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PYTHONPATH: ${{ github.workspace }}
+        run: python -m ml.pipeline.daily_run
+
+      - name: Ping healthcheck
+        if: success()
+        run: curl -fsS --retry 3 https://hc-ping.com/${{ secrets.HC_PING_UUID_DAILY }} || true
+
+      - name: Post failure notification
+        if: failure()
+        run: |
+          curl -s -H "Content-Type: application/json" \
+            -d "{\"content\":\"**ML Daily Pipeline Failed**\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+            ${{ secrets.DISCORD_WEBHOOK_URL }} || true
