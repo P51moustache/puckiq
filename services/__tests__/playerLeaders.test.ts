@@ -164,10 +164,9 @@ const mockRosterSkaterStats = [
 // Supabase mock
 // ---------------------------------------------------------------------------
 
-let currentTable = '';
 let mockResults: Record<string, { data: any; error: any }> = {};
 
-function buildChain() {
+function buildChain(table: string) {
   const chain: any = {
     select: jest.fn().mockReturnThis(),
     eq: jest.fn().mockReturnThis(),
@@ -183,11 +182,11 @@ function buildChain() {
     order: jest.fn().mockReturnThis(),
     limit: jest.fn().mockReturnThis(),
     single: jest.fn(() => {
-      const r = mockResults[currentTable] ?? { data: null, error: null };
+      const r = mockResults[table] ?? { data: null, error: null };
       return Promise.resolve(r);
     }),
     then: (resolve: any) => {
-      const r = mockResults[currentTable] ?? { data: [], error: null };
+      const r = mockResults[table] ?? { data: [], error: null };
       return resolve(r);
     },
   };
@@ -205,8 +204,7 @@ beforeEach(() => {
   };
 
   (supabase.from as jest.Mock).mockImplementation((table: string) => {
-    currentTable = table;
-    return buildChain();
+    return buildChain(table);
   });
 });
 

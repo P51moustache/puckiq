@@ -612,13 +612,13 @@ async function fetchAdvancedTrends(playerId: number): Promise<AdvancedTrends | n
 
 async function fetchThreeStarCount(playerId: number): Promise<number> {
   try {
-    const { count, error } = await supabase
+    const { data: rows, error } = await supabase
       .from('game_three_stars')
-      .select('*', { count: 'exact', head: true })
+      .select('star_number')
       .eq('player_id', playerId);
 
-    if (error || count === null) return 0;
-    return count;
+    if (error || !rows) return 0;
+    return rows.length;
   } catch {
     return 0;
   }
