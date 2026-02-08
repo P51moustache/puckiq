@@ -259,7 +259,7 @@ def _retrain_totals(
         overfit_gap=overfit_gap,
         n_games=len(X),
         features_used=available,
-        feature_importance={},
+        feature_importance=final_model.get_feature_importance(),
         verification_features=X.iloc[-1:],
     )
 

@@ -26,7 +26,7 @@ st.caption(
 # Model type selector
 # ---------------------------------------------------------------------------
 
-MODEL_TYPES = ["game_winner", "spread", "totals", "player_props"]
+MODEL_TYPES = ["game_winner", "spread", "totals"]
 
 model_type = st.selectbox(
     "Model Type",
@@ -60,14 +60,25 @@ st.subheader("Top 15 Features")
 
 feature_importance = model.get("feature_importance")
 
-if feature_importance and isinstance(feature_importance, list) and len(feature_importance) > 0:
-    fi_df = pd.DataFrame(feature_importance)
+# Normalize feature importance data.
+# The weekly retrain writes this as a dict: {"feature_name": importance_value, ...}
+# but it could also arrive as a list: [{"feature": "name", "importance": value}, ...]
+# Handle both formats.
+fi_df = pd.DataFrame()
+if feature_importance:
+    if isinstance(feature_importance, dict) and len(feature_importance) > 0:
+        # Dict format from get_feature_importance() → {"home_goals_for_l10": 713, ...}
+        fi_df = pd.DataFrame([
+            {"feature": k, "importance": v}
+            for k, v in feature_importance.items()
+        ])
+    elif isinstance(feature_importance, list) and len(feature_importance) > 0:
+        fi_df = pd.DataFrame(feature_importance)
+        # Normalize column names — expect {feature, importance} or {name, importance}
+        if "name" in fi_df.columns and "feature" not in fi_df.columns:
+            fi_df = fi_df.rename(columns={"name": "feature"})
 
-    # Normalize column names — expect {feature, importance} or {name, importance}
-    if "name" in fi_df.columns and "feature" not in fi_df.columns:
-        fi_df = fi_df.rename(columns={"name": "feature"})
-
-    if "feature" in fi_df.columns and "importance" in fi_df.columns:
+if not fi_df.empty and "feature" in fi_df.columns and "importance" in fi_df.columns:
         # Sort by importance descending, take top 15
         fi_df = fi_df.sort_values("importance", ascending=False).head(15)
 
@@ -171,32 +182,31 @@ st.subheader("All Features Used")
 features_used = model.get("features_used")
 
 if features_used and isinstance(features_used, list) and len(features_used) > 0:
-    # Feature descriptions (hardcoded for V1 — these match the features
-    # defined in ml/features/)
+    # Feature descriptions — must match the actual feature names from features.yaml
     FEATURE_DESCRIPTIONS = {
-        "home_win_pct": "Home team's season win percentage",
-        "away_win_pct": "Away team's season win percentage",
-        "home_goal_diff": "Home team's season goal differential",
-        "away_goal_diff": "Away team's season goal differential",
-        "home_goals_for_avg": "Home team's average goals scored per game",
-        "away_goals_for_avg": "Away team's average goals scored per game",
-        "home_goals_against_avg": "Home team's average goals allowed per game",
-        "away_goals_against_avg": "Away team's average goals allowed per game",
-        "home_pp_pct": "Home team's power play percentage",
-        "away_pp_pct": "Away team's power play percentage",
-        "home_pk_pct": "Home team's penalty kill percentage",
-        "away_pk_pct": "Away team's penalty kill percentage",
-        "home_recent_form": "Home team's win rate over last 10 games",
-        "away_recent_form": "Away team's win rate over last 10 games",
-        "home_rest_days": "Days since home team's last game",
-        "away_rest_days": "Days since away team's last game",
-        "home_b2b": "Is the home team on a back-to-back? (0/1)",
-        "away_b2b": "Is the away team on a back-to-back? (0/1)",
-        "h2h_home_win_pct": "Home team's win rate in head-to-head matchups this season",
-        "home_shots_per_game": "Home team's average shots per game",
-        "away_shots_per_game": "Away team's average shots per game",
-        "home_save_pct": "Home team's starting goalie save percentage",
-        "away_save_pct": "Away team's starting goalie save percentage",
+        # Standings-based (lookup)
+        "home_point_pctg": "Home team season point percentage",
+        "away_point_pctg": "Away team season point percentage",
+        "home_goal_diff": "Home team season goal differential",
+        "away_goal_diff": "Away team season goal differential",
+        "home_home_wins": "Home team wins at home this season",
+        "away_road_wins": "Away team wins on the road this season",
+        # Rolling window (recent form, last 10 games)
+        "home_goals_for_l10": "Home team avg goals scored in last 10 games",
+        "away_goals_for_l10": "Away team avg goals scored in last 10 games",
+        "home_goals_against_l10": "Home team avg goals allowed in last 10 games",
+        "away_goals_against_l10": "Away team avg goals allowed in last 10 games",
+        "home_win_pct_l10": "Home team win rate in last 10 games",
+        "away_win_pct_l10": "Away team win rate in last 10 games",
+        # Goalie stats
+        "home_starter_save_pctg": "Home starting goalie save percentage",
+        "away_starter_save_pctg": "Away starting goalie save percentage",
+        # Rest / schedule (derived)
+        "rest_advantage": "Home team rest days minus away (positive = home more rested)",
+        "home_is_back_to_back": "1 if home team played yesterday, 0 otherwise",
+        "away_is_back_to_back": "1 if away team played yesterday, 0 otherwise",
+        # Derived
+        "point_pctg_diff": "Home point% minus away point% (positive = home stronger)",
     }
 
     feature_data = []

@@ -66,30 +66,47 @@ with col1:
 
 with col2:
     acc_7d = primary.get("prod_accuracy_7d")
-    st.metric(
-        label="7-Day Accuracy",
-        value=f"{acc_7d:.1%}" if pd.notna(acc_7d) else "N/A",
-    )
+    if pd.notna(acc_7d):
+        st.metric(label="7-Day Accuracy", value=f"{acc_7d:.1%}")
+    else:
+        # Fall back to validation accuracy when no production scores exist yet
+        val_acc = primary.get("val_accuracy")
+        st.metric(
+            label="Val Accuracy",
+            value=f"{val_acc:.1%}" if pd.notna(val_acc) else "N/A",
+            help="Validation accuracy from training (production accuracy appears after games are scored)",
+        )
 
 with col3:
     acc_30d = primary.get("prod_accuracy_30d")
-    st.metric(
-        label="30-Day Accuracy",
-        value=f"{acc_30d:.1%}" if pd.notna(acc_30d) else "N/A",
-    )
+    if pd.notna(acc_30d):
+        st.metric(label="30-Day Accuracy", value=f"{acc_30d:.1%}")
+    else:
+        val_mae = primary.get("val_mae")
+        st.metric(
+            label="Val MAE",
+            value=f"{val_mae:.3f}" if pd.notna(val_mae) else "N/A",
+            help="Validation MAE from training (production metrics appear after games are scored)",
+        )
 
 with col4:
     acc_season = primary.get("prod_accuracy_season")
-    st.metric(
-        label="Season Accuracy",
-        value=f"{acc_season:.1%}" if pd.notna(acc_season) else "N/A",
-    )
+    if pd.notna(acc_season):
+        st.metric(label="Season Accuracy", value=f"{acc_season:.1%}")
+    else:
+        training_games = primary.get("training_games")
+        st.metric(
+            label="Training Games",
+            value=f"{int(training_games):,}" if pd.notna(training_games) else "N/A",
+            help="Number of games used to train the active model",
+        )
 
 st.caption(
     "**Brier Score** measures how well-calibrated the probabilities are "
     "(0 = perfect, 0.25 = random guessing). Lower is better. "
     "The delta shows change vs the prior model version. "
-    "**Accuracy** is simply the % of games where the predicted winner was correct."
+    "**Val Accuracy / Val MAE** are from walk-forward cross-validation during training — "
+    "these will be replaced by live production accuracy once the daily pipeline scores predictions."
 )
 
 # ---------------------------------------------------------------------------
@@ -109,6 +126,43 @@ elif pd.notna(overfit_gap) and overfit_gap > 0.03:
         f"**Overfitting Watch**: Train-validation gap is {overfit_gap:.1%}. "
         f"Not yet critical, but approaching the 5% threshold."
     )
+
+# ---------------------------------------------------------------------------
+# All active models summary
+# ---------------------------------------------------------------------------
+
+st.subheader("Active Models")
+
+if len(active_models) > 1:
+    summary_rows = []
+    for _, m in active_models.iterrows():
+        row = {
+            "Model": m.get("model_type", ""),
+            "Version": m.get("model_version", ""),
+            "Games": int(m["training_games"]) if pd.notna(m.get("training_games")) else None,
+        }
+        # Show primary metric per model type
+        if m.get("model_type") == "game_winner":
+            brier_val = m.get("val_brier_score")
+            acc_val = m.get("val_accuracy")
+            row["Primary Metric"] = f"Brier: {brier_val:.4f}" if pd.notna(brier_val) else "—"
+            row["Secondary"] = f"Acc: {acc_val:.1%}" if pd.notna(acc_val) else "—"
+        else:
+            mae_val = m.get("val_mae")
+            rmse_val = m.get("val_rmse")
+            row["Primary Metric"] = f"MAE: {mae_val:.3f}" if pd.notna(mae_val) else "—"
+            row["Secondary"] = f"RMSE: {rmse_val:.3f}" if pd.notna(rmse_val) else "—"
+        gap = m.get("overfit_gap")
+        row["Overfit Gap"] = f"{gap:.1%}" if pd.notna(gap) else "—"
+        summary_rows.append(row)
+
+    st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
+    st.caption(
+        "Summary of all active models. **Primary Metric** is Brier score for game_winner "
+        "(lower = better) and MAE for spread/totals (lower = better)."
+    )
+else:
+    st.info("Only one active model — additional models will appear here after training.")
 
 # ---------------------------------------------------------------------------
 # Accuracy trend (rolling 7-day)
