@@ -1,9 +1,10 @@
 import { Image } from 'expo-image';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   Platform,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -12,6 +13,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Animated, { FadeInDown, FadeInRight, FadeInUp } from 'react-native-reanimated';
+import { getTeamColors } from '../../constants/teamColors';
 import { Ionicons } from '@expo/vector-icons';
 import CompactPlayerRow from '../../components/CompactPlayerRow';
 import ElevatedPlayerRow from '../../components/ElevatedPlayerRow';
@@ -28,11 +31,11 @@ import {
 } from '../../services/playerLeaders';
 import {
   getTrendingPlayers,
+  getLeagueLeaders,
   getPlayerProjections,
   getLeaderTrends,
   getTrendingGoalies,
   batchGetHitRates,
-  getPlayerL10GameStats,
   clearTrendsCache,
   type TrendingPlayer,
   type TrendingGoalie,
@@ -40,30 +43,14 @@ import {
   type LeaderTrend,
   type StatCategory,
   type HitRateResult,
-  type L10GameStat,
 } from '../../services/playerTrends';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const STAT_CATEGORIES: { key: StatCategory; label: string }[] = [
-  { key: 'goals', label: 'Goals' },
-  { key: 'assists', label: 'Assists' },
-  { key: 'points', label: 'Points' },
-  { key: 'shots', label: 'Shots' },
-];
-
-type PositionFilter = 'ALL' | 'F' | 'D' | 'G';
-const POSITION_FILTERS: { key: PositionFilter; label: string }[] = [
-  { key: 'ALL', label: 'All' },
-  { key: 'F', label: 'F' },
-  { key: 'D', label: 'D' },
-  { key: 'G', label: 'G' },
-];
-
-const FORWARD_POSITIONS = new Set(['C', 'LW', 'RW', 'L', 'R']);
 const SEARCH_DEBOUNCE_MS = 300;
+const DEFAULT_STAT_CATEGORY: StatCategory = 'points';
 const SEARCH_ROW_HEIGHT = 64;
 
 // ---------------------------------------------------------------------------
@@ -73,11 +60,11 @@ const SEARCH_ROW_HEIGHT = 64;
 export default function PlayersScreen() {
   const analytics = useAnalytics('PlayersTab');
 
-  // State -- filters
-  const [statCategory, setStatCategory] = useState<StatCategory>('points');
-  const [positionFilter, setPositionFilter] = useState<PositionFilter>('ALL');
+  // Stat category is fixed to points (no selector)
+  const statCategory = DEFAULT_STAT_CATEGORY;
 
-  // State — trending players
+  // State — trending players & league leaders
+  const [leagueLeaders, setLeagueLeaders] = useState<TrendingPlayer[]>([]);
   const [trendingUp, setTrendingUp] = useState<TrendingPlayer[]>([]);
   const [trendingDown, setTrendingDown] = useState<TrendingPlayer[]>([]);
   const [projections, setProjections] = useState<PlayerProjection[]>([]);
@@ -86,9 +73,8 @@ export default function PlayersScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // State — hit rates and L10 stats (loaded per-player)
+  // State — hit rates (loaded per-player)
   const [hitRates, setHitRates] = useState<Map<number, HitRateResult>>(new Map());
-  const [l10Stats, setL10Stats] = useState<Map<number, L10GameStat[]>>(new Map());
 
   // State — search
   const [searchQuery, setSearchQuery] = useState('');
@@ -108,19 +94,7 @@ export default function PlayersScreen() {
     };
   }, []);
 
-  // ---------------------------------------------------------------------------
-  // Filtered data (apply position filter in JS)
-  // ---------------------------------------------------------------------------
-
-  const filterByPosition = useCallback((players: TrendingPlayer[]): TrendingPlayer[] => {
-    if (positionFilter === 'ALL' || positionFilter === 'G') return players;
-    if (positionFilter === 'F') return players.filter(p => FORWARD_POSITIONS.has(p.position));
-    if (positionFilter === 'D') return players.filter(p => p.position === 'D');
-    return players;
-  }, [positionFilter]);
-
-  const filteredUp = useMemo(() => filterByPosition(trendingUp), [trendingUp, filterByPosition]);
-  const filteredDown = useMemo(() => filterByPosition(trendingDown), [trendingDown, filterByPosition]);
+  // No position filtering — show all positions in unified feed
 
   // ---------------------------------------------------------------------------
   // Data loading
@@ -128,19 +102,27 @@ export default function PlayersScreen() {
 
   const loadTrendingData = useCallback(async () => {
     try {
-      const [up, down, tonight, goalies] = await Promise.all([
+      // Step 1: Leaders first (most visible, queries skater_trend_summary VIEW)
+      const leaders = await getLeagueLeaders(statCategory, 10);
+      setLeagueLeaders(leaders);
+
+      // Step 2: Trending + goalies (sequential to avoid VIEW query overload)
+      const [up, down, goalies] = await Promise.all([
         getTrendingPlayers('up', 10),
-        getTrendingPlayers('down', 10),
-        getPlayerProjections(15),
+        getTrendingPlayers('down', 5),
         getTrendingGoalies('up', 3),
       ]);
       setTrendingUp(up);
       setTrendingDown(down);
-      setProjections(tonight);
       setTrendingGoalies(goalies);
 
-      // Batch-load hit rates, L10 stats, and leader trends for ALL visible players
+      // Step 3: Projections (calls getPlayersPlayingTonight which also hits the VIEW)
+      const tonight = await getPlayerProjections(15);
+      setProjections(tonight);
+
+      // Step 4: Supplementary data (hit rates, L10 stats, leader trends)
       const allPlayerIds = [
+        ...leaders.map(p => p.playerId),
         ...tonight.map(p => p.playerId),
         ...up.map(p => p.playerId),
         ...down.map(p => p.playerId),
@@ -148,23 +130,11 @@ export default function PlayersScreen() {
       const uniqueIds = [...new Set(allPlayerIds)];
 
       if (uniqueIds.length > 0) {
-        // Load hit rates, L10 stats, and leader trends in parallel
-        const [rates, l10Map, trends] = await Promise.all([
+        const [rates, trends] = await Promise.all([
           batchGetHitRates(uniqueIds, statCategory),
-          (async () => {
-            const map = new Map<number, L10GameStat[]>();
-            await Promise.all(
-              uniqueIds.map(async (id) => {
-                const stats = await getPlayerL10GameStats(id, statCategory);
-                if (stats.length > 0) map.set(id, stats);
-              }),
-            );
-            return map;
-          })(),
-          getLeaderTrends(up.map(p => p.playerId)),
+          getLeaderTrends(leaders.map(p => p.playerId)),
         ]);
         setHitRates(rates);
-        setL10Stats(l10Map);
         setLeaderTrends(trends);
       }
     } catch (err) {
@@ -172,7 +142,7 @@ export default function PlayersScreen() {
     }
   }, [statCategory]);
 
-  // Initial load + reload on stat category change
+  // Initial load
   useEffect(() => {
     let mounted = true;
     async function load() {
@@ -196,16 +166,6 @@ export default function PlayersScreen() {
   // ---------------------------------------------------------------------------
   // Handlers
   // ---------------------------------------------------------------------------
-
-  const handleStatCategoryChange = useCallback((cat: StatCategory) => {
-    setStatCategory(cat);
-    analytics.trackCustomEvent('players_stat_category', { category: cat });
-  }, [analytics]);
-
-  const handlePositionFilterChange = useCallback((pos: PositionFilter) => {
-    setPositionFilter(pos);
-    analytics.trackCustomEvent('players_position_filter', { position: pos });
-  }, [analytics]);
 
   const handlePlayerTap = useCallback((playerId: number) => {
     setSelectedPlayerId(playerId);
@@ -303,7 +263,6 @@ export default function PlayersScreen() {
       <ThemedView style={styles.container} testID="players-tab">
         <View style={styles.header}>
           <Text style={styles.title}>Players</Text>
-          <Text style={styles.subtitle}>Edge Finder</Text>
         </View>
 
         <View style={styles.searchContainerActive}>
@@ -374,7 +333,6 @@ export default function PlayersScreen() {
         <View style={styles.headerRow}>
           <View>
             <Text style={styles.title}>Players</Text>
-            <Text style={styles.subtitle}>Edge Finder</Text>
           </View>
           <TouchableOpacity
             style={styles.searchButton}
@@ -398,101 +356,126 @@ export default function PlayersScreen() {
           />
         }
       >
-        {/* Stat category selector */}
-        <View style={styles.categorySelector}>
-          {STAT_CATEGORIES.map(cat => {
-            const isActive = statCategory === cat.key;
-            return (
-              <TouchableOpacity
-                key={cat.key}
-                testID={`stat-cat-${cat.key}`}
-                style={[styles.categoryPill, isActive && styles.categoryPillActive]}
-                onPress={() => handleStatCategoryChange(cat.key)}
-              >
-                <Text style={[styles.categoryText, isActive && styles.categoryTextActive]}>
-                  {cat.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {/* Position filter pills */}
-        <View style={styles.filterRow}>
-          {POSITION_FILTERS.map(pf => {
-            const isActive = positionFilter === pf.key;
-            return (
-              <TouchableOpacity
-                key={pf.key}
-                testID={`pos-filter-${pf.key}`}
-                style={[styles.positionPill, isActive && styles.positionPillActive]}
-                onPress={() => handlePositionFilterChange(pf.key)}
-              >
-                <Text style={[styles.positionPillText, isActive && styles.positionPillTextActive]}>
-                  {pf.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={theme.accent} />
-            <Text style={styles.loadingText}>Finding edges...</Text>
+            <Text style={styles.loadingText}>Loading players...</Text>
           </View>
         ) : (
           <>
+            {/* SPOTLIGHT — players outperforming their season averages */}
+            {trendingUp.length >= 3 && (
+              <Animated.View entering={FadeInDown.duration(400)}>
+                {renderSectionHeader('SPOTLIGHT')}
+                <Text style={styles.spotlightSubtitle}>Outperforming their season averages</Text>
+                <FlatList
+                  horizontal
+                  data={trendingUp.slice(0, 8)}
+                  keyExtractor={item => `spotlight-${item.playerId}`}
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.spotlightList}
+                  renderItem={({ item, index }) => {
+                    const tc = getTeamColors(item.teamAbbrev);
+                    // Show how much they're above season avg
+                    const seasonPpg = item.gamesPlayed > 0 ? item.seasonPoints / item.gamesPlayed : 0;
+                    const recentPpg = item.avgPoints5g;
+                    const aboveAvgPct = seasonPpg > 0 ? Math.round(((recentPpg - seasonPpg) / seasonPpg) * 100) : 0;
+                    return (
+                      <Animated.View entering={FadeInRight.duration(300).delay(index * 80)}>
+                        <Pressable
+                          onPress={() => handlePlayerTap(item.playerId)}
+                          style={({ pressed }) => [
+                            styles.spotlightCard,
+                            { borderTopColor: tc.primary, borderTopWidth: 3 },
+                            pressed && { transform: [{ scale: 0.95 }], opacity: 0.9 },
+                          ]}
+                        >
+                          <View style={styles.spotlightInner}>
+                            <View style={styles.spotlightHeader}>
+                              <Image
+                                source={{ uri: item.headshotUrl }}
+                                style={[styles.spotlightHeadshot, { borderColor: tc.primary + '66' }]}
+                                contentFit="cover"
+                                cachePolicy="memory-disk"
+                                recyclingKey={`spot-${item.playerId}`}
+                              />
+                            </View>
+                            <Text style={styles.spotlightName} numberOfLines={1}>
+                              {item.firstName.charAt(0)}. {item.lastName}
+                            </Text>
+                            <Text style={[styles.spotlightTeam, { color: tc.primary }]}>
+                              {item.teamAbbrev} · {item.position}
+                            </Text>
+                            <Text style={styles.spotlightBigStat}>{item.seasonPoints}</Text>
+                            <Text style={styles.spotlightStatLabel}>Points</Text>
+                            {aboveAvgPct > 15 && (
+                              <View style={styles.spotlightAboveAvg}>
+                                <Ionicons name="trending-up" size={10} color={theme.semantic.positive} />
+                                <Text style={styles.spotlightAboveAvgText}>
+                                  +{aboveAvgPct > 99 ? '99' : aboveAvgPct}% vs avg
+                                </Text>
+                              </View>
+                            )}
+                            {item.pointStreak >= 3 && (
+                              <View style={styles.spotlightStreakRow}>
+                                <Ionicons name="flame" size={10} color="#f97316" />
+                                <Text style={styles.spotlightStreak}>{item.pointStreak}g point streak</Text>
+                              </View>
+                            )}
+                          </View>
+                        </Pressable>
+                      </Animated.View>
+                    );
+                  }}
+                />
+              </Animated.View>
+            )}
+
             {/* TONIGHT'S EDGE section — projection cards */}
             {projections.length > 0 && (
-              <View style={styles.section}>
+              <Animated.View entering={FadeInDown.duration(400).delay(100)} style={styles.section}>
                 {renderSectionHeader("TONIGHT'S EDGE")}
-                {projections.slice(0, 10).map(proj => (
-                  <PlayerProjectionCard
-                    key={proj.playerId}
-                    projection={proj}
-                    featuredStats={[statCategory]}
-                    onPress={handlePlayerTap}
-                  />
+                {projections.slice(0, 10).map((proj, i) => (
+                  <Animated.View key={proj.playerId} entering={FadeInUp.duration(400).delay(i * 80)}>
+                    <PlayerProjectionCard
+                      projection={proj}
+                      featuredStats={[statCategory]}
+                      onPress={handlePlayerTap}
+                    />
+                  </Animated.View>
                 ))}
-              </View>
+              </Animated.View>
             )}
 
-            {/* No games today fallback */}
-            {projections.length === 0 && !loading && (
-              <View style={styles.noGamesContainer}>
-                <Ionicons name="calendar-outline" size={28} color={theme.subtext} />
-                <Text style={styles.noGamesText}>No games scheduled today</Text>
-              </View>
-            )}
-
-            {/* LEAGUE LEADERS -- tiered layout */}
-            {filteredUp.length > 0 && positionFilter !== 'G' && (
-              <View style={styles.section}>
+            {/* LEAGUE LEADERS -- tiered layout, sorted by actual stats */}
+            {leagueLeaders.length > 0 && (
+              <Animated.View entering={FadeInUp.duration(400).delay(100)} style={styles.section}>
                 {renderSectionHeader('LEAGUE LEADERS')}
                 {/* Hero card: #1 player */}
-                <HeroLeaderCard
-                  player={filteredUp[0]}
-                  leaderTrend={leaderTrends.get(filteredUp[0].playerId)}
-                  hitRate={hitRates.get(filteredUp[0].playerId)}
-                  statCategory={statCategory}
-                  onPress={handlePlayerTap}
-                />
-                {/* Elevated rows: #2-5 */}
-                {filteredUp.slice(1, 5).map((player, i) => (
-                  <ElevatedPlayerRow
-                    key={player.playerId}
-                    player={player}
-                    rank={i + 2}
-                    hitRate={hitRates.get(player.playerId)}
+                <Animated.View entering={FadeInUp.duration(400).delay(180)}>
+                  <HeroLeaderCard
+                    player={leagueLeaders[0]}
+                    leaderTrend={leaderTrends.get(leagueLeaders[0].playerId)}
                     statCategory={statCategory}
                     onPress={handlePlayerTap}
                   />
+                </Animated.View>
+                {/* Elevated rows: #2-5 */}
+                {leagueLeaders.slice(1, 5).map((player, i) => (
+                  <Animated.View key={player.playerId} entering={FadeInUp.duration(400).delay(260 + i * 80)}>
+                    <ElevatedPlayerRow
+                      player={player}
+                      rank={i + 2}
+                      hitRate={hitRates.get(player.playerId)}
+                      statCategory={statCategory}
+                      onPress={handlePlayerTap}
+                    />
+                  </Animated.View>
                 ))}
                 {/* Compact rows: #6-10 */}
-                {filteredUp.length > 5 && (
-                  <View style={styles.compactContainer}>
-                    {filteredUp.slice(5, 10).map((player, i) => (
+                {leagueLeaders.length > 5 && (
+                  <Animated.View entering={FadeInUp.duration(400).delay(580)} style={styles.compactContainer}>
+                    {leagueLeaders.slice(5, 10).map((player, i) => (
                       <CompactPlayerRow
                         key={player.playerId}
                         player={player}
@@ -501,40 +484,44 @@ export default function PlayersScreen() {
                         onPress={handlePlayerTap}
                       />
                     ))}
-                  </View>
+                  </Animated.View>
                 )}
-              </View>
+              </Animated.View>
             )}
 
-            {/* GOALIE SPOTLIGHT */}
-            {trendingGoalies.length > 0 && positionFilter !== 'F' && positionFilter !== 'D' && (
-              <View style={styles.section}>
+            {/* TRENDING HOT section removed — SPOTLIGHT above covers these players */}
+
+            {/* GOALIE SPOTLIGHT — always show when goalies available */}
+            {trendingGoalies.length > 0 && (
+              <Animated.View entering={FadeInUp.duration(400).delay(300)} style={styles.section}>
                 {renderSectionHeader('GOALIE SPOTLIGHT')}
                 <GoalieSpotlightCard
                   goalie={trendingGoalies[0]}
                   onPress={handlePlayerTap}
                 />
-              </View>
+              </Animated.View>
             )}
 
-            {/* STREAKING LESS section */}
-            {filteredDown.length > 0 && positionFilter !== 'G' && (
-              <View style={styles.section}>
-                {renderSectionHeader('STREAKING LESS')}
-                {filteredDown.slice(0, 5).map((player, i) => (
-                  <CompactPlayerRow
-                    key={player.playerId}
-                    player={player}
-                    rank={i + 1}
-                    statCategory={statCategory}
-                    onPress={handlePlayerTap}
-                  />
-                ))}
-              </View>
+            {/* COOLING DOWN section */}
+            {trendingDown.length > 0 && (
+              <Animated.View entering={FadeInUp.duration(400).delay(300)} style={styles.section}>
+                {renderSectionHeader('COOLING DOWN')}
+                <View style={styles.compactContainer}>
+                  {trendingDown.slice(0, 5).map((player, i) => (
+                    <CompactPlayerRow
+                      key={player.playerId}
+                      player={player}
+                      rank={i + 1}
+                      statCategory={statCategory}
+                      onPress={handlePlayerTap}
+                    />
+                  ))}
+                </View>
+              </Animated.View>
             )}
 
             {/* Empty state */}
-            {trendingUp.length === 0 && trendingDown.length === 0 && projections.length === 0 && (
+            {leagueLeaders.length === 0 && trendingUp.length === 0 && projections.length === 0 && (
               <View style={styles.emptyContainer}>
                 <Ionicons name="trending-up" size={48} color={theme.subtext} />
                 <Text style={styles.emptyTitle}>No Trend Data Available</Text>
@@ -584,12 +571,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: theme.text,
   },
-  subtitle: {
-    fontSize: 14,
-    color: theme.accent,
-    fontWeight: '600',
-    marginTop: 4,
-  },
   searchButton: {
     padding: 8,
     marginTop: 4,
@@ -604,60 +585,6 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 16,
     paddingBottom: 20,
-  },
-  // Category selector
-  categorySelector: {
-    flexDirection: 'row',
-    backgroundColor: theme.card,
-    borderRadius: 10,
-    padding: 3,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  categoryPill: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8,
-  },
-  categoryPillActive: {
-    backgroundColor: theme.accent,
-  },
-  categoryText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: theme.subtext,
-  },
-  categoryTextActive: {
-    color: theme.text,
-    fontWeight: '700',
-  },
-  // Position filter
-  filterRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 16,
-  },
-  positionPill: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-  },
-  positionPillActive: {
-    backgroundColor: theme.accent + '22',
-    borderColor: theme.accent,
-  },
-  positionPillText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: theme.subtext,
-  },
-  positionPillTextActive: {
-    color: theme.accent,
   },
   // Section
   section: {
@@ -680,6 +607,112 @@ const styles = StyleSheet.create({
     borderRadius: 1,
     marginTop: 4,
     opacity: 0.6,
+  },
+  // Spotlight horizontal scroll
+  spotlightSubtitle: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: theme.subtext,
+    marginBottom: 8,
+  },
+  spotlightList: {
+    paddingBottom: 4,
+    gap: 12,
+  },
+  spotlightCard: {
+    width: 140,
+    height: 210,
+    backgroundColor: theme.card,
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  spotlightInner: {
+    flex: 1,
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+  },
+  spotlightHeader: {
+    position: 'relative',
+    marginBottom: 8,
+  },
+  spotlightHeadshot: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: theme.subtle,
+    borderWidth: 2,
+  },
+  spotlightRank: {
+    position: 'absolute',
+    bottom: -2,
+    right: -6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  spotlightRankText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#fff',
+    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+  },
+  spotlightName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: theme.text,
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  spotlightTeam: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  spotlightBigStat: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: theme.text,
+    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+    fontVariant: ['tabular-nums'] as any,
+  },
+  spotlightStatLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: theme.subtext,
+    letterSpacing: 0.8,
+    marginBottom: 4,
+  },
+  spotlightAboveAvg: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    marginTop: 3,
+    backgroundColor: 'rgba(34, 197, 94, 0.12)',
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+  },
+  spotlightAboveAvgText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: theme.semantic.positive,
+  },
+  spotlightStreakRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    marginTop: 3,
+  },
+  spotlightStreak: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: '#f97316',
   },
   // Compact rows container
   compactContainer: {
@@ -773,23 +806,5 @@ const styles = StyleSheet.create({
     color: theme.subtext,
     textAlign: 'center',
     paddingHorizontal: 24,
-  },
-  // No games fallback
-  noGamesContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 16,
-    marginBottom: 12,
-    backgroundColor: theme.card,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-  },
-  noGamesText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.subtext,
   },
 });

@@ -180,9 +180,9 @@ const mockLeaderPace = [
 
 // Supplementary data fixtures for skater_hot_cold and skater_rolling_stats
 const mockSkaterHotColdSupp = [
-  { player_id: 8478402, recent_gpg: 0.8, season_gpg: 0.55, recent_shots: 5.4, season_shots: 4.1 },
-  { player_id: 8479318, recent_gpg: 0.7, season_gpg: 0.5, recent_shots: 4.2, season_shots: 3.8 },
-  { player_id: 8476453, recent_gpg: 0.0, season_gpg: 0.2, recent_shots: 1.0, season_shots: 2.0 },
+  { player_id: 8478402, recent_gpg: 0.8, season_gpg: 0.55 },
+  { player_id: 8479318, recent_gpg: 0.7, season_gpg: 0.5 },
+  { player_id: 8476453, recent_gpg: 0.0, season_gpg: 0.2 },
 ];
 
 const mockSkaterRollingSupp = [
@@ -314,8 +314,8 @@ describe('getTrendingPlayers', () => {
     // Supplementary fields from skater_hot_cold
     expect(player.recentGpg).toBe(0.8);
     expect(player.seasonGpg).toBe(0.55);
-    expect(player.recentShotsPerGame).toBe(5.4);
-    expect(player.seasonShotsPerGame).toBe(4.1);
+    expect(player.recentShotsPerGame).toBe(5.4); // from rolling avg_shots_5g
+    expect(player.seasonShotsPerGame).toBe(0);
   });
 
   it('handles null headshot_url (maps to undefined)', async () => {
@@ -367,9 +367,11 @@ describe('getTrendingPlayers', () => {
       headshot_url: null,
       team_abbrev: null,
       position: null,
-      trend_label: null,
+      trend_label: 'HOT',
       hot_cold_score: null,
       point_streak: null,
+      season_points: 50,
+      season_ppg: 1.0,
     };
     mockTrendResult = { data: [minimalRow], error: null };
 
@@ -378,7 +380,7 @@ describe('getTrendingPlayers', () => {
     expect(result[0].playerName).toBe('');
     expect(result[0].teamAbbrev).toBe('');
     expect(result[0].position).toBe('');
-    expect(result[0].trendLabel).toBe('STEADY');
+    expect(result[0].trendLabel).toBe('HOT');
     expect(result[0].hotColdScore).toBe(0);
     expect(result[0].pointStreak).toBe(0);
   });
@@ -922,7 +924,7 @@ describe('_internals', () => {
   });
 
   it('mapTrendingPlayer uses gpgMap and rollingMap when provided', () => {
-    const gpgMap = new Map([[1, { recentGpg: 0.9, seasonGpg: 0.6, recentShots: 5.0, seasonShots: 4.0 }]]);
+    const gpgMap = new Map([[1, { recentGpg: 0.9, seasonGpg: 0.6 }]]);
     const rollingMap = new Map([[1, { avgShots5g: 6.0, avgAssists5g: 2.0 }]]);
 
     const mapped = _internals.mapTrendingPlayer(
@@ -935,8 +937,8 @@ describe('_internals', () => {
     expect(mapped.seasonGpg).toBe(0.6);
     expect(mapped.avgShots5g).toBe(6.0);
     expect(mapped.avgAssists5g).toBe(2.0);
-    expect(mapped.recentShotsPerGame).toBe(5.0);
-    expect(mapped.seasonShotsPerGame).toBe(4.0);
+    expect(mapped.recentShotsPerGame).toBe(6.0); // from rolling avgShots5g
+    expect(mapped.seasonShotsPerGame).toBe(0);
   });
 
   it('mapTrendingPlayer defaults supplementary fields to 0 without maps', () => {

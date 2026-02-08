@@ -4,7 +4,7 @@
  */
 
 import React, { useCallback, useMemo } from 'react';
-import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { theme } from '../constants/theme';
 import { getTeamColors } from '../constants/teamColors';
@@ -35,21 +35,13 @@ export default React.memo(function CompactPlayerRow({
   const teamColors = useMemo(() => getTeamColors(player.teamAbbrev), [player.teamAbbrev]);
   const trendColor = TREND_COLORS[player.trendLabel] || theme.accent;
 
-  const statValue = useMemo(() => {
-    switch (statCategory) {
-      case 'goals': return player.avgGoals5g.toFixed(2);
-      case 'assists': return player.avgAssists5g.toFixed(2);
-      case 'points': return player.avgPoints5g.toFixed(2);
-      case 'shots': return player.avgShots5g.toFixed(1);
-      default: return '0';
-    }
-  }, [player, statCategory]);
+  // Always points-focused
+  const goalsAssists = `${player.seasonGoals}G · ${player.seasonAssists}A`;
 
   return (
-    <TouchableOpacity
-      style={styles.row}
+    <Pressable
+      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
       onPress={handlePress}
-      activeOpacity={0.7}
       testID={`compact-row-${player.playerId}`}
     >
       <Text style={[styles.rankNumber, { color: teamColors.primary }]}>{rank}</Text>
@@ -64,13 +56,16 @@ export default React.memo(function CompactPlayerRow({
 
       <Text style={styles.playerName} numberOfLines={1}>{player.lastName}</Text>
       <Text style={styles.teamAbbrev}>{player.teamAbbrev}</Text>
+      <Text style={styles.goalsAssists}>{goalsAssists}</Text>
 
-      <View style={[styles.trendPill, { backgroundColor: trendColor + '22' }]}>
-        <Text style={[styles.trendText, { color: trendColor }]}>{player.trendLabel}</Text>
-      </View>
+      {player.trendLabel !== 'STEADY' && (
+        <View style={[styles.trendPill, { backgroundColor: trendColor + '22' }]}>
+          <Text style={[styles.trendText, { color: trendColor }]}>{player.trendLabel}</Text>
+        </View>
+      )}
 
-      <Text style={styles.statValue}>{statValue}</Text>
-    </TouchableOpacity>
+      <Text style={styles.statValue}>{player.seasonPoints}</Text>
+    </Pressable>
   );
 });
 
@@ -82,6 +77,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.04)',
+  },
+  rowPressed: {
+    transform: [{ scale: 0.97 }],
+    opacity: 0.9,
   },
   rankNumber: {
     fontSize: 13,
@@ -109,6 +108,13 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: theme.subtext,
+    marginRight: 6,
+  },
+  goalsAssists: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: theme.accent,
+    letterSpacing: 0.3,
     marginRight: 8,
   },
   trendPill: {

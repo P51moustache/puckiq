@@ -54,6 +54,21 @@ export interface TrendingPlayer {
   // Per-game shot averages (from skater_hot_cold)
   recentShotsPerGame: number;
   seasonShotsPerGame: number;
+  // Pace projections (from skater_trend_summary)
+  projectedGoals82?: number;
+  projectedPoints82?: number;
+  goalsPerGame?: number;
+  pointsPerGame?: number;
+  // Advanced stats (from skater_trend_summary)
+  corsiPct5g?: number;
+  seasonCorsiPct?: number;
+  pdo5g?: number;
+  seasonPdo?: number;
+  // Extra rolling (from skater_rolling_stats)
+  avgHits5g?: number;
+  avgPlusMinus5g?: number;
+  totalPoints5g?: number;
+  totalPoints10g?: number;
   // Matchup (populated for tonight's players)
   matchup?: {
     opponent: string;
@@ -313,32 +328,38 @@ export async function getTrendingPlayers(
     // - avg_shots_5g/avg_assists_5g from skater_rolling_stats
     const playerIds = rows.map((r: any) => r.player_id);
     const [hcRes, rollingRes] = await Promise.all([
-      supabase.from('skater_hot_cold').select('player_id, recent_gpg, season_gpg, recent_shots, season_shots').in('player_id', playerIds),
-      supabase.from('skater_rolling_stats').select('player_id, avg_shots_5g, avg_assists_5g').in('player_id', playerIds),
+      supabase.from('skater_hot_cold').select('player_id, recent_gpg, season_gpg').in('player_id', playerIds),
+      supabase.from('skater_rolling_stats').select('player_id, avg_shots_5g, avg_assists_5g, avg_hits_5g, avg_pm_5g').in('player_id', playerIds),
     ]);
 
-    const gpgMap = new Map<number, { recentGpg: number; seasonGpg: number; recentShots: number; seasonShots: number }>();
+    const gpgMap = new Map<number, { recentGpg: number; seasonGpg: number }>();
     if (hcRes.data) {
       for (const hc of hcRes.data) {
         gpgMap.set(hc.player_id, {
           recentGpg: hc.recent_gpg ?? 0,
           seasonGpg: hc.season_gpg ?? 0,
-          recentShots: hc.recent_shots ?? 0,
-          seasonShots: hc.season_shots ?? 0,
         });
       }
     }
 
-    const rollingMap = new Map<number, { avgShots5g: number; avgAssists5g: number }>();
+    const rollingMap = new Map<number, { avgShots5g: number; avgAssists5g: number; avgHits5g?: number; avgPlusMinus5g?: number }>();
     if (rollingRes.data) {
       for (const r of rollingRes.data) {
-        rollingMap.set(r.player_id, { avgShots5g: r.avg_shots_5g ?? 0, avgAssists5g: r.avg_assists_5g ?? 0 });
+        rollingMap.set(r.player_id, {
+          avgShots5g: r.avg_shots_5g ?? 0,
+          avgAssists5g: r.avg_assists_5g ?? 0,
+          avgHits5g: r.avg_hits_5g ?? 0,
+          avgPlusMinus5g: r.avg_pm_5g ?? 0,
+        });
       }
     }
 
-    const players = rows.map((row: any) => mapTrendingPlayer(row, gpgMap, rollingMap));
+    const allPlayers = rows.map((row: any) => mapTrendingPlayer(row, gpgMap, rollingMap));
+    // Filter out players whose trend label was reset to STEADY by the volume filter
+    const expectedLabels = direction === 'up' ? ['HOT', 'WARM'] : ['COLD', 'COOL'];
+    const players = allPlayers.filter(p => expectedLabels.includes(p.trendLabel));
     setCache(cacheKey, players);
-    console.log(`[PLAYER TRENDS] Loaded ${players.length} trending ${direction} players`);
+    console.log(`[PLAYER TRENDS] Loaded ${players.length} trending ${direction} players (${allPlayers.length - players.length} filtered by volume)`);
     return players;
   } catch (err) {
     console.error('[PLAYER TRENDS] Error fetching trending players:', err);
@@ -477,26 +498,29 @@ export async function getPlayersPlayingTonight(
     // Batch-fetch supplementary data
     const playerIds = rows.map((r: any) => r.player_id);
     const [hcRes, rollingRes] = await Promise.all([
-      supabase.from('skater_hot_cold').select('player_id, recent_gpg, season_gpg, recent_shots, season_shots').in('player_id', playerIds),
-      supabase.from('skater_rolling_stats').select('player_id, avg_shots_5g, avg_assists_5g').in('player_id', playerIds),
+      supabase.from('skater_hot_cold').select('player_id, recent_gpg, season_gpg').in('player_id', playerIds),
+      supabase.from('skater_rolling_stats').select('player_id, avg_shots_5g, avg_assists_5g, avg_hits_5g, avg_pm_5g').in('player_id', playerIds),
     ]);
 
-    const gpgMap = new Map<number, { recentGpg: number; seasonGpg: number; recentShots: number; seasonShots: number }>();
+    const gpgMap = new Map<number, { recentGpg: number; seasonGpg: number }>();
     if (hcRes.data) {
       for (const hc of hcRes.data) {
         gpgMap.set(hc.player_id, {
           recentGpg: hc.recent_gpg ?? 0,
           seasonGpg: hc.season_gpg ?? 0,
-          recentShots: hc.recent_shots ?? 0,
-          seasonShots: hc.season_shots ?? 0,
         });
       }
     }
 
-    const rollingMap = new Map<number, { avgShots5g: number; avgAssists5g: number }>();
+    const rollingMap = new Map<number, { avgShots5g: number; avgAssists5g: number; avgHits5g?: number; avgPlusMinus5g?: number }>();
     if (rollingRes.data) {
       for (const r of rollingRes.data) {
-        rollingMap.set(r.player_id, { avgShots5g: r.avg_shots_5g ?? 0, avgAssists5g: r.avg_assists_5g ?? 0 });
+        rollingMap.set(r.player_id, {
+          avgShots5g: r.avg_shots_5g ?? 0,
+          avgAssists5g: r.avg_assists_5g ?? 0,
+          avgHits5g: r.avg_hits_5g ?? 0,
+          avgPlusMinus5g: r.avg_pm_5g ?? 0,
+        });
       }
     }
 
@@ -710,16 +734,166 @@ export async function batchGetHitRates(
 }
 
 // ---------------------------------------------------------------------------
+// getLeagueLeaders — sorted by actual stat totals
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch actual stat leaders. Uses skater_season_stats (fast indexed table)
+ * for ranking, then enriches with trend/rolling/pace data from smaller tables.
+ * Avoids skater_trend_summary which times out on ordered/filtered queries.
+ */
+export async function getLeagueLeaders(
+  statCategory: StatCategory,
+  limit: number = 10,
+): Promise<TrendingPlayer[]> {
+  const cacheKey = `leaders:${statCategory}:${limit}`;
+  const cached = getCached<TrendingPlayer[]>(cacheKey);
+  if (cached) return cached;
+
+  try {
+    // Step 1: Get leader rankings from skater_season_stats (fast indexed table)
+    const SORT_COLUMN: Record<StatCategory, string> = {
+      goals: 'goals',
+      assists: 'assists',
+      points: 'points',
+      shots: 'shots',
+    };
+
+    const { data: leaderRows, error: leaderErr } = await supabase
+      .from('skater_season_stats')
+      .select('player_id, games_played, points, goals, assists, team_abbrev, position, shooting_pctg, shots')
+      .gt('games_played', 15)
+      .order(SORT_COLUMN[statCategory], { ascending: false })
+      .limit(limit);
+
+    if (leaderErr || !leaderRows?.length) {
+      console.warn('[PLAYER TRENDS] getLeagueLeaders error:', leaderErr?.message || 'no rows');
+      return [];
+    }
+
+    // Step 2: Enrich with trend, rolling, pace, and player name data (all fast tables)
+    const playerIds = leaderRows.map((r: any) => r.player_id);
+    const [playersRes, hcRes, rollingRes, paceRes] = await Promise.all([
+      supabase.from('players')
+        .select('id, first_name, last_name, headshot_url')
+        .in('id', playerIds),
+      supabase.from('skater_hot_cold')
+        .select('player_id, trend_label, hot_cold_score, point_streak, recent_ppg, season_ppg, recent_gpg, season_gpg, recent_shooting_pct, season_shooting_pct')
+        .in('player_id', playerIds),
+      supabase.from('skater_rolling_stats')
+        .select('player_id, avg_goals_5g, avg_points_5g, avg_assists_5g, avg_shots_5g, avg_goals_10g, avg_points_10g, avg_hits_5g, avg_pm_5g, total_points_5g, total_points_10g')
+        .in('player_id', playerIds),
+      supabase.from('skater_pace_projections')
+        .select('player_id, projected_goals_82, projected_points_82, goals_per_game, points_per_game')
+        .in('player_id', playerIds),
+    ]);
+
+    // Build lookup maps
+    const nameMap = new Map<number, { firstName: string; lastName: string; headshotUrl?: string }>();
+    if (playersRes.data) {
+      for (const p of playersRes.data) {
+        nameMap.set(p.id, { firstName: p.first_name, lastName: p.last_name, headshotUrl: p.headshot_url ?? undefined });
+      }
+    }
+
+    const hcMap = new Map<number, any>();
+    if (hcRes.data) {
+      for (const hc of hcRes.data) hcMap.set(hc.player_id, hc);
+    }
+
+    const rollingMap = new Map<number, any>();
+    if (rollingRes.data) {
+      for (const r of rollingRes.data) rollingMap.set(r.player_id, r);
+    }
+
+    const paceMap = new Map<number, any>();
+    if (paceRes.data) {
+      for (const p of paceRes.data) paceMap.set(p.player_id, p);
+    }
+
+    // Step 3: Assemble TrendingPlayer objects
+    const players: TrendingPlayer[] = leaderRows.map((row: any) => {
+      const info = nameMap.get(row.player_id);
+      const hc = hcMap.get(row.player_id);
+      const rolling = rollingMap.get(row.player_id);
+      const pace = paceMap.get(row.player_id);
+      const gp = row.games_played || 1;
+      const playerName = info ? `${info.firstName} ${info.lastName}` : `Player ${row.player_id}`;
+
+      return {
+        playerId: row.player_id,
+        playerName,
+        firstName: info?.firstName ?? '',
+        lastName: info?.lastName ?? '',
+        headshotUrl: info?.headshotUrl,
+        teamAbbrev: row.team_abbrev || '',
+        position: row.position || '',
+        trendLabel: hc?.trend_label ?? 'STEADY',
+        hotColdScore: hc?.hot_cold_score ?? 0,
+        pointStreak: hc?.point_streak ?? 0,
+        recentPpg: hc?.recent_ppg ?? 0,
+        seasonPpg: hc?.season_ppg ?? (row.points / gp),
+        recentGpg: hc?.recent_gpg ?? 0,
+        seasonGpg: hc?.season_gpg ?? (row.goals / gp),
+        recentShootingPct: hc?.recent_shooting_pct ?? 0,
+        seasonShootingPct: hc?.season_shooting_pct ?? (row.shooting_pctg ?? 0),
+        avgGoals5g: rolling?.avg_goals_5g ?? 0,
+        avgAssists5g: rolling?.avg_assists_5g ?? 0,
+        avgPoints5g: rolling?.avg_points_5g ?? 0,
+        avgShots5g: rolling?.avg_shots_5g ?? 0,
+        avgGoals10g: rolling?.avg_goals_10g ?? 0,
+        avgPoints10g: rolling?.avg_points_10g ?? 0,
+        gamesPlayed: row.games_played ?? 0,
+        seasonGoals: row.goals ?? 0,
+        seasonAssists: row.assists ?? 0,
+        seasonPoints: row.points ?? 0,
+        recentShotsPerGame: rolling?.avg_shots_5g ?? 0,
+        seasonShotsPerGame: row.shots ? row.shots / gp : 0,
+        projectedGoals82: pace?.projected_goals_82 ?? 0,
+        projectedPoints82: pace?.projected_points_82 ?? 0,
+        goalsPerGame: pace?.goals_per_game ?? 0,
+        pointsPerGame: pace?.points_per_game ?? 0,
+        corsiPct5g: 0,
+        seasonCorsiPct: 0,
+        pdo5g: 0,
+        seasonPdo: 0,
+        avgHits5g: rolling?.avg_hits_5g ?? 0,
+        avgPlusMinus5g: rolling?.avg_pm_5g ?? 0,
+        totalPoints5g: rolling?.total_points_5g ?? 0,
+        totalPoints10g: rolling?.total_points_10g ?? 0,
+      };
+    });
+
+    setCache(cacheKey, players);
+    console.log(`[PLAYER TRENDS] Loaded ${players.length} league leaders for ${statCategory}`);
+    return players;
+  } catch (err) {
+    console.error('[PLAYER TRENDS] Error fetching league leaders:', err);
+    return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 function mapTrendingPlayer(
   row: any,
-  gpgMap?: Map<number, { recentGpg: number; seasonGpg: number; recentShots: number; seasonShots: number }>,
-  rollingMap?: Map<number, { avgShots5g: number; avgAssists5g: number }>,
+  gpgMap?: Map<number, { recentGpg: number; seasonGpg: number }>,
+  rollingMap?: Map<number, { avgShots5g: number; avgAssists5g: number; avgHits5g?: number; avgPlusMinus5g?: number }>,
 ): TrendingPlayer {
   const gpg = gpgMap?.get(row.player_id);
   const rolling = rollingMap?.get(row.player_id);
+
+  // Determine trend label, then apply volume filter for low-production players
+  let trendLabel: TrendingPlayer['trendLabel'] = row.trend_label || 'STEADY';
+  const seasonPoints = row.season_points ?? 0;
+  const seasonPpg = row.season_ppg ?? 0;
+  const isLowVolume = seasonPoints < 20 && seasonPpg < 0.3;
+  if (isLowVolume && trendLabel !== 'STEADY') {
+    trendLabel = 'STEADY';
+  }
+
   return {
     playerId: row.player_id,
     playerName: row.player_name || '',
@@ -728,7 +902,7 @@ function mapTrendingPlayer(
     headshotUrl: row.headshot_url ?? undefined,
     teamAbbrev: row.team_abbrev || '',
     position: row.position || '',
-    trendLabel: row.trend_label || 'STEADY',
+    trendLabel,
     hotColdScore: row.hot_cold_score ?? 0,
     pointStreak: row.point_streak ?? 0,
     recentPpg: row.recent_ppg ?? 0,
@@ -747,8 +921,23 @@ function mapTrendingPlayer(
     seasonGoals: row.season_goals ?? 0,
     seasonAssists: row.season_assists ?? 0,
     seasonPoints: row.season_points ?? 0,
-    recentShotsPerGame: gpg?.recentShots ?? 0,
-    seasonShotsPerGame: gpg?.seasonShots ?? 0,
+    recentShotsPerGame: rolling?.avgShots5g ?? 0,
+    seasonShotsPerGame: 0,
+    // Pace projections
+    projectedGoals82: row.projected_goals_82 ?? 0,
+    projectedPoints82: row.projected_points_82 ?? 0,
+    goalsPerGame: row.goals_per_game ?? 0,
+    pointsPerGame: row.points_per_game ?? 0,
+    // Advanced stats
+    corsiPct5g: row.avg_corsi_pct_5g ?? 0,
+    seasonCorsiPct: row.season_corsi_pct ?? 0,
+    pdo5g: row.avg_pdo_5g ?? 0,
+    seasonPdo: row.season_pdo ?? 0,
+    // Extra rolling
+    avgHits5g: rolling?.avgHits5g ?? 0,
+    avgPlusMinus5g: rolling?.avgPlusMinus5g ?? 0,
+    totalPoints5g: row.total_points_5g ?? 0,
+    totalPoints10g: row.total_points_10g ?? 0,
   };
 }
 

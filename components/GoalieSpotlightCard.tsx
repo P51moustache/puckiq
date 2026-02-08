@@ -4,7 +4,7 @@
  */
 
 import React, { useCallback, useMemo } from 'react';
-import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { theme } from '../constants/theme';
 import { getTeamColors } from '../constants/teamColors';
@@ -43,10 +43,9 @@ export default React.memo(function GoalieSpotlightCard({
   };
 
   return (
-    <TouchableOpacity
-      style={[styles.card, { borderLeftColor: teamColors.primary, borderLeftWidth: 4 }]}
+    <Pressable
+      style={({ pressed }) => [styles.card, { borderLeftColor: teamColors.primary, borderLeftWidth: 4 }, pressed && styles.cardPressed]}
       onPress={handlePress}
-      activeOpacity={0.7}
       testID={`goalie-spotlight-${goalie.playerId}`}
     >
       <View style={styles.headerRow}>
@@ -69,7 +68,7 @@ export default React.memo(function GoalieSpotlightCard({
 
       <View style={styles.statsRow}>
         <View style={styles.statItem}>
-          <Text style={styles.statLabel}>L5 SV%</Text>
+          <Text style={styles.statLabel}>LAST 5 SV%</Text>
           <Text style={[
             styles.statValue,
             svPctDiff != null && svPctDiff > 0 && styles.statValueGreen,
@@ -79,11 +78,11 @@ export default React.memo(function GoalieSpotlightCard({
           </Text>
         </View>
         <View style={styles.statItem}>
-          <Text style={styles.statLabel}>SEASON</Text>
+          <Text style={styles.statLabel}>SEASON SV%</Text>
           <Text style={styles.statValue}>{formatPct(goalie.seasonSavePct)}</Text>
         </View>
         <View style={styles.statItem}>
-          <Text style={styles.statLabel}>L5 GAA</Text>
+          <Text style={styles.statLabel}>LAST 5 GAA</Text>
           <Text style={styles.statValue}>{goalie.avgGa5g.toFixed(2)}</Text>
         </View>
         <View style={styles.statItem}>
@@ -91,7 +90,7 @@ export default React.memo(function GoalieSpotlightCard({
           <Text style={styles.statValue}>{goalie.wins}-{goalie.losses}-{goalie.otLosses}</Text>
         </View>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 });
 
@@ -103,6 +102,10 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  cardPressed: {
+    transform: [{ scale: 0.97 }],
+    opacity: 0.9,
   },
   headerRow: {
     flexDirection: 'row',
@@ -164,7 +167,7 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'] as any,
   },
   statValueGreen: {
-    color: '#22c55e',
+    color: theme.semantic.positive,
   },
   statValueRed: {
     color: '#ef4444',
