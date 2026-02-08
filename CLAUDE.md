@@ -69,7 +69,8 @@ PuckIQ has custom slash commands that follow a consistent TDD methodology. All c
 
 ### Key Files to Always Check First
 - `app/(tabs)/index.tsx` - Main home screen (Upcoming tab, complex state)
-- `app/(tabs)/stats.tsx` - Stats tab (lazy-loads teams, more, models sub-screens)
+- `app/(tabs)/players.tsx` - Players tab (league leaders, trending, projections)
+- `app/(tabs)/stats.tsx` - Explore tab (lazy-loads teams, models sub-screens)
 - `services/pickTracking.ts` - Pick calculation & storage
 - `services/analytics/AnalyticsService.ts` - Analytics tracking singleton
 - `constants/theme.ts` - Dark mode theme
@@ -77,7 +78,7 @@ PuckIQ has custom slash commands that follow a consistent TDD methodology. All c
 
 ### Directory Structure
 ```
-app/(tabs)/          - 5 tab screens + layout (index, stats, teams, more, models)
+app/(tabs)/          - 3 visible tabs + 2 hidden + layout (players, index, stats; hidden: teams, models)
 components/          - 44 reusable UI components + subdirectories
   model-builder/     - 6 model builder components
   design-system/     - Button, Card
@@ -273,11 +274,11 @@ Requires: `idb-companion` (brew), `fb-idb` (pip, Python 3.13), `ios-simulator-sk
 
 ### Available Routes
 ```
-/                 - Home/Today (default)
-/stats            - Stats tab
-/teams            - Teams sub-screen
-/more             - More sub-screen
-/models           - Models tab
+/                 - Upcoming (default, center tab)
+/players          - Players tab (left tab)
+/stats            - Explore tab (right tab)
+/teams            - Teams sub-screen (hidden, lazy-loaded by stats)
+/models           - Models sub-screen (hidden, lazy-loaded by stats)
 ```
 
 ## Workflow Guidelines
