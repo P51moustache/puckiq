@@ -30,7 +30,7 @@ export default function TabLayout() {
           },
         }),
       }}>
-      {/* Main 3 tabs — Upcoming in center */}
+      {/* Main 3 tabs — Players left, Upcoming center, Explore right */}
       <Tabs.Screen
         name="players"
         options={{
