@@ -45,7 +45,7 @@ export function calculateMomentum(
       (g) =>
         g.game_state === 'FINAL' || g.game_state === 'OFF'
     )
-    .filter((g) => g.home_team === teamAbbrev || g.away_team === teamAbbrev)
+    .filter((g) => g.home_team_abbrev === teamAbbrev || g.away_team_abbrev === teamAbbrev)
     .sort((a, b) => new Date(b.game_date).getTime() - new Date(a.game_date).getTime())
     .slice(0, 5);
 
@@ -53,7 +53,7 @@ export function calculateMomentum(
 
   // Calculate goal differentials (positive = team outscored)
   const diffs = teamGames.map((g) => {
-    const isHome = g.home_team === teamAbbrev;
+    const isHome = g.home_team_abbrev === teamAbbrev;
     return isHome ? g.home_score - g.away_score : g.away_score - g.home_score;
   });
 
@@ -112,7 +112,7 @@ export function calculateClutchRating(
   const teamGames = gameResults.filter(
     (g) =>
       (g.game_state === 'FINAL' || g.game_state === 'OFF') &&
-      (g.home_team === teamAbbrev || g.away_team === teamAbbrev)
+      (g.home_team_abbrev === teamAbbrev || g.away_team_abbrev === teamAbbrev)
   );
 
   if (teamGames.length === 0) return DEFAULT;
@@ -122,7 +122,7 @@ export function calculateClutchRating(
   let oneGoalLosses = 0;
 
   for (const g of teamGames) {
-    const isHome = g.home_team === teamAbbrev;
+    const isHome = g.home_team_abbrev === teamAbbrev;
     const teamScore = isHome ? g.home_score : g.away_score;
     const oppScore = isHome ? g.away_score : g.home_score;
     const diff = Math.abs(teamScore - oppScore);
@@ -172,7 +172,7 @@ export function calculateRestAdvantage(
   const teamGames = gameResults
     .filter(
       (g) =>
-        (g.home_team === teamAbbrev || g.away_team === teamAbbrev) &&
+        (g.home_team_abbrev === teamAbbrev || g.away_team_abbrev === teamAbbrev) &&
         new Date(g.game_date) < today
     )
     .sort((a, b) => new Date(b.game_date).getTime() - new Date(a.game_date).getTime());

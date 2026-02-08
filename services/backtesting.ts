@@ -269,25 +269,9 @@ async function fetchStandingsForDate(date: string): Promise<TeamStandings[] | nu
       }
     }
 
-    // Fallback: NHL API
-    console.log(`[BACKTEST] Supabase miss for standings ${date}, falling back to NHL API`);
-    const url = `https://api-web.nhle.com/v1/standings/${date}`;
-    const response = await fetch(url);
-
-    if (!response.ok) {
-      console.warn(`[BACKTEST] Failed to fetch standings for ${date}: ${response.status}`);
-      return null;
-    }
-
-    const apiData = await response.json();
-    const standings: TeamStandings[] = apiData.standings || [];
-
-    // Cache the result
-    if (standings.length > 0) {
-      await cacheStandings(date, standings);
-    }
-
-    return standings;
+    // Supabase-only: no NHL API fallback (deprecated service)
+    console.warn(`[BACKTEST] No Supabase standings data for ${date}`);
+    return null;
   } catch (error) {
     console.error(`[BACKTEST] Error fetching standings for ${date}:`, error);
     return null;

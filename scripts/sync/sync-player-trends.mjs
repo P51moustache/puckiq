@@ -175,93 +175,13 @@ async function syncAdvancedStats() {
 }
 
 // ============================================
-// DAILY: Sync game logs for players who played recently
+// DAILY: Game log sync removed — player_game_logs table dropped.
+// Per-game data is available from game_skater_stats + game_goalie_stats.
 // ============================================
 
 async function syncRecentGameLogs() {
-  console.log('  [game-logs] Syncing game logs for recent players...');
-  const season = getCurrentSeason();
-  const seasonStr = getCurrentSeasonStr();
-
-  // Find games completed yesterday/today
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const dates = [formatDate(yesterday), formatDate(today)];
-
-  const { data: recentGames } = await supabase
-    .from('games')
-    .select('id, away_team_abbrev, home_team_abbrev')
-    .in('game_state', ['FINAL', 'OFF'])
-    .in('game_date', dates);
-
-  if (!recentGames || recentGames.length === 0) {
-    console.log('  [game-logs] No recent completed games');
-    return 0;
-  }
-
-  // Collect unique team abbreviations from recent games
-  const teams = new Set();
-  for (const g of recentGames) {
-    if (g.away_team_abbrev) teams.add(g.away_team_abbrev);
-    if (g.home_team_abbrev) teams.add(g.home_team_abbrev);
-  }
-
-  console.log(`  [game-logs] ${recentGames.length} recent games, ${teams.size} teams involved`);
-
-  // Get player IDs for those teams
-  const { data: players } = await supabase
-    .from('players')
-    .select('id')
-    .in('team_abbrev', [...teams]);
-
-  if (!players || players.length === 0) {
-    console.log('  [game-logs] No players found for recent teams');
-    return 0;
-  }
-
-  console.log(`  [game-logs] Updating game logs for ${players.length} players...`);
-
-  let synced = 0;
-  const rows = [];
-
-  for (let i = 0; i < players.length; i++) {
-    const playerId = players[i].id;
-    try {
-      const data = await fetchWithRetry(`${NHL_API}/player/${playerId}/game-log/${seasonStr}/2`);
-      if (data?.gameLog?.length > 0) {
-        rows.push({
-          player_id: playerId,
-          season,
-          game_type: 2,
-          data: data.gameLog,
-          fetched_at: new Date().toISOString(),
-        });
-        synced++;
-      }
-    } catch { /* non-fatal */ }
-
-    // Batch upsert every 50 players
-    if (rows.length >= 50) {
-      const { error } = await supabase
-        .from('player_game_logs')
-        .upsert(rows, { onConflict: 'player_id,season,game_type' });
-      if (error) console.warn(`  [game-logs] batch error: ${error.message}`);
-      rows.length = 0;
-    }
-    await sleep(100);
-  }
-
-  // Flush remaining
-  if (rows.length > 0) {
-    const { error } = await supabase
-      .from('player_game_logs')
-      .upsert(rows, { onConflict: 'player_id,season,game_type' });
-    if (error) console.warn(`  [game-logs] final batch error: ${error.message}`);
-  }
-
-  console.log(`  [game-logs] ${synced} player game logs updated`);
-  return synced;
+  console.log('  [game-logs] Skipped — player_game_logs table removed');
+  return 0;
 }
 
 // ============================================

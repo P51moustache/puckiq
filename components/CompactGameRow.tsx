@@ -8,6 +8,7 @@ import { theme } from '../constants/theme';
 import { getTeamColors, getAccessibleTextColor } from '../constants/teamColors';
 import { getTeamLogoUrl } from '../utils/teamLogo';
 import { ConfidenceBadge } from './ConfidenceBadge';
+import { getRelativeDateLabel } from '../utils/dateLabel';
 import type { NHLGameSummary } from '../types/predictions';
 
 interface CompactGameRowProps {
@@ -44,6 +45,7 @@ function CompactGameRowComponent({ game, prediction, onPress, index }: CompactGa
   const favoredAbbrev = prediction.homeWinProb >= prediction.awayWinProb ? homeAbbrev : awayAbbrev;
   const favoredColors = getTeamColors(favoredAbbrev);
   const status = formatGameStatus(game);
+  const dateLabel = getRelativeDateLabel(game.gameDate ?? game.startTimeUTC ?? '');
 
   return (
     <Animated.View entering={FadeInUp.duration(250).delay(index * 40)}>
@@ -96,7 +98,9 @@ function CompactGameRowComponent({ game, prediction, onPress, index }: CompactGa
                 {status.score && <Text style={styles.scoreText}>{status.score}</Text>}
               </View>
             ) : (
-              <Text style={styles.statusText}>{status.text}</Text>
+              <Text style={styles.statusText}>
+                {dateLabel !== 'Today' ? `${dateLabel}  ` : ''}{status.text}
+              </Text>
             )}
             <View style={styles.probRow}>
               <ConfidenceBadge confidence={confidenceScore} size="sm" />

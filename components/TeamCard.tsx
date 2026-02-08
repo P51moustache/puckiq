@@ -43,7 +43,7 @@ export default function TeamCard({
 
       {/* Content Container */}
       <View style={styles.contentContainer}>
-        {/* Team Logo Placeholder */}
+        {/* Team Logo */}
         <View style={styles.logoContainer}>
           <Text style={styles.logoText}>{teamAbbrev}</Text>
         </View>

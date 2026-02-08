@@ -44,9 +44,9 @@ describe('InsightFeed', () => {
     expect(tree).toBeNull();
   });
 
-  it('renders "TONIGHT\'S INTEL" header', () => {
+  it('renders "INTEL" header', () => {
     const tree = InsightFeedInner({ insights: mockInsights });
-    expect(collectText(tree)).toContain("TONIGHT'S INTEL");
+    expect(collectText(tree)).toContain("INTEL");
   });
 
   it('renders insight text', () => {

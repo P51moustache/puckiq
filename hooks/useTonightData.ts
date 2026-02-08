@@ -26,6 +26,21 @@ import { generateTonightHeadline } from '../utils/headlineGenerator';
 import { fetchTeamForm } from '../services/teamForm';
 import type { TeamFormData } from '../types/teamForm';
 
+// Helper: format a YYYY-MM-DD date string to a human-readable label
+function formatDateLabel(dateStr: string, todayStr: string, tomorrowStr: string): string {
+  if (dateStr === todayStr) return 'Today';
+  if (dateStr === tomorrowStr) return 'Tomorrow';
+  const d = new Date(dateStr + 'T12:00:00'); // noon to avoid timezone issues
+  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+}
+
+// Helper: get date string for today + N days
+function getDateString(offsetDays: number = 0): string {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 // Helper: find best insight for a specific game's teams
 function getInsightForGame(game: any, insights: Insight[]): string | null {
   const homeAbbrev = game.homeTeam?.abbrev;
@@ -36,6 +51,13 @@ function getInsightForGame(game: any, insights: Insight[]): string | null {
     }
   }
   return null;
+}
+
+/** A group of games for a single date */
+export interface DateGroup {
+  date: string;           // YYYY-MM-DD
+  label: string;          // "Today", "Tomorrow", "Saturday, Feb 8"
+  games: any[];
 }
 
 /** Return type of the useTonightData hook */
@@ -51,6 +73,11 @@ export interface TonightData {
   sortedGames: any[];
   heroGame: any;
   remainingGames: any[];
+
+  // Upcoming / multi-day
+  gamesByDate: DateGroup[];
+  hasGamesToday: boolean;
+  isShowingUpcoming: boolean;
 
   // Predictions
   predictionsMap: Map<string, { homeWinProb: number; awayWinProb: number }>;
@@ -164,15 +191,20 @@ export function useTonightData(): TonightData {
       const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
       logger.log('[NHL Data] Fetching games for date:', todayStr);
 
-      // --- Supabase-first: today's games ---
+      // --- Supabase-first: today's + tomorrow's games (2 days) ---
       let gamesData: any = null;
       let standingsData: any = null;
       let supabaseGamesOk = false;
       let supabaseStandingsOk = false;
 
+      // Compute tomorrow's date string
+      const tmrw = new Date();
+      tmrw.setDate(tmrw.getDate() + 1);
+      const tomorrowDateStr = `${tmrw.getFullYear()}-${String(tmrw.getMonth() + 1).padStart(2, '0')}-${String(tmrw.getDate()).padStart(2, '0')}`;
+
       try {
         const [gamesResult, standingsResult] = await Promise.allSettled([
-          supabase.from('games').select('*').eq('game_date', todayStr),
+          supabase.from('games').select('*').gte('game_date', todayStr).lte('game_date', tomorrowDateStr).order('start_time_utc', { ascending: true }),
           supabase.from('standings').select('*').order('snapshot_date', { ascending: false }).limit(32),
         ]);
 
@@ -206,9 +238,9 @@ export function useTonightData(): TonightData {
             })),
           };
           supabaseGamesOk = true;
-          logger.info('[SUPABASE] Loaded', rows.length, 'games for', todayStr);
+          logger.info('[SUPABASE] Loaded', rows.length, 'games for', todayStr, 'to', tomorrowDateStr);
         } else {
-          logger.warn('[SUPABASE] No games data for', todayStr, '— falling back to NHL API');
+          logger.warn('[SUPABASE] No games data for', todayStr, 'to', tomorrowDateStr, '— checking upcoming');
         }
 
         // Transform Supabase standings rows to NHL API shape
@@ -247,60 +279,88 @@ export function useTonightData(): TonightData {
           supabaseStandingsOk = true;
           logger.info('[SUPABASE] Loaded', rows.length, 'standings rows');
         } else {
-          logger.warn('[SUPABASE] No standings data — falling back to NHL API');
+          logger.warn('[SUPABASE] No standings data — no data available');
         }
       } catch (supabaseErr) {
-        logger.warn('[SUPABASE] Error querying games/standings, falling back to NHL API', supabaseErr);
+        logger.warn('[SUPABASE] Error querying games/standings, no data available', supabaseErr);
       }
 
-      // --- NHL API fallback for anything Supabase didn't cover ---
-      const fetchPromises: Promise<any>[] = [];
-      // Only fetch from NHL API if Supabase didn't return data
-      fetchPromises.push(
-        supabaseGamesOk ? Promise.resolve(null) : fetch(`https://api-web.nhle.com/v1/score/${todayStr}`),
-      );
-      fetchPromises.push(
-        supabaseStandingsOk ? Promise.resolve(null) : fetch('https://api-web.nhle.com/v1/standings/now'),
-      );
-      fetchPromises.push(fetchEdgeSkaterLanding());
-      fetchPromises.push(fetchEdgeTeamLanding());
-      fetchPromises.push(fetchEdgeByTheNumbers());
-
-      const [gamesRes, standingsRes, skaterLandingRes, teamLandingRes, byTheNumbersRes] = await Promise.allSettled(fetchPromises);
-
-      // NHL API fallback: games
-      if (!supabaseGamesOk && gamesRes.status === 'fulfilled' && gamesRes.value && gamesRes.value.ok) {
+      // --- Upcoming games: fetch next 2 days that have games ---
+      // If today has games, today is day 1. Otherwise find the next date with games.
+      // Then also fetch the following day's games (2 days total).
+      if (!gamesData?.games?.length) {
         try {
-          gamesData = await gamesRes.value.json();
-          logger.log('[NHL Data] Games loaded:', gamesData?.games?.length || 0, 'games');
-        } catch (parseErr) {
-          logger.warn('[NHL Data] Failed to parse games JSON:', parseErr);
+          // Find the next date that has at least one game
+          const nextDateResult = await supabase
+            .from('games')
+            .select('game_date')
+            .gte('game_date', todayStr)
+            .order('game_date', { ascending: true })
+            .limit(1);
+
+          if (nextDateResult.data && nextDateResult.data.length > 0) {
+            const firstDate = nextDateResult.data[0].game_date;
+            // Compute the day after firstDate
+            const firstDateObj = new Date(firstDate + 'T12:00:00');
+            firstDateObj.setDate(firstDateObj.getDate() + 1);
+            const secondDate = `${firstDateObj.getFullYear()}-${String(firstDateObj.getMonth() + 1).padStart(2, '0')}-${String(firstDateObj.getDate()).padStart(2, '0')}`;
+
+            // Fetch games for both days, ordered by start time
+            const upcomingResult = await supabase
+              .from('games')
+              .select('*')
+              .gte('game_date', firstDate)
+              .lte('game_date', secondDate)
+              .order('start_time_utc', { ascending: true });
+
+            if (upcomingResult.data && upcomingResult.data.length > 0) {
+              const rows = upcomingResult.data;
+              gamesData = {
+                games: rows.map((row: any) => ({
+                  id: row.id,
+                  season: row.season,
+                  gameType: row.game_type,
+                  gameDate: row.game_date,
+                  startTimeUTC: row.start_time_utc,
+                  venue: row.venue,
+                  gameState: row.game_state,
+                  gameScheduleState: row.game_schedule_state,
+                  homeTeam: {
+                    id: row.home_team_id,
+                    abbrev: row.home_team_abbrev,
+                    score: row.home_score,
+                    sog: row.home_sog,
+                  },
+                  awayTeam: {
+                    id: row.away_team_id,
+                    abbrev: row.away_team_abbrev,
+                    score: row.away_score,
+                    sog: row.away_sog,
+                  },
+                  period: row.period,
+                  periodType: row.period_type,
+                })),
+              };
+              supabaseGamesOk = true;
+              logger.info('[SUPABASE] No games today — loaded', rows.length, 'upcoming games for', firstDate, 'and', secondDate);
+            }
+          }
+        } catch (upcomingErr) {
+          logger.warn('[SUPABASE] Error fetching upcoming games:', upcomingErr);
         }
       }
 
-      // Dev fallback: use sample games when API returns 0 games or fails
-      if (__DEV__ && !gamesData?.games?.length) {
-        try {
-          const { sampleGamesResponse } = require('../devData/sampleGames');
-          gamesData = sampleGamesResponse;
-          logger.log('[NHL Data] DEV: Using sample games data —', gamesData.games.length, 'games');
-        } catch (devErr) {
-          logger.warn('[NHL Data] DEV: Failed to load sample games:', devErr);
-        }
-      }
-
+      // Supabase-only: set games and standings from Supabase data
       if (mounted && gamesData) setTodaysGames(gamesData);
-
-      // NHL API fallback: standings
-      if (!supabaseStandingsOk && standingsRes.status === 'fulfilled' && standingsRes.value && standingsRes.value.ok) {
-        try {
-          standingsData = await standingsRes.value.json();
-        } catch (parseErr) {
-          logger.warn('[NHL Data] Failed to parse standings JSON:', parseErr);
-        }
-      }
       if (mounted && standingsData) setCurrentStandings(standingsData);
-      // Edge landing data (optional — graceful fallback)
+
+      // Edge landing data (Supabase-only via edgeStats service)
+      const [skaterLandingRes, teamLandingRes, byTheNumbersRes] = await Promise.allSettled([
+        fetchEdgeSkaterLanding(),
+        fetchEdgeTeamLanding(),
+        fetchEdgeByTheNumbers(),
+      ]);
+
       if (skaterLandingRes.status === 'fulfilled' && skaterLandingRes.value) {
         if (mounted) setEdgeSkaterLanding(skaterLandingRes.value);
       }
@@ -566,20 +626,15 @@ export function useTonightData(): TonightData {
   // Computed values (memoized)
   // ============================================
 
-  // Sort games by confidence (edge strength) — highest first
+  // Sort games by start time — soonest first
   const sortedGames = useMemo(() => {
-    if (!todaysGames?.games?.length || !currentStandings?.standings) return [];
+    if (!todaysGames?.games?.length) return [];
     return [...todaysGames.games].sort((a: any, b: any) => {
-      const predA = calculateWinProbability(a.homeTeam?.abbrev || '', a.awayTeam?.abbrev || '', String(a.id));
-      const predB = calculateWinProbability(b.homeTeam?.abbrev || '', b.awayTeam?.abbrev || '', String(b.id));
-      const confA = Math.abs(predA.homeWinProb - 50);
-      const confB = Math.abs(predB.homeWinProb - 50);
-      return confB - confA;
+      const timeA = a.startTimeUTC || '';
+      const timeB = b.startTimeUTC || '';
+      return timeA.localeCompare(timeB);
     });
-  }, [todaysGames, currentStandings, calculateWinProbability]);
-
-  const heroGame = sortedGames[0] ?? null;
-  const remainingGames = sortedGames.slice(1);
+  }, [todaysGames]);
 
   // Build predictions map for all games
   const predictionsMap = useMemo(() => {
@@ -591,10 +646,31 @@ export function useTonightData(): TonightData {
     return map;
   }, [sortedGames, calculateWinProbability]);
 
+  // Hero = strongest prediction (highest confidence) from the soonest date
+  const heroGame = useMemo(() => {
+    if (!sortedGames.length) return null;
+    let best: any = null;
+    let bestConf = -1;
+    for (const game of sortedGames) {
+      const pred = predictionsMap.get(String(game.id));
+      const conf = pred ? Math.abs(pred.homeWinProb - 50) * 2 : 0;
+      if (conf > bestConf) {
+        bestConf = conf;
+        best = game;
+      }
+    }
+    return best;
+  }, [sortedGames, predictionsMap]);
+
+  const remainingGames = useMemo(() => {
+    if (!heroGame) return sortedGames;
+    return sortedGames.filter((g: any) => g.id !== heroGame.id);
+  }, [sortedGames, heroGame]);
+
   const heroPrediction = useMemo(() => {
     if (!heroGame) return { homeWinProb: 50, awayWinProb: 50 };
-    return calculateWinProbability(heroGame.homeTeam?.abbrev || '', heroGame.awayTeam?.abbrev || '', String(heroGame.id));
-  }, [heroGame, calculateWinProbability]);
+    return predictionsMap.get(String(heroGame.id)) ?? { homeWinProb: 50, awayWinProb: 50 };
+  }, [heroGame, predictionsMap]);
 
   const heroConfidence = useMemo(() => {
     if (!heroGame) return 50;
@@ -609,11 +685,42 @@ export function useTonightData(): TonightData {
   const gameCount = todaysGames?.games?.length || 0;
   const isLoading = loadingLeagueData || loadingPredictions;
 
+  // ============================================
+  // Upcoming / multi-day grouping
+  // ============================================
+  const todayStr = useMemo(() => getDateString(0), []);
+  const tomorrowStr = useMemo(() => getDateString(1), []);
+
+  const hasGamesToday = useMemo(() => {
+    if (!todaysGames?.games?.length) return false;
+    return todaysGames.games.some((g: any) => g.gameDate === todayStr);
+  }, [todaysGames, todayStr]);
+
+  const isShowingUpcoming = useMemo(() => {
+    return gameCount > 0 && !hasGamesToday;
+  }, [gameCount, hasGamesToday]);
+
+  const gamesByDate = useMemo((): DateGroup[] => {
+    if (!todaysGames?.games?.length) return [];
+    const groups = new Map<string, any[]>();
+    for (const game of todaysGames.games) {
+      const date = game.gameDate ?? todayStr;
+      if (!groups.has(date)) groups.set(date, []);
+      groups.get(date)!.push(game);
+    }
+    return Array.from(groups.entries()).map(([date, games]) => ({
+      date,
+      label: formatDateLabel(date, todayStr, tomorrowStr),
+      games,
+    }));
+  }, [todaysGames, todayStr, tomorrowStr]);
+
   // Tonight's Headline
   const tonightHeadline = useMemo(() => {
-    if (!todaysGames?.games?.length) return 'No Games Tonight';
+    if (!todaysGames?.games?.length) return 'No Games Scheduled';
+    if (isShowingUpcoming) return 'Upcoming Games';
     return generateTonightHeadline(todaysGames.games, currentStandings, h2hMap, momentumMap, restMap);
-  }, [todaysGames, currentStandings, h2hMap, momentumMap, restMap]);
+  }, [todaysGames, currentStandings, h2hMap, momentumMap, restMap, isShowingUpcoming]);
 
   // ============================================
   // Share handlers
@@ -656,6 +763,11 @@ export function useTonightData(): TonightData {
     sortedGames,
     heroGame,
     remainingGames,
+
+    // Upcoming / multi-day
+    gamesByDate,
+    hasGamesToday,
+    isShowingUpcoming,
 
     // Predictions
     predictionsMap,

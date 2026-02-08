@@ -96,7 +96,7 @@ export default function EmptyNightCard({ selectedTeam, standings, nextGame }: Em
           <Text style={styles.funStat}>{funStat}</Text>
         )}
 
-        <Text style={styles.noGamesNote}>No games tonight</Text>
+        <Text style={styles.noGamesNote}>No games today</Text>
       </Animated.View>
     );
   }
@@ -104,8 +104,8 @@ export default function EmptyNightCard({ selectedTeam, standings, nextGame }: Em
   // Generic version (no favorite team set)
   return (
     <Animated.View entering={FadeInUp.duration(400)} style={styles.card}>
-      <Text style={styles.title}>No Games Tonight</Text>
-      <Text style={styles.subtitle}>The next slate drops tomorrow.</Text>
+      <Text style={styles.title}>No Games Today</Text>
+      <Text style={styles.subtitle}>Next games coming soon.</Text>
       {funStat && (
         <Text style={styles.funStat}>{funStat}</Text>
       )}

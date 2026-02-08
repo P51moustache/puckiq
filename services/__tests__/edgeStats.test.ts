@@ -1,19 +1,7 @@
 /**
- * Tests for services/edgeStats.ts
- * Tests: cache TTL, fetch behavior, error handling, all endpoint functions.
- * Supabase is mocked to return null so all tests exercise the NHL API fallback path.
+ * Tests for services/edgeStats.ts (Supabase-only)
+ * Tests: cache TTL, Supabase querying, error handling, all endpoint functions.
  */
-
-// Mock Supabase before importing the module under test
-const mockSingle = jest.fn().mockResolvedValue({ data: null, error: { message: 'mock' } });
-const mockLimit = jest.fn().mockReturnValue({ single: mockSingle });
-const mockEq = jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ single: mockSingle, limit: mockLimit }), single: mockSingle, limit: mockLimit }), single: mockSingle, limit: mockLimit }), single: mockSingle, limit: mockLimit });
-const mockSelect = jest.fn().mockReturnValue({ eq: mockEq });
-const mockFrom = jest.fn().mockReturnValue({ select: mockSelect });
-
-jest.mock('../../lib/supabase', () => ({
-  supabase: { from: mockFrom },
-}));
 
 import {
   fetchEdgeSkaterLanding,
@@ -27,16 +15,11 @@ import {
   clearEdgeCache,
   _internals,
 } from '../edgeStats';
+import { supabase } from '../../lib/supabase';
 
-// Mock global fetch
-const mockFetch = jest.fn();
-global.fetch = mockFetch;
-
-beforeEach(() => {
-  mockFetch.mockReset();
-  mockSingle.mockResolvedValue({ data: null, error: { message: 'mock' } });
-  clearEdgeCache();
-});
+// ---------------------------------------------------------------------------
+// Mock data
+// ---------------------------------------------------------------------------
 
 const mockSkaterLanding = {
   hardestShot: {
@@ -47,97 +30,132 @@ const mockSkaterLanding = {
     player: { id: 8478402, firstName: { default: 'Connor' }, lastName: { default: 'McDavid' }, team: { abbrev: 'EDM' } },
     skatingSpeed: { imperial: { speed: 24.57 } },
   },
-  totalDistanceSkated: {
-    player: { id: 8478402, firstName: { default: 'Connor' }, lastName: { default: 'McDavid' }, team: { abbrev: 'EDM' } },
-    distanceSkated: { imperial: { distance: 230.39 } },
-  },
 };
 
 const mockTeamDetail = {
   team: { id: 1, abbrev: 'NJD', wins: 20, losses: 15, otLosses: 5 },
-  shotSpeed: { topShotSpeed: { imperial: 98.5, rank: 3 }, shotAttemptsOver90: { value: 150, rank: 5 } },
-  skatingSpeed: { speedMax: { imperial: 24.1, rank: 8 }, burstsOver22: { value: 120, rank: 10 } },
-  distanceSkated: { total: { imperial: 200.5, rank: 12 } },
-  sogSummary: [],
-  sogDetails: [],
-  zoneTimeDetails: { offensiveZonePctg: 42.5, neutralZonePctg: 18.0, defensiveZonePctg: 39.5 },
+  shotSpeed: { topShotSpeed: { imperial: 98.5, rank: 3 } },
 };
+
+// ---------------------------------------------------------------------------
+// Setup / Teardown
+// ---------------------------------------------------------------------------
+
+let mockSingleResult: { data: any; error: any } = { data: null, error: null };
+let mockLimitResult: { data: any; error: any } = { data: null, error: null };
+
+beforeEach(() => {
+  clearEdgeCache();
+  (supabase.from as jest.Mock).mockClear();
+  mockSingleResult = { data: null, error: null };
+  mockLimitResult = { data: null, error: null };
+
+  // Build a chainable mock for Supabase
+  const buildChain = () => {
+    const chain: any = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockImplementation(() => ({
+        ...chain,
+        single: jest.fn(() => Promise.resolve(mockSingleResult)),
+        then: (resolve: any) => resolve(mockLimitResult),
+      })),
+      single: jest.fn(() => Promise.resolve(mockSingleResult)),
+      then: (resolve: any) => resolve(mockLimitResult),
+    };
+    return chain;
+  };
+
+  (supabase.from as jest.Mock).mockImplementation(() => buildChain());
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
+
+// ---------------------------------------------------------------------------
+// Landing endpoints (use fetchLeaderboardFromSupabase -> .single())
+// ---------------------------------------------------------------------------
 
 describe('edgeStats service', () => {
   describe('fetchEdgeSkaterLanding', () => {
-    it('returns data on successful fetch', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(mockSkaterLanding),
-      });
+    it('returns data from Supabase', async () => {
+      mockSingleResult = { data: { data: mockSkaterLanding }, error: null };
       const result = await fetchEdgeSkaterLanding();
       expect(result).toEqual(mockSkaterLanding);
-      expect(mockFetch).toHaveBeenCalledWith('https://api-web.nhle.com/v1/edge/skater-landing/now');
     });
 
-    it('returns null on HTTP error', async () => {
-      mockFetch.mockResolvedValueOnce({ ok: false, status: 404 });
+    it('returns null when Supabase returns error', async () => {
+      mockSingleResult = { data: null, error: { message: 'not found' } };
       const result = await fetchEdgeSkaterLanding();
       expect(result).toBeNull();
     });
 
-    it('returns null on network error', async () => {
-      mockFetch.mockRejectedValueOnce(new Error('Network error'));
+    it('returns null when Supabase returns no data', async () => {
+      mockSingleResult = { data: null, error: null };
       const result = await fetchEdgeSkaterLanding();
       expect(result).toBeNull();
     });
   });
 
   describe('fetchEdgeGoalieLanding', () => {
-    it('returns data on successful fetch', async () => {
+    it('returns data from Supabase', async () => {
       const mockGoalie = { highDangerSavePctg: { player: { id: 1 }, savePctg: { value: 0.92 } } };
-      mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockGoalie) });
+      mockSingleResult = { data: { data: mockGoalie }, error: null };
       const result = await fetchEdgeGoalieLanding();
       expect(result).toEqual(mockGoalie);
     });
   });
 
   describe('fetchEdgeTeamLanding', () => {
-    it('returns data on successful fetch', async () => {
+    it('returns data from Supabase', async () => {
       const mockTeam = { shotAttemptsOver90: { team: { abbrev: 'NJD' }, value: 215, rank: 1 } };
-      mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockTeam) });
+      mockSingleResult = { data: { data: mockTeam }, error: null };
       const result = await fetchEdgeTeamLanding();
       expect(result).toEqual(mockTeam);
     });
   });
 
   describe('fetchEdgeByTheNumbers', () => {
-    it('returns data on successful fetch', async () => {
+    it('returns data from Supabase', async () => {
       const mockBTN = { games: 6, gameDate: '2026-02-03' };
-      mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockBTN) });
+      mockSingleResult = { data: { data: mockBTN }, error: null };
       const result = await fetchEdgeByTheNumbers();
       expect(result).toEqual(mockBTN);
     });
   });
 
+  // ---------------------------------------------------------------------------
+  // Detail endpoints (use fetchDetailFromSupabase -> .limit(1).single())
+  // ---------------------------------------------------------------------------
+
   describe('fetchSkaterEdge (detail)', () => {
     it('returns data for a specific player', async () => {
       const mockSkater = { player: { id: 8478402 }, topShotSpeed: { imperial: 95.0 } };
-      mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockSkater) });
+      mockSingleResult = { data: { data: mockSkater }, error: null };
       const result = await fetchSkaterEdge(8478402);
       expect(result).toEqual(mockSkater);
-      expect(mockFetch).toHaveBeenCalledWith('https://api-web.nhle.com/v1/edge/skater-detail/8478402/now');
+    });
+
+    it('returns null when no data exists', async () => {
+      mockSingleResult = { data: null, error: { message: 'not found' } };
+      const result = await fetchSkaterEdge(99999);
+      expect(result).toBeNull();
     });
   });
 
   describe('fetchTeamEdge (detail)', () => {
     it('returns data for a specific team', async () => {
-      mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockTeamDetail) });
+      mockSingleResult = { data: { data: mockTeamDetail }, error: null };
       const result = await fetchTeamEdge(1);
       expect(result).toEqual(mockTeamDetail);
-      expect(mockFetch).toHaveBeenCalledWith('https://api-web.nhle.com/v1/edge/team-detail/1/now');
     });
   });
 
   describe('fetchGoalieEdge (detail)', () => {
     it('returns data for a specific goalie', async () => {
       const mockGoalie = { player: { id: 8478048 }, stats: { gaa: { value: 2.45 } } };
-      mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockGoalie) });
+      mockSingleResult = { data: { data: mockGoalie }, error: null };
       const result = await fetchGoalieEdge(8478048);
       expect(result).toEqual(mockGoalie);
     });
@@ -146,23 +164,29 @@ describe('edgeStats service', () => {
   describe('fetchTeamZoneTime', () => {
     it('returns zone time data for a team', async () => {
       const mockZone = { zoneTimeDetails: [{ strength: 'all', offensiveZonePctg: 42.0 }] };
-      mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockZone) });
+      mockSingleResult = { data: { data: mockZone }, error: null };
       const result = await fetchTeamZoneTime(1);
       expect(result).toEqual(mockZone);
     });
   });
 
+  // ---------------------------------------------------------------------------
+  // Cache behavior
+  // ---------------------------------------------------------------------------
+
   describe('cache behavior', () => {
     it('returns cached data on second call within TTL', async () => {
-      mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockSkaterLanding) });
+      mockSingleResult = { data: { data: mockSkaterLanding }, error: null };
       await fetchEdgeSkaterLanding();
+      // Second call should not query Supabase again
       const result = await fetchEdgeSkaterLanding();
       expect(result).toEqual(mockSkaterLanding);
-      expect(mockFetch).toHaveBeenCalledTimes(1); // Only one fetch
+      // from() called only once (for first fetch)
+      expect(supabase.from).toHaveBeenCalledTimes(1);
     });
 
     it('re-fetches after cache expires', async () => {
-      mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(mockSkaterLanding) });
+      mockSingleResult = { data: { data: mockSkaterLanding }, error: null };
       await fetchEdgeSkaterLanding();
 
       // Manually expire the cache
@@ -170,11 +194,11 @@ describe('edgeStats service', () => {
       if (entry) entry.timestamp = Date.now() - _internals.CACHE_TTL_MS - 1;
 
       await fetchEdgeSkaterLanding();
-      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(supabase.from).toHaveBeenCalledTimes(2);
     });
 
     it('clearEdgeCache removes all cached data', async () => {
-      mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(mockSkaterLanding) });
+      mockSingleResult = { data: { data: mockSkaterLanding }, error: null };
       await fetchEdgeSkaterLanding();
       expect(_internals.cache.size).toBeGreaterThan(0);
       clearEdgeCache();
@@ -182,25 +206,20 @@ describe('edgeStats service', () => {
     });
 
     it('different endpoints have separate cache entries', async () => {
-      mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({}) });
+      mockSingleResult = { data: { data: {} }, error: null };
       await fetchEdgeSkaterLanding();
       await fetchEdgeTeamLanding();
       expect(_internals.cache.size).toBe(2);
     });
   });
 
-  describe('error resilience', () => {
-    it('returns null when JSON parsing fails', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.reject(new Error('Invalid JSON')),
-      });
-      const result = await fetchEdgeSkaterLanding();
-      expect(result).toBeNull();
-    });
+  // ---------------------------------------------------------------------------
+  // Error resilience
+  // ---------------------------------------------------------------------------
 
+  describe('error resilience', () => {
     it('does not cache failed responses', async () => {
-      mockFetch.mockResolvedValueOnce({ ok: false, status: 500 });
+      mockSingleResult = { data: null, error: { message: 'server error' } };
       await fetchEdgeSkaterLanding();
       expect(_internals.cache.size).toBe(0);
     });

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { getTeamColors, getAccessibleTextColor } from '../constants/teamColors';
 import { getTeamComparisonData, calculateCategoryWinners } from '../services/teamComparison';
 import { TeamComparisonStats, StatCategory } from '../types/teamStats';
 import StatComparisonRow from './StatComparisonRow';
@@ -75,6 +76,9 @@ export default function GameDeepDiveModal({
   const homeTeamId: number | undefined = game?.homeTeam?.id;
   const awayTeamId: number | undefined = game?.awayTeam?.id;
   const favored = prediction?.homeWinProb > prediction?.awayWinProb ? homeAbbrev : awayAbbrev;
+  const homeTeamColor = getAccessibleTextColor(homeAbbrev);
+  const awayTeamColor = getAccessibleTextColor(awayAbbrev);
+  const favoredColor = getAccessibleTextColor(favored);
 
   // Fetch team comparison stats when Stats tab is active
   useEffect(() => {
@@ -196,10 +200,10 @@ export default function GameDeepDiveModal({
           Win Probability Breakdown
         </Text>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-          <Text style={{ fontSize: 13, fontWeight: '600', color: '#e6eef8' }}>
+          <Text style={{ fontSize: 13, fontWeight: '600', color: awayTeamColor }}>
             {awayAbbrev}
           </Text>
-          <Text style={{ fontSize: 13, fontWeight: '600', color: '#e6eef8' }}>
+          <Text style={{ fontSize: 13, fontWeight: '600', color: homeTeamColor }}>
             {homeAbbrev}
           </Text>
         </View>
@@ -212,20 +216,20 @@ export default function GameDeepDiveModal({
         }}>
           <View style={{
             width: `${prediction?.awayWinProb || 50}%`,
-            backgroundColor: '#60a5fa',
+            backgroundColor: awayTeamColor,
             height: '100%',
           }} />
           <View style={{
             width: `${prediction?.homeWinProb || 50}%`,
-            backgroundColor: '#f59e0b',
+            backgroundColor: homeTeamColor,
             height: '100%',
           }} />
         </View>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
-          <Text style={{ fontSize: 14, fontWeight: '700', color: '#60a5fa' }}>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: awayTeamColor }}>
             {prediction?.awayWinProb || 50}%
           </Text>
-          <Text style={{ fontSize: 14, fontWeight: '700', color: '#f59e0b' }}>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: homeTeamColor }}>
             {prediction?.homeWinProb || 50}%
           </Text>
         </View>
@@ -266,7 +270,7 @@ export default function GameDeepDiveModal({
               <Text style={{ fontSize: 10, color: '#60a5fa', fontWeight: '700' }}>?</Text>
             </View>
           </View>
-          <Text style={{ fontSize: 14, fontWeight: '700', color: '#f59e0b' }}>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: homeTeamColor }}>
             {homeAbbrev}
           </Text>
         </Pressable>
@@ -300,7 +304,7 @@ export default function GameDeepDiveModal({
               <Text style={{ fontSize: 10, color: '#60a5fa', fontWeight: '700' }}>?</Text>
             </View>
           </View>
-          <Text style={{ fontSize: 14, fontWeight: '700', color: '#10b981' }}>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: favoredColor }}>
             {favored}
           </Text>
         </Pressable>
@@ -380,8 +384,8 @@ export default function GameDeepDiveModal({
                   </View>
                 </View>
                 <View style={{
-                  backgroundColor: prediction.goalieAdvantage === 'home' ? '#f59e0b22' :
-                                 prediction.goalieAdvantage === 'away' ? '#60a5fa22' : '#98a6bf22',
+                  backgroundColor: prediction.goalieAdvantage === 'home' ? `${homeTeamColor}22` :
+                                 prediction.goalieAdvantage === 'away' ? `${awayTeamColor}22` : '#98a6bf22',
                   paddingHorizontal: 10,
                   paddingVertical: 4,
                   borderRadius: 8,
@@ -389,8 +393,8 @@ export default function GameDeepDiveModal({
                   <Text style={{
                     fontSize: 12,
                     fontWeight: '700',
-                    color: prediction.goalieAdvantage === 'home' ? '#f59e0b' :
-                           prediction.goalieAdvantage === 'away' ? '#60a5fa' : '#98a6bf',
+                    color: prediction.goalieAdvantage === 'home' ? homeTeamColor :
+                           prediction.goalieAdvantage === 'away' ? awayTeamColor : '#98a6bf',
                   }}>
                     {prediction.goalieAdvantage === 'home' ? homeAbbrev :
                      prediction.goalieAdvantage === 'away' ? awayAbbrev : 'Even'}
@@ -430,7 +434,7 @@ export default function GameDeepDiveModal({
                   </View>
                 </View>
                 <View style={{
-                  backgroundColor: (prediction.hotPlayersImpact ?? 0) > 0 ? '#f59e0b22' : '#60a5fa22',
+                  backgroundColor: (prediction.hotPlayersImpact ?? 0) > 0 ? `${homeTeamColor}22` : `${awayTeamColor}22`,
                   paddingHorizontal: 10,
                   paddingVertical: 4,
                   borderRadius: 8,
@@ -438,7 +442,7 @@ export default function GameDeepDiveModal({
                   <Text style={{
                     fontSize: 12,
                     fontWeight: '700',
-                    color: (prediction.hotPlayersImpact ?? 0) > 0 ? '#f59e0b' : '#60a5fa',
+                    color: (prediction.hotPlayersImpact ?? 0) > 0 ? homeTeamColor : awayTeamColor,
                   }}>
                     +{Math.round(Math.abs((prediction.hotPlayersImpact ?? 0) / 1.5))} {(prediction.hotPlayersImpact ?? 0) > 0 ? homeAbbrev : awayAbbrev}
                   </Text>
@@ -822,13 +826,13 @@ export default function GameDeepDiveModal({
         }}>
           {/* Header */}
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: '#60a5fa', width: 60 }}>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: awayTeamColor, width: 60 }}>
               {awayAbbrev}
             </Text>
             <Text style={{ fontSize: 12, color: '#98a6bf', fontWeight: '600' }}>
               Stat
             </Text>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: '#f59e0b', width: 60, textAlign: 'right' }}>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: homeTeamColor, width: 60, textAlign: 'right' }}>
               {homeAbbrev}
             </Text>
           </View>
@@ -870,7 +874,7 @@ export default function GameDeepDiveModal({
 
       {/* Away Team Recent Form */}
       <View style={{ marginBottom: 20 }}>
-        <Text style={{ fontSize: 14, fontWeight: '600', color: '#60a5fa', marginBottom: 8 }}>
+        <Text style={{ fontSize: 14, fontWeight: '600', color: awayTeamColor, marginBottom: 8 }}>
           {awayAbbrev} {game.awayTeam?.streakCode ? `- ${game.awayTeam.streakCode}` : ''}
         </Text>
         <View style={{
@@ -886,7 +890,7 @@ export default function GameDeepDiveModal({
 
       {/* Home Team Recent Form */}
       <View>
-        <Text style={{ fontSize: 14, fontWeight: '600', color: '#f59e0b', marginBottom: 8 }}>
+        <Text style={{ fontSize: 14, fontWeight: '600', color: homeTeamColor, marginBottom: 8 }}>
           {homeAbbrev} {game.homeTeam?.streakCode ? `- ${game.homeTeam.streakCode}` : ''}
         </Text>
         <View style={{
@@ -968,7 +972,7 @@ export default function GameDeepDiveModal({
           alignItems: 'center',
         }}>
           <View style={{ alignItems: 'center' }}>
-            <Text style={{ fontSize: 13, fontWeight: '600', color: '#60a5fa', marginBottom: 4 }}>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: awayTeamColor, marginBottom: 4 }}>
               {awayAbbrev}
             </Text>
             <Text style={{ fontSize: 28, fontWeight: '800', color: '#e6eef8' }}>
@@ -977,7 +981,7 @@ export default function GameDeepDiveModal({
           </View>
           <Text style={{ fontSize: 20, color: '#98a6bf', fontWeight: '700' }}>-</Text>
           <View style={{ alignItems: 'center' }}>
-            <Text style={{ fontSize: 13, fontWeight: '600', color: '#f59e0b', marginBottom: 4 }}>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: homeTeamColor, marginBottom: 4 }}>
               {homeAbbrev}
             </Text>
             <Text style={{ fontSize: 28, fontWeight: '800', color: '#e6eef8' }}>
@@ -992,7 +996,7 @@ export default function GameDeepDiveModal({
 
         {/* Game History from Supabase */}
         {h2hRecord.games.map((g, idx) => {
-          const winner = g.home_score > g.away_score ? g.home_team : g.away_team;
+          const winner = g.home_score > g.away_score ? g.home_team_abbrev : g.away_team_abbrev;
           const isHomeWin = winner === homeAbbrev;
           const gameDate = new Date(g.game_date).toLocaleDateString('en-US', {
             month: 'short',
@@ -1002,14 +1006,14 @@ export default function GameDeepDiveModal({
 
           return (
             <View
-              key={g.game_id}
+              key={g.id}
               style={{
                 backgroundColor: '#071a3699',
                 borderRadius: 10,
                 padding: 12,
                 marginBottom: 8,
                 borderLeftWidth: 3,
-                borderLeftColor: isHomeWin ? '#f59e0b' : '#60a5fa',
+                borderLeftColor: isHomeWin ? homeTeamColor : awayTeamColor,
               }}
             >
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -1017,12 +1021,12 @@ export default function GameDeepDiveModal({
                   {gameDate}
                 </Text>
                 <View style={{
-                  backgroundColor: isHomeWin ? '#f59e0b22' : '#60a5fa22',
+                  backgroundColor: isHomeWin ? `${homeTeamColor}22` : `${awayTeamColor}22`,
                   paddingHorizontal: 8,
                   paddingVertical: 2,
                   borderRadius: 8,
                 }}>
-                  <Text style={{ fontSize: 10, fontWeight: '700', color: isHomeWin ? '#f59e0b' : '#60a5fa' }}>
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: isHomeWin ? homeTeamColor : awayTeamColor }}>
                     {winner} W
                   </Text>
                 </View>
@@ -1030,7 +1034,7 @@ export default function GameDeepDiveModal({
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                   <Text style={{ fontSize: 13, fontWeight: '700', color: '#e6eef8' }}>
-                    {g.away_team}
+                    {g.away_team_abbrev}
                   </Text>
                   <Text style={{ fontSize: 16, fontWeight: '800', color: '#e6eef8', marginLeft: 8 }}>
                     {g.away_score}
@@ -1042,7 +1046,7 @@ export default function GameDeepDiveModal({
                     {g.home_score}
                   </Text>
                   <Text style={{ fontSize: 13, fontWeight: '700', color: '#e6eef8' }}>
-                    {g.home_team}
+                    {g.home_team_abbrev}
                   </Text>
                 </View>
               </View>
@@ -1165,18 +1169,18 @@ export default function GameDeepDiveModal({
     return (
       <View>
         {/* Away Team */}
-        <Text style={{ fontSize: 14, fontWeight: '600', color: '#60a5fa', marginBottom: 8 }}>
+        <Text style={{ fontSize: 14, fontWeight: '600', color: awayTeamColor, marginBottom: 8 }}>
           {awayAbbrev} - Top Skaters
         </Text>
-        {renderTeamSkaters(awayAbbrev, awayPlayerStats, '#60a5fa')}
-        {renderTeamGoalies(awayPlayerStats, '#60a5fa')}
+        {renderTeamSkaters(awayAbbrev, awayPlayerStats, awayTeamColor)}
+        {renderTeamGoalies(awayPlayerStats, awayTeamColor)}
 
         {/* Home Team */}
-        <Text style={{ fontSize: 14, fontWeight: '600', color: '#f59e0b', marginTop: 20, marginBottom: 8 }}>
+        <Text style={{ fontSize: 14, fontWeight: '600', color: homeTeamColor, marginTop: 20, marginBottom: 8 }}>
           {homeAbbrev} - Top Skaters
         </Text>
-        {renderTeamSkaters(homeAbbrev, homePlayerStats, '#f59e0b')}
-        {renderTeamGoalies(homePlayerStats, '#f59e0b')}
+        {renderTeamSkaters(homeAbbrev, homePlayerStats, homeTeamColor)}
+        {renderTeamGoalies(homePlayerStats, homeTeamColor)}
       </View>
     );
   };
@@ -1232,7 +1236,7 @@ export default function GameDeepDiveModal({
     ) => {
       const winner = categoryWinners[category];
       const isExpanded = expandedCategories[category];
-      const winnerBadgeColor = winner === 'home' ? '#f59e0b' : winner === 'away' ? '#60a5fa' : '#98a6bf';
+      const winnerBadgeColor = winner === 'home' ? homeTeamColor : winner === 'away' ? awayTeamColor : '#98a6bf';
       const winnerText = winner === 'home' ? homeAbbrev : winner === 'away' ? awayAbbrev : 'Even';
 
       return (
@@ -1291,13 +1295,13 @@ export default function GameDeepDiveModal({
         }}>
           {/* Header Row */}
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
-            <Text style={{ fontSize: 12, fontWeight: '700', color: '#60a5fa', width: 80 }}>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: awayTeamColor, width: 80 }}>
               {awayAbbrev}
             </Text>
             <Text style={{ fontSize: 11, color: '#98a6bf', fontWeight: '600', flex: 1, textAlign: 'center' }}>
               STAT
             </Text>
-            <Text style={{ fontSize: 12, fontWeight: '700', color: '#f59e0b', width: 80, textAlign: 'right' }}>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: homeTeamColor, width: 80, textAlign: 'right' }}>
               {homeAbbrev}
             </Text>
           </View>
@@ -1322,19 +1326,19 @@ export default function GameDeepDiveModal({
             alignItems: 'center',
           }}>
             <View style={{ alignItems: 'center' }}>
-              <Text style={{ fontSize: 12, fontWeight: '600', color: '#60a5fa', marginBottom: 4 }}>
+              <Text style={{ fontSize: 12, fontWeight: '600', color: awayTeamColor, marginBottom: 4 }}>
                 {awayAbbrev}
               </Text>
-              <Text style={{ fontSize: 28, fontWeight: '800', color: winCounts.away > winCounts.home ? '#60a5fa' : '#e6eef8' }}>
+              <Text style={{ fontSize: 28, fontWeight: '800', color: winCounts.away > winCounts.home ? awayTeamColor : '#e6eef8' }}>
                 {winCounts.away}
               </Text>
             </View>
             <Text style={{ fontSize: 20, color: '#98a6bf', fontWeight: '700' }}>-</Text>
             <View style={{ alignItems: 'center' }}>
-              <Text style={{ fontSize: 12, fontWeight: '600', color: '#f59e0b', marginBottom: 4 }}>
+              <Text style={{ fontSize: 12, fontWeight: '600', color: homeTeamColor, marginBottom: 4 }}>
                 {homeAbbrev}
               </Text>
-              <Text style={{ fontSize: 28, fontWeight: '800', color: winCounts.home > winCounts.away ? '#f59e0b' : '#e6eef8' }}>
+              <Text style={{ fontSize: 28, fontWeight: '800', color: winCounts.home > winCounts.away ? homeTeamColor : '#e6eef8' }}>
                 {winCounts.home}
               </Text>
             </View>
@@ -1571,7 +1575,7 @@ export default function GameDeepDiveModal({
           marginBottom: 20,
         }}>
           <View style={{ flex: 1, marginRight: 8 }}>
-            <Text style={{ fontSize: 12, fontWeight: '600', color: '#60a5fa', marginBottom: 8, textAlign: 'center' }}>
+            <Text style={{ fontSize: 12, fontWeight: '600', color: awayTeamColor, marginBottom: 8, textAlign: 'center' }}>
               {awayAbbrev}
             </Text>
             {awayEdgeDetail?.shotSpeed?.topShotSpeed ? (
@@ -1589,7 +1593,7 @@ export default function GameDeepDiveModal({
             )}
           </View>
           <View style={{ flex: 1, marginLeft: 8 }}>
-            <Text style={{ fontSize: 12, fontWeight: '600', color: '#f59e0b', marginBottom: 8, textAlign: 'center' }}>
+            <Text style={{ fontSize: 12, fontWeight: '600', color: homeTeamColor, marginBottom: 8, textAlign: 'center' }}>
               {homeAbbrev}
             </Text>
             {homeEdgeDetail?.shotSpeed?.topShotSpeed ? (
@@ -1658,7 +1662,7 @@ export default function GameDeepDiveModal({
             <View style={{ marginBottom: 20 }}>
               {awayEdgeDetail?.zoneTimeDetails && (
                 <View style={{ marginBottom: 12 }}>
-                  <Text style={{ fontSize: 12, fontWeight: '600', color: '#60a5fa', marginBottom: 6 }}>
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: awayTeamColor, marginBottom: 6 }}>
                     {awayAbbrev}
                   </Text>
                   <ZoneTimeChart
@@ -1670,7 +1674,7 @@ export default function GameDeepDiveModal({
               )}
               {homeEdgeDetail?.zoneTimeDetails && (
                 <View>
-                  <Text style={{ fontSize: 12, fontWeight: '600', color: '#f59e0b', marginBottom: 6 }}>
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: homeTeamColor, marginBottom: 6 }}>
                     {homeAbbrev}
                   </Text>
                   <ZoneTimeChart
@@ -1696,7 +1700,7 @@ export default function GameDeepDiveModal({
               marginBottom: 20,
             }}>
               <View style={{ flex: 1, marginRight: 8, alignItems: 'center' }}>
-                <Text style={{ fontSize: 12, fontWeight: '600', color: '#60a5fa', marginBottom: 8 }}>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: awayTeamColor, marginBottom: 8 }}>
                   {awayAbbrev}
                 </Text>
                 {awayMomentum ? (
@@ -1706,7 +1710,7 @@ export default function GameDeepDiveModal({
                 )}
               </View>
               <View style={{ flex: 1, marginLeft: 8, alignItems: 'center' }}>
-                <Text style={{ fontSize: 12, fontWeight: '600', color: '#f59e0b', marginBottom: 8 }}>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: homeTeamColor, marginBottom: 8 }}>
                   {homeAbbrev}
                 </Text>
                 {homeMomentum ? (
@@ -1731,7 +1735,7 @@ export default function GameDeepDiveModal({
               marginBottom: 20,
             }}>
               <View style={{ flex: 1, marginRight: 8, alignItems: 'center' }}>
-                <Text style={{ fontSize: 12, fontWeight: '600', color: '#60a5fa', marginBottom: 8 }}>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: awayTeamColor, marginBottom: 8 }}>
                   {awayAbbrev}
                 </Text>
                 {awayClutch ? (
@@ -1746,7 +1750,7 @@ export default function GameDeepDiveModal({
                 )}
               </View>
               <View style={{ flex: 1, marginLeft: 8, alignItems: 'center' }}>
-                <Text style={{ fontSize: 12, fontWeight: '600', color: '#f59e0b', marginBottom: 8 }}>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: homeTeamColor, marginBottom: 8 }}>
                   {homeAbbrev}
                 </Text>
                 {homeClutch ? (
@@ -1777,9 +1781,9 @@ export default function GameDeepDiveModal({
             }}>
               {/* Header */}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
-                <Text style={{ fontSize: 12, fontWeight: '700', color: '#60a5fa', width: 60 }}>{awayAbbrev}</Text>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: awayTeamColor, width: 60 }}>{awayAbbrev}</Text>
                 <Text style={{ fontSize: 11, color: '#98a6bf', fontWeight: '600', flex: 1, textAlign: 'center' }}>Zone</Text>
-                <Text style={{ fontSize: 12, fontWeight: '700', color: '#f59e0b', width: 60, textAlign: 'right' }}>{homeAbbrev}</Text>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: homeTeamColor, width: 60, textAlign: 'right' }}>{homeAbbrev}</Text>
               </View>
               {['high', 'mid', 'long'].map((zone) => {
                 const awayZone = awayEdgeDetail?.sogSummary?.find(s => s.locationCode === zone);
@@ -1832,7 +1836,7 @@ export default function GameDeepDiveModal({
         }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 13, fontWeight: '600', color: '#60a5fa', marginBottom: 6 }}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: awayTeamColor, marginBottom: 6 }}>
                 {awayAbbrev}
               </Text>
               <Text style={{ fontSize: 20, fontWeight: '800', color: '#e6eef8' }}>
@@ -1844,7 +1848,7 @@ export default function GameDeepDiveModal({
             </View>
             <View style={{ width: 1, backgroundColor: '#192e5e44' }} />
             <View style={{ flex: 1, alignItems: 'flex-end' }}>
-              <Text style={{ fontSize: 13, fontWeight: '600', color: '#f59e0b', marginBottom: 6 }}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: homeTeamColor, marginBottom: 6 }}>
                 {homeAbbrev}
               </Text>
               <Text style={{ fontSize: 20, fontWeight: '800', color: '#e6eef8' }}>

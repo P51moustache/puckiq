@@ -5,97 +5,64 @@
 import {
   fetchTeamRecentGames,
   calculateRecentForm,
-  getCurrentSeason,
 } from '../recentForm';
 import type { RecentGame, RecentFormStats } from '../../types/predictions';
+import { supabase } from '../../lib/supabase';
 
-// Mock fetch
-global.fetch = jest.fn();
+jest.mock('../../lib/supabase');
 
 describe('recentForm', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  describe('getCurrentSeason', () => {
-    beforeEach(() => {
-      jest.restoreAllMocks();
-    });
-
-    it('should return correct season for October-December', () => {
-      jest.useFakeTimers();
-      jest.setSystemTime(new Date('2024-11-15'));
-
-      expect(getCurrentSeason()).toBe('20242025');
-
-      jest.useRealTimers();
-    });
-
-    it('should return correct season for January-June', () => {
-      jest.useFakeTimers();
-      jest.setSystemTime(new Date('2025-03-15'));
-
-      expect(getCurrentSeason()).toBe('20242025');
-
-      jest.useRealTimers();
-    });
-
-    it('should return correct season for off-season (July-September)', () => {
-      jest.useFakeTimers();
-      jest.setSystemTime(new Date('2024-08-15'));
-
-      expect(getCurrentSeason()).toBe('20232024');
-
-      jest.useRealTimers();
-    });
-  });
-
   describe('fetchTeamRecentGames', () => {
-    const mockScheduleData = {
-      games: [
+    it('should fetch and parse recent games correctly from Supabase', async () => {
+      const mockRows = [
         {
           id: 1,
-          gameDate: '2024-11-15',
-          gameState: 'FINAL',
-          homeTeam: { abbrev: 'TOR', score: 4 },
-          awayTeam: { abbrev: 'MTL', score: 2 },
+          game_date: '2024-11-15',
+          game_state: 'FINAL',
+          home_team_abbrev: 'TOR',
+          away_team_abbrev: 'MTL',
+          home_score: 4,
+          away_score: 2,
         },
         {
           id: 2,
-          gameDate: '2024-11-13',
-          gameState: 'FINAL',
-          homeTeam: { abbrev: 'OTT', score: 3 },
-          awayTeam: { abbrev: 'TOR', score: 5 },
+          game_date: '2024-11-13',
+          game_state: 'FINAL',
+          home_team_abbrev: 'OTT',
+          away_team_abbrev: 'TOR',
+          home_score: 3,
+          away_score: 5,
         },
         {
           id: 3,
-          gameDate: '2024-11-12',
-          gameState: 'FINAL',
-          homeTeam: { abbrev: 'TOR', score: 2 },
-          awayTeam: { abbrev: 'BOS', score: 3 },
+          game_date: '2024-11-12',
+          game_state: 'FINAL',
+          home_team_abbrev: 'TOR',
+          away_team_abbrev: 'BOS',
+          home_score: 2,
+          away_score: 3,
         },
-        {
-          id: 4,
-          gameDate: '2024-11-18',
-          gameState: 'FUT',
-          homeTeam: { abbrev: 'TOR', score: 0 },
-          awayTeam: { abbrev: 'NYR', score: 0 },
-        },
-      ],
-    };
+      ];
 
-    it('should fetch and parse recent games correctly', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockScheduleData,
-      });
+      // Override the default mock to return our test data
+      const mockBuilder = {
+        select: jest.fn().mockReturnThis(),
+        or: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        then: (resolve: any) => Promise.resolve({ data: mockRows, error: null }).then(resolve),
+      };
+      (supabase.from as jest.Mock).mockReturnValue(mockBuilder);
 
       const games = await fetchTeamRecentGames('TOR', 10);
 
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('club-schedule-season/TOR/')
-      );
-      expect(games).toHaveLength(3); // Only FINAL games
+      expect(supabase.from).toHaveBeenCalledWith('games');
+      expect(games).toHaveLength(3);
       expect(games[0]).toEqual({
         id: 1,
         gameDate: '2024-11-15',
@@ -107,28 +74,32 @@ describe('recentForm', () => {
       });
     });
 
-    it('should limit to requested count', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockScheduleData,
-      });
-
-      const games = await fetchTeamRecentGames('TOR', 2);
-
-      expect(games).toHaveLength(2);
-      expect(games[0].gameDate).toBe('2024-11-15');
-      expect(games[1].gameDate).toBe('2024-11-13');
-    });
-
     it('should handle away games correctly', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockScheduleData,
-      });
+      const mockRows = [
+        {
+          id: 2,
+          game_date: '2024-11-13',
+          game_state: 'FINAL',
+          home_team_abbrev: 'OTT',
+          away_team_abbrev: 'TOR',
+          home_score: 3,
+          away_score: 5,
+        },
+      ];
+
+      const mockBuilder = {
+        select: jest.fn().mockReturnThis(),
+        or: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        then: (resolve: any) => Promise.resolve({ data: mockRows, error: null }).then(resolve),
+      };
+      (supabase.from as jest.Mock).mockReturnValue(mockBuilder);
 
       const games = await fetchTeamRecentGames('TOR', 10);
 
-      const awayGame = games[1];
+      const awayGame = games[0];
       expect(awayGame.isHomeGame).toBe(false);
       expect(awayGame.opponent).toBe('OTT');
       expect(awayGame.goalsFor).toBe(5);
@@ -136,60 +107,30 @@ describe('recentForm', () => {
       expect(awayGame.won).toBe(true);
     });
 
-    it('should return empty array on API error', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: false,
-      });
-
-      const games = await fetchTeamRecentGames('TOR', 10);
-
-      expect(games).toEqual([]);
-    });
-
-    it('should handle network errors gracefully', async () => {
-      (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
-
-      const games = await fetchTeamRecentGames('TOR', 10);
-
-      expect(games).toEqual([]);
-    });
-
-    it('should filter out non-FINAL games', async () => {
-      const dataWithMultipleStates = {
-        games: [
-          {
-            id: 1,
-            gameDate: '2024-11-15',
-            gameState: 'FINAL',
-            homeTeam: { abbrev: 'TOR', score: 4 },
-            awayTeam: { abbrev: 'MTL', score: 2 },
-          },
-          {
-            id: 2,
-            gameDate: '2024-11-16',
-            gameState: 'LIVE',
-            homeTeam: { abbrev: 'TOR', score: 2 },
-            awayTeam: { abbrev: 'BOS', score: 1 },
-          },
-          {
-            id: 3,
-            gameDate: '2024-11-17',
-            gameState: 'FUT',
-            homeTeam: { abbrev: 'TOR', score: 0 },
-            awayTeam: { abbrev: 'NYR', score: 0 },
-          },
-        ],
+    it('should return empty array on Supabase error', async () => {
+      const mockBuilder = {
+        select: jest.fn().mockReturnThis(),
+        or: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        then: (resolve: any) => Promise.resolve({ data: null, error: { message: 'Query failed' } }).then(resolve),
       };
+      (supabase.from as jest.Mock).mockReturnValue(mockBuilder);
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: async () => dataWithMultipleStates,
+      const games = await fetchTeamRecentGames('TOR', 10);
+
+      expect(games).toEqual([]);
+    });
+
+    it('should return empty array on exception', async () => {
+      (supabase.from as jest.Mock).mockImplementation(() => {
+        throw new Error('Connection error');
       });
 
       const games = await fetchTeamRecentGames('TOR', 10);
 
-      expect(games).toHaveLength(1);
-      expect(games[0].gameDate).toBe('2024-11-15');
+      expect(games).toEqual([]);
     });
   });
 
@@ -238,10 +179,10 @@ describe('recentForm', () => {
       expect(stats.losses).toBe(1);
       expect(stats.gamesPlayed).toBe(3);
 
-      // Weighted pointPctg: (1*1 + 1*0.85 + 0*0.72) / (1+0.85+0.72) = 1.85/2.57 ≈ 0.719
+      // Weighted pointPctg: (1*1 + 1*0.85 + 0*0.72) / (1+0.85+0.72) = 1.85/2.57 ~ 0.719
       expect(stats.pointPctg).toBe(0.719);
 
-      // Weighted goalDiff: (2*1) + (2*0.85) + (-1*0.72) = 2 + 1.7 - 0.72 = 2.98 → 3.0
+      // Weighted goalDiff: (2*1) + (2*0.85) + (-1*0.72) = 2 + 1.7 - 0.72 = 2.98 -> 3.0
       expect(stats.goalDifferential).toBe(3);
     });
 
@@ -270,7 +211,7 @@ describe('recentForm', () => {
 
       expect(stats.wins).toBe(3);
       expect(stats.losses).toBe(2);
-      // Weighted: (1 + 0 + 0 + 0.61 + 0.52) / (1 + 0.85 + 0.72 + 0.61 + 0.52) = 2.13/3.7 ≈ 0.576
+      // Weighted: (1 + 0 + 0 + 0.61 + 0.52) / (1 + 0.85 + 0.72 + 0.61 + 0.52) = 2.13/3.7 ~ 0.576
       expect(stats.pointPctg).toBe(0.576);
       expect(stats.gamesPlayed).toBe(5);
     });
@@ -283,7 +224,7 @@ describe('recentForm', () => {
 
       const stats = calculateRecentForm(games);
 
-      // Weighted goal diff: 5*1.0 + (-5)*0.85 = 5 - 4.25 = 0.75 → rounds to 0.8
+      // Weighted goal diff: 5*1.0 + (-5)*0.85 = 5 - 4.25 = 0.75 -> rounds to 0.8
       expect(stats.goalDifferential).toBe(0.8);
     });
 
@@ -323,8 +264,8 @@ describe('recentForm', () => {
       expect(statsRecentLoss.wins).toBe(1);
 
       // Weighted pointPctg should favor the team with the recent win
-      // recentWin: 1.0 / 1.85 ≈ 0.541
-      // recentLoss: 0.85 / 1.85 ≈ 0.459
+      // recentWin: 1.0 / 1.85 ~ 0.541
+      // recentLoss: 0.85 / 1.85 ~ 0.459
       expect(statsRecentWin.pointPctg).toBeGreaterThan(statsRecentLoss.pointPctg);
       expect(statsRecentWin.pointPctg).toBe(0.541);
       expect(statsRecentLoss.pointPctg).toBe(0.459);

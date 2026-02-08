@@ -63,7 +63,7 @@ function StatOfTheNightComponent({ stat, onShare, onInfoPress }: StatOfTheNightP
 
   const teamAbbrev = stat.teamAbbrev ?? '';
   const teamColors = getTeamColors(teamAbbrev);
-  const accentColor = teamColors.primary;
+  const accentColor = '#22c55e';
   const extracted = extractHeroNumber(stat.text);
   const categoryMeta = CATEGORY_META[stat.category] ?? { icon: 'flash-outline', label: 'HIGHLIGHT' };
 

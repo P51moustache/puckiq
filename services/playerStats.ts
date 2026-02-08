@@ -1,5 +1,5 @@
 /**
- * Player stats service - fetches and caches team player/goalie stats from the NHL API.
+ * Player stats service - fetches and caches team player/goalie stats from Supabase.
  * Used by prediction components to show key players for upcoming games.
  */
 
@@ -7,8 +7,6 @@ import {
   PlayerStatLine,
   GoalieStatLine,
   TeamPlayerStats,
-  NHLRawSkater,
-  NHLRawGoalie,
 } from '../types/gameResults';
 import { supabase } from '../lib/supabase';
 
@@ -39,114 +37,88 @@ export async function getTeamPlayerStats(
     return cached;
   }
 
-  // --- Supabase-first: try reading from skater_season_stats + goalie_season_stats ---
+  // --- Supabase: read from skater_season_stats + goalie_season_stats ---
+  // Note: no FK between these tables and `players`, so we query stats first
+  // then batch-fetch player names separately.
   try {
     const [skaterRes, goalieRes] = await Promise.all([
       supabase
         .from('skater_season_stats')
-        .select('*, players!inner(first_name, last_name)')
+        .select('*')
         .eq('team_abbrev', teamAbbrev)
         .order('points', { ascending: false }),
       supabase
         .from('goalie_season_stats')
-        .select('*, players!inner(first_name, last_name)')
+        .select('*')
         .eq('team_abbrev', teamAbbrev)
         .order('wins', { ascending: false }),
     ]);
 
     if (!skaterRes.error && !goalieRes.error && skaterRes.data && goalieRes.data && (skaterRes.data.length > 0 || goalieRes.data.length > 0)) {
-      const skaters: PlayerStatLine[] = skaterRes.data.map((row: any): PlayerStatLine => ({
-        playerId: row.player_id,
-        firstName: row.players.first_name,
-        lastName: row.players.last_name,
-        positionCode: row.position || 'C',
-        gamesPlayed: row.games_played || 0,
-        goals: row.goals || 0,
-        assists: row.assists || 0,
-        points: row.points || 0,
-        plusMinus: row.plus_minus || 0,
-        shots: row.shots || 0,
-        shootingPctg: row.shooting_pctg || 0,
-      }));
+      // Batch-fetch player names
+      const allPlayerIds = [
+        ...skaterRes.data.map((r: any) => r.player_id),
+        ...goalieRes.data.map((r: any) => r.player_id),
+      ];
+      const playerInfo = new Map<number, { first: string; last: string; headshotUrl?: string }>();
+      if (allPlayerIds.length > 0) {
+        const { data: players } = await supabase
+          .from('players')
+          .select('id, first_name, last_name, headshot_url')
+          .in('id', allPlayerIds);
+        if (players) {
+          for (const p of players) {
+            playerInfo.set(p.id, { first: p.first_name, last: p.last_name, headshotUrl: p.headshot_url ?? undefined });
+          }
+        }
+      }
 
-      const goalies: GoalieStatLine[] = goalieRes.data.map((row: any): GoalieStatLine => ({
-        playerId: row.player_id,
-        firstName: row.players.first_name,
-        lastName: row.players.last_name,
-        gamesPlayed: row.games_played || 0,
-        wins: row.wins || 0,
-        losses: row.losses || 0,
-        otLosses: row.ot_losses || 0,
-        goalsAgainstAvg: row.goals_against_avg || 0,
-        savePctg: row.save_pctg || 0,
-      }));
+      const skaters: PlayerStatLine[] = skaterRes.data.map((row: any): PlayerStatLine => {
+        const info = playerInfo.get(row.player_id);
+        return {
+          playerId: row.player_id,
+          firstName: info?.first ?? 'Unknown',
+          lastName: info?.last ?? `#${row.player_id}`,
+          positionCode: row.position || 'C',
+          gamesPlayed: row.games_played || 0,
+          goals: row.goals || 0,
+          assists: row.assists || 0,
+          points: row.points || 0,
+          plusMinus: row.plus_minus || 0,
+          shots: row.shots || 0,
+          shootingPctg: row.shooting_pctg || 0,
+          headshotUrl: info?.headshotUrl,
+        };
+      });
+
+      const goalies: GoalieStatLine[] = goalieRes.data.map((row: any): GoalieStatLine => {
+        const info = playerInfo.get(row.player_id);
+        return {
+          playerId: row.player_id,
+          firstName: info?.first ?? 'Unknown',
+          lastName: info?.last ?? `#${row.player_id}`,
+          gamesPlayed: row.games_played || 0,
+          wins: row.wins || 0,
+          losses: row.losses || 0,
+          otLosses: row.ot_losses || 0,
+          goalsAgainstAvg: row.goals_against_avg || 0,
+          savePctg: row.save_pctg || 0,
+          headshotUrl: info?.headshotUrl,
+        };
+      });
 
       const result: TeamPlayerStats = { skaters, goalies };
       statsCache.set(teamAbbrev, result);
       console.log(`[PLAYER STATS] [SUPABASE] Loaded ${skaters.length} skaters + ${goalies.length} goalies for ${teamAbbrev}`);
       return result;
     }
-    console.warn(`[PLAYER STATS] [SUPABASE] No data for ${teamAbbrev}, falling back to NHL API`);
+    console.warn(`[PLAYER STATS] [SUPABASE] No data for ${teamAbbrev}`);
   } catch (sbError) {
-    console.warn(`[PLAYER STATS] [SUPABASE] Error, falling back to NHL API`, sbError);
+    console.warn(`[PLAYER STATS] [SUPABASE] Error fetching stats for ${teamAbbrev}:`, sbError);
   }
 
-  // --- Fallback: NHL API ---
-  try {
-    const response = await fetch(
-      `https://api-web.nhle.com/v1/club-stats/${teamAbbrev}/now`,
-    );
-    const data = await response.json();
-
-    // Map raw skater data
-    const skaters: PlayerStatLine[] = (
-      (data.skaters as NHLRawSkater[]) ?? []
-    )
-      .map((raw: NHLRawSkater): PlayerStatLine => ({
-        playerId: raw.playerId,
-        firstName: raw.firstName.default,
-        lastName: raw.lastName.default,
-        positionCode: raw.positionCode,
-        gamesPlayed: raw.gamesPlayed,
-        goals: raw.goals,
-        assists: raw.assists,
-        points: raw.points,
-        plusMinus: raw.plusMinus,
-        shots: raw.shots,
-        shootingPctg: raw.shootingPctg,
-      }))
-      .sort((a, b) => b.points - a.points);
-
-    // Map raw goalie data
-    const goalies: GoalieStatLine[] = (
-      (data.goalies as NHLRawGoalie[]) ?? []
-    )
-      .map((raw: NHLRawGoalie): GoalieStatLine => ({
-        playerId: raw.playerId,
-        firstName: raw.firstName.default,
-        lastName: raw.lastName.default,
-        gamesPlayed: raw.gamesPlayed,
-        wins: raw.wins,
-        losses: raw.losses,
-        otLosses: raw.otLosses,
-        goalsAgainstAvg: raw.goalsAgainstAvg,
-        savePctg: raw.savePctg,
-      }))
-      .sort((a, b) => b.wins - a.wins);
-
-    const result: TeamPlayerStats = { skaters, goalies };
-
-    // Store in cache
-    statsCache.set(teamAbbrev, result);
-
-    return result;
-  } catch (error) {
-    console.error(
-      `[PLAYER STATS] Failed to fetch stats for ${teamAbbrev}:`,
-      error,
-    );
-    return { skaters: [], goalies: [] };
-  }
+  // No data available — return empty
+  return { skaters: [], goalies: [] };
 }
 
 // ---------------------------------------------------------------------------

@@ -82,65 +82,13 @@ export async function getTeamComparisonData(
         }
       }
     }
-    console.warn(`[TEAM COMPARISON] [SUPABASE] No data for ${teamAbbrev}, falling back to NHL API`);
+    console.warn(`[TEAM COMPARISON] [SUPABASE] No data for ${teamAbbrev}`);
   } catch (sbErr) {
-    console.warn(`[TEAM COMPARISON] [SUPABASE] Error, falling back to NHL API`, sbErr);
+    console.warn(`[TEAM COMPARISON] [SUPABASE] Error querying data`, sbErr);
   }
 
-  // --- Fallback: NHL API ---
-  try {
-    // Fetch standings, club stats, and team summary in parallel
-    const [standingsRes, clubStatsRes, teamSummaryRes] = await Promise.allSettled([
-      standingsData
-        ? Promise.resolve({ ok: true, json: async () => (standingsData.standings ? standingsData : { standings: standingsData }) })
-        : fetch('https://api-web.nhle.com/v1/standings/now'),
-      fetch(`https://api-web.nhle.com/v1/club-stats/${teamAbbrev}/now`),
-      fetch(`https://api.nhle.com/stats/rest/en/team/summary?cayenneExp=seasonId=20252026%20and%20gameTypeId=2`),
-    ]);
-
-    // Extract standings data
-    let standings = null;
-    if (standingsRes.status === 'fulfilled' && standingsRes.value.ok) {
-      const data = await standingsRes.value.json();
-      standings = data.standings || data;
-    }
-
-    if (!standings) {
-      throw new Error('Failed to fetch standings data');
-    }
-
-    // Extract club stats (player-level data to aggregate)
-    let clubStats = null;
-    if (clubStatsRes.status === 'fulfilled' && clubStatsRes.value.ok) {
-      clubStats = await clubStatsRes.value.json();
-    }
-
-    // Extract team summary (has REAL PP%, PK%, shots data)
-    // Match by teamTriCode instead of hardcoded team ID map
-    let teamSummary = null;
-    if (teamSummaryRes.status === 'fulfilled' && teamSummaryRes.value.ok) {
-      const data = await teamSummaryRes.value.json();
-      teamSummary = data.data?.find((t: any) => t.teamTriCode === teamAbbrev || t.teamFullName?.includes(teamAbbrev));
-    }
-
-    // Find team in standings
-    const teamStanding = standings?.find(
-      (t: any) => (t.teamAbbrev?.default || t.teamAbbrev) === teamAbbrev
-    );
-
-    if (!teamStanding) {
-      throw new Error(`Team ${teamAbbrev} not found in standings`);
-    }
-
-    // Get teamId from team summary or standings if available
-    const teamId = teamSummary?.teamId ?? teamStanding?.teamId ?? 0;
-
-    // Build stats object from all data sources
-    return buildTeamStats(teamId, teamAbbrev, standings, teamStanding, clubStats, teamSummary);
-  } catch (error) {
-    console.error(`[TEAM COMPARISON] Error fetching data for ${teamAbbrev}:`, error);
-    throw error;
-  }
+  // Supabase-only: no NHL API fallback (deprecated service)
+  throw new Error(`[TEAM COMPARISON] No Supabase data available for ${teamAbbrev}`);
 }
 
 /**

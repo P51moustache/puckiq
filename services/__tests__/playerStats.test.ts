@@ -1,6 +1,6 @@
 /**
- * Tests for Player Stats Service
- * Verifies NHL API fetching, response mapping, caching, sorting, and error handling.
+ * Tests for Player Stats Service (Supabase-only)
+ * Verifies Supabase querying, response mapping, caching, sorting, and error handling.
  */
 
 import {
@@ -8,66 +8,104 @@ import {
   getTeamPlayerStats,
   getKeyPlayersForGame,
 } from '../playerStats';
+import { supabase } from '../../lib/supabase';
 
 // ---------------------------------------------------------------------------
-// Mock NHL API response
+// Mock Supabase data
 // ---------------------------------------------------------------------------
 
-const mockNHLResponse = {
-  skaters: [
-    {
-      playerId: 8479318,
-      firstName: { default: 'Auston' },
-      lastName: { default: 'Matthews' },
-      positionCode: 'C',
-      gamesPlayed: 51,
-      goals: 26,
-      assists: 22,
-      points: 48,
-      plusMinus: 4,
-      shots: 193,
-      shootingPctg: 0.1347,
-    },
-    {
-      playerId: 8478483,
-      firstName: { default: 'Mitch' },
-      lastName: { default: 'Marner' },
-      positionCode: 'RW',
-      gamesPlayed: 55,
-      goals: 15,
-      assists: 45,
-      points: 60,
-      plusMinus: 12,
-      shots: 120,
-      shootingPctg: 0.125,
-    },
-  ],
-  goalies: [
-    {
-      playerId: 8480191,
-      firstName: { default: 'Anthony' },
-      lastName: { default: 'Stolarz' },
-      gamesPlayed: 38,
-      gamesStarted: 36,
-      wins: 22,
-      losses: 10,
-      otLosses: 4,
-      goalsAgainstAvg: 2.45,
-      savePctg: 0.918,
-    },
-  ],
-};
+const mockSkaterRows = [
+  {
+    player_id: 8478483,
+    position: 'RW',
+    games_played: 55,
+    goals: 15,
+    assists: 45,
+    points: 60,
+    plus_minus: 12,
+    shots: 120,
+    shooting_pctg: 0.125,
+  },
+  {
+    player_id: 8479318,
+    position: 'C',
+    games_played: 51,
+    goals: 26,
+    assists: 22,
+    points: 48,
+    plus_minus: 4,
+    shots: 193,
+    shooting_pctg: 0.1347,
+  },
+];
+
+const mockGoalieRows = [
+  {
+    player_id: 8480191,
+    games_played: 38,
+    wins: 22,
+    losses: 10,
+    ot_losses: 4,
+    goals_against_avg: 2.45,
+    save_pctg: 0.918,
+  },
+];
+
+const mockPlayerRows = [
+  { id: 8478483, first_name: 'Mitch', last_name: 'Marner', headshot_url: 'https://assets.nhle.com/mugs/nhl/20252026/TOR/8478483.png' },
+  { id: 8479318, first_name: 'Auston', last_name: 'Matthews', headshot_url: 'https://assets.nhle.com/mugs/nhl/20252026/TOR/8479318.png' },
+  { id: 8480191, first_name: 'Anthony', last_name: 'Stolarz', headshot_url: null },
+];
 
 // ---------------------------------------------------------------------------
 // Setup / Teardown
 // ---------------------------------------------------------------------------
 
-const mockFetch = jest.fn();
+// Track what the chainable query builder returns
+let mockSkaterResult: { data: any; error: any } = { data: mockSkaterRows, error: null };
+let mockGoalieResult: { data: any; error: any } = { data: mockGoalieRows, error: null };
+let mockPlayersResult: { data: any; error: any } = { data: mockPlayerRows, error: null };
 
 beforeEach(() => {
   clearPlayerStatsCache();
-  mockFetch.mockReset();
-  global.fetch = mockFetch;
+  mockSkaterResult = { data: mockSkaterRows, error: null };
+  mockGoalieResult = { data: mockGoalieRows, error: null };
+  mockPlayersResult = { data: mockPlayerRows, error: null };
+
+  // Build a chainable mock that resolves based on the table being queried
+  let currentTable = '';
+
+  const getResult = () => {
+    if (currentTable === 'skater_season_stats') return mockSkaterResult;
+    if (currentTable === 'goalie_season_stats') return mockGoalieResult;
+    if (currentTable === 'players') return mockPlayersResult;
+    return { data: [], error: null };
+  };
+
+  const buildChain = () => {
+    const chain: any = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      in: jest.fn().mockReturnThis(),
+      order: jest.fn().mockImplementation(() => {
+        const result = getResult();
+        return {
+          ...chain,
+          then: (resolve: any) => resolve(result),
+        };
+      }),
+      then: (resolve: any) => {
+        const result = getResult();
+        return resolve(result);
+      },
+    };
+    return chain;
+  };
+
+  (supabase.from as jest.Mock).mockImplementation((table: string) => {
+    currentTable = table;
+    return buildChain();
+  });
 });
 
 afterEach(() => {
@@ -79,25 +117,22 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('clearPlayerStatsCache', () => {
-  it('clears the cache so the next call fetches fresh data', async () => {
-    mockFetch.mockResolvedValue({
-      json: async () => mockNHLResponse,
-    });
-
+  it('clears the cache so the next call queries Supabase again', async () => {
     // First call — populates cache
-    await getTeamPlayerStats('TOR');
-    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const first = await getTeamPlayerStats('TOR');
+    expect(first.skaters).toHaveLength(2);
 
-    // Second call — served from cache
-    await getTeamPlayerStats('TOR');
-    expect(mockFetch).toHaveBeenCalledTimes(1);
+    // Second call — should use cache (same reference)
+    const second = await getTeamPlayerStats('TOR');
+    expect(second).toBe(first);
 
     // Clear cache
     clearPlayerStatsCache();
 
-    // Third call — should fetch again
-    await getTeamPlayerStats('TOR');
-    expect(mockFetch).toHaveBeenCalledTimes(2);
+    // Third call — should query Supabase again
+    const third = await getTeamPlayerStats('TOR');
+    expect(third).not.toBe(first);
+    expect(third.skaters).toHaveLength(2);
   });
 });
 
@@ -106,30 +141,14 @@ describe('clearPlayerStatsCache', () => {
 // ---------------------------------------------------------------------------
 
 describe('getTeamPlayerStats', () => {
-  it('fetches from the correct NHL API endpoint', async () => {
-    mockFetch.mockResolvedValue({
-      json: async () => mockNHLResponse,
-    });
-
-    await getTeamPlayerStats('TOR');
-
-    expect(mockFetch).toHaveBeenCalledWith(
-      'https://api-web.nhle.com/v1/club-stats/TOR/now',
-    );
-  });
-
-  it('returns mapped skater and goalie data', async () => {
-    mockFetch.mockResolvedValue({
-      json: async () => mockNHLResponse,
-    });
-
+  it('returns mapped skater and goalie data from Supabase', async () => {
     const result = await getTeamPlayerStats('TOR');
 
     expect(result.skaters).toHaveLength(2);
     expect(result.goalies).toHaveLength(1);
 
-    // Verify a skater is fully mapped
-    const marner = result.skaters[0]; // Marner has 60 pts, sorted first
+    // Verify skater is fully mapped (already sorted by points desc from Supabase)
+    const marner = result.skaters[0];
     expect(marner).toEqual({
       playerId: 8478483,
       firstName: 'Mitch',
@@ -142,9 +161,10 @@ describe('getTeamPlayerStats', () => {
       plusMinus: 12,
       shots: 120,
       shootingPctg: 0.125,
+      headshotUrl: 'https://assets.nhle.com/mugs/nhl/20252026/TOR/8478483.png',
     });
 
-    // Verify goalie is fully mapped
+    // Verify goalie is fully mapped (null headshot_url becomes undefined)
     expect(result.goalies[0]).toEqual({
       playerId: 8480191,
       firstName: 'Anthony',
@@ -155,147 +175,51 @@ describe('getTeamPlayerStats', () => {
       otLosses: 4,
       goalsAgainstAvg: 2.45,
       savePctg: 0.918,
+      headshotUrl: undefined,
     });
   });
 
-  it('returns cached result on second call without re-fetching', async () => {
-    mockFetch.mockResolvedValue({
-      json: async () => mockNHLResponse,
-    });
-
+  it('returns cached result on second call', async () => {
     const first = await getTeamPlayerStats('TOR');
     const second = await getTeamPlayerStats('TOR');
 
-    expect(mockFetch).toHaveBeenCalledTimes(1);
     expect(second).toBe(first); // same reference — from cache
   });
 
-  it('maps NHL API name objects ({ default: "..." }) to plain strings', async () => {
-    mockFetch.mockResolvedValue({
-      json: async () => mockNHLResponse,
-    });
+  it('returns empty stats when Supabase returns no data', async () => {
+    mockSkaterResult = { data: [], error: null };
+    mockGoalieResult = { data: [], error: null };
 
     const result = await getTeamPlayerStats('TOR');
 
-    // Skater names should be plain strings, not objects
-    for (const skater of result.skaters) {
-      expect(typeof skater.firstName).toBe('string');
-      expect(typeof skater.lastName).toBe('string');
-    }
-
-    // Goalie names should also be plain strings
-    for (const goalie of result.goalies) {
-      expect(typeof goalie.firstName).toBe('string');
-      expect(typeof goalie.lastName).toBe('string');
-    }
-
-    expect(result.skaters[0].firstName).toBe('Mitch');
-    expect(result.goalies[0].firstName).toBe('Anthony');
+    expect(result).toEqual({ skaters: [], goalies: [] });
   });
 
-  it('sorts skaters by points descending', async () => {
-    mockFetch.mockResolvedValue({
-      json: async () => mockNHLResponse,
-    });
+  it('returns empty stats when Supabase returns an error', async () => {
+    mockSkaterResult = { data: null, error: { message: 'table not found' } };
+    mockGoalieResult = { data: null, error: { message: 'table not found' } };
 
     const result = await getTeamPlayerStats('TOR');
 
-    // Marner (60 pts) should come before Matthews (48 pts)
-    expect(result.skaters[0].lastName).toBe('Marner');
-    expect(result.skaters[0].points).toBe(60);
-    expect(result.skaters[1].lastName).toBe('Matthews');
-    expect(result.skaters[1].points).toBe(48);
+    expect(result).toEqual({ skaters: [], goalies: [] });
   });
 
-  it('sorts goalies by wins descending', async () => {
-    const multiGoalieResponse = {
-      skaters: [],
-      goalies: [
-        {
-          playerId: 1,
-          firstName: { default: 'Backup' },
-          lastName: { default: 'Goalie' },
-          gamesPlayed: 15,
-          gamesStarted: 12,
-          wins: 6,
-          losses: 7,
-          otLosses: 2,
-          goalsAgainstAvg: 3.10,
-          savePctg: 0.895,
-        },
-        {
-          playerId: 2,
-          firstName: { default: 'Starter' },
-          lastName: { default: 'Goalie' },
-          gamesPlayed: 45,
-          gamesStarted: 43,
-          wins: 28,
-          losses: 12,
-          otLosses: 3,
-          goalsAgainstAvg: 2.30,
-          savePctg: 0.922,
-        },
-      ],
+  it('handles missing fields gracefully with defaults', async () => {
+    mockSkaterResult = {
+      data: [{
+        player_id: 1,
+        // All stat fields missing
+      }],
+      error: null,
     };
-
-    mockFetch.mockResolvedValue({
-      json: async () => multiGoalieResponse,
-    });
+    mockGoalieResult = { data: [], error: null };
+    mockPlayersResult = { data: [{ id: 1, first_name: 'Test', last_name: 'Player', headshot_url: null }], error: null };
 
     const result = await getTeamPlayerStats('TOR');
 
-    expect(result.goalies[0].firstName).toBe('Starter');
-    expect(result.goalies[0].wins).toBe(28);
-    expect(result.goalies[1].firstName).toBe('Backup');
-    expect(result.goalies[1].wins).toBe(6);
-  });
-
-  it('returns empty stats on fetch error', async () => {
-    mockFetch.mockRejectedValue(new Error('Network error'));
-
-    const result = await getTeamPlayerStats('TOR');
-
-    expect(result).toEqual({ skaters: [], goalies: [] });
-  });
-
-  it('returns empty stats when response.json() throws', async () => {
-    mockFetch.mockResolvedValue({
-      json: async () => {
-        throw new Error('Invalid JSON');
-      },
-    });
-
-    const result = await getTeamPlayerStats('TOR');
-
-    expect(result).toEqual({ skaters: [], goalies: [] });
-  });
-
-  it('handles missing skaters or goalies arrays gracefully', async () => {
-    mockFetch.mockResolvedValue({
-      json: async () => ({}),
-    });
-
-    const result = await getTeamPlayerStats('TOR');
-
-    expect(result.skaters).toEqual([]);
-    expect(result.goalies).toEqual([]);
-  });
-
-  it('caches per team abbreviation independently', async () => {
-    mockFetch.mockResolvedValue({
-      json: async () => mockNHLResponse,
-    });
-
-    await getTeamPlayerStats('TOR');
-    await getTeamPlayerStats('MTL');
-
-    expect(mockFetch).toHaveBeenCalledTimes(2);
-    expect(mockFetch).toHaveBeenCalledWith(
-      'https://api-web.nhle.com/v1/club-stats/TOR/now',
-    );
-    expect(mockFetch).toHaveBeenCalledWith(
-      'https://api-web.nhle.com/v1/club-stats/MTL/now',
-    );
+    expect(result.skaters[0].gamesPlayed).toBe(0);
+    expect(result.skaters[0].goals).toBe(0);
+    expect(result.skaters[0].points).toBe(0);
   });
 });
 
@@ -305,10 +229,6 @@ describe('getTeamPlayerStats', () => {
 
 describe('getKeyPlayersForGame', () => {
   it('returns stats for both home and away teams', async () => {
-    mockFetch.mockResolvedValue({
-      json: async () => mockNHLResponse,
-    });
-
     const result = await getKeyPlayersForGame('TOR', 'MTL');
 
     expect(result.home.skaters).toHaveLength(2);
@@ -317,45 +237,9 @@ describe('getKeyPlayersForGame', () => {
     expect(result.away.goalies).toHaveLength(1);
   });
 
-  it('fetches both teams in parallel', async () => {
-    mockFetch.mockResolvedValue({
-      json: async () => mockNHLResponse,
-    });
-
-    await getKeyPlayersForGame('TOR', 'MTL');
-
-    expect(mockFetch).toHaveBeenCalledTimes(2);
-    expect(mockFetch).toHaveBeenCalledWith(
-      'https://api-web.nhle.com/v1/club-stats/TOR/now',
-    );
-    expect(mockFetch).toHaveBeenCalledWith(
-      'https://api-web.nhle.com/v1/club-stats/MTL/now',
-    );
-  });
-
-  it('returns empty stats for a team that fails without affecting the other', async () => {
-    let callCount = 0;
-    mockFetch.mockImplementation(async (url: string) => {
-      callCount++;
-      if (url.includes('MTL')) {
-        throw new Error('Network error for MTL');
-      }
-      return { json: async () => mockNHLResponse };
-    });
-
-    const result = await getKeyPlayersForGame('TOR', 'MTL');
-
-    // Home team (TOR) should have data
-    expect(result.home.skaters).toHaveLength(2);
-    expect(result.home.goalies).toHaveLength(1);
-
-    // Away team (MTL) should have empty stats due to failure
-    expect(result.away.skaters).toEqual([]);
-    expect(result.away.goalies).toEqual([]);
-  });
-
-  it('returns empty stats for both teams when both fail', async () => {
-    mockFetch.mockRejectedValue(new Error('Total network failure'));
+  it('returns empty stats for both teams when Supabase has no data', async () => {
+    mockSkaterResult = { data: [], error: null };
+    mockGoalieResult = { data: [], error: null };
 
     const result = await getKeyPlayersForGame('TOR', 'MTL');
 

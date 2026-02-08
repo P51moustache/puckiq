@@ -1,6 +1,6 @@
 /**
- * NHL Edge IQ API Client
- * Supabase-first with NHL API fallback.
+ * NHL Edge IQ Data Service
+ * Supabase-only. All Edge data is synced from NHL API via the sync pipeline.
  * Centralized service for fetching Edge tracking data with 5-minute in-memory cache.
  * All functions return null on error — Edge data is optional.
  */
@@ -17,7 +17,6 @@ import type {
 } from '../types/edgeStats';
 import { supabase } from '../lib/supabase';
 
-const EDGE_BASE_URL = 'https://api-web.nhle.com/v1/edge';
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const CURRENT_SEASON = 20252026;
 
@@ -40,21 +39,6 @@ function getCached<T>(key: string): T | null {
 
 function setCache<T>(key: string, data: T): void {
   cache.set(key, { data, timestamp: Date.now() });
-}
-
-// NHL API fallback fetch (original implementation)
-async function fetchEdgeFromAPI<T>(path: string): Promise<T | null> {
-  try {
-    const response = await fetch(`${EDGE_BASE_URL}${path}`);
-    if (!response.ok) {
-      console.warn(`[EdgeStats] NHL API ${path} returned ${response.status}`);
-      return null;
-    }
-    return await response.json() as T;
-  } catch (error) {
-    console.error(`[EdgeStats] NHL API fallback failed for ${path}:`, error);
-    return null;
-  }
 }
 
 // ============================================
@@ -113,17 +97,13 @@ export async function fetchEdgeSkaterLanding(): Promise<EdgeSkaterLanding | null
   const cached = getCached<EdgeSkaterLanding>(cacheKey);
   if (cached) return cached;
 
-  // Supabase first
   const sbData = await fetchLeaderboardFromSupabase<EdgeSkaterLanding>('skater-landing');
   if (sbData) {
     setCache(cacheKey, sbData);
     return sbData;
   }
 
-  // NHL API fallback
-  const apiData = await fetchEdgeFromAPI<EdgeSkaterLanding>('/skater-landing/now');
-  if (apiData) setCache(cacheKey, apiData);
-  return apiData;
+  return null;
 }
 
 export async function fetchEdgeGoalieLanding(): Promise<EdgeGoalieLanding | null> {
@@ -137,9 +117,7 @@ export async function fetchEdgeGoalieLanding(): Promise<EdgeGoalieLanding | null
     return sbData;
   }
 
-  const apiData = await fetchEdgeFromAPI<EdgeGoalieLanding>('/goalie-landing/now');
-  if (apiData) setCache(cacheKey, apiData);
-  return apiData;
+  return null;
 }
 
 export async function fetchEdgeTeamLanding(): Promise<EdgeTeamLanding | null> {
@@ -153,9 +131,7 @@ export async function fetchEdgeTeamLanding(): Promise<EdgeTeamLanding | null> {
     return sbData;
   }
 
-  const apiData = await fetchEdgeFromAPI<EdgeTeamLanding>('/team-landing/now');
-  if (apiData) setCache(cacheKey, apiData);
-  return apiData;
+  return null;
 }
 
 export async function fetchEdgeByTheNumbers(): Promise<EdgeByTheNumbers | null> {
@@ -169,9 +145,7 @@ export async function fetchEdgeByTheNumbers(): Promise<EdgeByTheNumbers | null> 
     return sbData;
   }
 
-  const apiData = await fetchEdgeFromAPI<EdgeByTheNumbers>('/by-the-numbers/now');
-  if (apiData) setCache(cacheKey, apiData);
-  return apiData;
+  return null;
 }
 
 // ============================================
@@ -189,9 +163,7 @@ export async function fetchSkaterEdge(playerId: number): Promise<SkaterEdgeDetai
     return sbData;
   }
 
-  const apiData = await fetchEdgeFromAPI<SkaterEdgeDetail>(`/skater-detail/${playerId}/now`);
-  if (apiData) setCache(cacheKey, apiData);
-  return apiData;
+  return null;
 }
 
 export async function fetchTeamEdge(teamId: number): Promise<TeamEdgeDetail | null> {
@@ -205,9 +177,7 @@ export async function fetchTeamEdge(teamId: number): Promise<TeamEdgeDetail | nu
     return sbData;
   }
 
-  const apiData = await fetchEdgeFromAPI<TeamEdgeDetail>(`/team-detail/${teamId}/now`);
-  if (apiData) setCache(cacheKey, apiData);
-  return apiData;
+  return null;
 }
 
 export async function fetchGoalieEdge(playerId: number): Promise<GoalieEdgeDetail | null> {
@@ -221,9 +191,7 @@ export async function fetchGoalieEdge(playerId: number): Promise<GoalieEdgeDetai
     return sbData;
   }
 
-  const apiData = await fetchEdgeFromAPI<GoalieEdgeDetail>(`/goalie-detail/${playerId}/now`);
-  if (apiData) setCache(cacheKey, apiData);
-  return apiData;
+  return null;
 }
 
 export async function fetchTeamZoneTime(teamId: number): Promise<TeamZoneTimeDetails | null> {
@@ -239,9 +207,7 @@ export async function fetchTeamZoneTime(teamId: number): Promise<TeamZoneTimeDet
     return sbData;
   }
 
-  const apiData = await fetchEdgeFromAPI<TeamZoneTimeDetails>(`/team-zone-time-details/${teamId}/now`);
-  if (apiData) setCache(cacheKey, apiData);
-  return apiData;
+  return null;
 }
 
 // ============================================

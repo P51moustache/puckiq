@@ -62,7 +62,7 @@ export default function TeamModal({
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <View style={styles.logoPlaceholder}>
+            <View style={styles.logoBadge}>
               <Text style={styles.logoText}>{teamAbbrev}</Text>
             </View>
             <View>
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
     gap: 12,
     flex: 1,
   },
-  logoPlaceholder: {
+  logoBadge: {
     width: 50,
     height: 50,
     borderRadius: 25,

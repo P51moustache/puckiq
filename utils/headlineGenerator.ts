@@ -7,7 +7,7 @@
 import type { H2HRecord } from '../types/gameResults';
 import type { MomentumData } from '../types/edgeStats';
 
-/** Minimal game shape expected from NHL score API or sample data */
+/** Minimal game shape expected from NHL score API */
 interface HeadlineGame {
   homeTeam?: { abbrev?: string; streakCode?: string };
   awayTeam?: { abbrev?: string; streakCode?: string };
@@ -161,7 +161,7 @@ function findStreakAlert(
     }
   }
 
-  // Also check streakCode on game objects (e.g. from sample data)
+  // Also check streakCode on game objects (NHL API includes these)
   for (const game of games) {
     if (game.homeTeam?.abbrev && game.homeTeam.streakCode) {
       streakMap.set(game.homeTeam.abbrev, game.homeTeam.streakCode);

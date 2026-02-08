@@ -33,6 +33,12 @@ const modules = [
 
   // Player trends: game logs daily, advanced stats weekly (Corsi, Fenwick, PDO)
   { name: 'player-trends', script: 'sync-player-trends.mjs', args: isWeekly ? ['--weekly'] : [] },
+
+  // Player career data: landing pages with career totals, awards, last 5 games (weekly only — ~900 API calls)
+  ...(isWeekly || isFullSync ? [{ name: 'player-career', script: 'sync-player-career.mjs', args: [] }] : []),
+
+  // Edge IQ detailed stats: per-entity endpoints (weekly only — ~900+ API calls)
+  ...(isWeekly || isFullSync ? [{ name: 'edge-details', script: 'sync-edge-details.mjs', args: [] }] : []),
 ];
 
 const modeLabel = isFullSync ? 'FULL' : isWeekly ? 'WEEKLY' : 'INCREMENTAL';

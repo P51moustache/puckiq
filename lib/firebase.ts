@@ -2,17 +2,15 @@ import { Analytics, getAnalytics, isSupported } from 'firebase/analytics';
 import { FirebaseApp, getApps, initializeApp } from 'firebase/app';
 import { Platform } from 'react-native';
 
-// Your Firebase config - Replace with your actual Firebase project config
+// Firebase project config — loaded from env vars
 const firebaseConfig = {
-  // TODO: Replace these placeholder values with your actual Firebase config
-  // Get this from: Firebase Console > Project Settings > General > Your apps > Web app
-  apiKey: "AIzaSyDh78EbPvfl5ce1f9C6BSsDMeIrm0Gi98A",
-  authDomain: "puckiq.firebaseapp.com",
-  projectId: "puckiq",
-  storageBucket: "puckiq.firebasestorage.app",
-  messagingSenderId: "706163499801",
-  appId: "1:706163499801:web:bba324101765a60a219b88",
-  measurementId: "G-N37EWT11T5"
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || '',
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || '',
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || '',
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || '',
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '',
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || '',
+  measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID || '',
 };
 
 // Initialize Firebase

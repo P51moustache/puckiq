@@ -14,15 +14,13 @@ import type { GameResult } from '../../types/gameResults';
 function makeGame(overrides: Partial<GameResult>): GameResult {
   return {
     id: 1,
-    game_id: 1001,
-    season: '20252026',
+    season: 20252026,
     game_date: '2026-01-15',
-    home_team: 'TOR',
-    away_team: 'MTL',
+    home_team_abbrev: 'TOR',
+    away_team_abbrev: 'MTL',
     home_score: 3,
     away_score: 2,
     game_state: 'FINAL',
-    created_at: '2026-01-15T00:00:00Z',
     ...overrides,
   };
 }
@@ -45,9 +43,9 @@ describe('calculateMomentum', () => {
 
   it('calculates positive momentum from wins', () => {
     const games = [
-      makeGame({ game_date: '2026-01-15', home_team: 'TOR', away_team: 'MTL', home_score: 5, away_score: 2 }),
-      makeGame({ game_date: '2026-01-13', home_team: 'TOR', away_team: 'BOS', home_score: 4, away_score: 1 }),
-      makeGame({ game_date: '2026-01-11', home_team: 'TOR', away_team: 'OTT', home_score: 3, away_score: 1 }),
+      makeGame({ game_date: '2026-01-15', home_team_abbrev: 'TOR', away_team_abbrev: 'MTL', home_score: 5, away_score: 2 }),
+      makeGame({ game_date: '2026-01-13', home_team_abbrev: 'TOR', away_team_abbrev: 'BOS', home_score: 4, away_score: 1 }),
+      makeGame({ game_date: '2026-01-11', home_team_abbrev: 'TOR', away_team_abbrev: 'OTT', home_score: 3, away_score: 1 }),
     ];
     const result = calculateMomentum('TOR', games);
     expect(result.score).toBeGreaterThan(0);
@@ -56,9 +54,9 @@ describe('calculateMomentum', () => {
 
   it('calculates negative momentum from losses', () => {
     const games = [
-      makeGame({ game_date: '2026-01-15', home_team: 'TOR', away_team: 'MTL', home_score: 1, away_score: 5 }),
-      makeGame({ game_date: '2026-01-13', home_team: 'TOR', away_team: 'BOS', home_score: 0, away_score: 4 }),
-      makeGame({ game_date: '2026-01-11', home_team: 'TOR', away_team: 'OTT', home_score: 1, away_score: 3 }),
+      makeGame({ game_date: '2026-01-15', home_team_abbrev: 'TOR', away_team_abbrev: 'MTL', home_score: 1, away_score: 5 }),
+      makeGame({ game_date: '2026-01-13', home_team_abbrev: 'TOR', away_team_abbrev: 'BOS', home_score: 0, away_score: 4 }),
+      makeGame({ game_date: '2026-01-11', home_team_abbrev: 'TOR', away_team_abbrev: 'OTT', home_score: 1, away_score: 3 }),
     ];
     const result = calculateMomentum('TOR', games);
     expect(result.score).toBeLessThan(0);
@@ -69,10 +67,9 @@ describe('calculateMomentum', () => {
     const games = Array.from({ length: 5 }, (_, i) =>
       makeGame({
         id: i + 1,
-        game_id: 1000 + i,
         game_date: `2026-01-${15 - i}`,
-        home_team: 'TOR',
-        away_team: 'MTL',
+        home_team_abbrev: 'TOR',
+        away_team_abbrev: 'MTL',
         home_score: 10,
         away_score: 0,
       })
@@ -86,10 +83,9 @@ describe('calculateMomentum', () => {
     const games = Array.from({ length: 8 }, (_, i) =>
       makeGame({
         id: i + 1,
-        game_id: 1000 + i,
         game_date: `2026-01-${20 - i}`,
-        home_team: 'TOR',
-        away_team: 'MTL',
+        home_team_abbrev: 'TOR',
+        away_team_abbrev: 'MTL',
         home_score: 4,
         away_score: 1,
       })
@@ -113,7 +109,7 @@ describe('calculateMomentum', () => {
 
   it('handles away team correctly', () => {
     const games = [
-      makeGame({ game_date: '2026-01-15', home_team: 'MTL', away_team: 'TOR', home_score: 1, away_score: 4 }),
+      makeGame({ game_date: '2026-01-15', home_team_abbrev: 'MTL', away_team_abbrev: 'TOR', home_score: 1, away_score: 4 }),
     ];
     const result = calculateMomentum('TOR', games);
     expect(result.score).toBe(3); // TOR won by 3 as away team
@@ -144,9 +140,9 @@ describe('calculateClutchRating', () => {
     // 5 one-goal wins, 1 one-goal loss = 83% → CLUTCH
     const games = [
       ...Array.from({ length: 5 }, (_, i) =>
-        makeGame({ id: i + 1, game_id: 1000 + i, game_date: `2026-01-${15 - i}`, home_score: 3, away_score: 2 })
+        makeGame({ id: i + 1, game_date: `2026-01-${15 - i}`, home_score: 3, away_score: 2 })
       ),
-      makeGame({ id: 6, game_id: 1006, game_date: '2026-01-09', home_score: 2, away_score: 3 }),
+      makeGame({ id: 6, game_date: '2026-01-09', home_score: 2, away_score: 3 }),
     ];
     const result = calculateClutchRating('TOR', games);
     expect(result.rating).toBe('CLUTCH');
@@ -157,10 +153,10 @@ describe('calculateClutchRating', () => {
     // 3 one-goal wins, 3 one-goal losses = 50% → CLOSER
     const games = [
       ...Array.from({ length: 3 }, (_, i) =>
-        makeGame({ id: i + 1, game_id: 1000 + i, game_date: `2026-01-${15 - i}`, home_score: 3, away_score: 2 })
+        makeGame({ id: i + 1, game_date: `2026-01-${15 - i}`, home_score: 3, away_score: 2 })
       ),
       ...Array.from({ length: 3 }, (_, i) =>
-        makeGame({ id: i + 4, game_id: 1003 + i, game_date: `2026-01-${12 - i}`, home_score: 2, away_score: 3 })
+        makeGame({ id: i + 4, game_date: `2026-01-${12 - i}`, home_score: 2, away_score: 3 })
       ),
     ];
     const result = calculateClutchRating('TOR', games);
@@ -170,9 +166,9 @@ describe('calculateClutchRating', () => {
   it('returns ICE COLD for low one-goal win rate', () => {
     // 1 one-goal win, 5 one-goal losses = 17% → ICE COLD
     const games = [
-      makeGame({ id: 1, game_id: 1000, game_date: '2026-01-15', home_score: 3, away_score: 2 }),
+      makeGame({ id: 1, game_date: '2026-01-15', home_score: 3, away_score: 2 }),
       ...Array.from({ length: 5 }, (_, i) =>
-        makeGame({ id: i + 2, game_id: 1001 + i, game_date: `2026-01-${14 - i}`, home_score: 2, away_score: 3 })
+        makeGame({ id: i + 2, game_date: `2026-01-${14 - i}`, home_score: 2, away_score: 3 })
       ),
     ];
     const result = calculateClutchRating('TOR', games);
@@ -182,7 +178,7 @@ describe('calculateClutchRating', () => {
   it('returns null rating for fewer than 5 close games', () => {
     const games = [
       makeGame({ home_score: 3, away_score: 2 }),
-      makeGame({ id: 2, game_id: 1002, home_score: 2, away_score: 3 }),
+      makeGame({ id: 2, home_score: 2, away_score: 3 }),
     ];
     const result = calculateClutchRating('TOR', games);
     expect(result.rating).toBeNull();
@@ -191,11 +187,11 @@ describe('calculateClutchRating', () => {
   it('ignores blowouts', () => {
     // 3 blowout wins (not one-goal) + 2 one-goal games
     const games = [
-      makeGame({ id: 1, game_id: 1000, game_date: '2026-01-15', home_score: 6, away_score: 1 }),
-      makeGame({ id: 2, game_id: 1001, game_date: '2026-01-14', home_score: 5, away_score: 0 }),
-      makeGame({ id: 3, game_id: 1002, game_date: '2026-01-13', home_score: 7, away_score: 2 }),
-      makeGame({ id: 4, game_id: 1003, game_date: '2026-01-12', home_score: 3, away_score: 2 }),
-      makeGame({ id: 5, game_id: 1004, game_date: '2026-01-11', home_score: 2, away_score: 3 }),
+      makeGame({ id: 1, game_date: '2026-01-15', home_score: 6, away_score: 1 }),
+      makeGame({ id: 2, game_date: '2026-01-14', home_score: 5, away_score: 0 }),
+      makeGame({ id: 3, game_date: '2026-01-13', home_score: 7, away_score: 2 }),
+      makeGame({ id: 4, game_date: '2026-01-12', home_score: 3, away_score: 2 }),
+      makeGame({ id: 5, game_date: '2026-01-11', home_score: 2, away_score: 3 }),
     ];
     const result = calculateClutchRating('TOR', games);
     // Only 2 one-goal games (<5), so no rating
@@ -206,10 +202,9 @@ describe('calculateClutchRating', () => {
     const games = Array.from({ length: 6 }, (_, i) =>
       makeGame({
         id: i + 1,
-        game_id: 1000 + i,
         game_date: `2026-01-${15 - i}`,
-        home_team: 'MTL',
-        away_team: 'TOR',
+        home_team_abbrev: 'MTL',
+        away_team_abbrev: 'TOR',
         home_score: 2,
         away_score: 3, // TOR wins by 1 as away
       })
@@ -265,15 +260,15 @@ describe('calculateRestAdvantage', () => {
 
   it('uses most recent game only', () => {
     const games = [
-      makeGame({ id: 1, game_id: 1000, game_date: '2026-01-19' }), // 1 day ago
-      makeGame({ id: 2, game_id: 1001, game_date: '2026-01-10' }), // 10 days ago
+      makeGame({ id: 1, game_date: '2026-01-19' }), // 1 day ago
+      makeGame({ id: 2, game_date: '2026-01-10' }), // 10 days ago
     ];
     expect(calculateRestAdvantage('TOR', '2026-01-20', games)).toBe(50);
   });
 
   it('handles away team correctly', () => {
     const games = [
-      makeGame({ home_team: 'MTL', away_team: 'TOR', game_date: '2026-01-19' }),
+      makeGame({ home_team_abbrev: 'MTL', away_team_abbrev: 'TOR', game_date: '2026-01-19' }),
     ];
     expect(calculateRestAdvantage('TOR', '2026-01-20', games)).toBe(50);
   });

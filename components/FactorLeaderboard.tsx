@@ -14,22 +14,26 @@ interface FactorLeaderboardProps {
   season?: string;
 }
 
-// Default mock data for the current season
-export const DEFAULT_FACTOR_RANKINGS: FactorRanking[] = [
-  { type: 'GOALIE_EDGE', name: 'Goaltending Edge', accuracy: 68, gamesAnalyzed: 412 },
-  { type: 'HOME_ICE', name: 'Home Ice', accuracy: 61, gamesAnalyzed: 620 },
-  { type: 'RECENT_FORM', name: 'Recent Form (L10)', accuracy: 58, gamesAnalyzed: 580 },
-  { type: 'REST', name: 'Rest Advantage', accuracy: 54, gamesAnalyzed: 320 },
-  { type: 'SPECIAL_TEAMS', name: 'Special Teams', accuracy: 52, gamesAnalyzed: 445 },
-  { type: 'DIVISIONAL', name: 'Divisional Games', accuracy: 51, gamesAnalyzed: 180 },
-  { type: 'HEAD_TO_HEAD', name: 'Head-to-Head', accuracy: 49, gamesAnalyzed: 290 },
-  { type: 'BACK_TO_BACK', name: 'Back-to-Back', accuracy: 47, gamesAnalyzed: 156 },
-];
-
 export function FactorLeaderboard({
-  rankings = DEFAULT_FACTOR_RANKINGS,
+  rankings,
   season = '2025-26'
 }: FactorLeaderboardProps) {
+  if (!rankings || rankings.length === 0) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Factor Leaderboard</Text>
+          <Text style={styles.season}>{season}</Text>
+        </View>
+        <Text style={styles.subtitle}>
+          Which factors actually predict winners?
+        </Text>
+        <Text style={{ fontSize: 13, color: theme.subtext, fontStyle: 'italic', textAlign: 'center', paddingVertical: 24 }}>
+          Factor accuracy tracking coming soon. Make picks to build data!
+        </Text>
+      </View>
+    );
+  }
   const getAccuracyColor = (accuracy: number) => {
     if (accuracy >= 60) return '#22c55e'; // green - strong predictor
     if (accuracy >= 55) return '#f59e0b'; // amber - moderate

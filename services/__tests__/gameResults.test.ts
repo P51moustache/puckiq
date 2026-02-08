@@ -7,8 +7,6 @@ import {
   formatH2HSummary,
   getH2HRecord,
   getH2HForGames,
-  seedCurrentSeason,
-  syncRecentResults,
   fetchGameResults,
   _resetCircuitBreaker,
 } from '../gameResults';
@@ -46,16 +44,14 @@ global.fetch = jest.fn() as jest.Mock;
 /** Create a minimal GameResult for testing */
 function makeGameResult(overrides: Partial<GameResult> = {}): GameResult {
   return {
-    id: 1,
-    game_id: 2024020100,
-    season: '20242025',
+    id: 2024020100,
+    season: 20242025,
     game_date: '2024-11-10',
-    home_team: 'TOR',
-    away_team: 'MTL',
+    home_team_abbrev: 'TOR',
+    away_team_abbrev: 'MTL',
     home_score: 4,
     away_score: 2,
     game_state: 'FINAL',
-    created_at: '2024-11-10T23:00:00Z',
     ...overrides,
   };
 }
@@ -165,9 +161,9 @@ describe('formatH2HSummary', () => {
 describe('getH2HRecord', () => {
   it('returns an H2HRecord with correct win counts', async () => {
     const games: GameResult[] = [
-      makeGameResult({ home_team: 'TOR', away_team: 'MTL', home_score: 4, away_score: 2 }), // TOR win
-      makeGameResult({ home_team: 'MTL', away_team: 'TOR', home_score: 3, away_score: 5 }), // TOR win (away)
-      makeGameResult({ home_team: 'MTL', away_team: 'TOR', home_score: 4, away_score: 1 }), // MTL win
+      makeGameResult({ home_team_abbrev: 'TOR', away_team_abbrev: 'MTL', home_score: 4, away_score: 2 }), // TOR win
+      makeGameResult({ home_team_abbrev: 'MTL', away_team_abbrev: 'TOR', home_score: 3, away_score: 5 }), // TOR win (away)
+      makeGameResult({ home_team_abbrev: 'MTL', away_team_abbrev: 'TOR', home_score: 4, away_score: 1 }), // MTL win
     ];
     mockQueryResult = { data: games, error: null };
 
@@ -220,18 +216,18 @@ describe('getH2HRecord', () => {
   it('passes the correct season to Supabase when provided', async () => {
     mockQueryResult = { data: [], error: null };
 
-    await getH2HRecord('TOR', 'MTL', '20232024');
+    await getH2HRecord('TOR', 'MTL', 20232024);
 
-    // The first .eq() call should receive 'season' and the provided season string
-    expect(mockEq).toHaveBeenCalledWith('season', '20232024');
+    // The first .eq() call should receive 'season' and the provided season number
+    expect(mockEq).toHaveBeenCalledWith('season', 20232024);
   });
 
-  it('queries Supabase from game_results table', async () => {
+  it('queries Supabase from games table', async () => {
     mockQueryResult = { data: [], error: null };
 
     await getH2HRecord('TOR', 'MTL');
 
-    expect(mockFrom).toHaveBeenCalledWith('game_results');
+    expect(mockFrom).toHaveBeenCalledWith('games');
     expect(mockSelect).toHaveBeenCalledWith('*');
   });
 
@@ -260,7 +256,7 @@ describe('getH2HRecord', () => {
 describe('getH2HForGames', () => {
   it('returns map keyed by "AWAY-HOME"', async () => {
     const supabaseGames: GameResult[] = [
-      makeGameResult({ home_team: 'MTL', away_team: 'TOR', home_score: 2, away_score: 5 }), // TOR win
+      makeGameResult({ home_team_abbrev: 'MTL', away_team_abbrev: 'TOR', home_score: 2, away_score: 5 }), // TOR win
     ];
     mockQueryResult = { data: supabaseGames, error: null };
 
@@ -310,8 +306,8 @@ describe('getH2HForGames', () => {
 
   it('handles multiple games in a single batch', async () => {
     const supabaseGames: GameResult[] = [
-      makeGameResult({ home_team: 'MTL', away_team: 'TOR', home_score: 2, away_score: 5 }),
-      makeGameResult({ home_team: 'BOS', away_team: 'NYR', home_score: 3, away_score: 1 }),
+      makeGameResult({ home_team_abbrev: 'MTL', away_team_abbrev: 'TOR', home_score: 2, away_score: 5 }),
+      makeGameResult({ home_team_abbrev: 'BOS', away_team_abbrev: 'NYR', home_score: 3, away_score: 1 }),
     ];
     mockQueryResult = { data: supabaseGames, error: null };
 
@@ -351,8 +347,8 @@ describe('getH2HForGames', () => {
   it('correctly counts wins for the away team in the key', async () => {
     // Two games: TOR wins both (once at home, once away)
     const supabaseGames: GameResult[] = [
-      makeGameResult({ home_team: 'MTL', away_team: 'TOR', home_score: 1, away_score: 3 }), // TOR away win
-      makeGameResult({ home_team: 'TOR', away_team: 'MTL', home_score: 4, away_score: 2 }), // TOR home win
+      makeGameResult({ home_team_abbrev: 'MTL', away_team_abbrev: 'TOR', home_score: 1, away_score: 3 }), // TOR away win
+      makeGameResult({ home_team_abbrev: 'TOR', away_team_abbrev: 'MTL', home_score: 4, away_score: 2 }), // TOR home win
     ];
     mockQueryResult = { data: supabaseGames, error: null };
 
@@ -369,235 +365,7 @@ describe('getH2HForGames', () => {
   });
 });
 
-// ═══════════════════════════════════════════════════════════════════════════
-// seedCurrentSeason — smoke test with mocked fetch + Supabase
-// ═══════════════════════════════════════════════════════════════════════════
 
-describe('seedCurrentSeason', () => {
-  it('does not crash and returns 0 when NHL API returns no games', async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ games: [] }),
-    });
-
-    const result = await seedCurrentSeason();
-
-    expect(result).toBe(0);
-  });
-
-  it('processes FINAL games and upserts to Supabase', async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          games: [
-            {
-              id: 2024020001,
-              gameDate: '2024-11-01',
-              startTimeUTC: '2024-11-01T23:00:00Z',
-              gameState: 'FINAL',
-              homeTeam: { id: 1, abbrev: 'TOR', score: 4 },
-              awayTeam: { id: 2, abbrev: 'MTL', score: 2 },
-            },
-            {
-              id: 2024020002,
-              gameDate: '2024-11-01',
-              startTimeUTC: '2024-11-01T23:00:00Z',
-              gameState: 'FUT', // Future game - should be skipped
-              homeTeam: { id: 1, abbrev: 'TOR', score: 0 },
-              awayTeam: { id: 3, abbrev: 'BOS', score: 0 },
-            },
-          ],
-        }),
-    });
-
-    const result = await seedCurrentSeason();
-
-    // 32 teams fetched, each returning 1 FINAL game with the same ID -> map deduplicates
-    expect(mockUpsert).toHaveBeenCalled();
-    expect(result).toBeGreaterThan(0);
-  });
-
-  it('calls onProgress callback for each team', async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ games: [] }),
-    });
-
-    const onProgress = jest.fn();
-    await seedCurrentSeason(onProgress);
-
-    // Should be called 32 times (once per team)
-    expect(onProgress).toHaveBeenCalledTimes(32);
-    expect(onProgress).toHaveBeenCalledWith(expect.any(String), expect.any(Number), 32);
-  }, 30000);
-
-  it('returns 0 on Supabase upsert error', async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          games: [
-            {
-              id: 2024020001,
-              gameDate: '2024-11-01',
-              startTimeUTC: '2024-11-01T23:00:00Z',
-              gameState: 'FINAL',
-              homeTeam: { id: 1, abbrev: 'TOR', score: 4 },
-              awayTeam: { id: 2, abbrev: 'MTL', score: 2 },
-            },
-          ],
-        }),
-    });
-
-    mockUpsert.mockReturnValueOnce({ error: { message: 'upsert failed' } });
-
-    const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-    const result = await seedCurrentSeason();
-
-    expect(result).toBe(0);
-    consoleSpy.mockRestore();
-  });
-
-  it('continues processing when a single team fetch fails', async () => {
-    let callCount = 0;
-    (global.fetch as jest.Mock).mockImplementation(() => {
-      callCount++;
-      if (callCount === 1) {
-        return Promise.reject(new Error('Network error'));
-      }
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({ games: [] }),
-      });
-    });
-
-    const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-    const result = await seedCurrentSeason();
-
-    // Should still complete without throwing
-    expect(result).toBe(0); // no FINAL games
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('[GAME RESULTS] Failed to fetch schedule for'),
-      expect.any(Error),
-    );
-    consoleSpy.mockRestore();
-  }, 30000);
-});
-
-// ═══════════════════════════════════════════════════════════════════════════
-// syncRecentResults — smoke test with mocked fetch + Supabase
-// ═══════════════════════════════════════════════════════════════════════════
-
-describe('syncRecentResults', () => {
-  it('does not crash with empty API responses', async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ games: [] }),
-    });
-
-    await expect(syncRecentResults()).resolves.toBeUndefined();
-  });
-
-  it('fetches scores for yesterday and today', async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ games: [] }),
-    });
-
-    await syncRecentResults();
-
-    // Should be called twice: once for yesterday, once for today
-    expect(global.fetch).toHaveBeenCalledTimes(2);
-    expect((global.fetch as jest.Mock).mock.calls[0][0]).toContain('https://api-web.nhle.com/v1/score/');
-    expect((global.fetch as jest.Mock).mock.calls[1][0]).toContain('https://api-web.nhle.com/v1/score/');
-  });
-
-  it('upserts FINAL games to Supabase', async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          games: [
-            {
-              id: 2024020500,
-              gameDate: '2024-12-01',
-              startTimeUTC: '2024-12-01T23:00:00Z',
-              gameState: 'FINAL',
-              homeTeam: { id: 1, abbrev: 'TOR', score: 3 },
-              awayTeam: { id: 2, abbrev: 'MTL', score: 1 },
-            },
-          ],
-        }),
-    });
-
-    await syncRecentResults();
-
-    expect(mockFrom).toHaveBeenCalledWith('game_results');
-    expect(mockUpsert).toHaveBeenCalled();
-  });
-
-  it('skips non-FINAL games', async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          games: [
-            {
-              id: 2024020500,
-              gameDate: '2024-12-01',
-              startTimeUTC: '2024-12-01T23:00:00Z',
-              gameState: 'LIVE',
-              homeTeam: { id: 1, abbrev: 'TOR', score: 2 },
-              awayTeam: { id: 2, abbrev: 'MTL', score: 1 },
-            },
-          ],
-        }),
-    });
-
-    await syncRecentResults();
-
-    // Should not upsert since no FINAL games
-    expect(mockUpsert).not.toHaveBeenCalled();
-  });
-
-  it('does not crash when fetch throws', async () => {
-    (global.fetch as jest.Mock).mockRejectedValue(new Error('Network down'));
-
-    const consoleSpy = jest.spyOn(console, 'debug').mockImplementation();
-    await expect(syncRecentResults()).resolves.toBeUndefined();
-    consoleSpy.mockRestore();
-  });
-
-  it('handles Supabase upsert error gracefully', async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          games: [
-            {
-              id: 2024020500,
-              gameDate: '2024-12-01',
-              startTimeUTC: '2024-12-01T23:00:00Z',
-              gameState: 'OFF',
-              homeTeam: { id: 1, abbrev: 'TOR', score: 3 },
-              awayTeam: { id: 2, abbrev: 'MTL', score: 1 },
-            },
-          ],
-        }),
-    });
-
-    mockUpsert.mockReturnValueOnce({ error: { message: 'upsert failed' } });
-
-    const consoleSpy = jest.spyOn(console, 'debug').mockImplementation();
-    await expect(syncRecentResults()).resolves.toBeUndefined();
-    expect(consoleSpy).toHaveBeenCalledWith(
-      '[GAME RESULTS] syncRecentResults upsert error:',
-      'upsert failed',
-    );
-    consoleSpy.mockRestore();
-  });
-});
 
 // ═══════════════════════════════════════════════════════════════════════════
 // fetchGameResults — fetches all game results for current season
@@ -606,15 +374,15 @@ describe('syncRecentResults', () => {
 describe('fetchGameResults', () => {
   it('returns game results from Supabase', async () => {
     const games = [
-      makeGameResult({ game_id: 2024020100 }),
-      makeGameResult({ game_id: 2024020101 }),
+      makeGameResult({ id: 2024020100 }),
+      makeGameResult({ id: 2024020101 }),
     ];
     mockQueryResult = { data: games, error: null };
 
     const result = await fetchGameResults();
 
     expect(result).toHaveLength(2);
-    expect(mockFrom).toHaveBeenCalledWith('game_results');
+    expect(mockFrom).toHaveBeenCalledWith('games');
     expect(mockSelect).toHaveBeenCalledWith('*');
   });
 
@@ -761,49 +529,3 @@ describe('circuit breaker', () => {
   });
 });
 
-// ═══════════════════════════════════════════════════════════════════════════
-// syncRecentResults — full seed when table is empty
-// ═══════════════════════════════════════════════════════════════════════════
-
-describe('syncRecentResults — empty table triggers full seed', () => {
-  it('triggers full season seed when count is 0', async () => {
-    // Mock the count check to return 0
-    mockCountResult = { count: 0, error: null };
-
-    // Mock fetch for the full seed (32 teams)
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ games: [] }),
-    });
-
-    await syncRecentResults();
-
-    // Should have called fetch 32 times (once per team for full seed)
-    expect(global.fetch).toHaveBeenCalledTimes(32);
-  }, 30000);
-
-  it('does not trigger full seed when count > 0', async () => {
-    mockCountResult = { count: 500, error: null };
-
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ games: [] }),
-    });
-
-    await syncRecentResults();
-
-    // Should have called fetch only twice (yesterday + today)
-    expect(global.fetch).toHaveBeenCalledTimes(2);
-  });
-
-  it('returns early when count check fails', async () => {
-    mockCountResult = { count: null, error: { message: 'Permission denied' } };
-
-    const consoleSpy = jest.spyOn(console, 'debug').mockImplementation();
-    await syncRecentResults();
-
-    // Should not fetch any games
-    expect(global.fetch).not.toHaveBeenCalled();
-    consoleSpy.mockRestore();
-  });
-});
