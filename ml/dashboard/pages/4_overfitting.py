@@ -30,7 +30,7 @@ st.caption(
 # Model type selector
 # ---------------------------------------------------------------------------
 
-MODEL_TYPES = ["game_winner", "spread", "totals", "player_props"]
+MODEL_TYPES = ["game_winner", "spread", "totals"]
 
 model_type = st.selectbox(
     "Model Type",

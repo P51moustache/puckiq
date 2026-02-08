@@ -32,7 +32,7 @@ st.subheader("Filters")
 filter_col1, filter_col2, filter_col3, filter_col4 = st.columns(4)
 
 with filter_col1:
-    MODEL_TYPES = ["All", "game_winner", "spread", "totals", "player_props"]
+    MODEL_TYPES = ["All", "game_winner", "spread", "totals"]
     selected_model = st.selectbox(
         "Model Type",
         MODEL_TYPES,

@@ -106,6 +106,7 @@ class LGBMComponent:
     def __init__(self, params: dict[str, Any] | None = None) -> None:
         self.params = {**LGBM_REGRESSOR_DEFAULTS, **(params or {})}
         self.model: lgb.LGBMRegressor | None = None
+        self.feature_names: list[str] = []
 
     def train(
         self,
@@ -115,6 +116,7 @@ class LGBMComponent:
     ) -> dict[str, float]:
         """Fit a LightGBM regressor with optional early stopping."""
         self.model = lgb.LGBMRegressor(**self.params)
+        self.feature_names = list(features_df.columns)
 
         fit_kwargs: dict[str, Any] = {}
         if eval_set is not None:
@@ -193,6 +195,22 @@ class TotalsModel:
         since LightGBM does not produce distributional predictions.
         """
         return self.poisson.predict_distribution(features_df)
+
+    def get_feature_importance(self) -> dict[str, float]:
+        """Return feature importance from the LightGBM component.
+
+        The Poisson GLM doesn't expose importances in the same format,
+        so we use the LightGBM sub-model's importances as a proxy for
+        the whole ensemble.
+        """
+        if self.lgbm.model is None:
+            return {}
+        importances = self.lgbm.model.feature_importances_
+        names = self.lgbm.feature_names
+        if not names or importances is None:
+            return {}
+        pairs = sorted(zip(names, importances), key=lambda x: x[1], reverse=True)
+        return dict(pairs)
 
     def evaluate(
         self, features_df: pd.DataFrame, targets: pd.Series

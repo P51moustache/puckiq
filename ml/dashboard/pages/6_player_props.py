@@ -25,6 +25,28 @@ st.caption(
 )
 
 # ---------------------------------------------------------------------------
+# Check if player props model is available
+# ---------------------------------------------------------------------------
+# The player_props model is a Phase 2 feature — it hasn't been built yet.
+# Show a clear message instead of empty tables.
+
+from data import get_active_models
+active = get_active_models()
+has_player_model = (
+    not active.empty
+    and (active["model_type"] == "player_props").any()
+)
+if not has_player_model:
+    st.info(
+        "**Player props model coming soon.** "
+        "The player-level Poisson GLM model is planned for Phase 2. "
+        "Currently active models: game winner, spread, and totals. "
+        "Once the player props model is trained and producing predictions, "
+        "this page will show per-player predicted vs actual stats."
+    )
+    st.stop()
+
+# ---------------------------------------------------------------------------
 # Date range and player search
 # ---------------------------------------------------------------------------
 

@@ -12,7 +12,7 @@ import streamlit as st
 
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from data import get_evaluations, get_latest_evaluation
+from data import get_active_models, get_evaluations, get_latest_evaluation
 
 st.set_page_config(page_title="Model Performance — PuckIQ ML", layout="wide")
 st.title("Model Performance")
@@ -25,7 +25,7 @@ st.caption(
 # Model type selector
 # ---------------------------------------------------------------------------
 
-MODEL_TYPES = ["game_winner", "spread", "totals", "player_props"]
+MODEL_TYPES = ["game_winner", "spread", "totals"]
 
 model_type = st.selectbox(
     "Model Type",
@@ -37,10 +37,67 @@ model_type = st.selectbox(
 evaluation = get_latest_evaluation(model_type)
 
 if evaluation is None:
+    # No evaluations yet — show what we have from model metadata instead
+    active_models = get_active_models()
+    model_row = active_models[active_models["model_type"] == model_type] if not active_models.empty else pd.DataFrame()
+
+    if model_row.empty:
+        st.info(
+            "No active model or evaluation data for this model type — "
+            "data will appear after training and the first monthly evaluation."
+        )
+        st.stop()
+
+    model = model_row.iloc[0]
+    st.subheader("Validation Metrics (from Training)")
     st.info(
-        "No evaluation data yet for this model type — "
-        "evaluations will appear after the first monthly evaluation run."
+        "Full evaluation data (reliability diagrams, baseline comparisons) will appear "
+        "after the monthly evaluation pipeline runs. Showing validation metrics from training below."
     )
+
+    metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
+    with metric_col1:
+        brier = model.get("val_brier_score")
+        st.metric("Brier Score", f"{brier:.4f}" if pd.notna(brier) else "N/A")
+    with metric_col2:
+        acc = model.get("val_accuracy")
+        st.metric("Val Accuracy", f"{acc:.1%}" if pd.notna(acc) else "N/A")
+    with metric_col3:
+        mae = model.get("val_mae")
+        st.metric("Val MAE", f"{mae:.3f}" if pd.notna(mae) else "N/A")
+    with metric_col4:
+        gap = model.get("overfit_gap")
+        st.metric("Overfit Gap", f"{gap:.1%}" if pd.notna(gap) else "N/A")
+
+    st.caption(
+        "These metrics come from walk-forward cross-validation during the weekly retrain. "
+        "**Brier score** measures probability calibration (lower = better, 0.25 = random). "
+        "**Val accuracy** is the % of games predicted correctly on held-out validation data. "
+        "**Val MAE** is the average prediction error for spread/totals models. "
+        "**Overfit gap** = training accuracy minus validation accuracy (lower = healthier)."
+    )
+
+    # Show feature importance as a useful visualization while we wait for evaluations
+    fi = model.get("feature_importance")
+    if fi and isinstance(fi, dict) and len(fi) > 0:
+        st.subheader("Feature Importance")
+        fi_df = pd.DataFrame([
+            {"feature": k, "importance": v}
+            for k, v in fi.items()
+        ]).sort_values("importance", ascending=True).tail(15)
+
+        fig = px.bar(
+            fi_df, x="importance", y="feature", orientation="h",
+            color="importance", color_continuous_scale="Blues",
+        )
+        fig.update_layout(
+            xaxis_title="Importance (split gain)", yaxis_title="",
+            template="plotly_dark", height=max(400, len(fi_df) * 30),
+            margin=dict(l=20, r=20, t=20, b=50),
+            showlegend=False, coloraxis_showscale=False,
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
     st.stop()
 
 # ---------------------------------------------------------------------------
