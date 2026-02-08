@@ -305,11 +305,10 @@ export async function checkAndUpdateYesterdaysGames(): Promise<void> {
   const picks = await getPicksForDate(yesterday);
   if (!picks) return;
 
-  // Fetch yesterday's scores — Supabase first, NHL API fallback
+  // Fetch yesterday's scores from Supabase
   try {
     let games: any[] = [];
 
-    // Try Supabase first
     try {
       const { data, error } = await supabase
         .from('games')
@@ -326,18 +325,10 @@ export async function checkAndUpdateYesterdaysGames(): Promise<void> {
         }));
         logger.info('[SUPABASE] Loaded', data.length, 'completed games for', yesterday);
       } else {
-        logger.warn('[SUPABASE] No completed games for', yesterday, '— falling back to NHL API');
+        logger.warn('[SUPABASE] No completed games for', yesterday);
       }
     } catch (supabaseErr) {
-      logger.warn('[SUPABASE] Error querying yesterday games, falling back to NHL API', supabaseErr);
-    }
-
-    // NHL API fallback
-    if (games.length === 0) {
-      const response = await fetch(`https://api-web.nhle.com/v1/score/${yesterday}`);
-      if (!response.ok) throw new Error('Failed to fetch scores');
-      const data = await response.json();
-      games = data.games || [];
+      logger.warn('[SUPABASE] Error querying yesterday games:', supabaseErr);
     }
 
     const results = games.map((game: any) => {

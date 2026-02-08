@@ -2,9 +2,12 @@
  * Recent form calculations for NHL teams
  * Analyzes last N games to determine current team performance
  * Uses recency weighting so recent games matter more than older games
+ *
+ * Data source: Supabase `games` table (synced from NHL API via GitHub Actions)
  */
 
 import type { RecentGame, RecentFormStats } from '../types/predictions';
+import { supabase } from '../lib/supabase';
 
 /**
  * Decay factor for recency weighting
@@ -14,31 +17,7 @@ import type { RecentGame, RecentFormStats } from '../types/predictions';
 const RECENCY_DECAY_FACTOR = 0.85;
 
 /**
- * Get current NHL season in format YYYYyyyy (e.g., 20242025)
- */
-export function getCurrentSeason(): string {
-  const now = new Date();
-  const month = now.getMonth(); // 0-11
-  const year = now.getFullYear();
-
-  // NHL season runs from October (9) to June (5)
-  // Off-season (July-September): return last season
-  // October-December: return current season
-  // January-June: return season that started last year
-  if (month >= 6 && month <= 8) {
-    // Off-season: return last season
-    return `${year - 1}${year}`;
-  } else if (month >= 0 && month <= 5) {
-    // Jan-June: season started last year
-    return `${year - 1}${year}`;
-  } else {
-    // Oct-Dec: season started this year
-    return `${year}${year + 1}`;
-  }
-}
-
-/**
- * Fetch recent games for a team from NHL API
+ * Fetch recent completed games for a team from Supabase
  * Returns up to N most recent completed games
  */
 export async function fetchTeamRecentGames(
@@ -46,45 +25,35 @@ export async function fetchTeamRecentGames(
   count: number = 10
 ): Promise<RecentGame[]> {
   try {
-    const season = getCurrentSeason();
-    const url = `https://api-web.nhle.com/v1/club-schedule-season/${teamAbbrev}/${season}`;
+    const { data, error } = await supabase
+      .from('games')
+      .select('id, game_date, home_team_abbrev, away_team_abbrev, home_score, away_score, game_state')
+      .or(`home_team_abbrev.eq.${teamAbbrev},away_team_abbrev.eq.${teamAbbrev}`)
+      .in('game_state', ['FINAL', 'OFF'])
+      .order('game_date', { ascending: false })
+      .limit(count);
 
-    const response = await fetch(url);
-    if (!response.ok) {
-      console.error(`[Recent Form] Failed to fetch schedule for ${teamAbbrev}`);
+    if (error || !data) {
+      console.error(`[Recent Form] Supabase query failed for ${teamAbbrev}:`, error?.message);
       return [];
     }
 
-    const data = await response.json();
-    const games = data.games || [];
+    const completedGames: RecentGame[] = data.map((row: any) => {
+      const isHomeGame = row.home_team_abbrev === teamAbbrev;
+      const opponent = isHomeGame ? row.away_team_abbrev : row.home_team_abbrev;
+      const goalsFor = isHomeGame ? (row.home_score || 0) : (row.away_score || 0);
+      const goalsAgainst = isHomeGame ? (row.away_score || 0) : (row.home_score || 0);
 
-    // Filter for completed games only and convert to RecentGame format
-    const completedGames: RecentGame[] = games
-      .filter((game: any) => {
-        // Only include games that are final (OFF or FINAL state)
-        return game.gameState === 'FINAL' || game.gameState === 'OFF';
-      })
-      .map((game: any) => {
-        const isHomeGame = game.homeTeam?.abbrev === teamAbbrev;
-        const opponent = isHomeGame ? game.awayTeam?.abbrev : game.homeTeam?.abbrev;
-        const goalsFor = isHomeGame ? (game.homeTeam?.score || 0) : (game.awayTeam?.score || 0);
-        const goalsAgainst = isHomeGame ? (game.awayTeam?.score || 0) : (game.homeTeam?.score || 0);
-
-        return {
-          id: game.id,
-          gameDate: game.gameDate,
-          isHomeGame,
-          opponent: opponent || '',
-          goalsFor,
-          goalsAgainst,
-          won: goalsFor > goalsAgainst,
-        };
-      })
-      .sort((a: RecentGame, b: RecentGame) => {
-        // Sort by date descending (most recent first)
-        return b.gameDate.localeCompare(a.gameDate);
-      })
-      .slice(0, count); // Limit to requested count
+      return {
+        id: row.id,
+        gameDate: row.game_date,
+        isHomeGame,
+        opponent: opponent || '',
+        goalsFor,
+        goalsAgainst,
+        won: goalsFor > goalsAgainst,
+      };
+    });
 
     return completedGames;
   } catch (error) {

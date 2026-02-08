@@ -283,14 +283,12 @@ export default function TonightScreen() {
                     onPress={() => handleOpenDeepDive(game)}
                     onShare={() => handleShareGame(game)}
                     onInfoPress={glossary.showTerm}
-                    awayMomentum={momentumMap.get(game.awayTeam?.abbrev) ?? null}
-                    homeMomentum={momentumMap.get(game.homeTeam?.abbrev) ?? null}
+                    awayForm={formMap.get(game.awayTeam?.abbrev) ?? null}
+                    homeForm={formMap.get(game.homeTeam?.abbrev) ?? null}
                     restAdvantage={{
                       home: restMap.get(game.homeTeam?.abbrev) ?? 50,
                       away: restMap.get(game.awayTeam?.abbrev) ?? 50,
                     }}
-                    awayForm={formMap.get(game.awayTeam?.abbrev) ?? null}
-                    homeForm={formMap.get(game.homeTeam?.abbrev) ?? null}
                   />
                 );
               })}

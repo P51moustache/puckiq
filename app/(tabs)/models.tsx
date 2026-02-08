@@ -18,8 +18,20 @@ import { theme } from '../../constants/theme';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import { ModelList, ModelEditScreen } from '../../components/model-builder';
 import DataSeedingModal from '../../components/DataSeedingModal';
-// TODO: Connect to Supabase for seeding status
-async function isSeasonSeeded(_seasonId: string): Promise<boolean> { return false; }
+import { supabase } from '../../lib/supabase';
+
+async function isSeasonSeeded(seasonId: string): Promise<boolean> {
+  try {
+    const { count, error } = await supabase
+      .from('games')
+      .select('*', { count: 'exact', head: true })
+      .eq('season', parseInt(seasonId));
+    if (error) return false;
+    return (count ?? 0) > 0;
+  } catch {
+    return false;
+  }
+}
 function getCurrentSeasonId(): string {
   const now = new Date();
   const month = now.getMonth();

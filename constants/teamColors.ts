@@ -108,7 +108,8 @@ export function getTeamColors(abbrev: string): TeamColors {
 
 /**
  * Get a team color that meets WCAG AA contrast against the app background.
- * Lightens dark team colors (NYR, TOR, TBL, BUF, etc.) for text readability.
+ * Always preserves the team's primary hue — lightens it if needed rather than
+ * falling back to secondary (which may be gold, grey, white, etc.).
  * Use this for team-colored TEXT — not for backgrounds or gradients.
  */
 export function getAccessibleTextColor(abbrev: string): string {
@@ -120,18 +121,18 @@ export function getAccessibleTextColor(abbrev: string): string {
     return primary;
   }
 
-  // Try secondary color
-  if (contrastRatio(colors.secondary, APP_BACKGROUND) >= MIN_CONTRAST_RATIO) {
-    return colors.secondary;
-  }
-
-  // Lighten primary until it passes contrast check
+  // Lighten primary until it passes — always preserves team hue identity
   let lightened = primary;
   for (let step = 0.1; step <= 0.9; step += 0.05) {
     lightened = lightenColor(primary, step);
     if (contrastRatio(lightened, APP_BACKGROUND) >= MIN_CONTRAST_RATIO) {
       return lightened;
     }
+  }
+
+  // Last resort: secondary if lightened primary still can't pass
+  if (contrastRatio(colors.secondary, APP_BACKGROUND) >= MIN_CONTRAST_RATIO) {
+    return colors.secondary;
   }
 
   return lightened;

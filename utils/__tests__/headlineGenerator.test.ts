@@ -26,15 +26,13 @@ function makeH2H(teamA: string, teamB: string, aWins: number, bWins: number, gam
     otLosses: 0,
     games: Array.from({ length: total }, (_, i) => ({
       id: i + 1,
-      game_id: 2025020001 + i,
-      season: '20252026',
+      season: 20252026,
       game_date: '2026-01-15',
-      home_team: teamB,
-      away_team: teamA,
+      home_team_abbrev: teamB,
+      away_team_abbrev: teamA,
       home_score: 3,
       away_score: 2,
       game_state: 'OFF',
-      created_at: '2026-01-15T00:00:00Z',
     })),
   };
 }

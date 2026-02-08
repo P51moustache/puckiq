@@ -5,8 +5,6 @@
  * Covers:
  * - Edge IQ landing pages (skater/goalie/team/by-the-numbers)
  * - Edge IQ top-10 lists
- * - Stat leaders (skater + goalie)
- * - Player spotlight
  *
  * These are ~30 API calls total (not 900+ like per-player data).
  * Per-player Edge IQ and stat categories are too expensive for daily sync
@@ -34,16 +32,6 @@ const EDGE_TOP_10 = [
   'team-speed-top-10', 'team-distance-top-10', 'team-shot-speed-top-10',
   'team-zone-time-top-10', 'team-offensive-zone-top-10',
   'team-defensive-zone-top-10', 'team-neutral-zone-top-10',
-];
-
-// Stat leader categories
-const SKATER_LEADER_CATS = [
-  'goals', 'assists', 'points', 'plusMinus', 'penaltyMins',
-  'powerPlayGoals', 'gameWinningGoals', 'shots', 'shootingPctg',
-];
-
-const GOALIE_LEADER_CATS = [
-  'wins', 'goalsAgainstAverage', 'savePctg', 'shutouts',
 ];
 
 async function fetchEdge(path) {
@@ -120,65 +108,8 @@ async function syncEdgeTop10() {
 }
 
 async function syncStatLeaders() {
-  console.log('  [leaders] Syncing stat leaders...');
-  const season = getCurrentSeason();
-  const rows = [];
-
-  for (const cat of SKATER_LEADER_CATS) {
-    try {
-      const data = await fetchWithRetry(`${NHL_API}/skater-stats-leaders/current?categories=${cat}&limit=50`);
-      if (data) {
-        rows.push({
-          data_type: 'skater_leaders',
-          data_key: cat,
-          season,
-          data,
-          fetched_at: new Date().toISOString(),
-        });
-      }
-    } catch { /* non-fatal */ }
-    await sleep(150);
-  }
-
-  for (const cat of GOALIE_LEADER_CATS) {
-    try {
-      const data = await fetchWithRetry(`${NHL_API}/goalie-stats-leaders/current?categories=${cat}&limit=50`);
-      if (data) {
-        rows.push({
-          data_type: 'goalie_leaders',
-          data_key: cat,
-          season,
-          data,
-          fetched_at: new Date().toISOString(),
-        });
-      }
-    } catch { /* non-fatal */ }
-    await sleep(150);
-  }
-
-  // Player spotlight
-  try {
-    const data = await fetchWithRetry(`${NHL_API}/player-spotlight`);
-    if (data) {
-      rows.push({
-        data_type: 'player_spotlight',
-        data_key: 'current',
-        season,
-        data,
-        fetched_at: new Date().toISOString(),
-      });
-    }
-  } catch { /* non-fatal */ }
-
-  if (rows.length > 0) {
-    const { error } = await supabase
-      .from('supplemental_data')
-      .upsert(rows, { onConflict: 'data_type,data_key,season' });
-    if (error) console.warn(`  [leaders] upsert error: ${error.message}`);
-  }
-
-  console.log(`  [leaders] ${rows.length} records synced`);
-  return rows.length;
+  console.log('  [leaders] Stat leaders sync skipped — supplemental_data table removed');
+  return 0;
 }
 
 // Main

@@ -16,12 +16,10 @@ import { theme } from '../constants/theme';
 import { getTeamColors, getAccessibleTextColor } from '../constants/teamColors';
 import { getTeamLogoUrl } from '../utils/teamLogo';
 import { ConfidenceBadge } from './ConfidenceBadge';
+import { getRelativeDateLabel } from '../utils/dateLabel';
 import type { H2HRecord } from '../types/gameResults';
 import type { NHLGameSummary } from '../types/predictions';
 import type { TeamFormData } from '../types/teamForm';
-
-import type { MomentumData } from '../types/edgeStats';
-import FormSparkline from './FormSparkline';
 
 interface AllGamesCardProps {
   game: NHLGameSummary;
@@ -32,11 +30,9 @@ interface AllGamesCardProps {
   onPress: () => void;
   onShare?: () => void;
   onInfoPress?: (glossaryKey: string) => void;
-  awayMomentum?: MomentumData | null;
-  homeMomentum?: MomentumData | null;
-  restAdvantage?: { home: number; away: number } | null;
   awayForm?: TeamFormData | null;
   homeForm?: TeamFormData | null;
+  restAdvantage?: { home: number; away: number } | null;
 }
 
 function formatGameTime(game: NHLGameSummary): { text: string; isLive: boolean; isFinal: boolean } {
@@ -68,6 +64,23 @@ function formatH2H(h2h: H2HRecord): string {
   if (h2h.teamAWins === h2h.teamBWins) return `Series tied ${h2h.teamAWins}-${h2h.teamBWins}`;
   if (h2h.teamAWins > h2h.teamBWins) return `${h2h.teamA} leads ${h2h.teamAWins}-${h2h.teamBWins}`;
   return `${h2h.teamB} leads ${h2h.teamBWins}-${h2h.teamAWins}`;
+}
+
+function formatRecord(form: TeamFormData): string {
+  return `${form.wins}-${form.losses}-${form.otLosses}`;
+}
+
+/** Convert restMap score (0=B2B, 50=1day, 75=2day, 100=3+) to a display chip, or null if even/unremarkable. */
+function getRestChip(
+  homeRest: number,
+  awayRest: number,
+): { label: string; color: string; bg: string } | null {
+  if (homeRest === 0) return { label: 'HOME B2B', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.15)' };
+  if (awayRest === 0) return { label: 'AWAY B2B', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.15)' };
+  const diff = homeRest - awayRest;
+  if (diff >= 25) return { label: 'HOME REST +', color: '#22c55e', bg: 'rgba(34, 197, 94, 0.15)' };
+  if (diff <= -25) return { label: 'AWAY REST +', color: '#22c55e', bg: 'rgba(34, 197, 94, 0.15)' };
+  return null;
 }
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -124,39 +137,7 @@ function getBarColors(awayAbbrev: string, homeAbbrev: string): { away: string; h
   return { away, home };
 }
 
-
-type FactorSide = 'home' | 'away' | 'even';
-
-function computeFactorSplits(
-  awayMomentum: MomentumData | null | undefined,
-  homeMomentum: MomentumData | null | undefined,
-  restAdvantage: { home: number; away: number } | null | undefined,
-  h2hRecord: H2HRecord | null,
-): { mtm: FactorSide | null; rest: FactorSide | null; h2h: FactorSide | null } {
-  let mtm: FactorSide | null = null;
-  if (awayMomentum && homeMomentum) {
-    const diff = homeMomentum.score - awayMomentum.score;
-    mtm = diff > 1 ? 'home' : diff < -1 ? 'away' : 'even';
-  }
-
-  let rest: FactorSide | null = null;
-  if (restAdvantage) {
-    const diff = restAdvantage.home - restAdvantage.away;
-    rest = diff > 10 ? 'home' : diff < -10 ? 'away' : 'even';
-  }
-
-  let h2h: FactorSide | null = null;
-  if (h2hRecord && (h2hRecord.teamAWins + h2hRecord.teamBWins) > 0) {
-    // teamA = away, teamB = home in the h2h convention
-    if (h2hRecord.teamAWins > h2hRecord.teamBWins) h2h = 'away';
-    else if (h2hRecord.teamBWins > h2hRecord.teamAWins) h2h = 'home';
-    else h2h = 'even';
-  }
-
-  return { mtm, rest, h2h };
-}
-
-function AllGamesCardComponent({ game, prediction, h2hRecord, insight, index, onPress, onShare, onInfoPress, awayMomentum, homeMomentum, restAdvantage, awayForm, homeForm }: AllGamesCardProps) {
+function AllGamesCardComponent({ game, prediction, h2hRecord, insight, index, onPress, onShare, onInfoPress, awayForm, homeForm, restAdvantage }: AllGamesCardProps) {
   const awayAbbrev = game.awayTeam?.abbrev ?? '???';
   const homeAbbrev = game.homeTeam?.abbrev ?? '???';
   const favoredIsHome = prediction.homeWinProb >= prediction.awayWinProb;
@@ -165,12 +146,14 @@ function AllGamesCardComponent({ game, prediction, h2hRecord, insight, index, on
   const favoredColor = pickVisibleColor(favoredTeam.primary, favoredTeam.secondary);
   const barColors = getBarColors(awayAbbrev, homeAbbrev);
   const confidenceScore = Math.round(Math.abs(prediction.homeWinProb - 50) * 2);
+  const awayProb = Math.round(prediction.awayWinProb);
+  const homeProb = Math.round(prediction.homeWinProb);
   const gameTime = formatGameTime(game);
-
-  const splits = computeFactorSplits(awayMomentum, homeMomentum, restAdvantage, h2hRecord);
-  const factorCount = [splits.mtm, splits.rest, splits.h2h].filter(Boolean).length;
+  const dateLabel = getRelativeDateLabel(game.gameDate ?? game.startTimeUTC ?? '');
   const awayColors = getTeamColors(awayAbbrev);
   const homeColors = getTeamColors(homeAbbrev);
+
+  const restChip = restAdvantage ? getRestChip(restAdvantage.home, restAdvantage.away) : null;
 
   // Spring press animation
   const scale = useSharedValue(1);
@@ -200,6 +183,15 @@ function AllGamesCardComponent({ game, prediction, h2hRecord, insight, index, on
     };
   });
 
+  // Build time + date string
+  const timeDisplay = gameTime.isLive
+    ? `LIVE  ${gameTime.text}`
+    : gameTime.isFinal
+    ? gameTime.text
+    : dateLabel !== 'Today'
+    ? `${dateLabel} · ${gameTime.text}`
+    : gameTime.text;
+
   return (
     <Animated.View entering={FadeInUp.springify().damping(18).stiffness(120).delay(index * 60)}>
       <Pressable
@@ -211,59 +203,96 @@ function AllGamesCardComponent({ game, prediction, h2hRecord, insight, index, on
         <Animated.View
           style={[
             styles.card,
-            { borderLeftColor: favoredColor },
+            {
+              borderLeftColor: favoredColor,
+              shadowColor: favoredColor,
+            },
             pressStyle,
             gameTime.isLive && liveStyle,
           ]}
         >
+        {/* Background: team color gradient */}
         <LinearGradient
           colors={[
-            `${awayColors.primary}22`,
+            `${awayColors.primary}30`,
             'transparent',
-            `${homeColors.primary}18`,
+            `${homeColors.primary}20`,
           ]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={[StyleSheet.absoluteFill, { borderRadius: 16 }]}
         />
-        {/* Row 1: Matchup + Time */}
+
+        {/* Top edge highlight for depth */}
+        <View style={styles.topHighlight} />
+
+        {/* Row 1: Teams with logos + records, badge top-right */}
         <View style={styles.row1}>
-          <View style={styles.matchupRow}>
-            <Image source={{ uri: getTeamLogoUrl(awayAbbrev) }} style={styles.teamLogo} contentFit="contain" />
-            {awayForm?.results && awayForm.results.length >= 2 && (
-              <FormSparkline results={awayForm.results} width={36} height={14} />
-            )}
-            <Text style={styles.matchup}>
-              <Text style={{ color: getAccessibleTextColor(awayAbbrev) }}>{awayAbbrev}</Text>
-              {' @ '}
-              <Text style={{ color: getAccessibleTextColor(homeAbbrev) }}>{homeAbbrev}</Text>
-            </Text>
-            {homeForm?.results && homeForm.results.length >= 2 && (
-              <FormSparkline results={homeForm.results} width={36} height={14} />
-            )}
-            <Image source={{ uri: getTeamLogoUrl(homeAbbrev) }} style={styles.teamLogo} contentFit="contain" />
+          <View>
+            <View style={styles.matchupRow}>
+              {/* Away team block */}
+              <View style={styles.teamBlock}>
+                <Image source={{ uri: getTeamLogoUrl(awayAbbrev) }} style={styles.teamLogo} contentFit="contain" />
+                <View>
+                  <Text style={[styles.teamAbbrev, { color: getAccessibleTextColor(awayAbbrev) }]}>{awayAbbrev}</Text>
+                  {awayForm && (
+                    <Text style={styles.record}>{formatRecord(awayForm)}</Text>
+                  )}
+                </View>
+              </View>
+
+              <Text style={styles.atSymbol}>@</Text>
+
+              {/* Home team block */}
+              <View style={styles.teamBlock}>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={[styles.teamAbbrev, { color: getAccessibleTextColor(homeAbbrev) }]}>{homeAbbrev}</Text>
+                  {homeForm && (
+                    <Text style={styles.record}>{formatRecord(homeForm)}</Text>
+                  )}
+                </View>
+                <Image source={{ uri: getTeamLogoUrl(homeAbbrev) }} style={styles.teamLogo} contentFit="contain" />
+              </View>
+            </View>
+
+            {/* Time + optional rest chip */}
+            <View style={styles.timeRow}>
+              <Text
+                style={[
+                  styles.timeText,
+                  gameTime.isLive && styles.timeLive,
+                  gameTime.isFinal && styles.timeFinal,
+                ]}
+              >
+                {timeDisplay}
+              </Text>
+              {restChip && (
+                <View style={[styles.restChip, { backgroundColor: restChip.bg }]}>
+                  <Text style={[styles.restChipText, { color: restChip.color }]}>{restChip.label}</Text>
+                </View>
+              )}
+            </View>
           </View>
-          <Text
-            style={[
-              styles.time,
-              gameTime.isLive && styles.timeLive,
-              gameTime.isFinal && styles.timeFinal,
-            ]}
-          >
-            {gameTime.isLive ? 'LIVE' : ''} {gameTime.text}
-          </Text>
+          <ConfidenceBadge confidence={confidenceScore} size="md" onInfoPress={onInfoPress} />
         </View>
 
-        {/* Row 2: Confidence badge (hero) + Probability bar */}
+        {/* Row 2: Away% — Bar — Home% */}
         <View style={styles.row2}>
-          <ConfidenceBadge confidence={confidenceScore} size="md" onInfoPress={onInfoPress} />
-          <View style={styles.barContainer}>
+          <Text style={[
+            styles.probSide,
+            !favoredIsHome && styles.probFavored,
+            !favoredIsHome && { color: barColors.away },
+            favoredIsHome && styles.probUnderdog,
+          ]}>
+            {awayProb}%
+          </Text>
+          <View style={styles.barWrapper}>
             <View style={styles.barBg}>
               <View
                 style={[
                   styles.barFill,
                   {
-                    width: `${Math.round(prediction.awayWinProb)}%`,
+                    width: `${awayProb}%`,
                     backgroundColor: barColors.away,
                   },
                 ]}
@@ -272,83 +301,48 @@ function AllGamesCardComponent({ game, prediction, h2hRecord, insight, index, on
                 style={[
                   styles.barFill,
                   {
-                    width: `${Math.round(prediction.homeWinProb)}%`,
+                    width: `${homeProb}%`,
                     backgroundColor: barColors.home,
                   },
                 ]}
               />
             </View>
-            <Text style={styles.probText}>
-              {Math.round(Math.max(prediction.homeWinProb, prediction.awayWinProb))}%
-            </Text>
           </View>
-        </View>
-
-        {/* Row 3: H2H chip */}
-        {h2hRecord && (
-          <View style={styles.row3}>
-            <View style={styles.chip}>
-              <Text style={styles.chipText}>{formatH2H(h2hRecord)}</Text>
-            </View>
-          </View>
-        )}
-
-        {/* Row 3b: Insight text (own row, full width) */}
-        {insight && (
-          <Text style={[styles.insightText, { color: favoredColor }]} numberOfLines={2}>
-            {insight}
+          <Text style={[
+            styles.probSide,
+            favoredIsHome && styles.probFavored,
+            favoredIsHome && { color: barColors.home },
+            !favoredIsHome && styles.probUnderdog,
+          ]}>
+            {homeProb}%
           </Text>
-        )}
+        </View>
 
-        {/* Row 4: Factor Split + Share */}
-        <View style={styles.factorRow}>
-          <View style={styles.factorChips}>
-            {factorCount >= 2 && splits.mtm !== null && (
-              <Pressable onLongPress={() => onInfoPress?.('mtm')} delayLongPress={300} style={styles.factorChip}>
-                <View style={[
-                  styles.factorDot,
-                  { backgroundColor: splits.mtm === 'home'
-                    ? pickVisibleColor(homeColors.primary, homeColors.secondary)
-                    : splits.mtm === 'away'
-                    ? pickVisibleColor(awayColors.primary, awayColors.secondary)
-                    : theme.subtext },
-                ]} />
-                <Text style={styles.factorLabel}>MTM</Text>
-              </Pressable>
-            )}
-            {factorCount >= 2 && splits.rest !== null && (
-              <Pressable onLongPress={() => onInfoPress?.('rest')} delayLongPress={300} style={styles.factorChip}>
-                <View style={[
-                  styles.factorDot,
-                  { backgroundColor: splits.rest === 'home'
-                    ? pickVisibleColor(homeColors.primary, homeColors.secondary)
-                    : splits.rest === 'away'
-                    ? pickVisibleColor(awayColors.primary, awayColors.secondary)
-                    : theme.subtext },
-                ]} />
-                <Text style={styles.factorLabel}>REST</Text>
-              </Pressable>
-            )}
-            {factorCount >= 2 && splits.h2h !== null && (
-              <Pressable onLongPress={() => onInfoPress?.('h2h')} delayLongPress={300} style={styles.factorChip}>
-                <View style={[
-                  styles.factorDot,
-                  { backgroundColor: splits.h2h === 'home'
-                    ? pickVisibleColor(homeColors.primary, homeColors.secondary)
-                    : splits.h2h === 'away'
-                    ? pickVisibleColor(awayColors.primary, awayColors.secondary)
-                    : theme.subtext },
-                ]} />
-                <Text style={styles.factorLabel}>H2H</Text>
+        {/* Row 3: H2H + Insight + Share */}
+        {(h2hRecord || insight || onShare) && (
+          <View style={styles.row3}>
+            <View style={styles.row3Left}>
+              {h2hRecord && (
+                <View style={styles.chip}>
+                  <Text style={styles.chipText}>{formatH2H(h2hRecord)}</Text>
+                </View>
+              )}
+              {insight && (
+                <Text
+                  style={[styles.insightText, { color: `${favoredColor}cc` }]}
+                  numberOfLines={1}
+                >
+                  {insight}
+                </Text>
+              )}
+            </View>
+            {onShare && (
+              <Pressable onPress={onShare} hitSlop={8}>
+                <Ionicons name="share-outline" size={14} color={theme.subtext} />
               </Pressable>
             )}
           </View>
-          {onShare && (
-            <Pressable onPress={onShare} hitSlop={8}>
-              <Ionicons name="share-outline" size={14} color={theme.subtext} />
-            </Pressable>
-          )}
-        </View>
+        )}
         </Animated.View>
       </Pressable>
     </Animated.View>
@@ -361,38 +355,66 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: theme.card,
     borderRadius: 16,
-    padding: 14,
+    padding: 12,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    borderLeftWidth: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    borderColor: 'rgba(255, 255, 255, 0.10)',
+    borderLeftWidth: 5,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  topHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
   },
   row1: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
+    alignItems: 'flex-start',
+    marginBottom: 14,
   },
   matchupRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
+  teamBlock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   teamLogo: {
-    width: 28,
-    height: 28,
+    width: 64,
+    height: 64,
   },
-  matchup: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: theme.text,
+  teamAbbrev: {
+    fontSize: 17,
+    fontWeight: '800',
   },
-  time: {
+  record: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: theme.subtext,
+    marginTop: 1,
+  },
+  atSymbol: {
+    fontSize: 13,
+    color: theme.subtext,
+    fontWeight: '400',
+  },
+  timeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 6,
+  },
+  timeText: {
     fontSize: 12,
     fontWeight: '600',
     color: theme.subtext,
@@ -404,48 +426,69 @@ const styles = StyleSheet.create({
   timeFinal: {
     color: theme.subtext,
   },
+  restChip: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  restChipText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
   row2: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 8,
+    gap: 10,
+    marginBottom: 12,
   },
-  barContainer: {
+  barWrapper: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
   },
   barBg: {
-    flex: 1,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     overflow: 'hidden',
     flexDirection: 'row',
   },
   barFill: {
-    height: 8,
+    height: 14,
   },
-  probText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: theme.subtext,
-    minWidth: 32,
+  probSide: {
+    fontSize: 15,
+    fontWeight: '700',
+    minWidth: 36,
     fontFamily: theme.fonts.mono,
     fontVariant: ['tabular-nums'],
+  },
+  probFavored: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  probUnderdog: {
+    color: theme.subtext,
+    fontSize: 14,
+    fontWeight: '600',
   },
   row3: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  row3Left: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
-    flexWrap: 'wrap',
+    marginRight: 8,
   },
   chip: {
     backgroundColor: 'rgba(96, 165, 250, 0.12)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
+    flexShrink: 0,
   },
   chipText: {
     fontSize: 12,
@@ -453,38 +496,9 @@ const styles = StyleSheet.create({
     color: '#60a5fa',
   },
   insightText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
-    marginTop: 6,
-    marginBottom: 2,
-    paddingBottom: 2,
-    lineHeight: 19,
-  },
-  factorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 6,
-  },
-  factorChips: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  factorChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  factorDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-  },
-  factorLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: theme.subtext,
-    letterSpacing: 0.5,
+    lineHeight: 18,
+    flex: 1,
   },
 });

@@ -1,9 +1,5 @@
 /**
- * Sync game results from NHL API to Supabase.
- *
- * Writes to BOTH tables:
- * - `game_results` (legacy, TEXT season) — used by existing services/gameResults.ts
- * - `games` (new comprehensive schema, INTEGER season) — used by new features
+ * Sync game data from NHL API to Supabase `games` table.
  *
  * Two modes:
  * - Full: Fetch all 32 team schedules, upsert all games (initial seed / recovery)
@@ -81,7 +77,7 @@ async function syncIncremental() {
 }
 
 /**
- * Upsert raw NHL game data into both game_results (legacy) and games (new) tables.
+ * Upsert raw NHL game data into the games table.
  */
 async function upsertGames(rawGames, season, seasonStr) {
   if (rawGames.length === 0) {
@@ -91,38 +87,7 @@ async function upsertGames(rawGames, season, seasonStr) {
 
   let errors = 0;
 
-  // 1. Upsert into game_results (legacy table — only completed games)
-  const completedGames = rawGames.filter(g => g.gameState === 'FINAL' || g.gameState === 'OFF');
-  const legacyRows = completedGames.map(game => ({
-    game_id: game.id,
-    season: seasonStr,
-    game_date: game.gameDate,
-    home_team: game.homeTeam.abbrev,
-    away_team: game.awayTeam.abbrev,
-    home_score: game.homeTeam.score ?? 0,
-    away_score: game.awayTeam.score ?? 0,
-    game_state: game.gameState,
-  }));
-
-  if (legacyRows.length > 0) {
-    const batchSize = 200;
-    let legacyUpserted = 0;
-    for (let i = 0; i < legacyRows.length; i += batchSize) {
-      const batch = legacyRows.slice(i, i + batchSize);
-      const { error } = await supabase
-        .from('game_results')
-        .upsert(batch, { onConflict: 'game_id' });
-      if (error) {
-        console.error(`  [sync-games] game_results batch error: ${error.message}`);
-        errors++;
-      } else {
-        legacyUpserted += batch.length;
-      }
-    }
-    console.log(`  game_results: ${legacyUpserted} upserted`);
-  }
-
-  // 2. Upsert into games (new comprehensive table — all games including future)
+  // Upsert into games table (all games including future)
   const gamesRows = rawGames.map(game => ({
     id: game.id,
     season,
@@ -168,16 +133,16 @@ async function upsertGames(rawGames, season, seasonStr) {
   }
 
   // Log to sync_log
-  await logSync('games', legacyRows.length + gamesRows.length, errors);
+  await logSync('games', gamesRows.length, errors);
 
   // Verify
   const { count } = await supabase
-    .from('game_results')
-    .select('game_id', { count: 'exact', head: true })
-    .eq('season', seasonStr);
+    .from('games')
+    .select('id', { count: 'exact', head: true })
+    .eq('season', season);
 
-  console.log(`[sync-games] Done: ${completedGames.length} completed, ${rawGames.length} total, ${count} in game_results, ${errors} errors`);
-  return { upserted: legacyRows.length, errors, totalRows: count };
+  console.log(`[sync-games] Done: ${rawGames.length} total, ${count} in games, ${errors} errors`);
+  return { upserted: gamesRows.length, errors, totalRows: count };
 }
 
 /**

@@ -1,10 +1,11 @@
 /**
  * Game Results Service
- * Supabase-backed service for NHL game results, seeding, syncing, and H2H records.
+ * Supabase-only service for NHL game results and H2H records.
+ * Seeding/syncing is handled by the sync pipeline (scripts/sync/), not the app.
  */
 
 import { supabase } from '../lib/supabase';
-import { GameResult, H2HRecord, NHLScheduleGame } from '../types/gameResults';
+import { GameResult, H2HRecord } from '../types/gameResults';
 
 // Circuit breaker: stop calling Supabase after repeated failures
 let _supabaseFailCount = 0;
@@ -43,199 +44,20 @@ export function _resetCircuitBreaker(): void {
   _supabaseLastFailTime = 0;
 }
 
-// All 32 NHL team abbreviations
-const ALL_TEAMS: string[] = [
-  'ANA', 'BOS', 'BUF', 'CAR', 'CBJ', 'CGY', 'CHI', 'COL',
-  'DAL', 'DET', 'EDM', 'FLA', 'LAK', 'MIN', 'MTL', 'NJD',
-  'NSH', 'NYI', 'NYR', 'OTT', 'PHI', 'PIT', 'SEA', 'SJS',
-  'STL', 'TBL', 'TOR', 'UTA', 'VAN', 'VGK', 'WPG', 'WSH',
-];
-
 /**
- * Returns the current NHL season string (e.g., '20252026').
+ * Returns the current NHL season as a number (e.g., 20252026).
  * If month >= October, season is currentYear + (currentYear+1).
  * Otherwise, season is (currentYear-1) + currentYear.
  */
-function getCurrentSeason(): string {
+function getCurrentSeason(): number {
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth() + 1; // 1-indexed
 
   if (month >= 10) {
-    return `${year}${year + 1}`;
+    return parseInt(`${year}${year + 1}`);
   }
-  return `${year - 1}${year}`;
-}
-
-/**
- * Seeds the current season's completed game results into Supabase.
- * Fetches each team's schedule from the NHL API and upserts finished games.
- *
- * @param onProgress - Optional callback fired after each team is processed.
- * @returns The total number of unique games inserted/updated.
- */
-export async function seedCurrentSeason(
-  onProgress?: (team: string, index: number, total: number) => void,
-): Promise<number> {
-  try {
-    const season = getCurrentSeason();
-    const gameMap = new Map<number, {
-      game_id: number;
-      season: string;
-      game_date: string;
-      home_team: string;
-      away_team: string;
-      home_score: number;
-      away_score: number;
-      game_state: string;
-    }>();
-
-    for (let i = 0; i < ALL_TEAMS.length; i++) {
-      const team = ALL_TEAMS[i];
-      try {
-        const url = `https://api-web.nhle.com/v1/club-schedule-season/${team}/${season}`;
-        const response = await fetch(url);
-        const data = await response.json();
-        const games: NHLScheduleGame[] = data.games ?? [];
-
-        for (const game of games) {
-          if (game.gameState === 'FINAL' || game.gameState === 'OFF') {
-            gameMap.set(game.id, {
-              game_id: game.id,
-              season,
-              game_date: game.gameDate,
-              home_team: game.homeTeam.abbrev,
-              away_team: game.awayTeam.abbrev,
-              home_score: game.homeTeam.score ?? 0,
-              away_score: game.awayTeam.score ?? 0,
-              game_state: game.gameState,
-            });
-          }
-        }
-      } catch (err) {
-        console.warn(`[GAME RESULTS] Failed to fetch schedule for ${team}:`, err);
-      }
-
-      if (onProgress) {
-        onProgress(team, i, ALL_TEAMS.length);
-      }
-
-      // 100ms delay between team fetches to avoid rate limiting
-      if (i < ALL_TEAMS.length - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
-    }
-
-    const allGames = Array.from(gameMap.values());
-
-    if (allGames.length === 0) {
-      return 0;
-    }
-
-    // Batch upsert into Supabase
-    const { error } = await supabase
-      .from('game_results')
-      .upsert(allGames, { onConflict: 'game_id' });
-
-    if (error) {
-      console.warn('[GAME RESULTS] Supabase upsert error:', error);
-      return 0;
-    }
-
-    return allGames.length;
-  } catch (err) {
-    console.warn('[GAME RESULTS] seedCurrentSeason failed:', err);
-    return 0;
-  }
-}
-
-/**
- * Syncs recent game results (yesterday and today) into Supabase.
- * Designed to be called on app launch as a lightweight daily sync.
- */
-export async function syncRecentResults(): Promise<void> {
-  if (!isSupabaseAvailable()) return;
-  try {
-    // Check if the table has any data for this season.
-    // If empty, trigger a full season seed instead of just syncing recent days.
-    const season = getCurrentSeason();
-    const { count, error: countError } = await supabase
-      .from('game_results')
-      .select('game_id', { count: 'exact', head: true })
-      .eq('season', season);
-
-    if (countError) {
-      recordSupabaseFailure();
-      console.debug('[GAME RESULTS] syncRecentResults count check failed:', countError.message ?? countError);
-      return;
-    }
-
-    if ((count ?? 0) === 0) {
-      console.debug('[GAME RESULTS] Table empty — running full season seed');
-      await seedCurrentSeason();
-      return;
-    }
-
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    const formatDate = (d: Date): string => d.toISOString().split('T')[0];
-    const dates = [formatDate(yesterday), formatDate(today)];
-
-    const allGames: Array<{
-      game_id: number;
-      season: string;
-      game_date: string;
-      home_team: string;
-      away_team: string;
-      home_score: number;
-      away_score: number;
-      game_state: string;
-    }> = [];
-
-    for (const date of dates) {
-      try {
-        const url = `https://api-web.nhle.com/v1/score/${date}`;
-        const response = await fetch(url);
-        const data = await response.json();
-        const games: NHLScheduleGame[] = data.games ?? [];
-
-        for (const game of games) {
-          if (game.gameState === 'FINAL' || game.gameState === 'OFF') {
-            allGames.push({
-              game_id: game.id,
-              season,
-              game_date: game.gameDate,
-              home_team: game.homeTeam.abbrev,
-              away_team: game.awayTeam.abbrev,
-              home_score: game.homeTeam.score ?? 0,
-              away_score: game.awayTeam.score ?? 0,
-              game_state: game.gameState,
-            });
-          }
-        }
-      } catch (err) {
-        console.warn(`[GAME RESULTS] Failed to fetch scores for ${date}:`, err);
-      }
-    }
-
-    if (allGames.length > 0) {
-      const { error } = await supabase
-        .from('game_results')
-        .upsert(allGames, { onConflict: 'game_id' });
-
-      if (error) {
-        recordSupabaseFailure();
-        console.debug('[GAME RESULTS] syncRecentResults upsert error:', error.message ?? error);
-      } else {
-        recordSupabaseSuccess();
-      }
-    }
-  } catch (err) {
-    recordSupabaseFailure();
-    console.debug('[GAME RESULTS] syncRecentResults failed:', err);
-  }
+  return parseInt(`${year - 1}${year}`);
 }
 
 /**
@@ -249,19 +71,19 @@ export async function syncRecentResults(): Promise<void> {
 export async function getH2HRecord(
   teamA: string,
   teamB: string,
-  season?: string,
+  season?: number,
 ): Promise<H2HRecord | null> {
   if (!isSupabaseAvailable()) return null;
   try {
     const targetSeason = season ?? getCurrentSeason();
 
     const { data, error } = await supabase
-      .from('game_results')
+      .from('games')
       .select('*')
       .eq('season', targetSeason)
       .in('game_state', ['FINAL', 'OFF'])
       .or(
-        `and(home_team.eq.${teamA},away_team.eq.${teamB}),and(home_team.eq.${teamB},away_team.eq.${teamA})`,
+        `and(home_team_abbrev.eq.${teamA},away_team_abbrev.eq.${teamB}),and(home_team_abbrev.eq.${teamB},away_team_abbrev.eq.${teamA})`,
       )
       .order('game_date', { ascending: true });
 
@@ -278,9 +100,9 @@ export async function getH2HRecord(
     let teamBWins = 0;
 
     for (const game of games) {
-      if (game.home_team === teamA && game.home_score > game.away_score) {
+      if (game.home_team_abbrev === teamA && game.home_score > game.away_score) {
         teamAWins++;
-      } else if (game.away_team === teamA && game.away_score > game.home_score) {
+      } else if (game.away_team_abbrev === teamA && game.away_score > game.home_score) {
         teamAWins++;
       } else {
         teamBWins++;
@@ -325,12 +147,12 @@ export async function getH2HForGames(
     const orConditions = games
       .map(
         (g) =>
-          `and(home_team.eq.${g.homeTeam.abbrev},away_team.eq.${g.awayTeam.abbrev}),and(home_team.eq.${g.awayTeam.abbrev},away_team.eq.${g.homeTeam.abbrev})`,
+          `and(home_team_abbrev.eq.${g.homeTeam.abbrev},away_team_abbrev.eq.${g.awayTeam.abbrev}),and(home_team_abbrev.eq.${g.awayTeam.abbrev},away_team_abbrev.eq.${g.homeTeam.abbrev})`,
       )
       .join(',');
 
     const { data, error } = await supabase
-      .from('game_results')
+      .from('games')
       .select('*')
       .eq('season', season)
       .in('game_state', ['FINAL', 'OFF'])
@@ -354,17 +176,17 @@ export async function getH2HForGames(
 
       const matchupGames = allResults.filter(
         (r) =>
-          (r.home_team === home && r.away_team === away) ||
-          (r.home_team === away && r.away_team === home),
+          (r.home_team_abbrev === home && r.away_team_abbrev === away) ||
+          (r.home_team_abbrev === away && r.away_team_abbrev === home),
       );
 
       let teamAWins = 0; // away team wins
       let teamBWins = 0; // home team wins
 
       for (const result of matchupGames) {
-        if (result.home_team === away && result.home_score > result.away_score) {
+        if (result.home_team_abbrev === away && result.home_score > result.away_score) {
           teamAWins++;
-        } else if (result.away_team === away && result.away_score > result.home_score) {
+        } else if (result.away_team_abbrev === away && result.away_score > result.home_score) {
           teamAWins++;
         } else {
           teamBWins++;
@@ -419,7 +241,7 @@ export async function fetchGameResults(): Promise<GameResult[]> {
 
   try {
     const { data, error } = await supabase
-      .from('game_results')
+      .from('games')
       .select('*')
       .eq('season', getCurrentSeason())
       .order('game_date', { ascending: false })

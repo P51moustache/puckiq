@@ -1,5 +1,4 @@
 import { Pick, DailyPicks, PickStats } from '@/services/pickTracking';
-import { StreakData } from '@/services/streakTracking';
 
 // Helper to get today's date in YYYY-MM-DD format
 export function getTodayDateString(): string {
@@ -112,17 +111,6 @@ export function createMockCompletedGame(winner: 'home' | 'away', overrides: any 
     },
     ...overrides,
   });
-}
-
-// Create mock StreakData
-export function createMockStreakData(overrides: Partial<StreakData> = {}): StreakData {
-  return {
-    currentStreak: 1,
-    longestStreak: 1,
-    lastVisitDate: getTodayDateString(),
-    totalDays: 1,
-    ...overrides,
-  };
 }
 
 // Create mock PickStats

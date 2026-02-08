@@ -62,6 +62,7 @@ function generateH2HInsights(h2hMap: Map<string, H2HRecord>): Insight[] {
         text,
         teamAbbrev: leader,
         category: 'h2h',
+        sentiment: 'positive',
         shareText: `${text} — PuckIQ`,
       });
     }
@@ -95,6 +96,7 @@ function generateStreakInsights(standings: StandingsResponse | StandingsEntry[] 
       text,
       teamAbbrev: abbrev,
       category: 'streak',
+      sentiment: type === 'W' ? 'positive' : 'negative',
       shareText: `${text} — PuckIQ`,
     });
   }
@@ -127,6 +129,7 @@ function generatePlayerInsights(
       text,
       teamAbbrev: c.abbrev,
       category: 'player' as const,
+      sentiment: 'positive' as const,
       shareText: `${text} — PuckIQ`,
     };
   });
@@ -157,6 +160,7 @@ function generateStandingsInsights(standings: StandingsResponse | StandingsEntry
       text,
       teamAbbrev: d.abbrev,
       category: 'standings' as const,
+      sentiment: d.diffPerGame >= 0 ? 'positive' as const : 'negative' as const,
       shareText: `${text} — PuckIQ`,
     };
   });
@@ -177,6 +181,7 @@ function generateEdgeInsights(edgeData: EdgeInsightData, todayTeams: Set<string>
         id: `edge-${idx++}`,
         text,
         category: 'edge',
+        sentiment: 'positive',
         shareText: `${text} — PuckIQ`,
       });
     }
@@ -193,6 +198,7 @@ function generateEdgeInsights(edgeData: EdgeInsightData, todayTeams: Set<string>
           text,
           teamAbbrev: abbrev,
           category: 'edge',
+          sentiment: 'positive',
           shareText: `${text} — PuckIQ`,
         });
       } else if (m.score <= -5) {
@@ -202,6 +208,7 @@ function generateEdgeInsights(edgeData: EdgeInsightData, todayTeams: Set<string>
           text,
           teamAbbrev: abbrev,
           category: 'edge',
+          sentiment: 'negative',
           shareText: `${text} — PuckIQ`,
         });
       }
@@ -219,6 +226,7 @@ function generateEdgeInsights(edgeData: EdgeInsightData, todayTeams: Set<string>
           text,
           teamAbbrev: abbrev,
           category: 'edge',
+          sentiment: 'positive',
           shareText: `${text} — PuckIQ`,
         });
       } else if (c.rating === 'ICE COLD') {
@@ -228,6 +236,7 @@ function generateEdgeInsights(edgeData: EdgeInsightData, todayTeams: Set<string>
           text,
           teamAbbrev: abbrev,
           category: 'edge',
+          sentiment: 'negative',
           shareText: `${text} — PuckIQ`,
         });
       }

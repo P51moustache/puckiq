@@ -95,16 +95,16 @@ const mockStandings = {
 
 describe('EmptyNightCard', () => {
   describe('generic content (no selectedTeam)', () => {
-    it('shows "No Games Tonight" title', () => {
+    it('shows "No Games Today" title', () => {
       const element = EmptyNightCard({});
       const text = collectText(element);
-      expect(text).toContain('No Games Tonight');
+      expect(text).toContain('No Games Today');
     });
 
-    it('shows "next slate" subtitle', () => {
+    it('shows "Next games coming soon" subtitle', () => {
       const element = EmptyNightCard({});
       const text = collectText(element).join(' ');
-      expect(text).toContain('next slate drops tomorrow');
+      expect(text).toContain('Next games coming soon');
     });
 
     it('renders without crashing when all props are undefined', () => {
@@ -124,7 +124,7 @@ describe('EmptyNightCard', () => {
       });
       expect(element).not.toBeNull();
       const text = collectText(element);
-      expect(text).toContain('No Games Tonight');
+      expect(text).toContain('No Games Today');
     });
   });
 
@@ -158,13 +158,13 @@ describe('EmptyNightCard', () => {
       expect(text).toContain('32-18-5');
     });
 
-    it('shows "No games tonight" note', () => {
+    it('shows "No games today" note', () => {
       const element = EmptyNightCard({
         selectedTeam: 'TOR',
         standings: mockStandings,
       });
       const text = collectText(element).join(' ');
-      expect(text.toLowerCase()).toContain('no games tonight');
+      expect(text.toLowerCase()).toContain('no games today');
     });
 
     it('falls back to selectedTeam abbrev when teamName is missing', () => {

@@ -6,6 +6,11 @@ import { IconSymbol } from '../../components/ui/IconSymbol';
 import TabBarBackground from '../../components/ui/TabBarBackground';
 import { Colors } from '../../constants/Colors';
 
+/** Force the Upcoming tab as the initial route on every app load */
+export const unstable_settings = {
+  initialRouteName: 'index',
+};
+
 export default function TabLayout() {
   return (
     <Tabs
@@ -25,11 +30,11 @@ export default function TabLayout() {
           },
         }),
       }}>
-      {/* Main 2 tabs */}
+      {/* Main 3 tabs */}
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Tonight',
+          title: 'Upcoming',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="hockey.puck.fill" color={color} />,
         }}
       />
@@ -40,17 +45,16 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="chart.bar.fill" color={color} />,
         }}
       />
-      <Tabs.Screen name="mypicks" options={{ href: null }} />
-      {/* Hidden screens - kept for routing but not in tab bar */}
-      <Tabs.Screen name="learn" options={{ href: null }} />
-      <Tabs.Screen name="myiq" options={{ href: null }} />
-      <Tabs.Screen name="explore" options={{ href: null }} />
+      <Tabs.Screen
+        name="players"
+        options={{
+          title: 'Players',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.2.fill" color={color} />,
+        }}
+      />
+      {/* Hidden screens - loaded by stats.tsx via lazy import, not in tab bar */}
       <Tabs.Screen name="models" options={{ href: null }} />
-      <Tabs.Screen name="profile" options={{ href: null }} />
-      <Tabs.Screen name="picks" options={{ href: null }} />
       <Tabs.Screen name="teams" options={{ href: null }} />
-      <Tabs.Screen name="more" options={{ href: null }} />
-      <Tabs.Screen name="settings" options={{ href: null }} />
     </Tabs>
   );
 }

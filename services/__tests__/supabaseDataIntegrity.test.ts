@@ -1,5 +1,5 @@
 /**
- * Data Integrity Tests for Supabase game_results
+ * Data Integrity Tests for Supabase games table
  * Verifies data shape, constraints, and query patterns against mocked Supabase.
  */
 
@@ -40,16 +40,14 @@ jest.mock('../../lib/supabase', () => ({
 
 function makeGameResult(overrides: Partial<GameResult> = {}): GameResult {
   return {
-    id: 1,
-    game_id: 2025020100,
-    season: '20252026',
+    id: 2025020100,
+    season: 20252026,
     game_date: '2025-11-10',
-    home_team: 'TOR',
-    away_team: 'MTL',
+    home_team_abbrev: 'TOR',
+    away_team_abbrev: 'MTL',
     home_score: 4,
     away_score: 2,
     game_state: 'OFF',
-    created_at: '2025-11-10T23:00:00Z',
     ...overrides,
   };
 }
@@ -70,21 +68,20 @@ describe('GameResult data shape', () => {
     const game = makeGameResult();
 
     expect(typeof game.id).toBe('number');
-    expect(typeof game.game_id).toBe('number');
-    expect(typeof game.season).toBe('string');
+    expect(typeof game.season).toBe('number');
     expect(typeof game.game_date).toBe('string');
-    expect(typeof game.home_team).toBe('string');
-    expect(typeof game.away_team).toBe('string');
+    expect(typeof game.home_team_abbrev).toBe('string');
+    expect(typeof game.away_team_abbrev).toBe('string');
     expect(typeof game.home_score).toBe('number');
     expect(typeof game.away_score).toBe('number');
     expect(typeof game.game_state).toBe('string');
-    expect(typeof game.created_at).toBe('string');
   });
 
-  it('season string matches YYYYYYYY format', () => {
-    const game = makeGameResult({ season: '20252026' });
-    expect(game.season).toMatch(/^\d{8}$/);
-    expect(parseInt(game.season.slice(4))).toBe(parseInt(game.season.slice(0, 4)) + 1);
+  it('season number matches YYYYYYYY format', () => {
+    const game = makeGameResult({ season: 20252026 });
+    const seasonStr = String(game.season);
+    expect(seasonStr).toMatch(/^\d{8}$/);
+    expect(parseInt(seasonStr.slice(4))).toBe(parseInt(seasonStr.slice(0, 4)) + 1);
   });
 
   it('game_date matches YYYY-MM-DD format', () => {
@@ -93,9 +90,9 @@ describe('GameResult data shape', () => {
   });
 
   it('team abbreviations are 3 characters', () => {
-    const game = makeGameResult({ home_team: 'TOR', away_team: 'MTL' });
-    expect(game.home_team).toHaveLength(3);
-    expect(game.away_team).toHaveLength(3);
+    const game = makeGameResult({ home_team_abbrev: 'TOR', away_team_abbrev: 'MTL' });
+    expect(game.home_team_abbrev).toHaveLength(3);
+    expect(game.away_team_abbrev).toHaveLength(3);
   });
 
   it('scores are non-negative integers', () => {
@@ -120,7 +117,7 @@ describe('GameResult data shape', () => {
 describe('H2H win counting edge cases', () => {
   it('correctly handles tied scores (should not happen in NHL but tests the branch)', async () => {
     const games = [
-      makeGameResult({ home_team: 'TOR', away_team: 'MTL', home_score: 3, away_score: 3 }),
+      makeGameResult({ home_team_abbrev: 'TOR', away_team_abbrev: 'MTL', home_score: 3, away_score: 3 }),
     ];
     mockQueryResult = { data: games, error: null };
 
@@ -134,9 +131,9 @@ describe('H2H win counting edge cases', () => {
 
   it('handles one team winning all games', async () => {
     const games = [
-      makeGameResult({ home_team: 'TOR', away_team: 'MTL', home_score: 5, away_score: 1 }),
-      makeGameResult({ home_team: 'MTL', away_team: 'TOR', home_score: 0, away_score: 3 }),
-      makeGameResult({ home_team: 'TOR', away_team: 'MTL', home_score: 7, away_score: 2 }),
+      makeGameResult({ home_team_abbrev: 'TOR', away_team_abbrev: 'MTL', home_score: 5, away_score: 1 }),
+      makeGameResult({ home_team_abbrev: 'MTL', away_team_abbrev: 'TOR', home_score: 0, away_score: 3 }),
+      makeGameResult({ home_team_abbrev: 'TOR', away_team_abbrev: 'MTL', home_score: 7, away_score: 2 }),
     ];
     mockQueryResult = { data: games, error: null };
 
@@ -149,11 +146,11 @@ describe('H2H win counting edge cases', () => {
 
   it('handles large season series (5+ games)', async () => {
     const games = [
-      makeGameResult({ home_team: 'TOR', away_team: 'MTL', home_score: 4, away_score: 2 }), // TOR
-      makeGameResult({ home_team: 'MTL', away_team: 'TOR', home_score: 5, away_score: 3 }), // MTL
-      makeGameResult({ home_team: 'TOR', away_team: 'MTL', home_score: 2, away_score: 3 }), // MTL
-      makeGameResult({ home_team: 'MTL', away_team: 'TOR', home_score: 1, away_score: 6 }), // TOR
-      makeGameResult({ home_team: 'TOR', away_team: 'MTL', home_score: 3, away_score: 1 }), // TOR
+      makeGameResult({ home_team_abbrev: 'TOR', away_team_abbrev: 'MTL', home_score: 4, away_score: 2 }), // TOR
+      makeGameResult({ home_team_abbrev: 'MTL', away_team_abbrev: 'TOR', home_score: 5, away_score: 3 }), // MTL
+      makeGameResult({ home_team_abbrev: 'TOR', away_team_abbrev: 'MTL', home_score: 2, away_score: 3 }), // MTL
+      makeGameResult({ home_team_abbrev: 'MTL', away_team_abbrev: 'TOR', home_score: 1, away_score: 6 }), // TOR
+      makeGameResult({ home_team_abbrev: 'TOR', away_team_abbrev: 'MTL', home_score: 3, away_score: 1 }), // TOR
     ];
     mockQueryResult = { data: games, error: null };
 
@@ -174,8 +171,8 @@ describe('getH2HForGames — multi-matchup integrity', () => {
   it('separates results correctly for overlapping teams', async () => {
     // TOR plays MTL and BOS on different nights
     const supabaseGames: GameResult[] = [
-      makeGameResult({ home_team: 'TOR', away_team: 'MTL', home_score: 4, away_score: 1, game_date: '2025-10-15' }),
-      makeGameResult({ home_team: 'BOS', away_team: 'TOR', home_score: 2, away_score: 5, game_date: '2025-10-20' }),
+      makeGameResult({ home_team_abbrev: 'TOR', away_team_abbrev: 'MTL', home_score: 4, away_score: 1, game_date: '2025-10-15' }),
+      makeGameResult({ home_team_abbrev: 'BOS', away_team_abbrev: 'TOR', home_score: 2, away_score: 5, game_date: '2025-10-20' }),
     ];
     mockQueryResult = { data: supabaseGames, error: null };
 
@@ -202,8 +199,8 @@ describe('getH2HForGames — multi-matchup integrity', () => {
   it('handles same matchup in both directions within season', async () => {
     // TOR hosted MTL and also visited MTL
     const supabaseGames: GameResult[] = [
-      makeGameResult({ home_team: 'TOR', away_team: 'MTL', home_score: 4, away_score: 1 }),
-      makeGameResult({ home_team: 'MTL', away_team: 'TOR', home_score: 3, away_score: 2 }),
+      makeGameResult({ home_team_abbrev: 'TOR', away_team_abbrev: 'MTL', home_score: 4, away_score: 1 }),
+      makeGameResult({ home_team_abbrev: 'MTL', away_team_abbrev: 'TOR', home_score: 3, away_score: 2 }),
     ];
     mockQueryResult = { data: supabaseGames, error: null };
 
@@ -233,12 +230,12 @@ describe('getH2HForGames — multi-matchup integrity', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe('fetchGameResults — query construction', () => {
-  it('queries game_results table', async () => {
+  it('queries games table', async () => {
     mockQueryResult = { data: [], error: null };
 
     await fetchGameResults();
 
-    expect(mockFrom).toHaveBeenCalledWith('game_results');
+    expect(mockFrom).toHaveBeenCalledWith('games');
   });
 
   it('selects all columns', async () => {
@@ -251,16 +248,16 @@ describe('fetchGameResults — query construction', () => {
 
   it('returns typed GameResult array', async () => {
     const games = [
-      makeGameResult({ game_id: 2025020100 }),
-      makeGameResult({ game_id: 2025020101, home_team: 'BOS', away_team: 'NYR' }),
+      makeGameResult({ id: 2025020100 }),
+      makeGameResult({ id: 2025020101, home_team_abbrev: 'BOS', away_team_abbrev: 'NYR' }),
     ];
     mockQueryResult = { data: games, error: null };
 
     const result = await fetchGameResults();
 
     expect(result).toHaveLength(2);
-    expect(result[0].game_id).toBe(2025020100);
-    expect(result[1].home_team).toBe('BOS');
+    expect(result[0].id).toBe(2025020100);
+    expect(result[1].home_team_abbrev).toBe('BOS');
   });
 });
 

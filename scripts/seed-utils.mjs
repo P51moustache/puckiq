@@ -10,13 +10,20 @@ import { createClient } from '@supabase/supabase-js';
 // Supabase Client
 // ============================================
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+
+// Prefer service role key for write operations in seed scripts
+const supabaseKey = supabaseServiceKey || supabaseAnonKey;
 
 if (!supabaseUrl || !supabaseKey) {
-  console.error('Missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY in .env');
+  console.error('Missing Supabase credentials. Set SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY (or EXPO_PUBLIC_SUPABASE_URL + EXPO_PUBLIC_SUPABASE_ANON_KEY)');
   process.exit(1);
 }
+
+const keyType = supabaseServiceKey ? 'service_role' : 'anon';
+console.log(`[Seed Utils] Supabase key type: ${keyType}`);
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 

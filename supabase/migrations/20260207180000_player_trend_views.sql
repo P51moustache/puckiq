@@ -251,7 +251,7 @@ SELECT
   -- Last 5 starts
   ROUND(AVG(goals_against) FILTER (WHERE game_num <= 5), 2) AS avg_ga_5g,
   CASE WHEN SUM(shots_against) FILTER (WHERE game_num <= 5) > 0
-    THEN ROUND(SUM(saves)::NUMERIC FILTER (WHERE game_num <= 5) / SUM(shots_against) FILTER (WHERE game_num <= 5), 3)
+    THEN ROUND((SUM(saves) FILTER (WHERE game_num <= 5))::NUMERIC / SUM(shots_against) FILTER (WHERE game_num <= 5), 3)
     ELSE NULL
   END AS save_pct_5g,
   COUNT(*) FILTER (WHERE game_num <= 5 AND decision = 'W') AS wins_5g,
@@ -259,7 +259,7 @@ SELECT
   -- Last 10 starts
   ROUND(AVG(goals_against) FILTER (WHERE game_num <= 10), 2) AS avg_ga_10g,
   CASE WHEN SUM(shots_against) FILTER (WHERE game_num <= 10) > 0
-    THEN ROUND(SUM(saves)::NUMERIC FILTER (WHERE game_num <= 10) / SUM(shots_against) FILTER (WHERE game_num <= 10), 3)
+    THEN ROUND((SUM(saves) FILTER (WHERE game_num <= 10))::NUMERIC / SUM(shots_against) FILTER (WHERE game_num <= 10), 3)
     ELSE NULL
   END AS save_pct_10g,
   COUNT(*) FILTER (WHERE game_num <= 10 AND decision = 'W') AS wins_10g,
@@ -464,11 +464,11 @@ SELECT
   win,
   goals_for,
   goals_against,
-  ROUND(AVG(win)::NUMERIC OVER w5, 3) AS win_pct_5,
+  ROUND((AVG(win) OVER w5)::NUMERIC, 3) AS win_pct_5,
   ROUND(AVG(goals_for) OVER w5, 2) AS gf_avg_5,
   ROUND(AVG(goals_against) OVER w5, 2) AS ga_avg_5,
   SUM(win) OVER w5 AS wins_last_5,
-  ROUND(AVG(win)::NUMERIC OVER w10, 3) AS win_pct_10,
+  ROUND((AVG(win) OVER w10)::NUMERIC, 3) AS win_pct_10,
   ROUND(AVG(goals_for) OVER w10, 2) AS gf_avg_10,
   ROUND(AVG(goals_against) OVER w10, 2) AS ga_avg_10,
   SUM(win) OVER w10 AS wins_last_10,

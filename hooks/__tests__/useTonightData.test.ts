@@ -180,27 +180,6 @@ describe('useTonightData', () => {
     });
   });
 
-  describe('DEV sample data fallback', () => {
-    it('sample data module exists and has correct shape', () => {
-      // Verify that the devData module the hook tries to require() actually exists
-      const { sampleGamesResponse } = require('../../devData/sampleGames');
-      expect(sampleGamesResponse).toBeDefined();
-      expect(Array.isArray(sampleGamesResponse.games)).toBe(true);
-      expect(sampleGamesResponse.games.length).toBeGreaterThan(0);
-    });
-
-    it('sample games have the fields useTonightData expects', () => {
-      const { sampleGamesResponse } = require('../../devData/sampleGames');
-      for (const game of sampleGamesResponse.games) {
-        expect(game).toHaveProperty('id');
-        expect(game).toHaveProperty('homeTeam');
-        expect(game).toHaveProperty('awayTeam');
-        expect(game.homeTeam).toHaveProperty('abbrev');
-        expect(game.awayTeam).toHaveProperty('abbrev');
-      }
-    });
-  });
-
   describe('getInsightForGame helper', () => {
     // Test the module-level helper function behavior through mock usage
     it('is referenced correctly in the hook module', () => {

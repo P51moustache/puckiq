@@ -1,6 +1,6 @@
 /**
- * Tests for services/teamForm.ts
- * Tests: fetch behavior, result determination, streak computation, caching, error handling
+ * Tests for services/teamForm.ts (Supabase-only)
+ * Tests: determineResult, computeStreak, fetchTeamForm (Supabase), caching, error handling
  */
 
 import {
@@ -8,18 +8,34 @@ import {
   clearTeamFormCache,
   _internals,
 } from '../teamForm';
-
-// Mock global fetch
-const mockFetch = jest.fn();
-global.fetch = mockFetch;
-
-beforeEach(() => {
-  mockFetch.mockReset();
-  clearTeamFormCache();
-});
+import { supabase } from '../../lib/supabase';
 
 // ---------------------------------------------------------------------------
-// Helper: build a mock schedule game
+// Helper: build a mock Supabase row matching the games table schema
+// ---------------------------------------------------------------------------
+
+function makeGameRow(
+  homeAbbrev: string,
+  awayAbbrev: string,
+  homeScore: number,
+  awayScore: number,
+  gameDate: string,
+  periodType: string = 'REG',
+  gameState: string = 'FINAL',
+) {
+  return {
+    game_date: gameDate,
+    game_state: gameState,
+    home_team_abbrev: homeAbbrev,
+    away_team_abbrev: awayAbbrev,
+    home_score: homeScore,
+    away_score: awayScore,
+    period_type: periodType,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Helper: build a game object in the shape determineResult expects
 // ---------------------------------------------------------------------------
 
 function makeGame(
@@ -29,16 +45,46 @@ function makeGame(
   awayScore: number,
   gameDate: string,
   lastPeriodType: string = 'REG',
-  gameState: string = 'OFF',
 ) {
   return {
     gameDate,
-    gameState,
     homeTeam: { abbrev: homeAbbrev, score: homeScore },
     awayTeam: { abbrev: awayAbbrev, score: awayScore },
     gameOutcome: { lastPeriodType },
   };
 }
+
+// ---------------------------------------------------------------------------
+// Setup / Teardown
+// ---------------------------------------------------------------------------
+
+let mockQueryResult: { data: any; error: any } = { data: [], error: null };
+
+beforeEach(() => {
+  clearTeamFormCache();
+  (supabase.from as jest.Mock).mockClear();
+  mockQueryResult = { data: [], error: null };
+
+  // Build a chainable mock for Supabase games query
+  const buildChain = () => {
+    const chain: any = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      or: jest.fn().mockReturnThis(),
+      in: jest.fn().mockReturnThis(),
+      order: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      then: (resolve: any) => resolve(mockQueryResult),
+    };
+    return chain;
+  };
+
+  (supabase.from as jest.Mock).mockImplementation(() => buildChain());
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
 
 // ---------------------------------------------------------------------------
 // determineResult (internal)
@@ -122,43 +168,21 @@ describe('computeStreak', () => {
 });
 
 // ---------------------------------------------------------------------------
-// fetchTeamForm
+// fetchTeamForm (Supabase-only)
 // ---------------------------------------------------------------------------
 
 describe('fetchTeamForm', () => {
-  function mockScheduleResponse(games: any[]) {
-    return {
-      ok: true,
-      json: () => Promise.resolve({ games }),
+  it('returns form data with correct win/loss/OTL counts from Supabase', async () => {
+    mockQueryResult = {
+      data: [
+        makeGameRow('TOR', 'MTL', 4, 2, '2026-01-20'),        // W
+        makeGameRow('TOR', 'BOS', 1, 3, '2026-01-18'),        // L
+        makeGameRow('TOR', 'OTT', 2, 3, '2026-01-16', 'OT'),  // OTL
+        makeGameRow('BUF', 'TOR', 1, 5, '2026-01-14'),        // W (away)
+        makeGameRow('TOR', 'DET', 3, 2, '2026-01-12', 'SO'),  // W (SO)
+      ],
+      error: null,
     };
-  }
-
-  it('fetches from current and previous month schedule endpoints', async () => {
-    mockFetch.mockResolvedValue(mockScheduleResponse([]));
-
-    await fetchTeamForm('TOR');
-
-    expect(mockFetch).toHaveBeenCalledTimes(2);
-    const urls = mockFetch.mock.calls.map((c: any) => c[0]);
-    expect(urls[0]).toMatch(/club-schedule\/TOR\/month\/\d{4}-\d{2}/);
-    expect(urls[1]).toMatch(/club-schedule\/TOR\/month\/\d{4}-\d{2}/);
-  });
-
-  it('returns form data with correct win/loss/OTL counts', async () => {
-    const prevMonthGames = [
-      makeGame('BUF', 'TOR', 1, 5, '2025-12-14'),       // W (away)
-      makeGame('TOR', 'DET', 3, 2, '2025-12-12', 'SO'), // W (SO)
-    ];
-    const currentMonthGames = [
-      makeGame('TOR', 'MTL', 4, 2, '2026-01-20'),       // W
-      makeGame('TOR', 'BOS', 1, 3, '2026-01-18'),       // L
-      makeGame('TOR', 'OTT', 2, 3, '2026-01-16', 'OT'), // OTL
-    ];
-
-    // First call = prev month, second call = current month
-    mockFetch
-      .mockResolvedValueOnce(mockScheduleResponse(prevMonthGames))
-      .mockResolvedValueOnce(mockScheduleResponse(currentMonthGames));
 
     const result = await fetchTeamForm('TOR');
 
@@ -170,69 +194,16 @@ describe('fetchTeamForm', () => {
     expect(result!.otLosses).toBe(1);
   });
 
-  it('limits results to 10 most recent games', async () => {
-    const games = Array.from({ length: 15 }, (_, i) =>
-      makeGame('TOR', 'MTL', 4, 2, `2026-01-${String(i + 1).padStart(2, '0')}`),
-    );
-
-    // prev month empty, current month has 15 games
-    mockFetch
-      .mockResolvedValueOnce(mockScheduleResponse([]))
-      .mockResolvedValueOnce(mockScheduleResponse(games));
-
-    const result = await fetchTeamForm('TOR');
-
-    expect(result).not.toBeNull();
-    expect(result!.results.length).toBeLessThanOrEqual(10);
-  });
-
-  it('sorts games by date descending (most recent first)', async () => {
-    const games = [
-      makeGame('TOR', 'MTL', 1, 3, '2026-01-10'), // L (older)
-      makeGame('TOR', 'BOS', 4, 2, '2026-01-20'), // W (newer)
-    ];
-
-    mockFetch
-      .mockResolvedValueOnce(mockScheduleResponse([]))
-      .mockResolvedValueOnce(mockScheduleResponse(games));
-
-    const result = await fetchTeamForm('TOR');
-
-    expect(result).not.toBeNull();
-    // Most recent game (Jan 20, W) should be first
-    expect(result!.results[0]).toBe('W');
-    expect(result!.results[1]).toBe('L');
-  });
-
-  it('filters out non-completed games', async () => {
-    const games = [
-      makeGame('TOR', 'MTL', 4, 2, '2026-01-20', 'REG', 'OFF'),    // completed
-      makeGame('TOR', 'BOS', 0, 0, '2026-01-22', 'REG', 'FUT'),    // future
-      makeGame('TOR', 'OTT', 2, 1, '2026-01-21', 'REG', 'LIVE'),   // live
-      makeGame('TOR', 'DET', 3, 1, '2026-01-18', 'REG', 'FINAL'),  // completed
-    ];
-
-    mockFetch
-      .mockResolvedValueOnce(mockScheduleResponse([]))
-      .mockResolvedValueOnce(mockScheduleResponse(games));
-
-    const result = await fetchTeamForm('TOR');
-
-    expect(result).not.toBeNull();
-    expect(result!.results).toHaveLength(2); // only OFF and FINAL
-  });
-
   it('computes streak from results', async () => {
-    const games = [
-      makeGame('TOR', 'MTL', 4, 2, '2026-01-20'),
-      makeGame('TOR', 'BOS', 3, 1, '2026-01-18'),
-      makeGame('TOR', 'OTT', 5, 3, '2026-01-16'),
-      makeGame('TOR', 'DET', 1, 4, '2026-01-14'),
-    ];
-
-    mockFetch
-      .mockResolvedValueOnce(mockScheduleResponse([]))
-      .mockResolvedValueOnce(mockScheduleResponse(games));
+    mockQueryResult = {
+      data: [
+        makeGameRow('TOR', 'MTL', 4, 2, '2026-01-20'),
+        makeGameRow('TOR', 'BOS', 3, 1, '2026-01-18'),
+        makeGameRow('TOR', 'OTT', 5, 3, '2026-01-16'),
+        makeGameRow('TOR', 'DET', 1, 4, '2026-01-14'),
+      ],
+      error: null,
+    };
 
     const result = await fetchTeamForm('TOR');
 
@@ -240,12 +211,18 @@ describe('fetchTeamForm', () => {
     expect(result!.streak).toBe('W3');
   });
 
-  it('returns empty form data when both month fetches fail', async () => {
-    mockFetch.mockRejectedValue(new Error('Network error'));
+  it('returns null when Supabase returns error', async () => {
+    mockQueryResult = { data: null, error: { message: 'table not found' } };
+
+    const result = await fetchTeamForm('TOR');
+    expect(result).toBeNull();
+  });
+
+  it('returns empty form data when Supabase returns no games', async () => {
+    mockQueryResult = { data: [], error: null };
 
     const result = await fetchTeamForm('TOR');
 
-    // Promise.allSettled handles rejections — returns empty results, not null
     expect(result).not.toBeNull();
     expect(result!.results).toHaveLength(0);
     expect(result!.wins).toBe(0);
@@ -253,20 +230,12 @@ describe('fetchTeamForm', () => {
     expect(result!.streak).toBe('');
   });
 
-  it('handles one month failing gracefully', async () => {
-    const games = [
-      makeGame('TOR', 'MTL', 4, 2, '2026-01-20'),
-    ];
+  it('queries the Supabase games table', async () => {
+    mockQueryResult = { data: [], error: null };
 
-    // First call (prev month) fails, second (current month) succeeds
-    mockFetch
-      .mockResolvedValueOnce({ ok: false, status: 500 })
-      .mockResolvedValueOnce(mockScheduleResponse(games));
+    await fetchTeamForm('TOR');
 
-    const result = await fetchTeamForm('TOR');
-
-    expect(result).not.toBeNull();
-    expect(result!.results).toHaveLength(1);
+    expect(supabase.from).toHaveBeenCalledWith('games');
   });
 });
 
@@ -275,27 +244,25 @@ describe('fetchTeamForm', () => {
 // ---------------------------------------------------------------------------
 
 describe('cache behavior', () => {
-  function mockScheduleResponse(games: any[]) {
-    return {
-      ok: true,
-      json: () => Promise.resolve({ games }),
-    };
-  }
-
   it('returns cached data on second call within TTL', async () => {
-    const games = [makeGame('TOR', 'MTL', 4, 2, '2026-01-20')];
-    mockFetch.mockResolvedValue(mockScheduleResponse(games));
+    mockQueryResult = {
+      data: [makeGameRow('TOR', 'MTL', 4, 2, '2026-01-20')],
+      error: null,
+    };
 
     await fetchTeamForm('TOR');
     const result = await fetchTeamForm('TOR');
 
     expect(result).not.toBeNull();
-    expect(mockFetch).toHaveBeenCalledTimes(2); // 2 calls for first fetch (2 months), 0 for second
+    // from() called only once (cached on second call)
+    expect(supabase.from).toHaveBeenCalledTimes(1);
   });
 
   it('re-fetches after cache expires', async () => {
-    const games = [makeGame('TOR', 'MTL', 4, 2, '2026-01-20')];
-    mockFetch.mockResolvedValue(mockScheduleResponse(games));
+    mockQueryResult = {
+      data: [makeGameRow('TOR', 'MTL', 4, 2, '2026-01-20')],
+      error: null,
+    };
 
     await fetchTeamForm('TOR');
 
@@ -305,12 +272,14 @@ describe('cache behavior', () => {
 
     await fetchTeamForm('TOR');
 
-    expect(mockFetch).toHaveBeenCalledTimes(4); // 2 months x 2 fetches
+    expect(supabase.from).toHaveBeenCalledTimes(2);
   });
 
   it('clearTeamFormCache removes all cached data', async () => {
-    const games = [makeGame('TOR', 'MTL', 4, 2, '2026-01-20')];
-    mockFetch.mockResolvedValue(mockScheduleResponse(games));
+    mockQueryResult = {
+      data: [makeGameRow('TOR', 'MTL', 4, 2, '2026-01-20')],
+      error: null,
+    };
 
     await fetchTeamForm('TOR');
     expect(_internals.cache.size).toBeGreaterThan(0);
@@ -320,8 +289,10 @@ describe('cache behavior', () => {
   });
 
   it('caches per team independently', async () => {
-    const games = [makeGame('TOR', 'MTL', 4, 2, '2026-01-20')];
-    mockFetch.mockResolvedValue(mockScheduleResponse(games));
+    mockQueryResult = {
+      data: [makeGameRow('TOR', 'MTL', 4, 2, '2026-01-20')],
+      error: null,
+    };
 
     await fetchTeamForm('TOR');
     await fetchTeamForm('MTL');

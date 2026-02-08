@@ -36,10 +36,6 @@ const scripts = [
 
   // Phase 4: Per-game advanced analytics (for time-series/trend tracking)
   'seed-player-game-stats.mjs',      // Per-game Corsi, Fenwick, PDO, scoring rates from Stats REST API
-  'seed-player-game-logs.mjs',       // Player game logs from Web API
-
-  // Phase 5: Supplemental data (no foreign key deps)
-  'seed-supplemental.mjs',           // Draft, stat leaders, rosters, schedule meta
 ];
 
 const startTime = Date.now();

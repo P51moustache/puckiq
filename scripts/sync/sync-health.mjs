@@ -2,8 +2,7 @@
  * Sync health check — verifies data freshness and completeness.
  *
  * Checks all tables from the comprehensive schema:
- * - game_results (legacy)
- * - games (new comprehensive)
+ * - games
  * - standings
  * - teams / players
  * - skater_season_stats / goalie_season_stats
@@ -106,8 +105,7 @@ async function main() {
   console.log(`\n[Health Check] Season: ${season}\n`);
 
   const checks = [
-    await checkTable('game_results', 'season', seasonStr, 'Game Results (legacy)'),
-    await checkTable('games', 'season', season, 'Games (comprehensive)'),
+    await checkTable('games', 'season', season, 'Games'),
     await checkTable('teams', null, undefined, 'Teams'),
     await checkTable('players', null, undefined, 'Players'),
     await checkTable('standings', 'season', season, 'Standings'),

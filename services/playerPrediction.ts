@@ -71,161 +71,33 @@ export async function fetchTeamRoster(teamAbbrev: string): Promise<PlayerInfo[]>
           sweaterNumber: p.sweater_number,
         };
       });
-      console.log(`[Player Prediction] [SUPABASE] Loaded ${players.length} players for ${teamAbbrev}`);
       setCachedData(cacheKey, players);
       return players;
     }
-    console.warn(`[Player Prediction] [SUPABASE] No roster data for ${teamAbbrev}, falling back to NHL API`);
-  } catch (sbErr) {
-    console.warn(`[Player Prediction] [SUPABASE] Error, falling back to NHL API`, sbErr);
+  } catch {
+    // Silently handle — roster data may not be fully seeded yet
   }
 
-  // --- Fallback: NHL API ---
-  try {
-    const res = await fetch(`https://api-web.nhle.com/v1/roster/${teamAbbrev}/current`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
-
-    const players: PlayerInfo[] = [];
-
-    // Process forwards
-    const forwards = json?.forwards || [];
-    for (const p of forwards) {
-      players.push(parsePlayerInfo(p, teamAbbrev, 'F'));
-    }
-
-    // Process defensemen
-    const defensemen = json?.defensemen || [];
-    for (const p of defensemen) {
-      players.push(parsePlayerInfo(p, teamAbbrev, 'D'));
-    }
-
-    // Process goalies
-    const goalies = json?.goalies || [];
-    for (const p of goalies) {
-      players.push(parsePlayerInfo(p, teamAbbrev, 'G'));
-    }
-
-    setCachedData(cacheKey, players);
-    return players;
-  } catch (error) {
-    console.error(`[Player Prediction] Error fetching roster for ${teamAbbrev}:`, error);
-    return [];
-  }
-}
-
-/**
- * Parse player info from API response
- */
-function parsePlayerInfo(p: any, teamAbbrev: string, posType: 'F' | 'D' | 'G'): PlayerInfo {
-  const firstName = p.firstName?.default || p.firstName || '';
-  const lastName = p.lastName?.default || p.lastName || '';
-
-  return {
-    id: p.id || p.playerId || 0,
-    firstName,
-    lastName,
-    fullName: `${firstName} ${lastName}`.trim(),
-    teamAbbrev,
-    position: p.positionCode || (posType === 'G' ? 'G' : 'C'),
-    positionType: posType,
-    sweaterNumber: p.sweaterNumber,
-  };
+  // No data available — return empty
+  return [];
 }
 
 /**
  * Fetch player's season stats
+ *
+ * NOTE: Player career data queries are temporarily disabled (2026-02-07).
+ * The player_career_data table is still being seeded (~22% complete).
+ * Re-enable once seeding is complete by removing the early return below.
  */
 export async function fetchPlayerStats(playerId: number): Promise<{
   skaterStats?: any;
   goalieStats?: GoalieStats;
   last5Games?: any[];
 } | null> {
-  const cacheKey = `player_${playerId}`;
-  const cached = getCachedData<any>(cacheKey);
-  if (cached) return cached;
-
-  // --- Supabase-first: try player_career_data + season stats ---
-  try {
-    const { data: careerData, error: careerErr } = await supabase
-      .from('player_career_data')
-      .select('*')
-      .eq('player_id', playerId)
-      .single();
-
-    if (!careerErr && careerData) {
-      // Extract featured stats from the career data JSONB
-      const featured = careerData.featured_stats;
-      const subSeason = featured?.regularSeason?.subSeason;
-      const last5 = careerData.last_5_games || [];
-
-      const result = {
-        skaterStats: subSeason,
-        goalieStats: subSeason && 'wins' in subSeason ? {
-          gamesPlayed: subSeason.gamesPlayed || 0,
-          gamesStarted: subSeason.gamesStarted || subSeason.gamesPlayed || 0,
-          wins: subSeason.wins || 0,
-          losses: subSeason.losses || 0,
-          otLosses: subSeason.otLosses || 0,
-          savePercentage: subSeason.savePctg || subSeason.savePercentage || 0,
-          goalsAgainstAverage: subSeason.goalsAgainstAvg || subSeason.gaa || 0,
-          shutouts: subSeason.shutouts || 0,
-          shotsAgainst: subSeason.shotsAgainst || 0,
-          saves: subSeason.saves || 0,
-          avgTimeOnIce: subSeason.avgToi || subSeason.timeOnIce || '0:00',
-        } as GoalieStats : undefined,
-        last5Games: last5,
-      };
-
-      console.log(`[Player Prediction] [SUPABASE] Loaded career data for player ${playerId}`);
-      setCachedData(cacheKey, result);
-      return result;
-    }
-    console.warn(`[Player Prediction] [SUPABASE] No career data for player ${playerId}, falling back to NHL API`);
-  } catch (sbErr) {
-    console.warn(`[Player Prediction] [SUPABASE] Error, falling back to NHL API`, sbErr);
-  }
-
-  // --- Fallback: NHL API ---
-  try {
-    const res = await fetch(`https://api-web.nhle.com/v1/player/${playerId}/landing`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
-
-    const result = {
-      skaterStats: json?.featuredStats?.regularSeason?.subSeason,
-      goalieStats: parseGoalieStats(json),
-      last5Games: json?.last5Games || [],
-    };
-
-    setCachedData(cacheKey, result);
-    return result;
-  } catch (error) {
-    console.error(`[Player Prediction] Error fetching player ${playerId}:`, error);
-    return null;
-  }
-}
-
-/**
- * Parse goalie stats from player landing API
- */
-function parseGoalieStats(json: any): GoalieStats | undefined {
-  const stats = json?.featuredStats?.regularSeason?.subSeason;
-  if (!stats || !('wins' in stats)) return undefined;
-
-  return {
-    gamesPlayed: stats.gamesPlayed || 0,
-    gamesStarted: stats.gamesStarted || stats.gamesPlayed || 0,
-    wins: stats.wins || 0,
-    losses: stats.losses || 0,
-    otLosses: stats.otLosses || 0,
-    savePercentage: stats.savePctg || stats.savePercentage || 0,
-    goalsAgainstAverage: stats.goalsAgainstAvg || stats.gaa || 0,
-    shutouts: stats.shutouts || 0,
-    shotsAgainst: stats.shotsAgainst || 0,
-    saves: stats.saves || 0,
-    avgTimeOnIce: stats.avgToi || stats.timeOnIce || '0:00',
-  };
+  // TEMPORARILY DISABLED: player_career_data seeding incomplete.
+  // Queries for unseeded players spam console with warnings.
+  // Re-enable when seed-player-career.mjs has finished running.
+  return null;
 }
 
 /**

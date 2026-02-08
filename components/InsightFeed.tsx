@@ -10,6 +10,7 @@ import type { Insight } from '../types/insights';
 interface InsightFeedProps {
   insights: Insight[];
   onShareInsight?: (insightText: string) => void;
+  headerLabel?: string;
 }
 
 const EDGE_PURPLE = '#a78bfa';
@@ -82,7 +83,7 @@ function getConfig(category?: string) {
   return DEFAULT_CONFIG;
 }
 
-function InsightFeedComponent({ insights, onShareInsight }: InsightFeedProps) {
+function InsightFeedComponent({ insights, onShareInsight, headerLabel }: InsightFeedProps) {
   if (!insights || insights.length === 0) return null;
 
   const sorted = useMemo(
@@ -93,7 +94,7 @@ function InsightFeedComponent({ insights, onShareInsight }: InsightFeedProps) {
   return (
     <View testID="insight-feed" style={styles.container}>
       <View style={styles.headerRow}>
-        <Text style={styles.header}>TONIGHT'S INTEL</Text>
+        <Text style={styles.header}>{headerLabel ?? "INTEL"}</Text>
         <View style={styles.headerAccent} />
       </View>
       {sorted.map((insight, index) => {

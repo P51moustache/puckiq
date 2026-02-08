@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { theme } from '../../constants/theme';
 import { ThemedView } from '../../components/ThemedView';
-import { FactorLeaderboard, DEFAULT_FACTOR_RANKINGS } from '../../components/FactorLeaderboard';
+import { FactorLeaderboard } from '../../components/FactorLeaderboard';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import { getTeamComparisonData, calculateCategoryWinners } from '../../services/teamComparison';
 import type { TeamComparisonStats, CategoryWinner } from '../../types/teamStats';
@@ -20,14 +20,12 @@ import type { EdgeSkaterLanding, EdgeTeamLanding, EdgeByTheNumbers } from '../..
 import SpeedGauge from '../../components/SpeedGauge';
 
 const TeamsContent = lazy(() => import('./teams'));
-const PlayersContent = lazy(() => import('./more'));
 const ModelsContent = lazy(() => import('./models'));
 
-type Segment = 'teams' | 'players' | 'edge' | 'factors' | 'models';
+type Segment = 'teams' | 'edge' | 'factors' | 'models';
 
 const SEGMENTS: { key: Segment; label: string; testID: string }[] = [
   { key: 'teams', label: 'Teams', testID: 'stats-segment-teams' },
-  { key: 'players', label: 'Players', testID: 'stats-segment-players' },
   { key: 'edge', label: 'Edge', testID: 'stats-segment-edge' },
   { key: 'factors', label: 'Factors', testID: 'stats-segment-factors' },
   { key: 'models', label: 'Models', testID: 'stats-segment-models' },
@@ -343,7 +341,7 @@ function FactorsContent() {
 
   return (
     <ScrollView style={localStyles.factorsContainer}>
-      <FactorLeaderboard rankings={DEFAULT_FACTOR_RANKINGS} />
+      <FactorLeaderboard />
 
       {/* Stat Tooltips Section */}
       <View style={localStyles.tooltipsSection}>
@@ -402,12 +400,6 @@ export default function ExploreScreen() {
             <TeamsContent embedded />
           </Suspense>
         );
-      case 'players':
-        return (
-          <Suspense fallback={renderLoadingFallback()}>
-            <PlayersContent embedded />
-          </Suspense>
-        );
       case 'edge':
         return <EdgeContent />;
       case 'factors':
@@ -427,7 +419,7 @@ export default function ExploreScreen() {
     <ThemedView style={localStyles.container} testID="explore-tab">
       <View style={localStyles.header}>
         <Text style={localStyles.title}>Explore</Text>
-        <Text style={localStyles.subtitle}>Teams, players, and analytics</Text>
+        <Text style={localStyles.subtitle}>Teams, analytics, and models</Text>
       </View>
 
       <View style={localStyles.segmentControl}>

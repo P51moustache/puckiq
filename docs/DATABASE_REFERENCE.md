@@ -14,7 +14,7 @@ Complete reference for all Supabase tables, their schema, data sources, and sync
 
 ## Schema Overview
 
-The database has 15 tables organized into 4 groups:
+The database has 24 core tables organized into 6 groups:
 
 ### Reference Data
 | Table | Purpose | Rows (approx) |
@@ -25,13 +25,14 @@ The database has 15 tables organized into 4 groups:
 ### Game Data
 | Table | Purpose | Rows (approx) |
 |-------|---------|----------------|
-| `game_results` | Legacy completed games (TEXT season) — used by existing services | ~800/season |
-| `games` | Comprehensive game data (all states: FUT/LIVE/FINAL) | ~1300/season |
+| `games` | All game data (all states: FUT/LIVE/FINAL) | ~1300/season |
 | `game_goals` | Every goal scored (period, time, scorer, assists, strength) | ~5000/season |
 | `game_skater_stats` | Per-game boxscore for skaters (goals, assists, TOI, hits) | ~25000/season |
 | `game_goalie_stats` | Per-game boxscore for goalies (saves, GAA, decision) | ~2500/season |
 | `game_penalties` | Every penalty (type, duration, player) | ~6000/season |
 | `game_three_stars` | Three stars of each game | ~2400/season |
+| `game_details` | Game right-rail data (officials, scratches, shots by period, season series) | ~1300/season |
+| `game_play_by_play` | Full play-by-play event logs per game | ~300k/season |
 
 ### Season Stats
 | Table | Purpose | Rows (approx) |
@@ -39,6 +40,7 @@ The database has 15 tables organized into 4 groups:
 | `standings` | Full standings with snapshot_date for historical tracking | 32/snapshot |
 | `skater_season_stats` | Aggregated season stats per skater | ~700/season |
 | `goalie_season_stats` | Aggregated season stats per goalie | ~70/season |
+| `player_career_data` | Player career totals, awards, last 5 games, featured stats | ~750 |
 
 ### Tracking Data
 | Table | Purpose | Rows (approx) |
@@ -46,6 +48,8 @@ The database has 15 tables organized into 4 groups:
 | `edge_skater_stats` | NHL Edge IQ: shot speed, skating speed, zone time | ~700 |
 | `edge_goalie_stats` | NHL Edge IQ: goalie metrics | ~70 |
 | `edge_team_stats` | NHL Edge IQ: team-level tracking | 32 |
+| `edge_detailed_stats` | NHL Edge IQ: per-entity detail data (JSONB) | ~800 |
+| `edge_leaderboards` | NHL Edge IQ: league-wide landing pages and top-10 lists (JSONB) | ~50 |
 
 ### Raw Stats (JSONB bulk storage)
 | Table | Purpose | Rows (approx) |
@@ -54,6 +58,8 @@ The database has 15 tables organized into 4 groups:
 | `skater_stat_categories` | Raw NHL stats API skater data (17 categories) | ~12000 |
 | `goalie_stat_categories` | Raw NHL stats API goalie data (8 categories) | ~560 |
 | `team_game_stats` | Per-game team stat breakdowns | ~25000 |
+| `skater_game_categories` | Per-game advanced skater stats (Corsi, Fenwick, PDO) | ~100k/season |
+| `goalie_game_categories` | Per-game advanced goalie stats (saves by strength) | ~5k/season |
 
 ### Infrastructure
 | Table | Purpose |
@@ -117,31 +123,9 @@ All rostered NHL players with bio and team assignment.
 
 ---
 
-### `game_results` (legacy)
+### `games`
 
-Completed game results. Used by existing `services/gameResults.ts`.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | BIGSERIAL PK | Auto-increment |
-| `game_id` | BIGINT UNIQUE | NHL game ID |
-| `season` | TEXT | Season string, e.g. '20252026' |
-| `game_date` | DATE | Game date |
-| `home_team` | TEXT | Home team abbreviation |
-| `away_team` | TEXT | Away team abbreviation |
-| `home_score` | INTEGER | Home final score |
-| `away_score` | INTEGER | Away final score |
-| `game_state` | TEXT | 'FINAL' or 'OFF' |
-
-**Data Source:** NHL API — `club-schedule-season/{team}/{season}` (full) and `score/{date}` (incremental)
-**Sync:** `sync-games.mjs`
-**Used By:** `services/gameResults.ts`, `services/derivedStats.ts`, `hooks/useTonightData.ts`
-
----
-
-### `games` (comprehensive)
-
-All games including future, live, and completed. Replaces game_results for new features.
+All games including future, live, and completed.
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -166,8 +150,9 @@ All games including future, live, and completed. Replaces game_results for new f
 | `winning_goalie_id` | INTEGER | Winning goalie player ID |
 | `losing_goalie_id` | INTEGER | Losing goalie player ID |
 
-**Data Source:** NHL API — same as game_results
-**Sync:** `sync-games.mjs` (writes to both tables)
+**Data Source:** NHL API — `club-schedule-season/{team}/{season}` (full) and `score/{date}` (incremental)
+**Sync:** `sync-games.mjs`
+**Used By:** `services/gameResults.ts`, `services/derivedStats.ts`, `components/model-builder/BacktestPanel.tsx`
 
 ---
 
@@ -269,6 +254,198 @@ Tracks sync operations for monitoring.
 
 ---
 
+### `edge_detailed_stats`
+
+Per-entity Edge IQ detail data from NHL Edge tracking endpoints. Stores full API responses as JSONB for teams, skaters, and goalies across multiple metric categories.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | BIGSERIAL PK | Auto-incrementing ID |
+| `entity_type` | TEXT NOT NULL | 'team', 'skater', or 'goalie' |
+| `entity_id` | INTEGER NOT NULL | Team ID or player ID |
+| `entity_name` | TEXT | Entity display name |
+| `team_abbrev` | TEXT | Team abbreviation |
+| `season` | INTEGER | Season (default 20252026) |
+| `endpoint_name` | TEXT NOT NULL | API endpoint (e.g., 'team-zone-time-details', 'skater-shot-location-detail') |
+| `data` | JSONB NOT NULL | Full API response payload |
+| `fetched_at` | TIMESTAMPTZ | When data was fetched |
+
+**Unique:** `(entity_type, entity_id, season, endpoint_name)`
+**Indexes:** `(entity_type, endpoint_name)`, `(entity_id, season)`, `(team_abbrev)`, GIN on `data`
+**Migration:** `20260207160000_edge_iq_comprehensive.sql`
+**Seed:** `scripts/seed-edge-comprehensive.mjs`
+**Sync:** `scripts/sync/sync-aggregates.mjs`
+
+---
+
+### `edge_leaderboards`
+
+League-wide Edge IQ landing pages and top-10 leaderboard lists. Stores category-level aggregated data as JSONB.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | BIGSERIAL PK | Auto-incrementing ID |
+| `category` | TEXT NOT NULL | 'skater-landing', 'goalie-landing', 'team-landing', 'by-the-numbers' |
+| `subcategory` | TEXT | For top-10s: 'skater-speed-top-10', etc. |
+| `season` | INTEGER | Season (default 20252026) |
+| `data` | JSONB NOT NULL | Full API response payload |
+| `fetched_at` | TIMESTAMPTZ | When data was fetched |
+
+**Unique:** `(category, subcategory, season)`
+**Indexes:** `(category, season)`, GIN on `data`
+**Migration:** `20260207160000_edge_iq_comprehensive.sql`
+**Seed:** `scripts/seed-edge-comprehensive.mjs`
+**Sync:** `scripts/sync/sync-aggregates.mjs`
+
+---
+
+### `player_career_data`
+
+Player career stats, awards, recent form, and featured stats. Stores multiple JSONB columns for different career data facets per player.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | BIGSERIAL PK | Auto-incrementing ID |
+| `player_id` | INTEGER NOT NULL UNIQUE | NHL player ID |
+| `season_totals` | JSONB | Array of season-by-season stats |
+| `career_totals` | JSONB | Career aggregate stats |
+| `awards` | JSONB | NHL awards history |
+| `last_5_games` | JSONB | Recent form (last 5 games) |
+| `featured_stats` | JSONB | Current season featured stats |
+| `fetched_at` | TIMESTAMPTZ | When data was fetched |
+
+**Unique:** `(player_id)`
+**Indexes:** `(player_id)`
+**Migration:** `20260207160001_game_and_player_extras.sql`
+**Seed:** `scripts/seed-player-career.mjs`
+**Sync:** `scripts/sync/sync-player-trends.mjs`
+**Note:** Only ~22% seeded as of 2026-02-07; `fetchPlayerStats` in `services/playerPrediction.ts` is disabled until full population.
+
+---
+
+### `game_details`
+
+Game right-rail data including officials, coaches, scratches, shots by period, season series, and team game stats. One row per game with JSONB columns for each data facet.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | BIGSERIAL PK | Auto-incrementing ID |
+| `game_id` | INTEGER NOT NULL UNIQUE | NHL game ID |
+| `officials` | JSONB | Referees and linesmen |
+| `coaches` | JSONB | Home and away coaches |
+| `scratches` | JSONB | Healthy scratches |
+| `shots_by_period` | JSONB | Shots breakdown by period |
+| `season_series` | JSONB | Head-to-head series data |
+| `team_game_stats` | JSONB | Team-level game stats comparison |
+| `game_reports` | JSONB | Links to official NHL reports |
+| `fetched_at` | TIMESTAMPTZ | When data was fetched |
+
+**Unique:** `(game_id)`
+**Indexes:** `(game_id)`
+**Migration:** `20260207160001_game_and_player_extras.sql`
+**Seed:** `scripts/seed-game-details.mjs`
+**Sync:** `scripts/sync/sync-game-extras.mjs`
+
+---
+
+### `game_play_by_play`
+
+Full play-by-play event logs for each game. One row per event with coordinates, zone, and event-specific details in JSONB.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | BIGSERIAL PK | Auto-incrementing ID |
+| `game_id` | INTEGER NOT NULL | NHL game ID |
+| `event_id` | INTEGER | Unique event ID within the game |
+| `period` | INTEGER | Period number |
+| `period_type` | TEXT | REG, OT, SO |
+| `time_in_period` | TEXT | Time elapsed in period |
+| `time_remaining` | TEXT | Time remaining in period |
+| `situation_code` | TEXT | Strength situation code |
+| `event_type` | TEXT NOT NULL | 'goal', 'shot-on-goal', 'missed-shot', 'blocked-shot', 'hit', 'faceoff', 'giveaway', 'takeaway', 'penalty', 'stoppage' |
+| `type_desc` | TEXT | Event type description |
+| `x_coord` | REAL | X coordinate on ice |
+| `y_coord` | REAL | Y coordinate on ice |
+| `zone_code` | TEXT | 'O' (offensive), 'N' (neutral), 'D' (defensive) |
+| `player_id` | INTEGER | Primary player involved |
+| `player_name` | TEXT | Player display name |
+| `team_abbrev` | TEXT | Team abbreviation |
+| `detail` | JSONB | Full event details (assists, shot type, penalty info, etc.) |
+
+**Unique:** `(game_id, event_id)`
+**Indexes:** `(game_id)`, `(event_type)`, `(player_id)`, `(x_coord, y_coord)` WHERE x_coord IS NOT NULL
+**Migration:** `20260207160001_game_and_player_extras.sql`
+**Seed:** `scripts/seed-play-by-play.mjs`
+**Sync:** `scripts/sync/sync-game-extras.mjs`
+
+---
+
+### `skater_game_categories`
+
+Per-game advanced skater stats from the NHL Stats REST API (isGame=true). Stores metrics not available from boxscores: Corsi, Fenwick, puck possession, scoring rates per 60, PDO, etc.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | BIGSERIAL PK | Auto-incrementing ID |
+| `player_id` | INTEGER NOT NULL | NHL player ID |
+| `player_name` | TEXT | Player display name |
+| `team_abbrev` | TEXT | Team abbreviation |
+| `game_id` | INTEGER | NHL game ID |
+| `game_date` | DATE | Game date |
+| `opponent_abbrev` | TEXT | Opponent team abbreviation |
+| `home_road` | TEXT | 'H' (home) or 'R' (road) |
+| `season` | INTEGER | Season (default 20252026) |
+| `stat_category` | TEXT NOT NULL | 'puckPossessions', 'percentages', 'scoringRates', 'timeonice' |
+| `data` | JSONB NOT NULL | Full Stats REST API row |
+| `fetched_at` | TIMESTAMPTZ | When data was fetched |
+
+**Unique:** `(player_id, game_id, stat_category)`
+**Indexes:** `(player_id, season)`, `(game_id)`, `(stat_category, season)`, `(team_abbrev, season)`, `(game_date)`, GIN on `data`
+**Migration:** `20260207170001_player_game_categories.sql`
+**Seed:** `scripts/seed-player-game-stats.mjs`
+**Sync:** `scripts/sync/sync-player-trends.mjs`
+
+---
+
+### `goalie_game_categories`
+
+Per-game advanced goalie stats from the NHL Stats REST API (isGame=true). Stores metrics like saves by strength and advanced goalie analytics.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | BIGSERIAL PK | Auto-incrementing ID |
+| `player_id` | INTEGER NOT NULL | NHL player ID |
+| `player_name` | TEXT | Player display name |
+| `team_abbrev` | TEXT | Team abbreviation |
+| `game_id` | INTEGER | NHL game ID |
+| `game_date` | DATE | Game date |
+| `opponent_abbrev` | TEXT | Opponent team abbreviation |
+| `home_road` | TEXT | 'H' (home) or 'R' (road) |
+| `season` | INTEGER | Season (default 20252026) |
+| `stat_category` | TEXT NOT NULL | 'advanced', 'savesByStrength' |
+| `data` | JSONB NOT NULL | Full Stats REST API row |
+| `fetched_at` | TIMESTAMPTZ | When data was fetched |
+
+**Unique:** `(player_id, game_id, stat_category)`
+**Indexes:** `(player_id, season)`, `(game_id)`, `(stat_category, season)`, `(team_abbrev, season)`, `(game_date)`, GIN on `data`
+**Migration:** `20260207170001_player_game_categories.sql`
+**Seed:** `scripts/seed-player-game-stats.mjs`
+**Sync:** `scripts/sync/sync-player-trends.mjs`
+
+---
+
+## Dropped Tables
+
+The following tables were created in earlier migrations but dropped in `20260208020000_drop_redundant_tables.sql`:
+
+| Table | Reason Dropped |
+|-------|---------------|
+| `game_results` | Fully redundant with `games` table (same data, different column names) |
+| `supplemental_data` | 0 rows, no app usage, catch-all JSONB bucket |
+| `player_game_logs` | 0 rows, derivable from `game_skater_stats` + `game_goalie_stats` |
+
+---
+
 ## Data Flow
 
 ```
@@ -288,25 +465,30 @@ NHL API  -->  Sync Scripts  -->  Supabase  -->  React Native App
 ### Sync Modules
 | Module | Tables Written | Time |
 |--------|---------------|------|
-| `sync-games.mjs` | game_results, games | ~60s (full), ~5s (incremental) |
+| `sync-games.mjs` | games | ~60s (full), ~5s (incremental) |
 | `sync-standings.mjs` | standings | ~2s |
 | `sync-teams.mjs` | players | ~30s |
 | `sync-players.mjs` | skater_season_stats, goalie_season_stats | ~30s |
+| `sync-player-trends.mjs` | player_career_data, skater_game_categories, goalie_game_categories | ~120s |
+| `sync-game-extras.mjs` | game_details, game_play_by_play | ~90s |
+| `sync-aggregates.mjs` | edge_detailed_stats, edge_leaderboards | ~60s |
 
 ## Feature Mapping
 
 | Feature | Tables Used |
 |---------|------------|
-| H2H Season Series | game_results |
-| Momentum Index | game_results (last 5-10 games) |
-| Clutch Rating | game_results (one-goal games) |
-| Rest Advantage | game_results (back-to-back via game_date) |
+| H2H Season Series | games |
+| Momentum Index | games (last 5-10 games) |
+| Clutch Rating | games (one-goal games) |
+| Rest Advantage | games (back-to-back via game_date) |
 | Standings Widgets | standings |
 | Team Comparison | standings, skater_season_stats |
 | Player Spotlight | skater_season_stats, players |
-| Prediction Models | game_results, standings, skater_season_stats, goalie_season_stats |
-| Edge Analytics | edge_skater_stats, edge_goalie_stats, edge_team_stats |
-| Game Deep Dive | games, game_goals, game_skater_stats, game_goalie_stats |
+| Prediction Models | games, standings, skater_season_stats, goalie_season_stats |
+| Edge Analytics | edge_skater_stats, edge_goalie_stats, edge_team_stats, edge_detailed_stats, edge_leaderboards |
+| Game Deep Dive | games, game_goals, game_skater_stats, game_goalie_stats, game_details, game_play_by_play |
+| Player Career | player_career_data, players |
+| Advanced Per-Game Stats | skater_game_categories, goalie_game_categories |
 
 ## Setup Instructions
 

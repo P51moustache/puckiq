@@ -51,6 +51,7 @@ export interface NHLGameSummary {
     streakCode?: string;
   };
   gameState: string;
+  gameDate?: string;
   startTimeUTC: string;
   period?: number;
   clock?: {

@@ -3,18 +3,16 @@
  * Used by services/gameResults.ts, services/playerStats.ts, and UI components.
  */
 
-/** A single game result stored in Supabase game_results table */
+/** A single game result from the Supabase `games` table */
 export interface GameResult {
   id: number;
-  game_id: number;
-  season: string;
+  season: number;
   game_date: string;
-  home_team: string;
-  away_team: string;
+  home_team_abbrev: string;
+  away_team_abbrev: string;
   home_score: number;
   away_score: number;
   game_state: string;
-  created_at: string;
 }
 
 /** Head-to-head season series record between two teams */
@@ -40,6 +38,7 @@ export interface PlayerStatLine {
   plusMinus: number;
   shots: number;
   shootingPctg: number;
+  headshotUrl?: string;
 }
 
 /** Goalie season stat line from NHL API /v1/club-stats/{team}/now */
@@ -53,6 +52,7 @@ export interface GoalieStatLine {
   otLosses: number;
   goalsAgainstAvg: number;
   savePctg: number;
+  headshotUrl?: string;
 }
 
 /** Combined player stats for a team */
