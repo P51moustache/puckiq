@@ -1,5 +1,6 @@
 import { View, Text, FlatList, Pressable, StyleSheet } from 'react-native';
 import Animated, { FadeInRight } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { theme } from '../constants/theme';
@@ -11,7 +12,7 @@ import type {
   EdgeTeamLanding,
 } from '../types/edgeStats';
 
-interface EdgeSpotlightProps {
+interface SpotlightProps {
   playerStatsMap: Map<string, TeamPlayerStats>;
   games: any[];
   skaterLanding: EdgeSkaterLanding | null;
@@ -24,6 +25,16 @@ interface SpotlightItem {
   label: string;
   value: string;
   teamAbbrev: string;
+  // Player-specific fields
+  goals?: number;
+  assists?: number;
+  playerId?: number;
+  headshotUrl?: string;
+}
+
+function getPlayerHeadshotUrl(playerId: number, teamAbbrev: string, headshotUrl?: string): string {
+  if (headshotUrl) return headshotUrl;
+  return `https://assets.nhle.com/mugs/nhl/20252026/${teamAbbrev}/${playerId}.png`;
 }
 
 function buildSpotlightItems(
@@ -41,20 +52,22 @@ function buildSpotlightItems(
     if (game.awayTeam?.abbrev) todayTeams.add(game.awayTeam.abbrev);
   }
 
-  const playerCandidates: { name: string; teamAbbrev: string; points: number; goals: number; assists: number; isHot: boolean }[] = [];
+  const playerCandidates: { name: string; teamAbbrev: string; points: number; goals: number; assists: number; isHot: boolean; playerId: number; headshotUrl?: string }[] = [];
   for (const [abbrev, stats] of playerStatsMap) {
     if (!todayTeams.has(abbrev) || !stats.skaters?.length) continue;
-    const topSkaters = stats.skaters
+    const topSkaters = [...stats.skaters]
       .sort((a: PlayerStatLine, b: PlayerStatLine) => b.points - a.points)
       .slice(0, 2);
     for (const skater of topSkaters) {
       playerCandidates.push({
-        name: `${skater.firstName.charAt(0)}.${skater.lastName}`,
+        name: `${skater.firstName.charAt(0)}. ${skater.lastName}`,
         teamAbbrev: abbrev,
         points: skater.points,
         goals: skater.goals,
         assists: skater.assists,
         isHot: skater.gamesPlayed > 0 && skater.goals / skater.gamesPlayed > 0.5,
+        playerId: skater.playerId,
+        headshotUrl: skater.headshotUrl,
       });
     }
   }
@@ -66,6 +79,10 @@ function buildSpotlightItems(
       label: p.name,
       value: `${p.points} pts`,
       teamAbbrev: p.teamAbbrev,
+      goals: p.goals,
+      assists: p.assists,
+      playerId: p.playerId,
+      headshotUrl: p.headshotUrl,
     });
   }
 
@@ -124,34 +141,74 @@ function buildSpotlightItems(
     if (i < edges.length) interleaved.push(edges[i]);
   }
 
-  return interleaved.slice(0, 5);
+  return interleaved.slice(0, 6);
 }
 
-export default function EdgeSpotlight({
+export default function Spotlight({
   playerStatsMap,
   games,
   skaterLanding,
   teamLanding,
-}: EdgeSpotlightProps) {
+}: SpotlightProps) {
   const router = useRouter();
   const items = buildSpotlightItems(playerStatsMap, games, skaterLanding, teamLanding);
 
   if (items.length === 0) return null;
 
-  const renderCard = ({ item, index }: { item: SpotlightItem; index: number }) => {
-    const teamColor = getTeamColors(item.teamAbbrev).primary;
+  const isPlayerCard = (item: SpotlightItem) => item.key.startsWith('player-');
 
-    return (
-      <Animated.View entering={FadeInRight.duration(300).delay(index * 70)}>
-        <View testID={`spotlight-card-${item.key}`} style={styles.card}>
-          <View style={[styles.topAccent, { backgroundColor: teamColor }]} />
-          <View style={styles.cardContent}>
-            <Text style={styles.category}>{item.category}</Text>
-            <Text style={styles.value} numberOfLines={1}>{item.value}</Text>
-            <Text style={styles.label} numberOfLines={1}>{item.label}</Text>
+  const renderCard = ({ item, index }: { item: SpotlightItem; index: number }) => {
+    const colors = getTeamColors(item.teamAbbrev);
+    const isPlayer = isPlayerCard(item);
+
+    if (isPlayer) {
+      const headshotUri = item.playerId
+        ? getPlayerHeadshotUrl(item.playerId, item.teamAbbrev, item.headshotUrl)
+        : undefined;
+
+      return (
+        <Animated.View entering={FadeInRight.duration(300).delay(index * 70)}>
+          <View testID={`spotlight-card-${item.key}`} style={styles.playerCard}>
+            <LinearGradient
+              colors={[`${colors.primary}26`, 'transparent']}
+              style={StyleSheet.absoluteFillObject}
+            />
+            {headshotUri && (
+              <Image
+                source={{ uri: headshotUri }}
+                style={styles.headshotBg}
+                contentFit="cover"
+                contentPosition="top center"
+                transition={300}
+              />
+            )}
+            <View style={styles.playerStats}>
+              <Text style={styles.category}>{item.category}</Text>
+              <Text style={styles.playerName} numberOfLines={1}>{item.label}</Text>
+              <Text style={styles.playerValue}>{item.value}</Text>
+              <Text style={styles.statLine}>{item.goals}G {item.assists}A</Text>
+            </View>
             <View style={styles.teamRow}>
               <Image source={{ uri: getTeamLogoUrl(item.teamAbbrev) }} style={styles.teamLogoSmall} contentFit="contain" />
-              <Text style={[styles.teamLabel, { color: teamColor }]}>{item.teamAbbrev}</Text>
+              <Text style={[styles.teamLabel, { color: colors.primary }]}>{item.teamAbbrev}</Text>
+            </View>
+          </View>
+        </Animated.View>
+      );
+    }
+
+    // Edge stat card
+    return (
+      <Animated.View entering={FadeInRight.duration(300).delay(index * 70)}>
+        <View testID={`spotlight-card-${item.key}`} style={styles.edgeCard}>
+          <View style={[styles.topAccent, { backgroundColor: colors.primary }]} />
+          <View style={styles.edgeContent}>
+            <Text style={styles.category}>{item.category}</Text>
+            <Text style={styles.edgeValue} numberOfLines={1}>{item.value}</Text>
+            <Text style={styles.edgeLabel} numberOfLines={1}>{item.label}</Text>
+            <View style={styles.teamRow}>
+              <Image source={{ uri: getTeamLogoUrl(item.teamAbbrev) }} style={styles.teamLogoSmall} contentFit="contain" />
+              <Text style={[styles.teamLabel, { color: colors.primary }]}>{item.teamAbbrev}</Text>
             </View>
           </View>
         </View>
@@ -168,15 +225,14 @@ export default function EdgeSpotlight({
         pressed && { opacity: 0.7 },
       ]}
     >
-      <Text style={styles.seeAllText}>See All{'\n'}Edge Stats</Text>
-      <Text style={styles.seeAllArrow}>→</Text>
+      <Text style={styles.seeAllText}>See All{'\n'}Players →</Text>
     </Pressable>
   );
 
   return (
     <View testID="edge-spotlight" style={styles.container}>
       <View style={styles.headerRow}>
-        <Text style={styles.header}>Edge Spotlight</Text>
+        <Text style={styles.header}>Spotlight</Text>
         <View style={styles.headerAccent} />
       </View>
       <FlatList
@@ -194,7 +250,6 @@ export default function EdgeSpotlight({
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: 20,
     width: '100%',
   },
   headerRow: {
@@ -220,9 +275,53 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     gap: 10,
   },
-  card: {
-    width: 150,
-    height: 130,
+  // Player card — taller with headshot background
+  playerCard: {
+    width: 140,
+    height: 160,
+    borderRadius: 16,
+    padding: 12,
+    justifyContent: 'space-between',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: theme.card,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  headshotBg: {
+    position: 'absolute',
+    right: -15,
+    bottom: -10,
+    width: 100,
+    height: 110,
+    opacity: 0.15,
+  },
+  playerStats: {
+    gap: 0,
+  },
+  playerName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: theme.text,
+  },
+  playerValue: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: theme.text,
+    fontFamily: theme.fonts.mono,
+  },
+  statLine: {
+    fontSize: 11,
+    color: theme.subtext,
+  },
+  // Edge stat card — compact
+  edgeCard: {
+    width: 140,
+    height: 160,
     backgroundColor: theme.card,
     borderRadius: 16,
     overflow: 'hidden',
@@ -238,18 +337,12 @@ const styles = StyleSheet.create({
     height: 4,
     width: '100%',
   },
-  cardContent: {
+  edgeContent: {
     padding: 10,
     flex: 1,
     justifyContent: 'space-between',
   },
-  category: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: theme.subtext,
-    letterSpacing: 0.5,
-  },
-  value: {
+  edgeValue: {
     fontSize: 22,
     fontWeight: '800',
     color: theme.text,
@@ -257,10 +350,16 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.mono,
     fontVariant: ['tabular-nums'],
   },
-  label: {
+  edgeLabel: {
     fontSize: 12,
     fontWeight: '600',
     color: theme.text,
+  },
+  category: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: theme.subtext,
+    letterSpacing: 0.5,
   },
   teamRow: {
     flexDirection: 'row',
@@ -277,24 +376,19 @@ const styles = StyleSheet.create({
   },
   seeAllCard: {
     width: 100,
-    height: 130,
-    backgroundColor: theme.subtle,
+    height: 160,
     borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: theme.card,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(96, 165, 250, 0.12)',
   },
   seeAllText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
     color: theme.accent,
     textAlign: 'center',
-    lineHeight: 18,
-  },
-  seeAllArrow: {
-    fontSize: 18,
-    color: theme.accent,
-    marginTop: 4,
+    lineHeight: 20,
   },
 });

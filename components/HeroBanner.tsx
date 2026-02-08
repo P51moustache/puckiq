@@ -9,7 +9,6 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../constants/theme';
@@ -29,7 +28,6 @@ interface HeroBannerProps {
   confidenceScore: number;
   h2hRecord: H2HRecord | null;
   situationalFactors: SituationalFactors | null;
-  headline: string;
   onPress: () => void;
   onShare: () => void;
   onInfoPress?: (glossaryKey: string) => void;
@@ -70,23 +68,30 @@ function buildInsightChips(
 ) {
   const chips: { label: string; bg: string; color: string; glossaryKey: string }[] = [];
 
-  if (h2hRecord && h2hRecord.games.length > 0) {
-    chips.push({
-      label: `H2H ${h2hRecord.teamAWins}-${h2hRecord.teamBWins}`,
-      bg: 'rgba(96, 165, 250, 0.2)',
-      color: '#60a5fa',
-      glossaryKey: 'h2h',
-    });
-  }
-
   if (situationalFactors) {
+    const restAdv = situationalFactors.restAdvantage;
     if (situationalFactors.homeBackToBack || situationalFactors.awayBackToBack) {
-      const isHomeB2B = situationalFactors.homeBackToBack;
+      const b2bTeam = situationalFactors.homeBackToBack ? 'HOME' : 'AWAY';
       chips.push({
-        label: isHomeB2B ? 'B2B' : 'REST \u2713',
-        bg: isHomeB2B ? 'rgba(239, 68, 68, 0.2)' : 'rgba(34, 197, 94, 0.2)',
-        color: isHomeB2B ? '#ef4444' : '#22c55e',
-        glossaryKey: isHomeB2B ? 'b2b' : 'rest',
+        label: `${b2bTeam} B2B`,
+        bg: 'rgba(239, 68, 68, 0.2)',
+        color: '#ef4444',
+        glossaryKey: 'b2b',
+      });
+    } else if (restAdv === 'home' || restAdv === 'away') {
+      const diff = Math.abs(situationalFactors.homeRestDays - situationalFactors.awayRestDays);
+      chips.push({
+        label: `+${diff} REST`,
+        bg: 'rgba(34, 197, 94, 0.2)',
+        color: '#22c55e',
+        glossaryKey: 'rest',
+      });
+    } else {
+      chips.push({
+        label: 'EVEN REST',
+        bg: 'rgba(96, 165, 250, 0.2)',
+        color: '#60a5fa',
+        glossaryKey: 'rest',
       });
     }
   }
@@ -118,10 +123,11 @@ export default function HeroBanner({
   confidenceScore,
   h2hRecord,
   situationalFactors,
-  headline,
   onPress,
   onShare,
   onInfoPress,
+  awayForm,
+  homeForm,
   isYourTeam,
 }: HeroBannerProps) {
   const scale = useSharedValue(1);
@@ -139,8 +145,33 @@ export default function HeroBanner({
   const homeColors = getTeamColors(homeAbbrev);
   const gameTime = formatGameTime(game);
   const chips = buildInsightChips(game, h2hRecord, situationalFactors);
-  const dateStr = new Date().toLocaleDateString('en-US', {
+
+  // Build mini stats for bottom bar
+  const favoredIsHome = prediction.homeWinProb >= prediction.awayWinProb;
+  const favoredAbbrev = favoredIsHome ? homeAbbrev : awayAbbrev;
+  const favoredForm = favoredIsHome ? homeForm : awayForm;
+
+  const miniStats: { label: string; value: string; teamAbbrev: string }[] = [];
+  if (favoredForm) {
+    miniStats.push({ label: favoredAbbrev, value: `${favoredForm.wins}-${favoredForm.losses}-${favoredForm.otLosses}`, teamAbbrev: favoredAbbrev });
+    if (favoredForm.streak) {
+      miniStats.push({ label: 'STREAK', value: favoredForm.streak, teamAbbrev: favoredAbbrev });
+    }
+  }
+  // Today's date for the branding bar
+  const todayStr = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+  });
+
+  // Game date for display on the card
+  const gameDateSource = game.gameDate ?? game.startTimeUTC ?? '';
+  const gameDateParsed = gameDateSource.length >= 10
+    ? (() => { const [y, m, d] = gameDateSource.slice(0, 10).split('-').map(Number); return new Date(y, m - 1, d); })()
+    : new Date();
+  const gameDateStr = gameDateParsed.toLocaleDateString('en-US', {
+    weekday: 'short',
     month: 'short',
     day: 'numeric',
   });
@@ -197,8 +228,7 @@ export default function HeroBanner({
         >
           <View>
             <Text style={styles.wordmark}>PuckIQ</Text>
-            <Text style={styles.tagline}>YOUR EDGE BEFORE EVERY PICK</Text>
-            <Text style={styles.dateText}>{dateStr}</Text>
+            <Text style={styles.todayDate}>Today - {todayStr}</Text>
           </View>
           <SettingsButton />
         </Animated.View>
@@ -208,18 +238,19 @@ export default function HeroBanner({
           entering={FadeInDown.duration(400).delay(300)}
           style={styles.matchupZone}
         >
-          {/* YOUR TEAM badge */}
-          {isYourTeam && (
-            <View style={styles.yourTeamBadge}>
-              <Ionicons name="star" size={10} color={theme.accent} />
-              <Text style={styles.yourTeamText}>YOUR TEAM</Text>
+          {/* Badges row */}
+          <View style={styles.badgeRow}>
+            <View style={styles.topEdgeBadge}>
+              <Ionicons name="flash" size={13} color="#fbbf24" />
+              <Text style={styles.topEdgeText}>TOP EDGE</Text>
             </View>
-          )}
-
-          {/* Headline */}
-          <Text style={styles.headline} numberOfLines={1}>
-            {headline}
-          </Text>
+            {isYourTeam && (
+              <View style={styles.yourTeamBadge}>
+                <Ionicons name="star" size={10} color={theme.accent} />
+                <Text style={styles.yourTeamText}>YOUR TEAM</Text>
+              </View>
+            )}
+          </View>
 
           {/* Matchup row: Logo — Prob — VS — Prob — Logo */}
           <View style={styles.matchupRow}>
@@ -231,7 +262,7 @@ export default function HeroBanner({
                 contentFit="contain"
               />
               <Text style={[styles.teamAbbrev, { color: getAccessibleTextColor(awayAbbrev) }]}>{awayAbbrev}</Text>
-              <Text style={styles.probNumber}>
+              <Text style={[styles.probNumber, !favoredIsHome ? styles.probFavored : styles.probUnderdog]}>
                 {Math.round(prediction.awayWinProb)}%
               </Text>
             </View>
@@ -250,13 +281,13 @@ export default function HeroBanner({
                 contentFit="contain"
               />
               <Text style={[styles.teamAbbrev, { color: getAccessibleTextColor(homeAbbrev) }]}>{homeAbbrev}</Text>
-              <Text style={styles.probNumber}>
+              <Text style={[styles.probNumber, favoredIsHome ? styles.probFavored : styles.probUnderdog]}>
                 {Math.round(prediction.homeWinProb)}%
               </Text>
             </View>
           </View>
 
-          {/* Game time */}
+          {/* Game time + date */}
           <Text
             style={[
               styles.gameTime,
@@ -265,37 +296,37 @@ export default function HeroBanner({
           >
             {gameTime.isLive ? 'LIVE  ' : ''}{gameTime.text}
           </Text>
+          <Text style={styles.gameDate}>{gameDateStr}</Text>
         </Animated.View>
 
-        {/* LAYER 4 — Insight chips (bottom) */}
+        {/* LAYER 4 — Stat badges + share (bottom) */}
         <Animated.View
           entering={FadeInUp.duration(400).delay(400)}
-          style={styles.chipBarWrapper}
+          style={styles.bottomBar}
         >
-          <BlurView intensity={60} tint="dark" style={styles.chipBar}>
-            <View style={styles.chipsRow}>
-              {chips.map((chip, i) => (
-                <Pressable
-                  key={i}
-                  onLongPress={() => onInfoPress?.(chip.glossaryKey)}
-                  delayLongPress={300}
-                  style={[styles.chip, { backgroundColor: chip.bg }]}
-                >
-                  <Text style={[styles.chipText, { color: chip.color }]}>
-                    {chip.label}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-            <View style={styles.chipBarRight}>
-              <Pressable onLongPress={() => onInfoPress?.('topEdge')} delayLongPress={300}>
-                <Text style={styles.topEdgeLabel}>TOP EDGE</Text>
+          <View style={styles.badgesRow}>
+            {chips.map((chip, i) => (
+              <Pressable
+                key={`chip-${i}`}
+                onLongPress={() => onInfoPress?.(chip.glossaryKey)}
+                delayLongPress={300}
+                style={styles.badge}
+              >
+                <Text style={styles.badgeText}>
+                  {chip.label}
+                </Text>
               </Pressable>
-              <Pressable onPress={onShare} hitSlop={8}>
-                <Ionicons name="share-outline" size={18} color="#fff" />
-              </Pressable>
-            </View>
-          </BlurView>
+            ))}
+            {miniStats.map((stat, i) => (
+              <View key={`stat-${i}`} style={styles.badge}>
+                <Text style={styles.badgeLabel}>{stat.label}</Text>
+                <Text style={styles.badgeValue}>{stat.value}</Text>
+              </View>
+            ))}
+          </View>
+          <Pressable onPress={onShare} hitSlop={8} style={styles.shareIcon}>
+            <Ionicons name="share-outline" size={16} color="rgba(255,255,255,0.45)" />
+          </Pressable>
         </Animated.View>
       </Animated.View>
     </Pressable>
@@ -306,7 +337,7 @@ export default function HeroBanner({
 
 const styles = StyleSheet.create({
   container: {
-    height: 300,
+    height: 340,
     width: '100%',
     overflow: 'hidden',
     justifyContent: 'space-between',
@@ -330,25 +361,38 @@ const styles = StyleSheet.create({
     color: '#fff',
     letterSpacing: 2,
   },
-  tagline: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: theme.subtext,
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-    marginTop: 2,
-  },
-  dateText: {
-    fontSize: 13,
+  todayDate: {
+    fontSize: 12,
     fontWeight: '600',
-    color: 'rgba(255, 255, 255, 0.7)',
-    marginTop: 4,
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginTop: 3,
   },
 
   // Layer 3 — Matchup
   matchupZone: {
     alignItems: 'center',
     paddingHorizontal: 16,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  topEdgeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(251, 191, 36, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  topEdgeText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#fbbf24',
+    letterSpacing: 1.5,
   },
   yourTeamBadge: {
     flexDirection: 'row',
@@ -358,21 +402,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
-    marginBottom: 6,
   },
   yourTeamText: {
     fontSize: 10,
     fontWeight: '800',
     color: theme.accent,
     letterSpacing: 1,
-  },
-  headline: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#fff',
-    textAlign: 'center',
-    marginBottom: 12,
-    opacity: 0.85,
   },
   matchupRow: {
     flexDirection: 'row',
@@ -385,8 +420,8 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   teamLogo: {
-    width: 48,
-    height: 48,
+    width: 56,
+    height: 56,
   },
   teamAbbrev: {
     fontSize: 14,
@@ -397,9 +432,14 @@ const styles = StyleSheet.create({
   probNumber: {
     fontSize: 32,
     fontWeight: '800',
-    color: '#fff',
     fontFamily: theme.fonts.mono,
     fontVariant: ['tabular-nums'],
+  },
+  probFavored: {
+    color: '#22c55e',
+  },
+  probUnderdog: {
+    color: 'rgba(255, 255, 255, 0.45)',
   },
   centerDivider: {
     alignItems: 'center',
@@ -421,43 +461,52 @@ const styles = StyleSheet.create({
     color: '#22c55e',
     fontWeight: '700',
   },
+  gameDate: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.45)',
+    marginTop: 2,
+  },
 
-  // Layer 4 — Chips
-  chipBarWrapper: {
-    marginHorizontal: 16,
-    marginBottom: 12,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  chipBar: {
-    flexDirection: 'row',
+  // Layer 4 — Badges
+  bottomBar: {
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    marginBottom: 14,
   },
-  chipsRow: {
+  badgesRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    paddingHorizontal: 40,
     gap: 6,
   },
-  chip: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  chipText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  chipBarRight: {
+  badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 4,
+    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
-  topEdgeLabel: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: theme.accent,
-    letterSpacing: 1.5,
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#22c55e',
+  },
+  badgeLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: 'rgba(34, 197, 94, 0.7)',
+  },
+  badgeValue: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#22c55e',
+  },
+  shareIcon: {
+    position: 'absolute',
+    right: 16,
+    bottom: 0,
   },
 });

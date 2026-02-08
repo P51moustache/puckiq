@@ -5,10 +5,9 @@ import GameDeepDiveModal from '../../components/GameDeepDiveModal';
 import HeroBanner from '../../components/HeroBanner';
 import LiveNowBar from '../../components/LiveNowBar';
 import AllGamesCard from '../../components/AllGamesCard';
-import EdgeSpotlight from '../../components/EdgeSpotlight';
+import Spotlight from '../../components/EdgeSpotlight';
 import EmptyNightCard from '../../components/EmptyNightCard';
 import StatOfTheNight from '../../components/StatOfTheNight';
-import PlayerSpotlightCarousel from '../../components/PlayerSpotlightCarousel';
 import CompactGameRow from '../../components/CompactGameRow';
 import StandingsWidget from '../../components/StandingsWidget';
 import InsightFeed from '../../components/InsightFeed';
@@ -55,6 +54,9 @@ export default function TonightScreen() {
     gameCount,
     heroGame,
     remainingGames,
+    gamesByDate,
+    hasGamesToday,
+    isShowingUpcoming,
     predictionsMap,
     heroPrediction,
     heroConfidence,
@@ -68,7 +70,6 @@ export default function TonightScreen() {
     playerStatsMap,
     formMap,
     toastMessage,
-    tonightHeadline,
     handleShareHero,
     currentStandings,
     lastFetchTime,
@@ -83,14 +84,25 @@ export default function TonightScreen() {
     });
   }, []);
 
-  // Split remaining games: first 2 as featured full cards, rest as compact rows
-  const featuredGames = remainingGames.slice(0, 2);
-  const compactGames = remainingGames.slice(2);
+  // Sort remaining games by prediction confidence, strongest picks first
+  const sortedRemaining = useMemo(() => {
+    return [...remainingGames].sort((a, b) => {
+      const predA = predictionsMap.get(String(a.id));
+      const predB = predictionsMap.get(String(b.id));
+      const confA = predA ? Math.abs(predA.homeWinProb - 50) : 0;
+      const confB = predB ? Math.abs(predB.homeWinProb - 50) : 0;
+      return confB - confA;
+    });
+  }, [remainingGames, predictionsMap]);
 
-  // Pick the best insight as "Stat of the Night"
+  // Featured cards = top 2 strongest picks, rest as compact rows
+  const featuredGames = sortedRemaining.slice(0, 2);
+  const compactGames = sortedRemaining.slice(2);
+
+  // Pick the best positive insight as "Stat of the Night"
   const statOfTheNight = useMemo(() => {
     if (!data.insights || data.insights.length === 0) return null;
-    return data.insights[0];
+    return data.insights.find((i) => i.sentiment !== 'negative') ?? null;
   }, [data.insights]);
 
   const handleShareStat = useCallback(async () => {
@@ -202,7 +214,6 @@ export default function TonightScreen() {
             confidenceScore={heroConfidence}
             h2hRecord={heroH2H}
             situationalFactors={heroSituationalFactors}
-            headline={tonightHeadline}
             onPress={() => handleOpenDeepDive(heroGame)}
             onShare={handleShareHero}
             onInfoPress={glossary.showTerm}
@@ -232,17 +243,7 @@ export default function TonightScreen() {
           </View>
         )}
 
-        {/* PLAYERS TO WATCH — horizontal carousel */}
-        {!isLoading && gameCount > 0 && (
-          <View style={{ marginTop: 24 }}>
-            <PlayerSpotlightCarousel
-              games={todaysGames?.games ?? []}
-              playerStatsMap={playerStatsMap}
-            />
-          </View>
-        )}
-
-        {/* MORE GAMES — featured full cards (first 2) */}
+        {/* UPCOMING GAMES — featured full cards (first 2) */}
         {!isLoading && featuredGames.length > 0 && (
           <View style={{ marginTop: 24, width: '100%' }}>
             <View style={{ paddingHorizontal: 16, marginBottom: 12 }}>
@@ -253,7 +254,7 @@ export default function TonightScreen() {
                 letterSpacing: 1.5,
                 textTransform: 'uppercase',
               }}>
-                More Games
+                Upcoming Games
               </Text>
               <View style={{
                 width: 32,
@@ -297,17 +298,19 @@ export default function TonightScreen() {
           </View>
         )}
 
-        {/* DIVISION STANDINGS — compact table */}
-        {!isLoading && currentStandings && (
+        {/* SPOTLIGHT — hot players + edge stats in one scroll */}
+        {!isLoading && gameCount > 0 && (
           <View style={{ marginTop: 24 }}>
-            <StandingsWidget
-              standings={currentStandings}
-              selectedTeam={selectedTeam}
+            <Spotlight
+              playerStatsMap={playerStatsMap}
+              games={todaysGames?.games ?? []}
+              skaterLanding={edgeSkaterLanding}
+              teamLanding={edgeTeamLanding}
             />
           </View>
         )}
 
-        {/* COMPACT GAME ROWS — remaining games after featured 2 */}
+        {/* MORE GAMES — compact rows for remaining games */}
         {!isLoading && compactGames.length > 0 && (
           <View style={{ marginTop: 24, paddingHorizontal: 16 }}>
             <View style={{ marginBottom: 12 }}>
@@ -318,7 +321,7 @@ export default function TonightScreen() {
                 letterSpacing: 1.5,
                 textTransform: 'uppercase',
               }}>
-                Also Tonight
+                {hasGamesToday ? 'Also Today' : 'More Games'}
               </Text>
               <View style={{
                 width: 32,
@@ -344,26 +347,28 @@ export default function TonightScreen() {
           </View>
         )}
 
-        {/* EDGE SPOTLIGHT — hot players + edge stats in one scroll */}
-        {!isLoading && gameCount > 0 && (
+        {/* TONIGHT'S INTEL — insight cards */}
+        {!isLoading && data.insights.length > 0 && (
           <View style={{ marginTop: 24 }}>
-            <EdgeSpotlight
-              playerStatsMap={playerStatsMap}
-              games={todaysGames?.games ?? []}
-              skaterLanding={edgeSkaterLanding}
-              teamLanding={edgeTeamLanding}
+            <InsightFeed
+              insights={data.insights}
+              onShareInsight={handleShareInsight}
+              headerLabel={hasGamesToday ? "TODAY'S INTEL" : 'UPCOMING INTEL'}
             />
           </View>
         )}
 
-        {/* TONIGHT'S INTEL — insight cards */}
-        {!isLoading && data.insights.length > 0 && (
+        {/* DIVISION STANDINGS — compact table */}
+        {!isLoading && currentStandings && (
           <View style={{ marginTop: 24 }}>
-            <InsightFeed insights={data.insights} onShareInsight={handleShareInsight} />
+            <StandingsWidget
+              standings={currentStandings}
+              selectedTeam={selectedTeam}
+            />
           </View>
         )}
 
-        {/* EMPTY STATE — PuckIQ branding + no games tonight */}
+        {/* EMPTY STATE — PuckIQ branding + no games today */}
         {!isLoading && gameCount === 0 && (
           <>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: 16, marginBottom: 16 }}>
