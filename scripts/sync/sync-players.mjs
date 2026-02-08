@@ -10,10 +10,10 @@
  */
 
 import { supabase, logConnectionInfo } from './supabase-client.mjs';
-import { ALL_TEAMS, getCurrentSeason, fetchWithRetry, sleep, endpoints } from './nhl-api.mjs';
+import { ALL_TEAMS, getCurrentSeason, fetchWithRetry, sleep, endpoints, parseSeasonArg } from './nhl-api.mjs';
 
-async function syncPlayerStats() {
-  const season = getCurrentSeason();
+async function syncPlayerStats(seasonOverride) {
+  const season = seasonOverride || getCurrentSeason();
   console.log(`[sync-players] Fetching player stats for season ${season}`);
 
   const skaterRows = [];
@@ -139,10 +139,17 @@ async function syncPlayerStats() {
 }
 
 // Main
+const { season: parsedSeason } = parseSeasonArg();
+const hasSeasonFlag = process.argv.includes('--season') || process.argv.find(a => a.startsWith('--season='));
+const seasonOverride = hasSeasonFlag ? parsedSeason : null;
+
 logConnectionInfo();
+if (seasonOverride) {
+  console.log(`[sync-players] Using season override: ${seasonOverride}`);
+}
 
 try {
-  const result = await syncPlayerStats();
+  const result = await syncPlayerStats(seasonOverride);
   if (result.errors > 0) process.exit(1);
 } catch (err) {
   console.error('[sync-players] Fatal error:', err);

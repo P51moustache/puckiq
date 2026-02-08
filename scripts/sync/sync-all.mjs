@@ -2,8 +2,10 @@
  * Orchestrates all sync modules in sequence.
  *
  * Usage:
- *   node scripts/sync/sync-all.mjs             # Incremental sync (default)
- *   node scripts/sync/sync-all.mjs --full      # Full season sync
+ *   node scripts/sync/sync-all.mjs                          # Incremental sync (default, current season)
+ *   node scripts/sync/sync-all.mjs --full                   # Full season sync (current season)
+ *   node scripts/sync/sync-all.mjs --full --season 20242025 # Full sync for 2024-25 season (backfill)
+ *   node scripts/sync/sync-all.mjs --season 20242025        # Incremental sync for 2024-25 season
  *
  * Exit codes:
  *   0 = all modules succeeded
@@ -18,31 +20,40 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const isFullSync = process.argv.includes('--full');
 const isWeekly = process.argv.includes('--weekly');
 
+// Parse --season flag (e.g., --season 20242025) to backfill historical data
+const seasonIdx = process.argv.indexOf('--season');
+const seasonEqArg = process.argv.find(a => a.startsWith('--season='));
+const seasonArg = seasonIdx !== -1 && seasonIdx + 1 < process.argv.length
+  ? process.argv[seasonIdx + 1]
+  : seasonEqArg ? seasonEqArg.split('=')[1] : null;
+const seasonArgs = seasonArg ? ['--season', seasonArg] : [];
+
 const modules = [
   // Core: games, standings, teams, player season stats
-  { name: 'games', script: 'sync-games.mjs', args: isFullSync ? ['--full'] : [] },
-  { name: 'standings', script: 'sync-standings.mjs', args: [] },
+  { name: 'games', script: 'sync-games.mjs', args: [...(isFullSync ? ['--full'] : []), ...seasonArgs] },
+  { name: 'standings', script: 'sync-standings.mjs', args: [...seasonArgs] },
   { name: 'teams', script: 'sync-teams.mjs', args: [] },
-  { name: 'players', script: 'sync-players.mjs', args: [] },
+  { name: 'players', script: 'sync-players.mjs', args: [...seasonArgs] },
 
   // Game extras: play-by-play, right-rail, boxscores for new games only
-  { name: 'game-extras', script: 'sync-game-extras.mjs', args: isFullSync ? ['--full'] : [] },
+  { name: 'game-extras', script: 'sync-game-extras.mjs', args: [...(isFullSync ? ['--full'] : []), ...seasonArgs] },
 
   // Aggregates: Edge IQ landing pages, top-10 lists, stat leaders (lightweight)
-  { name: 'aggregates', script: 'sync-aggregates.mjs', args: [] },
+  { name: 'aggregates', script: 'sync-aggregates.mjs', args: [...seasonArgs] },
 
   // Player trends: game logs daily, advanced stats weekly (Corsi, Fenwick, PDO)
-  { name: 'player-trends', script: 'sync-player-trends.mjs', args: isWeekly ? ['--weekly'] : [] },
+  { name: 'player-trends', script: 'sync-player-trends.mjs', args: [...(isWeekly ? ['--weekly'] : []), ...seasonArgs] },
 
   // Player career data: landing pages with career totals, awards, last 5 games (weekly only — ~900 API calls)
   ...(isWeekly || isFullSync ? [{ name: 'player-career', script: 'sync-player-career.mjs', args: [] }] : []),
 
   // Edge IQ detailed stats: per-entity endpoints (weekly only — ~900+ API calls)
-  ...(isWeekly || isFullSync ? [{ name: 'edge-details', script: 'sync-edge-details.mjs', args: [] }] : []),
+  ...(isWeekly || isFullSync ? [{ name: 'edge-details', script: 'sync-edge-details.mjs', args: [...seasonArgs] }] : []),
 ];
 
 const modeLabel = isFullSync ? 'FULL' : isWeekly ? 'WEEKLY' : 'INCREMENTAL';
-console.log(`=== PuckIQ NHL Data Sync (${modeLabel}) ===`);
+const seasonLabel = seasonArg ? ` | Season: ${seasonArg}` : '';
+console.log(`=== PuckIQ NHL Data Sync (${modeLabel}${seasonLabel}) ===`);
 console.log(`Started: ${new Date().toISOString()}\n`);
 
 const results = [];

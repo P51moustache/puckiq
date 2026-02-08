@@ -46,3 +46,10 @@ CLAUDE.local.md
 coverage/
 *.lcov
 GoogleService-Info.plist
+
+# ML pipeline
+ml/.venv/
+ml/.env
+ml/**/__pycache__/
+ml/**/*.pyc
+ml/baselines_results.json

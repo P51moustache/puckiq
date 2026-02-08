@@ -323,4 +323,13 @@ export interface PredictionModel {
   isActive: boolean;              // Currently selected model for predictions
   isDefault: boolean;             // System default (Classic) - cannot be deleted
   backtestResults?: ModelBacktestResults;  // Optional backtest results
+  type?: 'rule-based' | 'ml';    // Model type — defaults to 'rule-based' for backward compat
+  mlMetadata?: {                  // Present only for ML models
+    modelVersion: string;
+    lastTrained: string;
+    accuracy7d: number | null;
+    accuracy30d: number | null;
+    accuracySeason: number | null;
+    brierScore: number | null;
+  };
 }
