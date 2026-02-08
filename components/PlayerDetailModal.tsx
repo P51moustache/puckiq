@@ -456,8 +456,8 @@ function renderHotColdSection(hc: HotColdData) {
           <TrendCompareItem label="GPG" recent={hc.recentGpg.toFixed(2)} season={hc.seasonGpg.toFixed(2)} />
           <TrendCompareItem
             label="S%"
-            recent={`${(hc.recentShootingPct * 100).toFixed(1)}`}
-            season={`${(hc.seasonShootingPct * 100).toFixed(1)}`}
+            recent={`${hc.recentShootingPct.toFixed(1)}`}
+            season={`${hc.seasonShootingPct.toFixed(1)}`}
           />
         </View>
       </View>
