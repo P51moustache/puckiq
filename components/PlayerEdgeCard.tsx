@@ -127,7 +127,7 @@ export default React.memo(function PlayerEdgeCard({
                   styles.bar,
                   {
                     height: Math.max(3, bar.heightPct * 22),
-                    backgroundColor: bar.exceeded ? '#22c55e' : 'rgba(255, 255, 255, 0.12)',
+                    backgroundColor: bar.exceeded ? theme.semantic.positive : 'rgba(255, 255, 255, 0.12)',
                   },
                 ]}
               />
@@ -161,7 +161,7 @@ export default React.memo(function PlayerEdgeCard({
                   key={i}
                   style={[
                     styles.hitDot,
-                    { backgroundColor: i < hitDisplay.hit ? '#22c55e' : 'rgba(255,255,255,0.12)' },
+                    { backgroundColor: i < hitDisplay.hit ? theme.semantic.positive : 'rgba(255,255,255,0.12)' },
                   ]}
                 />
               ))}
@@ -181,7 +181,7 @@ export default React.memo(function PlayerEdgeCard({
         )}
         {isOverSeason && (
           <View style={styles.overBadge}>
-            <Text style={styles.overText}>OVER</Text>
+            <Text style={styles.overText}>ABOVE AVG</Text>
           </View>
         )}
       </View>
@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
   },
   hitTextGood: {
-    color: '#22c55e',
+    color: theme.semantic.positive,
   },
   avgText: {
     fontSize: 11,
@@ -344,7 +344,7 @@ const styles = StyleSheet.create({
     color: '#f97316',
   },
   overBadge: {
-    backgroundColor: '#22c55e22',
+    backgroundColor: theme.semantic.positive + '22',
     borderRadius: 3,
     paddingHorizontal: 4,
     paddingVertical: 1,
@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
   overText: {
     fontSize: 9,
     fontWeight: '800',
-    color: '#22c55e',
+    color: theme.semantic.positive,
     letterSpacing: 0.5,
   },
 });

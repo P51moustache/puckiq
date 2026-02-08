@@ -30,7 +30,7 @@ const TREND_COLORS: Record<string, string> = {
 };
 
 const CONFIDENCE_COLORS: Record<ProjectionConfidence, string> = {
-  HIGH: '#22c55e',
+  HIGH: theme.semantic.positive,
   MEDIUM: '#fbbf24',
   LOW: '#6b7280',
 };
@@ -186,7 +186,7 @@ function ProjectionRow({ projection }: { projection: StatProjection }) {
       </View>
       <View style={[styles.directionBadge, { backgroundColor: arrowColor + '18' }]}>
         <Text style={[styles.directionText, { color: arrowColor }]}>
-          {projection.direction}
+          {projection.direction === 'OVER' ? 'ABOVE' : 'BELOW'}
         </Text>
       </View>
     </View>
