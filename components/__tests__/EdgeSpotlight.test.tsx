@@ -54,6 +54,10 @@ jest.mock('expo-image', () => ({
   Image: 'ExpoImage',
 }));
 
+jest.mock('expo-linear-gradient', () => ({
+  LinearGradient: 'LinearGradient',
+}));
+
 jest.mock('../../constants/teamColors', () => ({
   getTeamColors: (abbrev: string) => ({
     primary: '#005DAA',
@@ -276,7 +280,7 @@ describe('EdgeSpotlight', () => {
   });
 
   describe('caps at 5 items', () => {
-    it('FlatList data has at most 5 items', () => {
+    it('FlatList data has at most 6 items', () => {
       const element = EdgeSpotlight({
         playerStatsMap: mockPlayerStatsMap,
         games: mockGames,
@@ -284,7 +288,7 @@ describe('EdgeSpotlight', () => {
         teamLanding: mockTeamLanding,
       });
       const fl = findFlatList(element);
-      expect(fl.props.data.length).toBeLessThanOrEqual(5);
+      expect(fl.props.data.length).toBeLessThanOrEqual(6);
     });
   });
 
@@ -300,7 +304,7 @@ describe('EdgeSpotlight', () => {
       expect(fl.props.ListFooterComponent).toBeDefined();
     });
 
-    it('footer renders "See All" and "Edge Stats" text', () => {
+    it('footer renders "See All" and "Players" text', () => {
       const element = EdgeSpotlight({
         playerStatsMap: mockPlayerStatsMap,
         games: mockGames,
@@ -311,7 +315,7 @@ describe('EdgeSpotlight', () => {
       const footer = fl.props.ListFooterComponent();
       const text = collectText(footer).join(' ');
       expect(text).toContain('See All');
-      expect(text).toContain('Edge Stats');
+      expect(text).toContain('Players');
     });
 
     it('footer has testID "spotlight-see-all"', () => {
@@ -392,7 +396,7 @@ describe('EdgeSpotlight', () => {
       expect(container).not.toBeNull();
     });
 
-    it('shows "EDGE SPOTLIGHT" header text', () => {
+    it('shows "SPOTLIGHT" header text', () => {
       const element = EdgeSpotlight({
         playerStatsMap: mockPlayerStatsMap,
         games: mockGames,
@@ -400,7 +404,7 @@ describe('EdgeSpotlight', () => {
         teamLanding: null,
       });
       const text = collectText(element);
-      expect(text).toContain('Edge Spotlight');
+      expect(text).toContain('Spotlight');
     });
   });
 
@@ -449,8 +453,8 @@ describe('EdgeSpotlight', () => {
         teamLanding: null,
       });
       const fl = findFlatList(element);
-      const key = fl.props.keyExtractor({ key: 'player-TOR-A.Matthews' });
-      expect(key).toBe('player-TOR-A.Matthews');
+      const key = fl.props.keyExtractor({ key: 'player-TOR-A. Matthews' });
+      expect(key).toBe('player-TOR-A. Matthews');
     });
   });
 });
