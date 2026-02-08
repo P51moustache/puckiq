@@ -24,8 +24,23 @@ async function syncStandings() {
     return { upserted: 0, errors: 0 };
   }
 
-  const rows = standings.map(team => ({
-    team_abbrev: team.teamAbbrev?.default ?? team.teamAbbrev,
+  // Look up team_id from teams table using team abbreviation
+  const { data: teamsData, error: teamsErr } = await supabase
+    .from('teams')
+    .select('id, abbrev');
+  if (teamsErr) {
+    console.error('[sync-standings] Failed to fetch teams for ID lookup:', teamsErr.message);
+    return { upserted: 0, errors: 1 };
+  }
+  const teamIdMap = new Map(teamsData.map(t => [t.abbrev, t.id]));
+
+  const rows = standings.map(team => {
+    const abbrev = team.teamAbbrev?.default ?? team.teamAbbrev;
+    const teamId = teamIdMap.get(abbrev);
+    if (!teamId) {
+      console.warn(`[sync-standings] No team_id found for ${abbrev}, skipping`);
+    }
+    return { team_id: teamId, team_abbrev: abbrev,
     season,
     snapshot_date: today,
 
@@ -79,7 +94,12 @@ async function syncStandings() {
     division_sequence: team.divisionSequence ?? null,
     league_sequence: team.leagueSequence ?? null,
     wildcard_sequence: team.wildcardSequence ?? null,
-  }));
+  }; }).filter(row => row.team_id != null);
+
+  if (rows.length === 0) {
+    console.error('[sync-standings] No rows after team_id lookup — check teams table');
+    return { upserted: 0, errors: 1 };
+  }
 
   // Upsert by (team_abbrev, season, snapshot_date)
   const { error } = await supabase
