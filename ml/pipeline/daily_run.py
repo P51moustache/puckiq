@@ -46,7 +46,7 @@ from ml.config import (
 from ml.evaluation.scoring import score_yesterdays_predictions
 import pandas as pd
 
-from ml.features.compute import compute_all_features, compute_player_features
+from ml.features.compute import FeatureCache, compute_all_features, compute_player_features
 from ml.features.registry import get_model_features, load_feature_registry
 from ml.io.model_storage import ModelStorage
 from ml.io.supabase_client import (
@@ -102,7 +102,8 @@ def _run() -> None:
         #    and rolling stats only include games played before today. This prevents
         #    "data leakage" — using information we wouldn't have at prediction time.
         registry = load_feature_registry()
-        features_df = compute_all_features(todays_games, today, client, registry)
+        cache = FeatureCache.build(client, todays_games)
+        features_df = compute_all_features(todays_games, today, client, registry, use_cache=True, cache=cache)
 
         # 5. Load active models from Supabase Storage
         storage = ModelStorage(client)

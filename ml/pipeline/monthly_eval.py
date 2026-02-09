@@ -52,7 +52,7 @@ from ml.config import (
 )
 from ml.evaluation.calibration import compute_calibration_buckets, compute_ece
 from ml.evaluation.overfitting import compute_train_val_gap_history, detect_overfitting
-from ml.features.compute import compute_all_features
+from ml.features.compute import FeatureCache, compute_all_features
 from ml.features.registry import load_feature_registry
 from ml.io.supabase_client import create_supabase_client, read_games
 from ml.models.baselines import evaluate_baselines
@@ -137,7 +137,8 @@ def _run() -> None:
         games_df = games_df.sort_values("game_date").reset_index(drop=True)
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         registry = load_feature_registry()
-        features_df = compute_all_features(games_df, today, client, registry)
+        cache = FeatureCache.build(client, games_df)
+        features_df = compute_all_features(games_df, today, client, registry, use_cache=True, cache=cache)
         baseline_results = evaluate_baselines(games_df, features_df)
 
         # Compare our model accuracy to baselines (delta = how much better we are)
