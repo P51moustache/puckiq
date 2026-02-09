@@ -63,8 +63,18 @@ MIN_GAMES_FOR_PROMOTION = 200     # Minimum games in training set before promoti
 MAX_BRIER_SCORE = 0.260           # Must be better than coin flip (0.250 = random, but
                                   #   real-world noise means 0.260 is a safe ceiling)
 MIN_ACCURACY = 0.520              # Must beat random guessing (50%) by a meaningful margin
-MAX_TRAIN_VAL_GAP = 0.05          # If train accuracy exceeds val accuracy by >5%,
-                                  #   the model is overfitting and should NOT go live
+MAX_TRAIN_VAL_GAP = 0.05          # Default gap threshold (backward compat)
+
+# Per-metric overfitting thresholds — different metrics have different scales.
+# Accuracy/Brier are 0-1, so 0.05 gap is meaningful.
+# MAE is in goal units (0-10+), so 0.05 would false-alarm on every model.
+OVERFITTING_THRESHOLDS = {
+    "accuracy": 0.05,
+    "brier_score": 0.05,
+    "mae": 0.50,      # Half a goal tolerance for regression models
+    "rmse": 0.50,
+    "log_loss": 0.10,
+}
 MIN_CALIBRATION_QUALITY = 0.80    # Calibration R² — predicted probabilities must roughly
                                   #   match actual outcomes (1.0 = perfect calibration)
 

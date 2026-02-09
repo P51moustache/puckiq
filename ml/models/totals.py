@@ -43,6 +43,7 @@ from ml.config import (
     TOTALS_LGBM_WEIGHT,
     TOTALS_POISSON_WEIGHT,
 )
+from ml.models.base import BaseLGBMModel
 
 logger = logging.getLogger(__name__)
 
@@ -100,43 +101,31 @@ class PoissonComponent:
         return dist
 
 
-class LGBMComponent:
+class LGBMComponent(BaseLGBMModel):
     """LightGBM regression for predicting total goals."""
 
     def __init__(self, params: dict[str, Any] | None = None) -> None:
-        self.params = {**LGBM_REGRESSOR_DEFAULTS, **(params or {})}
-        self.model: lgb.LGBMRegressor | None = None
-        self.feature_names: list[str] = []
+        super().__init__(LGBM_REGRESSOR_DEFAULTS, params)
 
-    def train(
-        self,
-        features_df: pd.DataFrame,
-        targets: pd.Series,
-        eval_set: tuple[pd.DataFrame, pd.Series] | None = None,
-    ) -> dict[str, float]:
-        """Fit a LightGBM regressor with optional early stopping."""
-        self.model = lgb.LGBMRegressor(**self.params)
-        self.feature_names = list(features_df.columns)
+    def _create_model(self) -> lgb.LGBMRegressor:
+        return lgb.LGBMRegressor(**self.params)
 
-        fit_kwargs: dict[str, Any] = {}
-        if eval_set is not None:
-            X_val, y_val = eval_set
-            fit_kwargs["eval_set"] = [(X_val.values, y_val.values)]
-            fit_kwargs["callbacks"] = [lgb.early_stopping(20, verbose=False)]
-
-        self.model.fit(features_df.values, targets.values, **fit_kwargs)
-        preds = self.model.predict(features_df.values)
-        metrics = {
-            "lgbm_mae": float(mean_absolute_error(targets.values, preds)),
+    def _compute_train_metrics(self, X: np.ndarray, y: np.ndarray) -> dict[str, float]:
+        preds = self.model.predict(X)
+        return {
+            "lgbm_mae": float(mean_absolute_error(y, preds)),
         }
-        logger.info("LGBMComponent (totals) trained: %s", metrics)
-        return metrics
 
-    def predict(self, features_df: pd.DataFrame) -> np.ndarray:
-        """Return predicted total goals."""
-        if self.model is None:
-            raise RuntimeError("LGBMComponent not trained")
-        return self.model.predict(features_df.values)
+    def evaluate(
+        self, features_df: pd.DataFrame, targets: pd.Series
+    ) -> dict[str, float]:
+        """Return MAE and RMSE on the given data."""
+        preds = self.predict(features_df)
+        return {
+            "mae": float(mean_absolute_error(targets.values, preds)),
+            "rmse": float(np.sqrt(mean_squared_error(targets.values, preds))),
+            "n_games": len(targets),
+        }
 
 
 class TotalsModel:
@@ -203,14 +192,7 @@ class TotalsModel:
         so we use the LightGBM sub-model's importances as a proxy for
         the whole ensemble.
         """
-        if self.lgbm.model is None:
-            return {}
-        importances = self.lgbm.model.feature_importances_
-        names = self.lgbm.feature_names
-        if not names or importances is None:
-            return {}
-        pairs = sorted(zip(names, importances), key=lambda x: x[1], reverse=True)
-        return dict(pairs)
+        return self.lgbm.get_feature_importance()
 
     def evaluate(
         self, features_df: pd.DataFrame, targets: pd.Series

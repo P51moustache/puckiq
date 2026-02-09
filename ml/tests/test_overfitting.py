@@ -63,8 +63,9 @@ class TestDetectOverfitting:
         result_default = detect_overfitting(train, val)
         assert result_default["is_overfitting"] is False
 
-        # Tighter threshold (0.02) should flag it
-        result_tight = detect_overfitting(train, val, threshold=0.02)
+        # Tighter threshold (0.02) should flag it — pass empty thresholds
+        # so the per-metric dict doesn't override the custom threshold
+        result_tight = detect_overfitting(train, val, threshold=0.02, thresholds={})
         assert result_tight["is_overfitting"] is True
 
     def test_returns_threshold(self):
@@ -133,6 +134,29 @@ class TestDetectOverfitting:
         val = {"accuracy": 0.56, "brier_score": 0.28}    # Brier degrades a lot
         result = detect_overfitting(train, val)
         assert result["is_overfitting"] is True
+
+    def test_mae_not_false_alarm_with_per_metric_threshold(self):
+        """MAE gap of 0.3 goals should NOT trigger with per-metric threshold (0.50)."""
+        train = {"mae": 1.5}
+        val = {"mae": 1.8}
+        result = detect_overfitting(train, val)
+        assert result["is_overfitting"] is False
+
+    def test_mae_triggers_at_large_gap(self):
+        """MAE gap > 0.50 should trigger overfitting."""
+        train = {"mae": 1.0}
+        val = {"mae": 1.6}
+        result = detect_overfitting(train, val)
+        assert result["is_overfitting"] is True
+
+    def test_thresholds_used_reported(self):
+        """Result should include which thresholds were used per metric."""
+        train = {"accuracy": 0.60, "mae": 1.5}
+        val = {"accuracy": 0.58, "mae": 1.7}
+        result = detect_overfitting(train, val)
+        assert "thresholds_used" in result
+        assert result["thresholds_used"]["accuracy"] == 0.05
+        assert result["thresholds_used"]["mae"] == 0.50
 
 
 class TestComputeTrainValGapHistory:

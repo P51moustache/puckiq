@@ -174,6 +174,29 @@ features:
     enabled: true
 
   # ---------------------------------------------------------------
+  # Rolling goalie (recent form)
+  # ---------------------------------------------------------------
+  home_starter_save_pctg_l10:
+    description: "Home starting goalie save% in last 10 starts (rolling form)"
+    compute: rolling_goalie
+    rolling:
+      stat: save_pctg
+      team_key: home_team
+      window: 10
+    tier: 1
+    enabled: true
+
+  away_starter_save_pctg_l10:
+    description: "Away starting goalie save% in last 10 starts (rolling form)"
+    compute: rolling_goalie
+    rolling:
+      stat: save_pctg
+      team_key: away_team
+      window: 10
+    tier: 1
+    enabled: true
+
+  # ---------------------------------------------------------------
   # Rest / schedule (derived from games table)
   # ---------------------------------------------------------------
   rest_advantage:
@@ -241,6 +264,8 @@ model_features:
     - away_win_pct_l10
     - home_starter_save_pctg
     - away_starter_save_pctg
+    - home_starter_save_pctg_l10
+    - away_starter_save_pctg_l10
     - rest_advantage
     - home_is_back_to_back
     - away_is_back_to_back
@@ -257,6 +282,8 @@ model_features:
     - away_goals_against_l10
     - home_starter_save_pctg
     - away_starter_save_pctg
+    - home_starter_save_pctg_l10
+    - away_starter_save_pctg_l10
     - rest_advantage
     - point_pctg_diff
 
@@ -267,6 +294,8 @@ model_features:
     - away_goals_against_l10
     - home_starter_save_pctg
     - away_starter_save_pctg
+    - home_starter_save_pctg_l10
+    - away_starter_save_pctg_l10
     - home_point_pctg
     - away_point_pctg
 

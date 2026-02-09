@@ -47,7 +47,7 @@ class TestLoadFeatureRegistry:
             assert len(feat.description) > 0
 
     def test_all_features_have_valid_compute_type(self):
-        valid_types = {"lookup", "rolling_team", "jsonb_lookup", "derived"}
+        valid_types = {"lookup", "rolling_team", "rolling_goalie", "jsonb_lookup", "derived"}
         registry = load_feature_registry()
         for feat in registry.values():
             assert feat.compute_type in valid_types, (
@@ -89,6 +89,23 @@ class TestLoadFeatureRegistry:
             if feat.compute_type == "rolling_team":
                 assert "stat" in feat.config, f"Rolling feature '{feat.name}' missing 'stat'"
                 assert "team_key" in feat.config, f"Rolling feature '{feat.name}' missing 'team_key'"
+
+    def test_rolling_goalie_features_exist(self):
+        """Rolling goalie features should be in the registry."""
+        registry = load_feature_registry()
+        assert "home_starter_save_pctg_l10" in registry
+        assert "away_starter_save_pctg_l10" in registry
+        assert registry["home_starter_save_pctg_l10"].compute_type == "rolling_goalie"
+        assert registry["away_starter_save_pctg_l10"].compute_type == "rolling_goalie"
+
+    def test_rolling_goalie_features_have_config(self):
+        """Rolling goalie features should have stat, team_key, and window in config."""
+        registry = load_feature_registry()
+        for feat in registry.values():
+            if feat.compute_type == "rolling_goalie":
+                assert "stat" in feat.config, f"Rolling goalie feature '{feat.name}' missing 'stat'"
+                assert "team_key" in feat.config, f"Rolling goalie feature '{feat.name}' missing 'team_key'"
+                assert "window" in feat.config, f"Rolling goalie feature '{feat.name}' missing 'window'"
 
     def test_nonexistent_yaml_raises_error(self):
         with pytest.raises(FileNotFoundError):

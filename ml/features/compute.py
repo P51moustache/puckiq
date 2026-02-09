@@ -96,6 +96,10 @@ def compute_all_features(
                     row[feat_name] = _compute_rolling_team(
                         feat_def, home, away, home_recent, away_recent,
                     )
+                elif feat_def.compute_type == "rolling_goalie":
+                    row[feat_name] = _compute_rolling_goalie(
+                        feat_def, home, away, client, game_date,
+                    )
                 elif feat_def.compute_type == "derived":
                     row[feat_name] = _compute_derived(feat_def, row, home, away,
                                                        home_recent, away_recent, game_date)
@@ -191,6 +195,68 @@ def _compute_rolling_team(
     if not values:
         return np.nan
     return float(np.mean(values))
+
+
+def _compute_rolling_goalie(
+    feat_def: FeatureDefinition,
+    home: str,
+    away: str,
+    client: Client,
+    game_date: str,
+) -> float:
+    """
+    Compute rolling goalie save% from recent game-level goalie stats.
+
+    Falls back to season average if game-level data isn't available.
+    This is a data-quality-first design: we prefer recent form (L10 starts)
+    over season averages, but won't break if the granular data is missing.
+    """
+    from ml.config import CURRENT_SEASON, GAME_GOALIE_STATS_TABLE
+
+    config = feat_def.config
+    team_key = config.get("team_key", "home_team")
+    window = config.get("window", 10)
+    team_abbrev = home if team_key == "home_team" else away
+
+    try:
+        # Try to get game-level goalie stats for recent starts
+        response = (
+            client.table(GAME_GOALIE_STATS_TABLE)
+            .select("game_id, game_date, save_pctg, decision, player_name")
+            .eq("team_abbrev", team_abbrev)
+            .lt("game_date", game_date)
+            .order("game_date", desc=True)
+            .limit(window * 2)  # Fetch extra to filter for starter
+            .execute()
+        )
+        rows = response.data or []
+
+        if rows:
+            # Filter to actual starts (goalie with a decision = starter)
+            starts = [r for r in rows if r.get("decision") in ("W", "L", "O")]
+            starts = starts[:window]
+
+            if len(starts) >= 3:  # Need at least 3 starts for meaningful rolling avg
+                save_pcts = [
+                    float(r["save_pctg"])
+                    for r in starts
+                    if r.get("save_pctg") is not None
+                ]
+                if save_pcts:
+                    return float(np.mean(save_pcts))
+
+        # Fall back to season average
+        goalies = read_goalie_stats(client, team_abbrev, CURRENT_SEASON)
+        if goalies:
+            starter = max(goalies, key=lambda g: g.get("games_started", 0))
+            sv = starter.get("save_pctg")
+            if sv is not None:
+                return float(sv)
+
+    except Exception as exc:
+        logger.warning("Failed to compute rolling goalie for %s: %s", team_abbrev, exc)
+
+    return np.nan
 
 
 def _compute_derived(
