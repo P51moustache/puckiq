@@ -56,7 +56,7 @@ def load_feature_registry(
             name=name,
             description=spec.get("description", ""),
             compute_type=spec.get("compute", "lookup"),
-            config=spec.get("lookup", spec.get("rolling", spec.get("jsonb", spec.get("derived", {})))),
+            config=spec.get("lookup", spec.get("rolling", spec.get("jsonb", spec.get("derived", spec.get("player_lookup", spec.get("game_detail", spec.get("cross_model", {}))))))),
             enabled=True,
             tier=spec.get("tier", 1),
         )
@@ -101,6 +101,21 @@ _SYNTHETIC_RANGES: dict[str, tuple[float, float]] = {
     "sog": (25.0, 40.0),
     "rest_advantage": (-2.0, 2.0),
     "back_to_back": (0.0, 1.0),
+    "gpg": (0.05, 0.60),
+    "toi": (8.0, 25.0),
+    "shot_pct": (0.0, 25.0),
+    "ga_per_game": (2.0, 4.5),
+    "is_home": (0.0, 1.0),
+    "corsi_pct": (0.42, 0.58),
+    "fenwick_pct": (0.43, 0.57),
+    "gw_home_win_prob": (0.25, 0.75),
+    "xgf": (2.0, 4.0),
+    "xga": (2.0, 4.0),
+    "games_last_7d": (1.0, 5.0),
+    "h2h_home_win_pct": (0.0, 1.0),
+    "h2h_goals_diff": (-5.0, 5.0),
+    "gaa": (2.0, 4.0),
+    "backup_save": (0.85, 0.92),
 }
 
 
@@ -137,8 +152,8 @@ def generate_synthetic_features(
     data: dict[str, np.ndarray] = {}
     for name in feature_names:
         low, high = _range_for_feature(name)
-        if "back_to_back" in name:
-            data[name] = rng.choice([0.0, 1.0], n, p=[0.8, 0.2])
+        if "back_to_back" in name or name == "is_home":
+            data[name] = rng.choice([0.0, 1.0], n, p=[0.5, 0.5])
         elif "rest_advantage" in name:
             data[name] = rng.choice([-1.0, 0.0, 1.0, 2.0], n).astype(float)
         else:

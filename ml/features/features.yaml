@@ -204,6 +204,92 @@ features:
     enabled: true
 
   # ---------------------------------------------------------------
+  # Possession (rolling_team_advanced from skater_game_categories)
+  # ---------------------------------------------------------------
+  home_corsi_pct_l10:
+    description: "Home team avg Corsi For% over last 10 games (puck possession)"
+    compute: rolling_team_advanced
+    rolling:
+      stat: corsi_pct
+      team_key: home_team
+      window: 10
+    tier: 2
+    enabled: true
+
+  away_corsi_pct_l10:
+    description: "Away team avg Corsi For% over last 10 games (puck possession)"
+    compute: rolling_team_advanced
+    rolling:
+      stat: corsi_pct
+      team_key: away_team
+      window: 10
+    tier: 2
+    enabled: true
+
+  home_fenwick_pct_l10:
+    description: "Home team avg Fenwick For% over last 10 games (unblocked shot attempts)"
+    compute: rolling_team_advanced
+    rolling:
+      stat: fenwick_pct
+      team_key: home_team
+      window: 10
+    tier: 2
+    enabled: true
+
+  away_fenwick_pct_l10:
+    description: "Away team avg Fenwick For% over last 10 games (unblocked shot attempts)"
+    compute: rolling_team_advanced
+    rolling:
+      stat: fenwick_pct
+      team_key: away_team
+      window: 10
+    tier: 2
+    enabled: true
+
+  # ---------------------------------------------------------------
+  # Expected Goals (rolling_xg from game_play_by_play shot data)
+  # ---------------------------------------------------------------
+  home_xgf_l10:
+    description: "Home team avg expected goals for over last 10 games (shot quality)"
+    compute: rolling_xg
+    rolling:
+      stat: xgf
+      team_key: home_team
+      window: 10
+    tier: 2
+    enabled: true
+
+  away_xgf_l10:
+    description: "Away team avg expected goals for over last 10 games (shot quality)"
+    compute: rolling_xg
+    rolling:
+      stat: xgf
+      team_key: away_team
+      window: 10
+    tier: 2
+    enabled: true
+
+  home_xga_l10:
+    description: "Home team avg expected goals against over last 10 games"
+    compute: rolling_xg
+    rolling:
+      stat: xga
+      team_key: home_team
+      window: 10
+    tier: 2
+    enabled: true
+
+  away_xga_l10:
+    description: "Away team avg expected goals against over last 10 games"
+    compute: rolling_xg
+    rolling:
+      stat: xga
+      team_key: away_team
+      window: 10
+    tier: 2
+    enabled: true
+
+  # ---------------------------------------------------------------
   # Special teams (jsonb_lookup from team_stat_categories)
   # ---------------------------------------------------------------
   home_pp_pct:
@@ -284,6 +370,149 @@ features:
     tier: 2
     enabled: true
 
+  home_games_last_7d:
+    description: "Home team games played in last 7 days (schedule density)"
+    compute: derived
+    derived:
+      formula: count of recent games within 7 days
+      inputs: []
+    tier: 2
+    enabled: true
+
+  away_games_last_7d:
+    description: "Away team games played in last 7 days (schedule density)"
+    compute: derived
+    derived:
+      formula: count of recent games within 7 days
+      inputs: []
+    tier: 2
+    enabled: true
+
+  # ---------------------------------------------------------------
+  # Head-to-head record (game_detail_lookup from game_details)
+  # ---------------------------------------------------------------
+  h2h_home_win_pct:
+    description: "Home team win rate vs this opponent this season (H2H)"
+    compute: game_detail_lookup
+    game_detail:
+      field: home_win_pct
+    tier: 2
+    enabled: true
+
+  h2h_goals_diff:
+    description: "Home team goal differential vs this opponent this season"
+    compute: game_detail_lookup
+    game_detail:
+      field: goals_diff
+    tier: 2
+    enabled: true
+
+  # ---------------------------------------------------------------
+  # Goalie depth (starter GAA + backup save%)
+  # ---------------------------------------------------------------
+  home_starter_gaa:
+    description: "Home starting goalie goals against average"
+    compute: lookup
+    lookup:
+      table: goalie_season_stats
+      column: goals_against_avg
+      team_key: home_team
+      select: starter
+    tier: 2
+    enabled: true
+
+  away_starter_gaa:
+    description: "Away starting goalie goals against average"
+    compute: lookup
+    lookup:
+      table: goalie_season_stats
+      column: goals_against_avg
+      team_key: away_team
+      select: starter
+    tier: 2
+    enabled: true
+
+  home_backup_save_pctg:
+    description: "Home backup goalie save percentage"
+    compute: lookup
+    lookup:
+      table: goalie_season_stats
+      column: save_pctg
+      team_key: home_team
+      select: backup
+    tier: 2
+    enabled: true
+
+  away_backup_save_pctg:
+    description: "Away backup goalie save percentage"
+    compute: lookup
+    lookup:
+      table: goalie_season_stats
+      column: save_pctg
+      team_key: away_team
+      select: backup
+    tier: 2
+    enabled: true
+
+  # ---------------------------------------------------------------
+  # Player props (player_lookup from skater stats)
+  # ---------------------------------------------------------------
+  player_gpg:
+    description: "Player goals per game (season avg)"
+    compute: player_lookup
+    player_lookup:
+      table: skater_season_stats
+      column: goals_per_game
+    tier: 1
+    enabled: true
+
+  player_toi:
+    description: "Player avg time on ice per game"
+    compute: player_lookup
+    player_lookup:
+      table: skater_season_stats
+      column: avg_toi_per_game
+    tier: 1
+    enabled: true
+
+  player_shot_pct:
+    description: "Player shooting percentage"
+    compute: player_lookup
+    player_lookup:
+      table: skater_season_stats
+      column: shooting_pctg
+    tier: 1
+    enabled: true
+
+  opponent_ga_per_game:
+    description: "Opponent goals against per game"
+    compute: derived
+    derived:
+      formula: opponent goals against / opponent games played
+      inputs: []
+    tier: 1
+    enabled: true
+
+  is_home:
+    description: "1 if player's team is home, 0 if away"
+    compute: derived
+    derived:
+      formula: 1 if player team == home team else 0
+      inputs: []
+    tier: 1
+    enabled: true
+
+  # ---------------------------------------------------------------
+  # Cross-model (computed in pipeline, not in compute.py)
+  # ---------------------------------------------------------------
+  gw_home_win_prob:
+    description: "Game winner model P(home_win) — cross-model signal for spread/totals"
+    compute: cross_model
+    cross_model:
+      source_model: game_winner
+    tier: 1
+    enabled: true
+
 
 # ---------------------------------------------------------------
 # Model -> feature mapping
@@ -313,6 +542,20 @@ model_features:
     - rest_advantage
     - home_is_back_to_back
     - away_is_back_to_back
+    - home_corsi_pct_l10
+    - away_corsi_pct_l10
+    - home_fenwick_pct_l10
+    - away_fenwick_pct_l10
+    - home_xgf_l10
+    - away_xgf_l10
+    - home_xga_l10
+    - away_xga_l10
+    - home_games_last_7d
+    - away_games_last_7d
+    - h2h_home_win_pct
+    - h2h_goals_diff
+    - home_starter_gaa
+    - away_starter_gaa
 
   spread:
     - home_point_pctg
@@ -332,6 +575,21 @@ model_features:
     - home_pk_pct
     - away_pk_pct
     - rest_advantage
+    - home_corsi_pct_l10
+    - away_corsi_pct_l10
+    - home_fenwick_pct_l10
+    - away_fenwick_pct_l10
+    - home_xgf_l10
+    - away_xgf_l10
+    - home_xga_l10
+    - away_xga_l10
+    - home_games_last_7d
+    - away_games_last_7d
+    - h2h_home_win_pct
+    - h2h_goals_diff
+    - home_starter_gaa
+    - away_starter_gaa
+    - gw_home_win_prob
 
   totals:
     - home_goals_for_l10
@@ -348,3 +606,25 @@ model_features:
     - away_pp_pct
     - home_pk_pct
     - away_pk_pct
+    - home_corsi_pct_l10
+    - away_corsi_pct_l10
+    - home_fenwick_pct_l10
+    - away_fenwick_pct_l10
+    - home_xgf_l10
+    - away_xgf_l10
+    - home_xga_l10
+    - away_xga_l10
+    - home_games_last_7d
+    - away_games_last_7d
+    - home_starter_gaa
+    - away_starter_gaa
+    - home_backup_save_pctg
+    - away_backup_save_pctg
+    - gw_home_win_prob
+
+  player_props:
+    - player_gpg
+    - player_toi
+    - player_shot_pct
+    - opponent_ga_per_game
+    - is_home

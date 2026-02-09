@@ -349,14 +349,14 @@ The `ml/` directory contains a LightGBM-based prediction pipeline for NHL games.
 ```
 ml/features/features.yaml    - Single source of truth for all ML features
 ml/features/registry.py      - Loads YAML, provides get_model_features() + generate_synthetic_features()
-ml/features/compute.py       - Computes feature values from Supabase data
+ml/features/compute.py       - Computes feature values from Supabase data + FeatureCache class
 ml/models/                   - game_winner.py, spread.py, totals.py, baselines.py
 ml/evaluation/               - validation.py (walk-forward CV), calibration.py, overfitting.py
 ml/pipeline/                 - weekly_retrain.py, monthly_eval.py, daily_predict.py
 ml/scripts/run_baselines.py  - Baseline evaluation (run with --dry-run for synthetic data)
-ml/dashboard/                - Streamlit dashboard (pages/ for each view)
+ml/dashboard/                - Streamlit dashboard (7 pages, deployed to HF Space)
 ml/config.py                 - All constants, thresholds, hyperparameters
-ml/tests/                    - 284 tests, run with: ml/.venv/bin/python -m pytest ml/tests/ -x -q
+ml/tests/                    - 313 tests, run with: ml/.venv/bin/python -m pytest ml/tests/ -x -q
 ```
 
 ### How to Add/Remove ML Features
@@ -380,10 +380,30 @@ ml/tests/                    - 284 tests, run with: ml/.venv/bin/python -m pytes
 - `jsonb_lookup` — Extract value from JSONB `data` column in team_stat_categories
 - `derived` — Computed from other values (rest_advantage, back-to-back detection)
 
+### Quality Gates (Model Promotion)
+Models must pass ALL gates in `weekly_retrain.py` before promotion:
+- Load from storage successfully
+- Predictions not NaN, not all identical
+- Probabilities in [0, 1] for game_winner
+- Brier ≤ `MAX_BRIER_SCORE` (0.260)
+- Accuracy ≥ `MIN_ACCURACY` (0.520)
+- Train/val gap ≤ `MAX_TRAIN_VAL_GAP` (0.05)
+- **Calibration**: ECE ≤ `MAX_ECE_FOR_PROMOTION` (0.15) — game_winner only
+- **Underfitting**: `check_underfitting()` in `overfitting.py` — per-model thresholds in `UNDERFITTING_THRESHOLDS`
+
+### Feature Computation Caching
+For batch operations (weekly retrain), use `FeatureCache` to pre-load data in ~4 bulk queries:
+```python
+from ml.features.compute import FeatureCache, compute_all_features
+cache = FeatureCache.build(client, games_df)
+features = compute_all_features(games_df, as_of_date, client, use_cache=True, cache=cache)
+```
+Backwards compatible — omit `use_cache` for single-game predictions (original per-query behavior).
+
 ### Running the ML Pipeline
 ```bash
 ml/.venv/bin/python -m ml.scripts.run_baselines --dry-run   # Baselines (no Supabase needed)
-ml/.venv/bin/python -m pytest ml/tests/ -x -q               # All 284 tests
+ml/.venv/bin/python -m pytest ml/tests/ -x -q               # All 313 tests
 cd ml/dashboard && streamlit run app.py                      # Dashboard locally
 ```
 
@@ -391,16 +411,22 @@ cd ml/dashboard && streamlit run app.py                      # Dashboard locally
 The ML pipeline uses its own venv at `ml/.venv/` (Python 3.13). Do NOT use the system Python. Always prefix ML commands with `ml/.venv/bin/python`.
 
 ### Streamlit Dashboard (HF Space)
-The ML dashboard at `ml/dashboard/` is deployed as a Hugging Face Space (Docker, port 7860). It reads from 4 ML tables in Supabase (read-only via RLS).
+The ML dashboard at `ml/dashboard/` is deployed as a Hugging Face Space (Docker, port 7860). It reads from 4 ML tables in Supabase (read-only via RLS) and can run pipeline phases with write access.
 
 ```
 ml/dashboard/
 ├── app.py              — Entry point (password auth gate + home page)
-├── Dockerfile          — HF Space container (Python 3.12, port 7860)
+├── Dockerfile          — HF Space container (Python 3.12, port 7860, includes full ml/ dir)
 ├── requirements.txt    — Pinned deps (streamlit, supabase, plotly, pandas)
-├── data.py             — Supabase data loading helpers (5-min cache)
-└── pages/              — 6 pages (overview, performance, features, overfitting, predictions, player props)
+├── data.py             — Supabase data loading helpers (5-min cache) + get_pipeline_status()
+└── pages/              — 7 pages (overview, performance, features, overfitting, predictions, player props, pipeline control)
 ```
+
+**Page 7 — Pipeline Control** (`pages/7_pipeline_control.py`):
+- Shows last run times for each pipeline phase (predictions, training, scoring, evaluation)
+- Buttons to run daily predictions, weekly retrain, monthly evaluation as subprocesses
+- Safety: requires `SUPABASE_SERVICE_ROLE_KEY`, confirmation checkboxes, 5-min rate limit per phase
+- Dockerfile copies full `ml/` dir + installs ML deps so pipeline subprocess works in container
 
 **After any ML change that affects features, models, or metrics, you MUST also update the dashboard:**
 - Feature changes → update `FEATURE_DESCRIPTIONS` in `pages/3_feature_importance.py`
@@ -409,6 +435,7 @@ ml/dashboard/
 - Verify locally: `cd ml/dashboard && streamlit run app.py`
 - Redeploy: push to HF Space repo
 - Env vars needed: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `DASHBOARD_PASSWORD`
+- Pipeline controls also need: `SUPABASE_SERVICE_ROLE_KEY`
 
 ## Performance Considerations
 
@@ -442,6 +469,6 @@ ml/dashboard/
 
 ---
 
-**Last Updated**: 2026-02-08 (Added ML pipeline docs, feature registry V2 with auto-discovery)
+**Last Updated**: 2026-02-08 (Added quality gates, FeatureCache, dashboard pipeline control page)
 **Version**: 2.4.0
 **Maintained by**: Development Team

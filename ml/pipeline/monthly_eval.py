@@ -173,9 +173,14 @@ def _run() -> None:
         "vs_rule_based": vs_rule,
         "train_val_gap_history": gap_history,
         "is_overfitting": is_overfitting,
-        "ece": ece_score,
-        "per_metric_gaps": per_metric_gaps,
+        # Store ECE and per-metric gaps inside train_val_gap_history JSONB
+        # since ml_model_evaluations doesn't have dedicated columns for these.
     }
+    if isinstance(evaluation.get("train_val_gap_history"), dict):
+        evaluation["train_val_gap_history"]["ece"] = ece_score
+        evaluation["train_val_gap_history"]["per_metric_gaps"] = per_metric_gaps
+    elif gap_history is None:
+        evaluation["train_val_gap_history"] = {"ece": ece_score, "per_metric_gaps": per_metric_gaps}
 
     # Match the DB UNIQUE constraint: (model_type, model_version, evaluation_date)
     client.table(ML_MODEL_EVALUATIONS_TABLE).upsert(

@@ -231,7 +231,7 @@ st.divider()
 # --- Weekly Retrain ---
 st.markdown("### Weekly Retrain")
 st.markdown(
-    "Retrains all models (game_winner, spread, totals) on the latest completed games. "
+    "Retrains all models (game_winner, spread, totals, player_props) on the latest completed games. "
     "Uses walk-forward cross-validation and only promotes new models if they beat "
     "the current active model."
 )

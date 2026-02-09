@@ -76,6 +76,12 @@ class FeatureCache:
         self.team_stat_categories: dict[tuple[str, str], dict | None] = {}
         # recent_games_by_team: team_abbrev -> list of game dicts sorted by game_date desc
         self.recent_games_by_team: dict[str, list[dict[str, Any]]] = {}
+        # advanced_stats_by_team: team_abbrev -> list of {game_id, corsi_pct, fenwick_pct} dicts
+        self.advanced_stats_by_team: dict[str, list[dict[str, Any]]] = {}
+        # shots_by_game: game_id -> list of shot event dicts
+        self.shots_by_game: dict[int, list[dict[str, Any]]] = {}
+        # game_details_by_id: game_id -> {season_series, scratches} dict
+        self.game_details_by_id: dict[int, dict[str, Any]] = {}
 
     @classmethod
     def build(cls, client: Client, games_df: pd.DataFrame) -> "FeatureCache":
@@ -106,6 +112,15 @@ class FeatureCache:
 
         # 4. Load recent games for these teams (all completed games this season)
         cache._load_recent_games(client, teams_list)
+
+        # 5. Load advanced puck possession stats
+        cache._load_advanced_stats(client, teams_list)
+
+        # 6. Load shot events for xG computation
+        cache._load_shots(client)
+
+        # 7. Load game details (H2H records)
+        cache._load_game_details(client)
 
         logger.info("FeatureCache: pre-load complete")
         return cache
@@ -212,12 +227,90 @@ class FeatureCache:
         """
         Get the latest standings for a team on or before as_of_date.
         Preserves leakage prevention by filtering on snapshot_date.
+
+        Falls back to computing standings from games data when no DB
+        snapshot exists for the requested date (common during training
+        where as_of_date may be months in the past).
         """
         snapshots = self.standings_by_team.get(team_abbrev, [])
         for snapshot in snapshots:
             if snapshot.get("snapshot_date", "") <= as_of_date:
                 return snapshot
-        return None
+        # No DB snapshot — derive standings from games data
+        return self._derive_standings_from_games(team_abbrev, as_of_date)
+
+    def _derive_standings_from_games(
+        self, team_abbrev: str, as_of_date: str
+    ) -> dict[str, Any] | None:
+        """Compute standings-equivalent stats from cached game results."""
+        games = self.recent_games_by_team.get(team_abbrev, [])
+        if not games:
+            return None
+        # Only include games played BEFORE as_of_date
+        eligible = [g for g in games if g.get("game_date", "") < as_of_date]
+        if not eligible:
+            return None
+        wins = 0
+        losses = 0
+        ot_losses = 0
+        home_wins = 0
+        home_losses = 0
+        home_ot_losses = 0
+        road_wins = 0
+        road_losses = 0
+        road_ot_losses = 0
+        goals_for = 0
+        goals_against = 0
+        for g in eligible:
+            is_home = g["home_team_abbrev"] == team_abbrev
+            h_score = g.get("home_score", 0) or 0
+            a_score = g.get("away_score", 0) or 0
+            team_score = h_score if is_home else a_score
+            opp_score = a_score if is_home else h_score
+            goals_for += team_score
+            goals_against += opp_score
+            # Determine outcome
+            last_period = g.get("period", 3) or 3
+            won = team_score > opp_score
+            if won:
+                wins += 1
+                if is_home:
+                    home_wins += 1
+                else:
+                    road_wins += 1
+            elif last_period > 3:
+                # OT/SO loss
+                ot_losses += 1
+                if is_home:
+                    home_ot_losses += 1
+                else:
+                    road_ot_losses += 1
+            else:
+                losses += 1
+                if is_home:
+                    home_losses += 1
+                else:
+                    road_losses += 1
+        gp = len(eligible)
+        points = wins * 2 + ot_losses
+        return {
+            "team_abbrev": team_abbrev,
+            "games_played": gp,
+            "wins": wins,
+            "losses": losses,
+            "ot_losses": ot_losses,
+            "points": points,
+            "point_pctg": points / (gp * 2) if gp > 0 else 0.0,
+            "goals_for": goals_for,
+            "goals_against": goals_against,
+            "goal_differential": goals_for - goals_against,
+            "home_wins": home_wins,
+            "home_losses": home_losses,
+            "home_ot_losses": home_ot_losses,
+            "road_wins": road_wins,
+            "road_losses": road_losses,
+            "road_ot_losses": road_ot_losses,
+        }
 
     def get_goalie_stats(self, team_abbrev: str) -> list[dict[str, Any]]:
         """Get goalie season stats for a team."""
@@ -227,6 +320,73 @@ class FeatureCache:
         """Get a team stat category's JSONB data."""
         return self.team_stat_categories.get((team_abbrev, category))
 
+    def _load_advanced_stats(self, client: Client, teams: list[str]) -> None:
+        """Load puck possession stats from skater_game_categories, aggregated per team-game."""
+        try:
+            from collections import defaultdict
+
+            from ml.config import SKATER_GAME_CATEGORIES_TABLE
+
+            response = (
+                client.table(SKATER_GAME_CATEGORIES_TABLE)
+                .select("game_id, team_abbrev, data")
+                .in_("team_abbrev", teams)
+                .eq("season", CURRENT_SEASON)
+                .eq("stat_category", "puckPossessions")
+                .execute()
+            )
+            rows = response.data or []
+
+            # Group by (team_abbrev, game_id) and average Corsi%/Fenwick% across skaters
+            game_groups: dict[tuple[str, int], list[dict]] = defaultdict(list)
+            for row in rows:
+                team = row["team_abbrev"]
+                gid = row["game_id"]
+                game_groups[(team, gid)].append(row)
+
+            for (team, gid), player_rows in game_groups.items():
+                corsi_vals = []
+                fenwick_vals = []
+                for pr in player_rows:
+                    data = pr.get("data") or {}
+                    if isinstance(data, str):
+                        import json
+
+                        data = json.loads(data)
+                    sat = data.get("satForPctg")
+                    usat = data.get("usatForPctg")
+                    if sat is not None:
+                        corsi_vals.append(float(sat))
+                    if usat is not None:
+                        fenwick_vals.append(float(usat))
+
+                if team not in self.advanced_stats_by_team:
+                    self.advanced_stats_by_team[team] = []
+                self.advanced_stats_by_team[team].append({
+                    "game_id": gid,
+                    "corsi_pct": float(np.mean(corsi_vals)) if corsi_vals else None,
+                    "fenwick_pct": float(np.mean(fenwick_vals)) if fenwick_vals else None,
+                })
+
+            # Sort each team's games by game_id descending (proxy for recency)
+            for team in self.advanced_stats_by_team:
+                self.advanced_stats_by_team[team].sort(
+                    key=lambda x: x["game_id"], reverse=True
+                )
+
+            logger.info(
+                "FeatureCache: loaded advanced stats for %d team-game combos",
+                sum(len(v) for v in self.advanced_stats_by_team.values()),
+            )
+        except Exception as exc:
+            logger.warning("FeatureCache: failed to load advanced stats: %s", exc)
+
+    def get_team_advanced_stats(
+        self, team_abbrev: str, limit: int = 10
+    ) -> list[dict[str, Any]]:
+        """Get team-game advanced stats (Corsi/Fenwick), most recent first."""
+        return self.advanced_stats_by_team.get(team_abbrev, [])[:limit]
+
     def get_recent_games(self, team_abbrev: str, before_date: str, limit: int = 10) -> list[dict[str, Any]]:
         """
         Get recent completed games for a team before a date.
@@ -235,6 +395,134 @@ class FeatureCache:
         all_team_games = self.recent_games_by_team.get(team_abbrev, [])
         filtered = [g for g in all_team_games if g["game_date"] < before_date]
         return filtered[:limit]
+
+    def _load_shots(self, client: Client) -> None:
+        """Load shot events from game_play_by_play for all cached games."""
+        try:
+            from ml.io.supabase_client import read_game_shots
+            # Collect all unique game IDs from recent games
+            all_game_ids = set()
+            for team_games in self.recent_games_by_team.values():
+                for game in team_games:
+                    all_game_ids.add(game["id"])
+
+            if not all_game_ids:
+                return
+
+            shots = read_game_shots(client, list(all_game_ids))
+            for shot in shots:
+                gid = shot["game_id"]
+                if gid not in self.shots_by_game:
+                    self.shots_by_game[gid] = []
+                self.shots_by_game[gid].append(shot)
+
+            logger.info("FeatureCache: loaded %d shot events across %d games",
+                         len(shots), len(self.shots_by_game))
+        except Exception as exc:
+            logger.warning("FeatureCache: failed to load shots: %s", exc)
+
+    def get_game_shots(self, game_id: int) -> list[dict[str, Any]]:
+        """Get shot events for a specific game."""
+        return self.shots_by_game.get(game_id, [])
+
+    def _load_game_details(self, client: Client) -> None:
+        """Load game details (season_series for H2H) for all cached games."""
+        try:
+            from ml.io.supabase_client import read_game_details
+            all_game_ids = set()
+            for team_games in self.recent_games_by_team.values():
+                for game in team_games:
+                    all_game_ids.add(game["id"])
+
+            if not all_game_ids:
+                return
+
+            details = read_game_details(client, list(all_game_ids))
+            for d in details:
+                self.game_details_by_id[d["game_id"]] = d
+
+            logger.info("FeatureCache: loaded %d game details", len(self.game_details_by_id))
+        except Exception as exc:
+            logger.warning("FeatureCache: failed to load game details: %s", exc)
+
+    def get_game_details(self, game_id: int) -> dict[str, Any] | None:
+        """Get game details (season_series, scratches) for a game."""
+        return self.game_details_by_id.get(game_id)
+
+
+def _safe_float(val) -> float:
+    """Convert a value to float safely, returning NaN on failure."""
+    if val is None:
+        return np.nan
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return np.nan
+
+
+def compute_player_features(
+    player_game_df: pd.DataFrame,
+    season_stats_df: pd.DataFrame,
+    standings_df: pd.DataFrame | None = None,
+    client: Client | None = None,
+) -> pd.DataFrame:
+    """
+    Compute features for player-game rows (for player props model).
+
+    Unlike compute_all_features() which produces one row per game,
+    this produces one row per player-game combination.
+
+    Args:
+        player_game_df: DataFrame with player_id, game_id, team_abbrev,
+                       opponent_abbrev columns (from game_skater_stats)
+        season_stats_df: DataFrame of skater_season_stats
+        standings_df: Optional standings for opponent GA computation
+        client: Supabase client (used if standings_df not provided)
+
+    Returns:
+        DataFrame with columns matching player_props model features.
+    """
+    # Create a lookup dict from season stats: player_id -> stats
+    season_lookup: dict[int, Any] = {}
+    if not season_stats_df.empty:
+        for _, row in season_stats_df.iterrows():
+            season_lookup[row["player_id"]] = row
+
+    results = []
+    for _, pg in player_game_df.iterrows():
+        pid = pg["player_id"]
+        stats = season_lookup.get(pid, {})
+
+        # Player features from season stats
+        gpg = _safe_float(stats.get("goals_per_game") if isinstance(stats, dict) else getattr(stats, "goals_per_game", None))
+        toi = _safe_float(stats.get("avg_toi_per_game") if isinstance(stats, dict) else getattr(stats, "avg_toi_per_game", None))
+        shot_pct = _safe_float(stats.get("shooting_pctg") if isinstance(stats, dict) else getattr(stats, "shooting_pctg", None))
+
+        # Opponent GA per game (from standings or simple calculation)
+        opp_ga = np.nan
+        if standings_df is not None and not standings_df.empty:
+            opp_abbrev = pg.get("opponent_abbrev", "")
+            opp_standings = standings_df[standings_df["team_abbrev"] == opp_abbrev]
+            if not opp_standings.empty:
+                opp_row = opp_standings.iloc[0]
+                ga = opp_row.get("goals_against", 0) or 0
+                gp = opp_row.get("games_played", 1) or 1
+                opp_ga = float(ga) / float(gp) if gp > 0 else np.nan
+
+        # Is home
+        is_home_val = 1.0 if pg.get("home_road") == "H" or pg.get("is_home", False) else 0.0
+
+        results.append({
+            "player_id": pid,
+            "game_id": pg.get("game_id"),
+            "player_gpg": gpg,
+            "player_toi": toi,
+            "player_shot_pct": shot_pct,
+            "opponent_ga_per_game": opp_ga,
+            "is_home": is_home_val,
+        })
+
+    return pd.DataFrame(results)
 
 
 def compute_all_features(
@@ -317,6 +605,24 @@ def compute_all_features(
                     row[feat_name] = _compute_rolling_team(
                         feat_def, home, away, home_recent, away_recent,
                     )
+                elif feat_def.compute_type == "rolling_team_advanced":
+                    row[feat_name] = _compute_rolling_team_advanced(
+                        feat_def, home, away, cache=cache,
+                    )
+                elif feat_def.compute_type == "rolling_xg":
+                    if home_recent is None:
+                        if cache is not None:
+                            home_recent = cache.get_recent_games(home, game_date, limit=10)
+                        else:
+                            home_recent = read_recent_games(client, home, game_date, limit=10)
+                    if away_recent is None:
+                        if cache is not None:
+                            away_recent = cache.get_recent_games(away, game_date, limit=10)
+                        else:
+                            away_recent = read_recent_games(client, away, game_date, limit=10)
+                    row[feat_name] = _compute_rolling_xg(
+                        feat_def, home, away, home_recent, away_recent, cache=cache,
+                    )
                 elif feat_def.compute_type == "rolling_goalie":
                     row[feat_name] = _compute_rolling_goalie(
                         feat_def, home, away, client, game_date, cache=cache,
@@ -325,6 +631,13 @@ def compute_all_features(
                     row[feat_name] = _compute_jsonb_lookup(
                         feat_def, home, away, client, jsonb_cache, cache=cache,
                     )
+                elif feat_def.compute_type == "game_detail_lookup":
+                    row[feat_name] = _compute_game_detail_lookup(
+                        feat_def, game_id, home, away, cache=cache,
+                    )
+                elif feat_def.compute_type == "cross_model":
+                    # Cross-model features are injected by the pipeline, not computed here
+                    row[feat_name] = np.nan
                 elif feat_def.compute_type == "derived":
                     row[feat_name] = _compute_derived(feat_def, row, home, away,
                                                        home_recent, away_recent, game_date)
@@ -397,9 +710,27 @@ def _compute_lookup(
             goalies = read_goalie_stats(client, team_abbrev, CURRENT_SEASON)
         if not goalies:
             return np.nan
-        # Select starter: goalie with most games started
-        starter = max(goalies, key=lambda g: g.get("games_started", 0))
-        value = starter.get(column)
+
+        # Sort by games started descending
+        sorted_goalies = sorted(goalies, key=lambda g: g.get("games_started", 0), reverse=True)
+
+        select_role = config.get("select", "starter")
+        if select_role == "backup":
+            # Backup = second goalie by games started
+            if len(sorted_goalies) < 2:
+                return np.nan
+            target = sorted_goalies[1]
+        else:
+            # Starter = goalie with most games started
+            target = sorted_goalies[0]
+
+        value = target.get(column)
+        # If save_pctg is NULL (common data gap), compute from saves / shots_against
+        if value is None and column == "save_pctg":
+            saves = target.get("saves")
+            ga = target.get("goals_against")
+            if saves is not None and ga is not None and (saves + ga) > 0:
+                value = saves / (saves + ga)
         if value is None:
             return np.nan
         return float(value)
@@ -448,6 +779,122 @@ def _compute_rolling_team(
     return float(np.mean(values))
 
 
+def _compute_rolling_team_advanced(
+    feat_def: FeatureDefinition,
+    home: str,
+    away: str,
+    cache: FeatureCache | None = None,
+) -> float:
+    """Compute rolling Corsi% or Fenwick% from cached advanced stats."""
+    if cache is None:
+        return np.nan
+
+    config = feat_def.config
+    team_key = config.get("team_key", "home_team")
+    stat = config.get("stat", "corsi_pct")
+    window = config.get("window", 10)
+
+    team_abbrev = home if team_key == "home_team" else away
+    games = cache.get_team_advanced_stats(team_abbrev, limit=window)
+
+    if not games:
+        return np.nan
+
+    values = [g[stat] for g in games if g.get(stat) is not None]
+    if not values:
+        return np.nan
+    return float(np.mean(values))
+
+
+def _compute_shot_xg(x_coord: float, y_coord: float, event_type: str = "") -> float:
+    """
+    Compute expected goal value for a shot based on distance and angle from net.
+
+    Standard hockey xG model:
+    - Net is at x=89 (center of the goal line)
+    - Distance from net determines base xG
+    - Extreme angles reduce xG (harder to score from sharp angles)
+    """
+    import math
+    if x_coord is None or y_coord is None:
+        return 0.03  # Default for missing coordinates
+
+    x = float(x_coord)
+    y = float(y_coord)
+
+    # Distance from center of net (at x=89, y=0)
+    dx = 89.0 - abs(x)
+    distance = math.sqrt(dx**2 + y**2)
+
+    # Base xG by distance bucket
+    if distance <= 10:
+        base_xg = 0.25
+    elif distance <= 20:
+        base_xg = 0.12
+    elif distance <= 30:
+        base_xg = 0.06
+    else:
+        base_xg = 0.03
+
+    # Angle adjustment — shots from extreme angles are harder
+    angle_rad = math.atan2(abs(y), max(dx, 0.1))
+    angle_deg = math.degrees(angle_rad)
+    if angle_deg > 45:
+        base_xg *= 0.5
+
+    return base_xg
+
+
+def _compute_rolling_xg(
+    feat_def: FeatureDefinition,
+    home: str,
+    away: str,
+    home_recent: list[dict[str, Any]] | None,
+    away_recent: list[dict[str, Any]] | None,
+    cache: FeatureCache | None = None,
+) -> float:
+    """Compute rolling expected goals (xGF or xGA) from shot data."""
+    if cache is None:
+        return np.nan
+
+    config = feat_def.config
+    team_key = config.get("team_key", "home_team")
+    stat = config.get("stat", "xgf")  # xgf or xga
+    window = config.get("window", 10)
+
+    team_abbrev = home if team_key == "home_team" else away
+    recent = home_recent if team_key == "home_team" else away_recent
+    if not recent:
+        return np.nan
+    recent = recent[:window]
+
+    xg_values = []
+    for game in recent:
+        game_id = game["id"]
+        shots = cache.get_game_shots(game_id)
+        if not shots:
+            continue
+
+        game_xg = 0.0
+        for shot in shots:
+            shot_team = shot.get("team_abbrev", "")
+            xg_val = _compute_shot_xg(
+                shot.get("x_coord"),
+                shot.get("y_coord"),
+                shot.get("event_type", ""),
+            )
+            if stat == "xgf" and shot_team == team_abbrev:
+                game_xg += xg_val
+            elif stat == "xga" and shot_team != team_abbrev:
+                game_xg += xg_val
+
+        xg_values.append(game_xg)
+
+    if not xg_values:
+        return np.nan
+    return float(np.mean(xg_values))
+
+
 def _compute_rolling_goalie(
     feat_def: FeatureDefinition,
     home: str,
@@ -475,34 +922,47 @@ def _compute_rolling_goalie(
     window = config.get("window", 10)
     team_abbrev = home if team_key == "home_team" else away
 
+    # Try game-level goalie stats for recent starts.
+    # game_goalie_stats has game_id but no game_date, so we need to use
+    # game IDs from recent games (already fetched for rolling team features).
     try:
-        # Try to get game-level goalie stats for recent starts
-        response = (
-            client.table(GAME_GOALIE_STATS_TABLE)
-            .select("game_id, game_date, save_pctg, decision, player_name")
-            .eq("team_abbrev", team_abbrev)
-            .lt("game_date", game_date)
-            .order("game_date", desc=True)
-            .limit(window * 2)  # Fetch extra to filter for starter
-            .execute()
-        )
-        rows = response.data or []
+        recent_game_ids: list[int] = []
+        if cache is not None:
+            # Use cached recent games to get game IDs
+            team_games = cache.get_recent_games(team_abbrev)
+            recent_game_ids = [
+                g["id"] for g in team_games
+                if g.get("game_date", "") < game_date
+            ][:window * 2]
+        if recent_game_ids:
+            # Batch query goalie stats for these games
+            response = (
+                client.table(GAME_GOALIE_STATS_TABLE)
+                .select("game_id, save_pctg, decision, player_name")
+                .eq("team_abbrev", team_abbrev)
+                .in_("game_id", recent_game_ids)
+                .execute()
+            )
+            rows = response.data or []
 
-        if rows:
-            # Filter to actual starts (goalie with a decision = starter)
-            starts = [r for r in rows if r.get("decision") in ("W", "L", "O")]
-            starts = starts[:window]
+            if rows:
+                # Filter to actual starts (goalie with a decision = starter)
+                starts = [r for r in rows if r.get("decision") in ("W", "L", "O")]
+                starts = starts[:window]
 
-            if len(starts) >= 3:  # Need at least 3 starts for meaningful rolling avg
-                save_pcts = [
-                    float(r["save_pctg"])
-                    for r in starts
-                    if r.get("save_pctg") is not None
-                ]
-                if save_pcts:
-                    return float(np.mean(save_pcts))
+                if len(starts) >= 3:  # Need at least 3 starts for meaningful rolling avg
+                    save_pcts = [
+                        float(r["save_pctg"])
+                        for r in starts
+                        if r.get("save_pctg") is not None
+                    ]
+                    if save_pcts:
+                        return float(np.mean(save_pcts))
+    except Exception as exc:
+        logger.debug("Game-level goalie stats unavailable for %s: %s", team_abbrev, exc)
 
-        # Fall back to season average — use cache if available
+    # Fall back to season average — use cache if available
+    try:
         if cache is not None:
             goalies = cache.get_goalie_stats(team_abbrev)
         else:
@@ -510,9 +970,14 @@ def _compute_rolling_goalie(
         if goalies:
             starter = max(goalies, key=lambda g: g.get("games_started", 0))
             sv = starter.get("save_pctg")
+            # If save_pctg is NULL, compute from saves / shots_against
+            if sv is None:
+                saves = starter.get("saves")
+                ga = starter.get("goals_against")
+                if saves is not None and ga is not None and (saves + ga) > 0:
+                    sv = saves / (saves + ga)
             if sv is not None:
                 return float(sv)
-
     except Exception as exc:
         logger.warning("Failed to compute rolling goalie for %s: %s", team_abbrev, exc)
 
@@ -569,6 +1034,94 @@ def _compute_jsonb_lookup(
     return np.nan
 
 
+def _compute_game_detail_lookup(
+    feat_def: FeatureDefinition,
+    game_id: int,
+    home: str,
+    away: str,
+    cache: FeatureCache | None = None,
+) -> float:
+    """Compute H2H features from game_details season_series."""
+    if cache is None:
+        return np.nan
+
+    config = feat_def.config
+    field = config.get("field", "")
+
+    details = cache.get_game_details(game_id)
+    if not details:
+        return np.nan
+
+    season_series = details.get("season_series")
+    if not season_series:
+        return np.nan
+
+    # season_series may be stored as a JSON string
+    if isinstance(season_series, str):
+        import json
+        try:
+            season_series = json.loads(season_series)
+        except (json.JSONDecodeError, TypeError):
+            return np.nan
+
+    # season_series is a list of game objects from the NHL API right-rail.
+    # Each entry: {homeTeam: {abbrev, score, ...}, awayTeam: {abbrev, score, ...},
+    #              gameState, gameOutcome, ...}
+    # Only count completed games (gameState in OFF/FINAL) that occurred before
+    # this game (exclude the current game_id to prevent leakage).
+    if not isinstance(season_series, list):
+        return np.nan
+
+    completed_h2h = []
+    for entry in season_series:
+        if entry.get("gameState") not in ("OFF", "FINAL"):
+            continue
+        if entry.get("id") == game_id:
+            continue  # Don't include the current game
+        ht = entry.get("homeTeam") or {}
+        at = entry.get("awayTeam") or {}
+        h_abbrev = ht.get("abbrev", "")
+        a_abbrev = at.get("abbrev", "")
+        h_score = ht.get("score", 0) or 0
+        a_score = at.get("score", 0) or 0
+        if {h_abbrev, a_abbrev} != {home, away}:
+            continue  # Not a matchup between these two teams
+        completed_h2h.append({
+            "home_abbrev": h_abbrev,
+            "away_abbrev": a_abbrev,
+            "home_score": h_score,
+            "away_score": a_score,
+        })
+
+    if not completed_h2h:
+        return np.nan
+
+    if field == "home_win_pct":
+        # How often did the current home team WIN in these H2H games?
+        wins = 0
+        for g in completed_h2h:
+            if g["home_abbrev"] == home and g["home_score"] > g["away_score"]:
+                wins += 1
+            elif g["away_abbrev"] == home and g["away_score"] > g["home_score"]:
+                wins += 1
+        return float(wins) / float(len(completed_h2h))
+
+    if field == "goals_diff":
+        # Current home team's total goal differential vs this opponent
+        home_goals = 0
+        opp_goals = 0
+        for g in completed_h2h:
+            if g["home_abbrev"] == home:
+                home_goals += g["home_score"]
+                opp_goals += g["away_score"]
+            else:
+                home_goals += g["away_score"]
+                opp_goals += g["home_score"]
+        return float(home_goals - opp_goals)
+
+    return np.nan
+
+
 def _compute_derived(
     feat_def: FeatureDefinition,
     current_row: dict[str, Any],
@@ -597,6 +1150,22 @@ def _compute_derived(
     if name == "away_is_back_to_back":
         rest = _days_since_last_game(away_recent, game_date)
         return 1.0 if rest is not None and rest == 1 else 0.0
+
+    if name == "home_games_last_7d":
+        if not home_recent:
+            return np.nan
+        game_dt = datetime.strptime(game_date, "%Y-%m-%d")
+        seven_days_ago = (game_dt - timedelta(days=7)).strftime("%Y-%m-%d")
+        count = sum(1 for g in home_recent if g["game_date"] >= seven_days_ago)
+        return float(count)
+
+    if name == "away_games_last_7d":
+        if not away_recent:
+            return np.nan
+        game_dt = datetime.strptime(game_date, "%Y-%m-%d")
+        seven_days_ago = (game_dt - timedelta(days=7)).strftime("%Y-%m-%d")
+        count = sum(1 for g in away_recent if g["game_date"] >= seven_days_ago)
+        return float(count)
 
     return np.nan
 

@@ -30,7 +30,7 @@ st.caption(
 # Model type selector
 # ---------------------------------------------------------------------------
 
-MODEL_TYPES = ["game_winner", "spread", "totals"]
+MODEL_TYPES = ["game_winner", "spread", "totals", "player_props"]
 
 model_type = st.selectbox(
     "Model Type",
@@ -67,33 +67,57 @@ import sys as _sys, os as _os
 _sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), ".."))
 from ml.config import OVERFITTING_THRESHOLDS
 
-accuracy_threshold = OVERFITTING_THRESHOLDS.get("accuracy", 0.05)
-watch_threshold = accuracy_threshold * 0.6  # 60% of the danger threshold
+# Use model-type-appropriate metric and threshold.
+# game_winner uses accuracy gap (0-1 scale, displayed as %).
+# spread/totals use MAE gap (goal units, displayed as decimal).
+_CLASSIFICATION_MODELS = {"game_winner"}
+is_classification = model_type in _CLASSIFICATION_MODELS
+
+if is_classification:
+    gap_metric_name = "accuracy"
+    gap_unit = "accuracy"
+    gap_threshold = OVERFITTING_THRESHOLDS.get("accuracy", 0.05)
+else:
+    gap_metric_name = "MAE"
+    gap_unit = "mae"
+    gap_threshold = OVERFITTING_THRESHOLDS.get("mae", 0.50)
+
+watch_threshold = gap_threshold * 0.6
 
 col1, col2, col3 = st.columns([1, 2, 2])
 
 with col1:
     if pd.notna(overfit_gap):
-        st.metric("Overfit Gap", f"{overfit_gap:.1%}")
+        if is_classification:
+            st.metric("Overfit Gap", f"{overfit_gap:.1%}")
+        else:
+            st.metric("Overfit Gap", f"{overfit_gap:.3f} goals")
     else:
         st.metric("Overfit Gap", "N/A")
 
 with col2:
     if pd.notna(overfit_gap):
+        if is_classification:
+            fmt_watch = f"{watch_threshold:.0%}"
+            fmt_danger = f"{gap_threshold:.0%}"
+        else:
+            fmt_watch = f"{watch_threshold:.2f}"
+            fmt_danger = f"{gap_threshold:.2f}"
+
         if overfit_gap < watch_threshold:
             st.success(
-                f"**Healthy** — The gap between training and validation accuracy "
-                f"is under {watch_threshold:.0%}. The model is generalizing well."
+                f"**Healthy** — The train/val {gap_metric_name} gap "
+                f"is under {fmt_watch}. The model is generalizing well."
             )
-        elif overfit_gap < accuracy_threshold:
+        elif overfit_gap < gap_threshold:
             st.warning(
-                f"**Watch** — The gap is between {watch_threshold:.0%} and "
-                f"{accuracy_threshold:.0%}. Not critical yet, "
+                f"**Watch** — The gap is between {fmt_watch} and "
+                f"{fmt_danger}. Not critical yet, "
                 f"but worth monitoring. Consider adding regularization if it grows."
             )
         else:
             st.error(
-                f"**Overfitting Detected** — The gap exceeds {accuracy_threshold:.0%}. "
+                f"**Overfitting Detected** — The gap exceeds {fmt_danger}. "
                 f"The model is performing significantly better on training data than "
                 f"on unseen data. Action needed: increase regularization, reduce model "
                 f"complexity, or add more training data."
@@ -102,23 +126,40 @@ with col2:
         st.info("No overfit gap data available for the active model.")
 
 with col3:
-    train_acc = model.get("train_accuracy")
-    val_acc = model.get("val_accuracy")
-    if pd.notna(train_acc) and pd.notna(val_acc):
-        st.metric("Train Accuracy", f"{train_acc:.1%}")
-        st.metric("Val Accuracy", f"{val_acc:.1%}")
+    if is_classification:
+        train_acc = model.get("train_accuracy")
+        val_acc = model.get("val_accuracy")
+        if pd.notna(train_acc) and pd.notna(val_acc):
+            st.metric("Train Accuracy", f"{train_acc:.1%}")
+            st.metric("Val Accuracy", f"{val_acc:.1%}")
+        else:
+            st.info("Train/val accuracy not available.")
     else:
-        st.info("Train/val accuracy not available.")
+        val_mae = model.get("val_mae")
+        val_rmse = model.get("val_rmse")
+        if pd.notna(val_mae):
+            st.metric("Val MAE", f"{val_mae:.3f} goals")
+        if pd.notna(val_rmse):
+            st.metric("Val RMSE", f"{val_rmse:.3f} goals")
+        if not pd.notna(val_mae) and not pd.notna(val_rmse):
+            st.info("Train/val metrics not available.")
 
-st.caption(
-    f"**Overfit gap** = training accuracy minus validation accuracy. "
-    f"Training accuracy is measured on data the model has already seen. "
-    f"Validation accuracy is measured on held-out data the model has never seen. "
-    f"The gap tells you how much accuracy is 'fake' — only applicable to known data. "
-    f"Green (<{watch_threshold:.0%}): Healthy. "
-    f"Yellow ({watch_threshold:.0%}-{accuracy_threshold:.0%}): Watch. "
-    f"Red (>{accuracy_threshold:.0%}): Take action."
-)
+if is_classification:
+    st.caption(
+        f"**Overfit gap** = training accuracy minus validation accuracy. "
+        f"The gap tells you how much accuracy is 'fake' — only applicable to known data. "
+        f"Green (<{watch_threshold:.0%}): Healthy. "
+        f"Yellow ({watch_threshold:.0%}-{gap_threshold:.0%}): Watch. "
+        f"Red (>{gap_threshold:.0%}): Take action."
+    )
+else:
+    st.caption(
+        f"**Overfit gap** = validation {gap_metric_name} minus training {gap_metric_name}. "
+        f"For regression models, the gap is in goal units (not percentage). "
+        f"Green (<{watch_threshold:.2f}): Healthy. "
+        f"Yellow ({watch_threshold:.2f}-{gap_threshold:.2f}): Watch. "
+        f"Red (>{gap_threshold:.2f}): Take action."
+    )
 
 # ---------------------------------------------------------------------------
 # Per-metric overfit gaps (new: shows all metrics, not just accuracy)
@@ -144,7 +185,7 @@ if per_metric_gaps and isinstance(per_metric_gaps, dict) and len(per_metric_gaps
             })
 
     if gap_rows:
-        st.dataframe(pd.DataFrame(gap_rows), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(gap_rows), width="stretch", hide_index=True)
         st.caption(
             "Per-metric gaps use different thresholds because metrics have different scales. "
             "Accuracy and Brier are 0-1, so a 0.05 gap is meaningful. "
@@ -253,7 +294,7 @@ if evaluation is not None:
                 ),
             )
 
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
             st.caption(
                 "This chart shows how the train-validation gap has changed over time. "
@@ -359,25 +400,45 @@ all_versions = get_model_metadata_by_type(model_type)
 if all_versions.empty:
     st.info("No model versions recorded for this model type.")
 else:
-    display_cols = [
-        "model_version",
-        "training_games",
-        "train_accuracy",
-        "val_accuracy",
-        "overfit_gap",
-        "val_brier_score",
-        "is_active",
-        "created_at",
-    ]
+    if model_type in _CLASSIFICATION_MODELS:
+        display_cols = [
+            "model_version", "training_games",
+            "train_accuracy", "val_accuracy", "overfit_gap",
+            "val_brier_score", "is_active", "created_at",
+        ]
+    else:
+        display_cols = [
+            "model_version", "training_games",
+            "val_mae", "val_rmse", "overfit_gap",
+            "is_active", "created_at",
+        ]
     # Only show columns that exist
     available_cols = [c for c in display_cols if c in all_versions.columns]
     display_df = all_versions[available_cols].copy()
 
-    # Format percentages
-    for col in ["train_accuracy", "val_accuracy", "overfit_gap"]:
+    # Format percentages — only for classification metrics
+    for col in ["train_accuracy", "val_accuracy"]:
         if col in display_df.columns:
             display_df[col] = display_df[col].apply(
                 lambda x: f"{x:.1%}" if pd.notna(x) else "\u2014"
+            )
+
+    # Format overfit gap — percentage for classification, decimal for regression
+    if "overfit_gap" in display_df.columns:
+        if model_type in _CLASSIFICATION_MODELS:
+            display_df["overfit_gap"] = display_df["overfit_gap"].apply(
+                lambda x: f"{x:.1%}" if pd.notna(x) else "\u2014"
+            )
+        else:
+            display_df["overfit_gap"] = display_df["overfit_gap"].apply(
+                lambda x: f"{x:.3f}" if pd.notna(x) else "\u2014"
+            )
+
+    # Format regression metrics
+    for col in ["val_mae", "val_rmse"]:
+        if col in display_df.columns:
+            display_df[col] = display_df[col].apply(
+                lambda x: f"{x:.3f}" if pd.notna(x) else "\u2014"
             )
 
     # Format Brier score
@@ -392,15 +453,22 @@ else:
             "%Y-%m-%d %H:%M"
         )
 
-    st.dataframe(display_df, use_container_width=True, hide_index=True)
+    st.dataframe(display_df, width="stretch", hide_index=True)
 
-    st.caption(
-        "Each row is a trained model version. The **overfit_gap** column is the key metric — "
-        "it shows how much the model's training accuracy exceeds its validation accuracy. "
-        "Compare the gaps across versions: if the gap is growing version over version, "
-        "the model architecture or hyperparameters may need adjustment. "
-        "The **is_active** column shows which version is currently serving live predictions."
-    )
+    if model_type in _CLASSIFICATION_MODELS:
+        st.caption(
+            "Each row is a trained model version. The **overfit_gap** column shows "
+            "how much training accuracy exceeds validation accuracy. "
+            "Compare gaps across versions: if growing, consider more regularization. "
+            "**is_active** shows which version is currently serving predictions."
+        )
+    else:
+        st.caption(
+            "Each row is a trained model version. The **overfit_gap** column shows "
+            "how much validation MAE exceeds training MAE (in goal units). "
+            "Compare gaps across versions: if growing, the model is overfitting more. "
+            "**is_active** shows which version is currently serving predictions."
+        )
 
 # ---------------------------------------------------------------------------
 # Overfit gap comparison across model types
@@ -413,37 +481,59 @@ if not active_models.empty and "overfit_gap" in active_models.columns:
     gap_data = gap_data.dropna(subset=["overfit_gap"])
 
     if not gap_data.empty:
-        # Color-code bars by severity using config thresholds
-        def gap_color(val):
-            if val < watch_threshold:
-                return "#4caf50"  # green
-            elif val < accuracy_threshold:
-                return "#ffc107"  # yellow
-            else:
-                return "#d32f2f"  # red
+        # Normalize gaps to a 0-1 scale for fair cross-model comparison.
+        # Classification models (game_winner) already use a 0-1 accuracy gap.
+        # Regression models (spread, totals) use MAE gap in goal units —
+        # divide by the MAE threshold to normalize to the same scale.
+        acc_t = OVERFITTING_THRESHOLDS.get("accuracy", 0.05)
+        mae_t = OVERFITTING_THRESHOLDS.get("mae", 0.50)
 
-        gap_data["color"] = gap_data["overfit_gap"].apply(gap_color)
+        def normalize_gap(row):
+            if row["model_type"] in _CLASSIFICATION_MODELS:
+                return row["overfit_gap"] / acc_t  # 1.0 = at threshold
+            else:
+                return row["overfit_gap"] / mae_t  # 1.0 = at threshold
+
+        gap_data["normalized_gap"] = gap_data.apply(normalize_gap, axis=1)
+
+        def gap_color(val):
+            if val < 0.6:
+                return "#4caf50"  # green — healthy
+            elif val < 1.0:
+                return "#ffc107"  # yellow — watch
+            else:
+                return "#d32f2f"  # red — overfitting
+
+        gap_data["color"] = gap_data["normalized_gap"].apply(gap_color)
+
+        def format_gap(row):
+            if row["model_type"] in _CLASSIFICATION_MODELS:
+                return f"{row['overfit_gap']:.1%}"
+            else:
+                return f"{row['overfit_gap']:.3f}"
+
+        gap_data["label"] = gap_data.apply(format_gap, axis=1)
 
         fig = go.Figure()
         fig.add_trace(
             go.Bar(
                 x=gap_data["model_type"],
-                y=gap_data["overfit_gap"],
+                y=gap_data["normalized_gap"],
                 marker_color=gap_data["color"],
-                text=gap_data["overfit_gap"].apply(lambda x: f"{x:.1%}"),
+                text=gap_data["label"],
                 textposition="auto",
             )
         )
 
         fig.add_hline(
-            y=accuracy_threshold,
+            y=1.0,
             line_dash="dash",
             line_color="red",
             opacity=0.7,
             annotation_text="Danger threshold",
         )
         fig.add_hline(
-            y=watch_threshold,
+            y=0.6,
             line_dash="dash",
             line_color="#ffc107",
             opacity=0.5,
@@ -452,24 +542,21 @@ if not active_models.empty and "overfit_gap" in active_models.columns:
 
         fig.update_layout(
             xaxis_title="Model Type",
-            yaxis_title="Overfit Gap",
-            yaxis_tickformat=".1%",
+            yaxis_title="Normalized Overfit Gap (1.0 = at threshold)",
             template="plotly_dark",
             height=350,
             margin=dict(l=50, r=20, t=20, b=50),
             showlegend=False,
         )
 
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         st.caption(
-            f"Side-by-side comparison of overfitting across all active model types. "
-            f"Green bars are healthy (<{watch_threshold:.0%}), "
-            f"yellow bars need watching ({watch_threshold:.0%}-{accuracy_threshold:.0%}), "
-            f"and red bars indicate overfitting (>{accuracy_threshold:.0%}). "
-            f"Different model types may overfit at different rates — "
-            f"regression models (spread, totals) may overfit differently than "
-            f"classifiers (game_winner) due to different loss functions."
+            "Side-by-side comparison of overfitting across all active model types. "
+            "Gaps are **normalized** to each model's threshold for fair comparison: "
+            f"game_winner uses accuracy gap (threshold={acc_t:.0%}), "
+            f"spread/totals use MAE gap (threshold={mae_t:.2f} goals). "
+            "1.0 = at the danger threshold. Bar labels show the actual gap value."
         )
     else:
         st.info("No overfit gap data available across model types.")

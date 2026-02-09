@@ -10,11 +10,16 @@ from enum import Enum
 from pathlib import Path
 
 # Load .env if present (local dev). In GitHub Actions the env vars are set directly.
+# Check ml/.env first, then project root .env.
 try:
     from dotenv import load_dotenv
-    _env_file = Path(__file__).parent / ".env"
-    if _env_file.exists():
-        load_dotenv(_env_file)
+    _env_candidates = [
+        Path(__file__).parent / ".env",           # ml/.env
+        Path(__file__).parent.parent / ".env",     # project root .env
+    ]
+    for _env_file in _env_candidates:
+        if _env_file.exists():
+            load_dotenv(_env_file)
 except ImportError:
     pass  # python-dotenv not installed — fine in CI
 
@@ -153,7 +158,10 @@ GOALIE_SEASON_STATS_TABLE = "goalie_season_stats"
 TEAM_STAT_CATEGORIES_TABLE = "team_stat_categories"
 GAME_SKATER_STATS_TABLE = "game_skater_stats"
 GAME_GOALIE_STATS_TABLE = "game_goalie_stats"
+SKATER_GAME_CATEGORIES_TABLE = "skater_game_categories"
 SYNC_LOG_TABLE = "sync_log"
+GAME_PLAY_BY_PLAY_TABLE = "game_play_by_play"
+GAME_DETAILS_TABLE = "game_details"
 
 
 # ---------------------------------------------------------------------------
@@ -199,6 +207,14 @@ LGBM_REGRESSOR_DEFAULTS = {
 
 
 # ---------------------------------------------------------------------------
+# Optuna tuning
+# ---------------------------------------------------------------------------
+
+ENABLE_TUNING = True
+TUNING_N_TRIALS = 30  # Fewer than default 50 for weekly retrain speed
+
+
+# ---------------------------------------------------------------------------
 # Pipeline / external services (from env vars)
 # ---------------------------------------------------------------------------
 
@@ -206,7 +222,8 @@ HEALTHCHECK_URL = os.getenv("HEALTHCHECK_URL", "")
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "")
 
 # Supabase (pipeline reads from env; app reads from EXPO_PUBLIC_ prefix)
-SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+# Support both SUPABASE_URL and EXPO_PUBLIC_SUPABASE_URL for local dev.
+SUPABASE_URL = os.getenv("SUPABASE_URL") or os.getenv("EXPO_PUBLIC_SUPABASE_URL") or ""
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 
 
