@@ -384,11 +384,31 @@ ml/tests/                    - 284 tests, run with: ml/.venv/bin/python -m pytes
 ```bash
 ml/.venv/bin/python -m ml.scripts.run_baselines --dry-run   # Baselines (no Supabase needed)
 ml/.venv/bin/python -m pytest ml/tests/ -x -q               # All 284 tests
-ml/.venv/bin/python -m streamlit run ml/dashboard/Home.py    # Dashboard
+cd ml/dashboard && streamlit run app.py                      # Dashboard locally
 ```
 
 ### ML Python Environment
 The ML pipeline uses its own venv at `ml/.venv/` (Python 3.13). Do NOT use the system Python. Always prefix ML commands with `ml/.venv/bin/python`.
+
+### Streamlit Dashboard (HF Space)
+The ML dashboard at `ml/dashboard/` is deployed as a Hugging Face Space (Docker, port 7860). It reads from 4 ML tables in Supabase (read-only via RLS).
+
+```
+ml/dashboard/
+├── app.py              — Entry point (password auth gate + home page)
+├── Dockerfile          — HF Space container (Python 3.12, port 7860)
+├── requirements.txt    — Pinned deps (streamlit, supabase, plotly, pandas)
+├── data.py             — Supabase data loading helpers (5-min cache)
+└── pages/              — 6 pages (overview, performance, features, overfitting, predictions, player props)
+```
+
+**After any ML change that affects features, models, or metrics, you MUST also update the dashboard:**
+- Feature changes → update `FEATURE_DESCRIPTIONS` in `pages/3_feature_importance.py`
+- New metrics → add display in the relevant page
+- Model changes → check `MODEL_TYPES` list across all pages
+- Verify locally: `cd ml/dashboard && streamlit run app.py`
+- Redeploy: push to HF Space repo
+- Env vars needed: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `DASHBOARD_PASSWORD`
 
 ## Performance Considerations
 

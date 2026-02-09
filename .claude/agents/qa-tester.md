@@ -236,12 +236,30 @@ You have full programmatic control of the iOS simulator. Use these tools to veri
 ### Available Routes
 `/` (Tonight), `/explore`, `/models`, `/profile`, `/settings`, `/mypicks`
 
+## ML Pipeline Testing
+
+The `ml/` directory has its own Python test suite (284 tests). If a task touches ML code, you need to run these separately.
+
+### ML Test Commands
+```bash
+ml/.venv/bin/python -m pytest ml/tests/ -x -q              # All ML tests
+ml/.venv/bin/python -m pytest ml/tests/test_features_compute.py -x -q  # Specific file
+ml/.venv/bin/python -m ml.scripts.run_baselines --dry-run   # End-to-end baseline check
+```
+
+### ML Test Conventions
+- **Use `ml/.venv/bin/python`** — never system Python (needs Python 3.13, not 3.14)
+- Test fixtures auto-discover features from `features.yaml` via `generate_synthetic_features()`
+- If you add an ML feature to `features.yaml`, existing tests automatically pick it up
+- ML conftest is at `ml/tests/conftest.py` — provides `synthetic_games_df`, `synthetic_game_features`, etc.
+- Integration tests in `ml/tests/test_pipeline_integration.py` test the full train→evaluate→calibrate flow
+
 ## Workflow
 
 1. **Check TaskList** for assigned work
 2. **Read the code** being tested — understand behavior before writing tests
 3. **Write tests FIRST** (TDD) — cover happy path, edge cases, error states
-4. **Run tests**: `npm test` — all must pass
+4. **Run tests**: `npm test` (app) and/or `ml/.venv/bin/python -m pytest ml/tests/ -x -q` (ML)
 5. **Check coverage**: `npm run test:coverage` — flag gaps
 6. **Visual QA**: Run `./scripts/sim-control.sh scroll-screenshot` and verify UI
 7. **Report results** to CEO via SendMessage

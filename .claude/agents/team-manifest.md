@@ -99,7 +99,8 @@ Every feature must pass before shipping:
 
 ## Quality Gates (all must pass)
 
-- [ ] `npm test` passes (all tests green)
+- [ ] `npm test` passes (all app tests green)
+- [ ] `ml/.venv/bin/python -m pytest ml/tests/ -x -q` passes (all 284 ML tests green) — if ML code was touched
 - [ ] No TypeScript errors (`npx tsc --noEmit`)
 - [ ] Security: no critical/high findings
 - [ ] **VISUAL VERIFICATION: Screenshots taken and reviewed** (see below)
@@ -153,27 +154,50 @@ idb ui swipe 196 650 196 100 --duration 0.5 --udid $UDID
 ## PuckIQ Codebase Quick Reference
 
 ```
-app/(tabs)/           5 tab screens (file-based Expo Router)
-  index.tsx           Tonight screen (1657 lines — main analytics terminal)
-  stats.tsx           Explore (Teams/Players/Edge/Factors/Models)
-  models.tsx          Model Builder (Shark's playground)
+app/(tabs)/           3 visible tabs + 2 hidden (file-based Expo Router)
+  index.tsx           Upcoming screen (default tab — main analytics terminal)
+  players.tsx         Players tab (league leaders, trending, projections)
+  stats.tsx           Explore tab (lazy-loads teams.tsx, models.tsx)
 
-components/           ~49 components across 9 categories
+components/           ~44 reusable UI components + subdirectories
   __tests__/          18 component test files, 82+ tests
   model-builder/      6 model builder components
-  design-system/      Button, Card, Typography
+  design-system/      Button, Card
   ui/                 SkeletonLoader, EmptyState, ErrorState
 
-services/             16 services
+services/             15 business logic services
   __tests__/          5 service test files, 126+ tests
-  pickTracking.ts     CRITICAL: pick calc + storage (364 lines)
-  streakTracking.ts   CRITICAL: streak logic (149 lines)
+  pickTracking.ts     CRITICAL: pick calc + storage
   edgeStats.ts        NHL Edge IQ API client (5-min cache)
   derivedStats.ts     Momentum, Clutch, Rest, xG calculations
   gameResults.ts      Supabase H2H + game results
   insightGenerator.ts Analytical insight generation
 
-constants/theme.ts    Design tokens (364 lines) — NEVER hardcode colors
+constants/theme.ts    Design tokens — NEVER hardcode colors
 lib/supabase.ts       Supabase client (env vars)
 lib/firebase.ts       Firebase init
+scripts/sync/         NHL data sync pipeline (GitHub Actions, 13 modules)
 ```
+
+### ML Prediction Pipeline (`ml/`)
+
+Separate Python codebase for NHL game prediction models. **Uses its own venv** (`ml/.venv/bin/python`, Python 3.13) — never use system Python for ML work.
+
+```
+ml/features/features.yaml    — Single source of truth for ALL ML features
+ml/features/registry.py      — Loads YAML, get_model_features(), generate_synthetic_features()
+ml/features/compute.py       — Computes features from Supabase data
+ml/models/                   — game_winner.py, spread.py, totals.py, baselines.py
+ml/evaluation/               — walk-forward CV, calibration, overfitting detection
+ml/pipeline/                 — weekly_retrain.py, monthly_eval.py, daily_predict.py
+ml/scripts/run_baselines.py  — Baseline evaluation
+ml/dashboard/                — Streamlit dashboard (6 pages)
+ml/config.py                 — All ML constants and hyperparameters
+ml/tests/                    — 284 tests
+```
+
+**To add/remove ML features**: Only edit `features.yaml`. Tests and baselines auto-discover.
+**To run ML tests**: `ml/.venv/bin/python -m pytest ml/tests/ -x -q`
+**3 active models**: game_winner (23 features), spread (17), totals (14)
+
+**Dashboard (HF Space)**: `ml/dashboard/` — Streamlit app deployed via Docker on Hugging Face Spaces (port 7860). After any ML feature/model/metric change, update the relevant dashboard page and redeploy. Feature descriptions in page 3 must match `features.yaml`.

@@ -108,6 +108,28 @@ From MISSION.md — never let the team ship:
 - `AUDIT_RESULTS.md` — QA/Security findings
 - All MEMORY files as needed for context
 
+## ML Pipeline Awareness
+
+The `ml/` directory contains a Python-based prediction pipeline (separate from the React Native app). When routing ML tasks:
+
+- **Feature changes**: Backend Engineer edits `ml/features/features.yaml` (single source of truth). Tests auto-discover — no manual test updates needed.
+- **Model changes**: Backend Engineer works in `ml/models/`. Run `ml/.venv/bin/python -m pytest ml/tests/ -x -q` to verify.
+- **Dashboard fixes**: Backend Engineer works in `ml/dashboard/pages/`. Streamlit app, not React Native.
+- **Always use `ml/.venv/bin/python`** — never system Python (needs 3.13, not 3.14).
+- **3 active models**: game_winner (23 features), spread (17), totals (14).
+- **QA must run ML tests separately**: `ml/.venv/bin/python -m pytest ml/tests/ -x -q` (284 tests).
+
+**Task routing for ML work:**
+| Situation | Who |
+|-----------|-----|
+| Add/remove ML feature | Backend (edit features.yaml + maybe compute.py) → QA (ML tests) → DevOps (redeploy HF Space) |
+| Fix ML model | Backend (ml/models/) → QA (ML tests) |
+| ML dashboard issue | Backend (ml/dashboard/) → QA (verify) → DevOps (redeploy HF Space) |
+| ML pipeline/infra | DevOps (ml/pipeline/, GitHub Actions) → QA (ML tests) |
+| New ML metric | Backend (add to pipeline + dashboard page) → QA (ML tests) → DevOps (redeploy HF Space) |
+
+**IMPORTANT**: Any ML change that affects features, models, or metrics MUST also update the Streamlit dashboard (`ml/dashboard/`) and be redeployed to the HF Space. Backend updates the code, DevOps handles deployment.
+
 ## Communication
 
 - To user: output text directly (it's visible)

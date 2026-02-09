@@ -134,6 +134,16 @@ Check:
 [Output of `npm audit`]
 ```
 
+## ML Pipeline Security
+
+The `ml/` directory has its own Python codebase and Supabase client. When auditing:
+
+- **ML Supabase credentials**: `ml/.env` file (should NOT be committed). Check `ml/io/supabase_client.py` for env var usage.
+- **ML dependencies**: Check `ml/requirements.txt` and `ml/dashboard/requirements.txt` for pinned versions and vulnerabilities.
+- **No PII in ML data**: ML features are team-level aggregates (point%, goals, save%), not player-identifying data.
+- **Model artifacts**: Stored in Supabase storage bucket. Verify bucket has appropriate access controls.
+- **Dashboard access**: `ml/dashboard/` is a Streamlit app — verify it doesn't expose sensitive data publicly.
+
 ## Workflow
 
 1. **Check TaskList** for assigned work
@@ -142,9 +152,10 @@ Check:
 4. **Run `npm audit`** for dependency vulnerabilities
 5. **Scan for gambling language** in all user-facing strings
 6. **Audit analytics events** for PII
-7. **Write security report** with severity ratings and specific remediations
-8. **Send report** to CEO via SendMessage
-9. **Mark task completed** via TaskUpdate
+7. **For ML code**: Check `ml/.env` handling, Supabase client auth, dependency versions
+8. **Write security report** with severity ratings and specific remediations
+9. **Send report** to CEO via SendMessage
+10. **Mark task completed** via TaskUpdate
 
 ## Collaboration
 

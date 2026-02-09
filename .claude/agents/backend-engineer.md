@@ -142,18 +142,63 @@ services/
     └── types.ts            — Analytics types
 ```
 
+## ML Prediction Pipeline
+
+The `ml/` directory is a separate Python codebase for NHL game prediction. If a task involves ML features, models, or predictions, you need to know this.
+
+**Key principle**: `ml/features/features.yaml` is the single source of truth for all ML features. Tests, baselines, and synthetic data auto-discover from it.
+
+### ML Quick Reference
+```
+ml/.venv/bin/python                        — Always use this, never system Python
+ml/features/features.yaml                  — Feature definitions + model→feature mappings
+ml/features/compute.py                     — Feature computation engine (5 compute types)
+ml/io/supabase_client.py                   — ML pipeline's Supabase client (separate from app)
+ml/models/{game_winner,spread,totals}.py   — 3 active LightGBM models
+ml/config.py                               — All thresholds, hyperparameters, table names
+```
+
+### How to Add/Remove ML Features
+1. Edit `features.yaml` — add/remove feature definition + update `model_features:` lists
+2. If new compute type needed, implement handler in `compute.py`
+3. That's it — no test files need updating (auto-discovery via `generate_synthetic_features()`)
+
+### ML Compute Types (implemented in compute.py)
+- `lookup` — Single value from standings or goalie_season_stats
+- `rolling_team` — Rolling average over recent games (goals, wins, SOG)
+- `rolling_goalie` — Rolling average over recent goalie starts
+- `jsonb_lookup` — Extract value from JSONB `data` column in team_stat_categories
+- `derived` — Computed from other values (rest advantage, back-to-back)
+
+### ML Test Commands
+```bash
+ml/.venv/bin/python -m pytest ml/tests/ -x -q           # Run all 284 ML tests
+ml/.venv/bin/python -m ml.scripts.run_baselines --dry-run # Baselines (no Supabase)
+```
+
+### Streamlit Dashboard (HF Space)
+The dashboard at `ml/dashboard/` is deployed as a Hugging Face Space (Docker-based, port 7860). **When you change ML features, models, or evaluation logic, you MUST also update the dashboard:**
+
+- **Feature changes** → Update `FEATURE_DESCRIPTIONS` dict in `ml/dashboard/pages/3_feature_importance.py`
+- **New metrics** → Add display logic to the relevant dashboard page (e.g., `2_model_performance.py` for new eval metrics)
+- **Model changes** → Update `MODEL_TYPES` list if adding/removing models, check all 6 pages reference correct model types
+- **Config changes** → Dashboard imports from `ml.config` — verify thresholds/constants still make sense in dashboard context
+- **Run locally to verify**: `cd ml/dashboard && streamlit run app.py`
+- **After changes, redeploy**: Push to the HF Space repo to trigger a rebuild
+
 ## Workflow
 
 1. **Read task** from TaskGet
 2. **Read TECHNICAL_SPEC.md** for data requirements
 3. **Read existing services** that will be modified or that the new service interacts with
 4. **Read SCHEMA.sql** if database changes needed
-5. **Define types** in `types/` first
-6. **Implement service** following existing patterns
-7. **Run tests**: `npm test`
-8. **Send function signatures** to Frontend Engineer so they can integrate
-9. **Update** real_data_sources.md if new APIs, SCHEMA.sql if schema changes
-10. **Mark task completed** via TaskUpdate
+5. **For ML tasks**: Read `features.yaml` and `compute.py` first
+6. **Define types** in `types/` first
+7. **Implement service** following existing patterns
+8. **Run tests**: `npm test` (app) and/or `ml/.venv/bin/python -m pytest ml/tests/ -x -q` (ML)
+9. **Send function signatures** to Frontend Engineer so they can integrate
+10. **Update** real_data_sources.md if new APIs, SCHEMA.sql if schema changes
+11. **Mark task completed** via TaskUpdate
 
 ## Collaboration
 

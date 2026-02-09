@@ -70,7 +70,57 @@ UI: Custom dark theme + Expo Image + Expo Linear Gradient + Chart Kit + SVG
 Animations: React Native Reanimated 4.1 + Gesture Handler 2.28
 Testing: Jest 30 + React Native Testing Library 13 + jest-expo 54
 Build: EAS Build (iOS/Android) + Metro (web)
+ML Pipeline: Python 3.13 (ml/.venv/) + LightGBM + scikit-learn + pandas + Streamlit dashboard
 ```
+
+## ML Pipeline Infrastructure
+
+The `ml/` directory is a separate Python codebase with its own venv, tests, and dashboard.
+
+### ML Key Commands
+```bash
+ml/.venv/bin/python -m pytest ml/tests/ -x -q              # Run 284 ML tests
+ml/.venv/bin/python -m ml.scripts.run_baselines --dry-run   # Baseline evaluation
+ml/.venv/bin/python -m streamlit run ml/dashboard/Home.py   # Streamlit dashboard
+```
+
+### ML Key Files
+```
+ml/.venv/                     — Python 3.13 venv (NEVER use system Python)
+ml/features/features.yaml     — Single source of truth for all ML features
+ml/dashboard/requirements.txt — Pinned Streamlit dashboard deps
+ml/config.py                  — All ML constants, thresholds, table names
+ml/pipeline/                  — weekly_retrain, monthly_eval, daily_predict
+```
+
+### ML Feature System
+`features.yaml` is the single source of truth. Adding/removing features only requires editing this file — tests, baselines, and synthetic data auto-discover from it via `generate_synthetic_features()`. No manual test updates needed.
+
+### Streamlit Dashboard (HF Space)
+The ML dashboard at `ml/dashboard/` is deployed as a Hugging Face Space.
+
+```
+ml/dashboard/
+├── app.py              — Entry point (auth gate + home page)
+├── Dockerfile          — HF Space container (Python 3.12, port 7860)
+├── requirements.txt    — Pinned deps (streamlit, supabase, plotly, pandas)
+├── data.py             — Supabase data loading helpers (cached)
+└── pages/              — 6 Streamlit pages
+    ├── 1_overview.py
+    ├── 2_model_performance.py
+    ├── 3_feature_importance.py
+    ├── 4_overfitting.py
+    ├── 5_prediction_review.py
+    └── 6_player_props.py
+```
+
+**Dashboard deployment checklist (after ML changes):**
+- [ ] Verify dashboard runs locally: `cd ml/dashboard && streamlit run app.py`
+- [ ] Feature changes reflected in `FEATURE_DESCRIPTIONS` dict (page 3)
+- [ ] New metrics displayed in correct dashboard page
+- [ ] `requirements.txt` stays pinned (no `>=` versions)
+- [ ] Push to HF Space repo to trigger rebuild
+- [ ] Env vars set in HF Space: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `DASHBOARD_PASSWORD`
 
 ## Common Build Issues & Fixes
 
