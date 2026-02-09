@@ -8,7 +8,9 @@ correctly computed and flagged when it exceeds the threshold.
 import pytest
 
 from ml.config import MAX_TRAIN_VAL_GAP
+from ml.config import UNDERFITTING_THRESHOLDS
 from ml.evaluation.overfitting import (
+    check_underfitting,
     compute_train_val_gap_history,
     detect_overfitting,
 )
@@ -229,3 +231,94 @@ class TestComputeTrainValGapHistory:
         history = compute_train_val_gap_history(metadata)
         assert history[0]["version"] == "2025-01-15"
         assert history[1]["version"] == "2025-01-22"
+
+
+class TestCheckUnderfitting:
+    """Tests for check_underfitting()."""
+
+    def test_game_winner_good_accuracy_no_underfit(self):
+        """Accuracy above threshold should not be flagged."""
+        val = {"accuracy": 0.56, "brier_score": 0.24}
+        result = check_underfitting(val, "game_winner")
+        assert result["is_underfitting"] is False
+
+    def test_game_winner_bad_accuracy_underfit(self):
+        """Accuracy below MIN threshold should be flagged."""
+        val = {"accuracy": 0.50, "brier_score": 0.25}
+        result = check_underfitting(val, "game_winner")
+        assert result["is_underfitting"] is True
+        assert result["metric"] == "accuracy"
+        assert "below minimum" in result["reason"]
+
+    def test_game_winner_at_threshold_no_underfit(self):
+        """Accuracy exactly at threshold should NOT be flagged (>= threshold passes)."""
+        threshold = UNDERFITTING_THRESHOLDS["game_winner"]["threshold"]
+        val = {"accuracy": threshold}
+        result = check_underfitting(val, "game_winner")
+        assert result["is_underfitting"] is False
+
+    def test_spread_good_mae_no_underfit(self):
+        """MAE below MAX threshold should not be flagged."""
+        val = {"mae": 2.0, "rmse": 2.5}
+        result = check_underfitting(val, "spread")
+        assert result["is_underfitting"] is False
+
+    def test_spread_bad_mae_underfit(self):
+        """MAE above MAX threshold should be flagged."""
+        val = {"mae": 3.5, "rmse": 4.0}
+        result = check_underfitting(val, "spread")
+        assert result["is_underfitting"] is True
+        assert result["metric"] == "mae"
+        assert "exceeds maximum" in result["reason"]
+
+    def test_totals_good_mae_no_underfit(self):
+        val = {"mae": 1.5}
+        result = check_underfitting(val, "totals")
+        assert result["is_underfitting"] is False
+
+    def test_totals_bad_mae_underfit(self):
+        val = {"mae": 2.8}
+        result = check_underfitting(val, "totals")
+        assert result["is_underfitting"] is True
+
+    def test_unknown_model_type_no_underfit(self):
+        """Unknown model type should not flag underfitting."""
+        val = {"accuracy": 0.40}
+        result = check_underfitting(val, "player_props")
+        assert result["is_underfitting"] is False
+        assert "No threshold" in result["reason"]
+
+    def test_missing_metric_no_underfit(self):
+        """If the required metric isn't in val_metrics, don't flag."""
+        val = {"brier_score": 0.24}  # no accuracy key
+        result = check_underfitting(val, "game_winner")
+        assert result["is_underfitting"] is False
+        assert "not in val_metrics" in result["reason"]
+
+    def test_custom_thresholds(self):
+        """Custom thresholds should override defaults."""
+        custom = {
+            "game_winner": {
+                "metric": "accuracy",
+                "direction": "min",
+                "threshold": 0.60,  # much stricter
+            },
+        }
+        val = {"accuracy": 0.55}
+        result = check_underfitting(val, "game_winner", thresholds=custom)
+        assert result["is_underfitting"] is True
+
+    def test_result_includes_actual_and_threshold(self):
+        """Result dict should contain actual value and threshold for logging."""
+        val = {"accuracy": 0.56}
+        result = check_underfitting(val, "game_winner")
+        assert "actual" in result
+        assert "threshold" in result
+        assert result["actual"] == pytest.approx(0.56)
+
+    def test_spread_at_threshold_no_underfit(self):
+        """MAE exactly at threshold should NOT be flagged (max direction: <= threshold)."""
+        threshold = UNDERFITTING_THRESHOLDS["spread"]["threshold"]
+        val = {"mae": threshold}
+        result = check_underfitting(val, "spread")
+        assert result["is_underfitting"] is False

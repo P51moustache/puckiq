@@ -8,7 +8,7 @@ If the gap exceeds MAX_TRAIN_VAL_GAP, the model is likely overfitting.
 import logging
 from typing import Any
 
-from ml.config import MAX_TRAIN_VAL_GAP, OVERFITTING_THRESHOLDS
+from ml.config import MAX_TRAIN_VAL_GAP, OVERFITTING_THRESHOLDS, UNDERFITTING_THRESHOLDS
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +101,89 @@ def detect_overfitting(
         logger.info("No overfitting detected: gaps=%s", result["gaps"])
 
     return result
+
+
+def check_underfitting(
+    val_metrics: dict[str, float],
+    model_type: str,
+    thresholds: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """
+    Check whether a model is underfitting (too weak to be useful).
+
+    An underfitting model barely beats random — it technically "works" but
+    provides little value to users. This catches models that pass overfitting
+    checks (small train/val gap) but only because both train and val are bad.
+
+    Args:
+        val_metrics: Validation metrics from walk-forward CV.
+        model_type: One of "game_winner", "spread", "totals".
+        thresholds: Override thresholds dict (defaults to UNDERFITTING_THRESHOLDS).
+
+    Returns:
+        Dict with is_underfitting, metric checked, actual value, and threshold.
+    """
+    if thresholds is None:
+        thresholds = UNDERFITTING_THRESHOLDS
+
+    config = thresholds.get(model_type)
+    if config is None:
+        logger.info("No underfitting threshold defined for %s", model_type)
+        return {"is_underfitting": False, "reason": f"No threshold for {model_type}"}
+
+    metric_name = config["metric"]
+    direction = config["direction"]
+    threshold_val = config["threshold"]
+
+    actual = val_metrics.get(metric_name)
+    if actual is None:
+        logger.info("Metric %s not found in val_metrics for underfitting check", metric_name)
+        return {
+            "is_underfitting": False,
+            "reason": f"Metric {metric_name} not in val_metrics",
+        }
+
+    if direction == "min" and actual < threshold_val:
+        # "min" means value must be >= threshold (e.g., accuracy >= 0.52)
+        logger.warning(
+            "Underfitting detected for %s: %s=%.4f < %.4f",
+            model_type, metric_name, actual, threshold_val,
+        )
+        return {
+            "is_underfitting": True,
+            "metric": metric_name,
+            "actual": actual,
+            "threshold": threshold_val,
+            "direction": direction,
+            "reason": f"{metric_name} {actual:.4f} below minimum {threshold_val}",
+        }
+
+    if direction == "max" and actual > threshold_val:
+        # "max" means value must be <= threshold (e.g., MAE <= 2.5)
+        logger.warning(
+            "Underfitting detected for %s: %s=%.4f > %.4f",
+            model_type, metric_name, actual, threshold_val,
+        )
+        return {
+            "is_underfitting": True,
+            "metric": metric_name,
+            "actual": actual,
+            "threshold": threshold_val,
+            "direction": direction,
+            "reason": f"{metric_name} {actual:.4f} exceeds maximum {threshold_val}",
+        }
+
+    logger.info(
+        "No underfitting for %s: %s=%.4f (threshold=%.4f, direction=%s)",
+        model_type, metric_name, actual, threshold_val, direction,
+    )
+    return {
+        "is_underfitting": False,
+        "metric": metric_name,
+        "actual": actual,
+        "threshold": threshold_val,
+        "direction": direction,
+    }
 
 
 def compute_train_val_gap_history(
