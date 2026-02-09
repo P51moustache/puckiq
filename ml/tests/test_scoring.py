@@ -249,7 +249,8 @@ class TestScoreUnknownModelType:
 class TestScoreWithMissingData:
     """Tests for edge cases with missing or None scores."""
 
-    def test_none_scores_treated_as_zero(self):
+    def test_none_scores_skipped(self):
+        """Games with None scores should be skipped entirely."""
         prediction = {
             "game_id": "game_14",
             "game_date": "2025-01-15",
@@ -263,9 +264,24 @@ class TestScoreWithMissingData:
             "away_score": None,
         }
         result = _compute_score(prediction, actual, ModelType.GAME_WINNER)
-        assert result is not None
-        assert result["actual_total"] == 0
-        assert result["actual_spread"] == 0
+        assert result is None
+
+    def test_partial_none_score_skipped(self):
+        """If only one score is None, still skip."""
+        prediction = {
+            "game_id": "game_14b",
+            "game_date": "2025-01-15",
+            "home_win_prob": 0.6,
+            "predicted_winner": "TOR",
+        }
+        actual = {
+            "home_team_abbrev": "TOR",
+            "away_team_abbrev": "BOS",
+            "home_score": 3,
+            "away_score": None,
+        }
+        result = _compute_score(prediction, actual, ModelType.GAME_WINNER)
+        assert result is None
 
     def test_missing_predicted_spread_defaults(self):
         prediction = {

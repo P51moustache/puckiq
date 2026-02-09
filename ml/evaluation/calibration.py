@@ -90,3 +90,37 @@ def compute_calibration_buckets(
         )
 
     return buckets
+
+
+def compute_ece(
+    predictions: np.ndarray,
+    actuals: np.ndarray,
+    n_buckets: int = 10,
+) -> float:
+    """
+    Compute Expected Calibration Error (ECE).
+
+    ECE is the weighted average of |predicted_avg - actual_avg| across buckets,
+    weighted by the number of samples in each bucket.
+
+    Lower is better. A perfectly calibrated model has ECE = 0.
+    Typical good calibration: ECE < 0.05.
+
+    Args:
+        predictions: 1-D array of predicted probabilities.
+        actuals: 1-D array of actual outcomes (0 or 1).
+        n_buckets: Number of bins.
+
+    Returns:
+        ECE as a float between 0 and 1.
+    """
+    buckets = compute_calibration_buckets(predictions, actuals, n_buckets)
+    total = sum(b.count for b in buckets)
+    if total == 0:
+        return 0.0
+    ece = sum(
+        b.count * abs(b.predicted_avg - b.actual_avg)
+        for b in buckets
+        if b.count > 0
+    ) / total
+    return float(ece)

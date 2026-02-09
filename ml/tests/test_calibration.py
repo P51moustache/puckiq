@@ -8,7 +8,7 @@ probabilities are compared against actual outcomes per bucket.
 import numpy as np
 import pytest
 
-from ml.evaluation.calibration import CalibrationBucket, compute_calibration_buckets
+from ml.evaluation.calibration import CalibrationBucket, compute_calibration_buckets, compute_ece
 
 
 class TestComputeCalibrationBuckets:
@@ -165,3 +165,24 @@ class TestCalibrationBucketDataclass:
         assert b.predicted_avg == 0.05
         assert b.actual_avg == 0.08
         assert b.count == 20
+
+
+class TestComputeECE:
+    def test_perfect_calibration(self):
+        """Perfectly calibrated predictions should have ECE near 0."""
+        # Use predictions that exactly match outcome rates per bin
+        preds = np.array([0.0] * 50 + [1.0] * 50)
+        actuals = np.array([0] * 50 + [1] * 50)
+        ece = compute_ece(preds, actuals)
+        assert ece < 0.01  # Truly perfect calibration
+
+    def test_terrible_calibration(self):
+        """Predictions far from actuals should have high ECE."""
+        preds = np.array([0.9] * 50 + [0.1] * 50)
+        actuals = np.array([0] * 50 + [1] * 50)
+        ece = compute_ece(preds, actuals)
+        assert ece > 0.7
+
+    def test_empty_arrays(self):
+        ece = compute_ece(np.array([]), np.array([]))
+        assert ece == 0.0

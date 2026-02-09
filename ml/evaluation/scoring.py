@@ -98,8 +98,14 @@ def _compute_score(
     """
     game_id = prediction["game_id"]
     game_date = prediction.get("game_date")
-    home_score = actual.get("home_score", 0) or 0
-    away_score = actual.get("away_score", 0) or 0
+    home_score = actual.get("home_score")
+    away_score = actual.get("away_score")
+    if home_score is None or away_score is None:
+        logger.warning(
+            "Skipping game %s: missing score (home=%s, away=%s)",
+            game_id, home_score, away_score,
+        )
+        return None
     home_won = home_score > away_score
     actual_spread = home_score - away_score
     actual_total = home_score + away_score

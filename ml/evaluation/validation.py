@@ -126,3 +126,95 @@ def walk_forward_cv(
 
     logger.info("Walk-forward CV complete: %d folds", len(results))
     return results
+
+
+def detect_concept_drift(
+    fold_results: list[FoldResult],
+    metric_name: str = "accuracy",
+    min_folds: int = 3,
+) -> dict[str, Any]:
+    """
+    Detect concept drift by analyzing metric trends across CV folds.
+
+    Checks for:
+    1. Monotonic decline — metric consistently decreases across folds
+    2. Large drop — last fold is significantly worse than the average
+    3. High variance — metric is unstable across folds
+
+    Args:
+        fold_results: Output from walk_forward_cv().
+        metric_name: Which validation metric to analyze.
+        min_folds: Minimum folds needed for drift analysis.
+
+    Returns:
+        Dict with drift_detected, trend info, and fold metric values.
+    """
+    if len(fold_results) < min_folds:
+        return {
+            "drift_detected": False,
+            "reason": f"Too few folds ({len(fold_results)} < {min_folds})",
+            "fold_values": [],
+        }
+
+    # Extract the metric from validation results
+    values = []
+    for fr in fold_results:
+        val = fr.val_metrics.get(metric_name)
+        if val is not None:
+            values.append(val)
+
+    if len(values) < min_folds:
+        return {
+            "drift_detected": False,
+            "reason": f"Metric '{metric_name}' not found in enough folds",
+            "fold_values": values,
+        }
+
+    # Check 1: Monotonic decline (for higher-is-better metrics like accuracy)
+    # Count how many consecutive folds show decline
+    declines = sum(1 for i in range(1, len(values)) if values[i] < values[i - 1])
+    decline_rate = declines / (len(values) - 1)
+
+    # Check 2: Large drop — last fold vs average of all folds
+    avg_val = sum(values) / len(values)
+    last_val = values[-1]
+    # For accuracy-like metrics (higher is better), a drop means last < avg
+    drop_pct = (avg_val - last_val) / avg_val if avg_val != 0 else 0
+
+    # Check 3: High variance
+    mean_val = sum(values) / len(values)
+    variance = sum((v - mean_val) ** 2 for v in values) / len(values)
+    std_val = variance ** 0.5
+    cv = std_val / abs(mean_val) if mean_val != 0 else 0  # Coefficient of variation
+
+    drift_detected = False
+    reasons = []
+
+    if decline_rate >= 0.75:
+        drift_detected = True
+        reasons.append(f"Monotonic decline: {decline_rate:.0%} of folds show decreasing {metric_name}")
+
+    if drop_pct > 0.15:
+        drift_detected = True
+        reasons.append(f"Large drop: last fold {metric_name}={last_val:.4f} vs avg={avg_val:.4f} ({drop_pct:.0%} drop)")
+
+    if cv > 0.20:
+        drift_detected = True
+        reasons.append(f"High variance: CV={cv:.2f} for {metric_name}")
+
+    result = {
+        "drift_detected": drift_detected,
+        "reasons": reasons,
+        "fold_values": values,
+        "decline_rate": decline_rate,
+        "last_vs_avg_drop": drop_pct,
+        "coefficient_of_variation": cv,
+        "metric_name": metric_name,
+    }
+
+    if drift_detected:
+        logger.warning("Concept drift detected: %s", reasons)
+    else:
+        logger.info("No concept drift detected for %s", metric_name)
+
+    return result
