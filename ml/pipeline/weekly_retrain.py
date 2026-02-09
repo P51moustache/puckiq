@@ -42,12 +42,14 @@ from ml.config import (
     CURRENT_SEASON,
     DISCORD_WEBHOOK_URL,
     HEALTHCHECK_URL,
+    MAX_ECE_FOR_PROMOTION,
     MAX_TRAIN_VAL_GAP,
     MIN_BRIER_IMPROVEMENT,
     MIN_GAMES_FOR_PROMOTION,
     ModelType,
 )
-from ml.evaluation.overfitting import detect_overfitting
+from ml.evaluation.calibration import compute_ece
+from ml.evaluation.overfitting import check_underfitting, detect_overfitting
 from ml.evaluation.validation import walk_forward_cv
 from ml.features.compute import compute_all_features
 from ml.features.registry import get_model_features, load_feature_registry
@@ -164,6 +166,32 @@ def _retrain_game_winner(
     if overfit["is_overfitting"]:
         logger.warning("Overfitting detected for %s -- proceeding with caution", model_type.value)
 
+    # Underfitting check: is the model too weak to be useful?
+    underfit = check_underfitting(avg_val_metrics, model_type.value)
+    if underfit["is_underfitting"]:
+        logger.warning("Underfitting detected for %s: %s — skipping promotion", model_type.value, underfit["reason"])
+        return
+
+    # Calibration check (game_winner only): compute ECE from the last CV fold's
+    # out-of-sample predictions. We train a fresh model on the last fold's
+    # training split and predict on the validation split to get real OOS probs.
+    import numpy as np
+    from ml.config import VALIDATION_WINDOW
+    val_size = min(VALIDATION_WINDOW, len(X) // 4)
+    cal_model = GameWinnerModel()
+    cal_model.train(X.iloc[:-val_size], targets.iloc[:-val_size])
+    cal_preds = cal_model.predict(X.iloc[-val_size:])
+    cal_actuals = targets.iloc[-val_size:].values
+    ece_value = compute_ece(np.asarray(cal_preds), np.asarray(cal_actuals))
+    logger.info("Calibration ECE for %s: %.4f (max allowed: %.4f)", model_type.value, ece_value, MAX_ECE_FOR_PROMOTION)
+
+    if ece_value > MAX_ECE_FOR_PROMOTION:
+        logger.warning(
+            "Calibration gate FAILED for %s: ECE=%.4f > %.4f — skipping promotion",
+            model_type.value, ece_value, MAX_ECE_FOR_PROMOTION,
+        )
+        return
+
     # Train final model on ALL data (not just the training folds).
     # Why? Walk-forward CV tells us how well the model generalizes. But for the
     # production model, we want to use all available data to maximize accuracy.
@@ -183,6 +211,7 @@ def _retrain_game_winner(
         features_used=available,
         feature_importance=final_model.get_feature_importance(),
         verification_features=X.iloc[-1:],  # last game for smoke test
+        ece=ece_value,
     )
 
 
@@ -209,6 +238,12 @@ def _retrain_spread(
     avg_train_metrics = _average_fold_metrics(folds, "train_metrics")
     overfit = detect_overfitting(avg_train_metrics, avg_val_metrics)
     overfit_gap = overfit["gaps"].get("mae", 0.0)
+
+    # Underfitting check
+    underfit = check_underfitting(avg_val_metrics, model_type.value)
+    if underfit["is_underfitting"]:
+        logger.warning("Underfitting detected for %s: %s — skipping promotion", model_type.value, underfit["reason"])
+        return
 
     final_model = SpreadModel()
     train_metrics = final_model.train(X, targets)
@@ -249,6 +284,12 @@ def _retrain_totals(
     overfit = detect_overfitting(avg_train_metrics, avg_val_metrics)
     overfit_gap = overfit["gaps"].get("mae", 0.0)
 
+    # Underfitting check
+    underfit = check_underfitting(avg_val_metrics, model_type.value)
+    if underfit["is_underfitting"]:
+        logger.warning("Underfitting detected for %s: %s — skipping promotion", model_type.value, underfit["reason"])
+        return
+
     final_model = TotalsModel()
     train_metrics = final_model.train(X, targets)
 
@@ -276,6 +317,7 @@ def _maybe_promote(
     features_used: list[str],
     feature_importance: dict[str, float],
     verification_features: pd.DataFrame | None = None,
+    ece: float | None = None,
 ) -> None:
     """
     Compare new model to current active and promote if better.
@@ -349,6 +391,7 @@ def _maybe_promote(
         "val_rmse": val_metrics.get("rmse"),
         "train_accuracy": train_metrics.get("train_accuracy"),
         "overfit_gap": overfit_gap,
+        "val_ece": ece,
         "feature_importance": feature_importance or None,
         "features_used": features_used,
         "is_active": True,

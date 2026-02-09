@@ -83,6 +83,7 @@ st.markdown(
     - **Overfitting Monitor** — Train/val gap trend, alert zones
     - **Prediction Review** — Game-by-game results table
     - **Player Props** — Per-player predicted vs actual stats
+    - **Pipeline Control** — Trigger pipeline phases (daily, weekly, monthly)
     """
 )
 

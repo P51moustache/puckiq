@@ -193,3 +193,40 @@ def get_latest_evaluation(model_type: str) -> dict | None:
     if resp.data:
         return resp.data[0]
     return None
+
+
+# ---------------------------------------------------------------------------
+# Pipeline status queries
+# ---------------------------------------------------------------------------
+
+
+@st.cache_data(ttl=60)
+def get_pipeline_status() -> dict:
+    """Get last run times for each pipeline phase.
+
+    Returns a dict with keys: last_prediction, last_training, last_scoring,
+    last_evaluation. Each value is an ISO timestamp string or None.
+    """
+    client = get_client()
+
+    def _latest_ts(table: str, column: str) -> str | None:
+        try:
+            resp = (
+                client.table(table)
+                .select(column)
+                .order(column, desc=True)
+                .limit(1)
+                .execute()
+            )
+            if resp.data:
+                return resp.data[0].get(column)
+        except Exception:
+            pass
+        return None
+
+    return {
+        "last_prediction": _latest_ts(PREDICTIONS, "predicted_at"),
+        "last_training": _latest_ts(METADATA, "created_at"),
+        "last_scoring": _latest_ts(SCORES, "scored_at"),
+        "last_evaluation": _latest_ts(EVALUATIONS, "evaluation_date"),
+    }

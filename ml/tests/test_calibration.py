@@ -186,3 +186,33 @@ class TestComputeECE:
     def test_empty_arrays(self):
         ece = compute_ece(np.array([]), np.array([]))
         assert ece == 0.0
+
+    def test_moderate_calibration_passes_gate(self):
+        """ECE below MAX_ECE_FOR_PROMOTION (0.15) should pass the gate."""
+        from ml.config import MAX_ECE_FOR_PROMOTION
+        # Reasonably calibrated: predictions somewhat match outcomes
+        np.random.seed(42)
+        n = 500
+        true_probs = np.random.uniform(0.3, 0.7, n)
+        actuals = (np.random.uniform(0, 1, n) < true_probs).astype(int)
+        # Predictions close to true probs (add small noise)
+        preds = np.clip(true_probs + np.random.normal(0, 0.05, n), 0, 1)
+        ece = compute_ece(preds, actuals)
+        assert ece < MAX_ECE_FOR_PROMOTION
+
+    def test_badly_calibrated_fails_gate(self):
+        """ECE above MAX_ECE_FOR_PROMOTION should fail the gate."""
+        from ml.config import MAX_ECE_FOR_PROMOTION
+        # Badly calibrated: predict 0.9 but actual win rate is ~50%
+        preds = np.full(200, 0.9)
+        actuals = np.array([0, 1] * 100)
+        ece = compute_ece(preds, actuals)
+        assert ece > MAX_ECE_FOR_PROMOTION
+
+    def test_ece_range(self):
+        """ECE should always be between 0 and 1."""
+        np.random.seed(123)
+        preds = np.random.uniform(0, 1, 300)
+        actuals = np.random.choice([0, 1], 300)
+        ece = compute_ece(preds, actuals)
+        assert 0.0 <= ece <= 1.0

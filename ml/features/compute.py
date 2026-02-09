@@ -29,7 +29,13 @@ import numpy as np
 import pandas as pd
 from supabase import Client
 
-from ml.config import CURRENT_SEASON
+from ml.config import (
+    CURRENT_SEASON,
+    GAMES_TABLE,
+    GOALIE_SEASON_STATS_TABLE,
+    STANDINGS_TABLE,
+    TEAM_STAT_CATEGORIES_TABLE,
+)
 from ml.features.registry import FeatureDefinition, load_feature_registry
 from ml.io.supabase_client import (
     read_goalie_stats,
@@ -41,11 +47,203 @@ from ml.io.supabase_client import (
 logger = logging.getLogger(__name__)
 
 
+# ---------------------------------------------------------------------------
+# FeatureCache — pre-loads all data for batch feature computation
+# ---------------------------------------------------------------------------
+
+
+class FeatureCache:
+    """
+    Pre-loads standings, goalie stats, team stat categories, and recent games
+    in bulk so that compute_all_features() can avoid per-game Supabase queries.
+
+    All lookups still respect as_of_date to prevent data leakage:
+    - standings: returns the latest snapshot_date <= requested date
+    - recent games: returns only games with game_date < requested date
+    - goalie/team stats: season-level aggregates (no date filtering needed)
+
+    Usage:
+        cache = FeatureCache.build(client, games_df)
+        features_df = compute_all_features(games_df, as_of_date, client, use_cache=True, cache=cache)
+    """
+
+    def __init__(self) -> None:
+        # standings_by_team: team_abbrev -> list of dicts sorted by snapshot_date desc
+        self.standings_by_team: dict[str, list[dict[str, Any]]] = {}
+        # goalie_stats_by_team: team_abbrev -> list of goalie stat dicts
+        self.goalie_stats_by_team: dict[str, list[dict[str, Any]]] = {}
+        # team_stat_categories: (team_abbrev, category) -> data dict or None
+        self.team_stat_categories: dict[tuple[str, str], dict | None] = {}
+        # recent_games_by_team: team_abbrev -> list of game dicts sorted by game_date desc
+        self.recent_games_by_team: dict[str, list[dict[str, Any]]] = {}
+
+    @classmethod
+    def build(cls, client: Client, games_df: pd.DataFrame) -> "FeatureCache":
+        """
+        Build a cache by pre-loading all data needed for the games in games_df.
+
+        Makes ~4 bulk queries instead of O(games * features) individual queries.
+        """
+        cache = cls()
+
+        # Collect unique teams from the games
+        teams = set()
+        for _, game in games_df.iterrows():
+            teams.add(game["home_team_abbrev"])
+            teams.add(game["away_team_abbrev"])
+        teams_list = sorted(teams)
+
+        logger.info("FeatureCache: pre-loading data for %d teams", len(teams_list))
+
+        # 1. Load ALL standings for these teams (all snapshot dates)
+        cache._load_standings(client, teams_list)
+
+        # 2. Load ALL goalie season stats for these teams
+        cache._load_goalie_stats(client, teams_list)
+
+        # 3. Load ALL team stat categories for these teams
+        cache._load_team_stat_categories(client, teams_list)
+
+        # 4. Load recent games for these teams (all completed games this season)
+        cache._load_recent_games(client, teams_list)
+
+        logger.info("FeatureCache: pre-load complete")
+        return cache
+
+    def _load_standings(self, client: Client, teams: list[str]) -> None:
+        """Load all standings snapshots for all teams in one query."""
+        try:
+            response = (
+                client.table(STANDINGS_TABLE)
+                .select("*")
+                .in_("team_abbrev", teams)
+                .order("snapshot_date", desc=True)
+                .execute()
+            )
+            for row in response.data or []:
+                team = row["team_abbrev"]
+                if team not in self.standings_by_team:
+                    self.standings_by_team[team] = []
+                self.standings_by_team[team].append(row)
+            logger.info("FeatureCache: loaded %d standings rows", len(response.data or []))
+        except Exception as exc:
+            logger.warning("FeatureCache: failed to load standings: %s", exc)
+
+    def _load_goalie_stats(self, client: Client, teams: list[str]) -> None:
+        """Load all goalie season stats for all teams in one query."""
+        try:
+            response = (
+                client.table(GOALIE_SEASON_STATS_TABLE)
+                .select("*")
+                .in_("team_abbrev", teams)
+                .eq("season", CURRENT_SEASON)
+                .execute()
+            )
+            for row in response.data or []:
+                team = row["team_abbrev"]
+                if team not in self.goalie_stats_by_team:
+                    self.goalie_stats_by_team[team] = []
+                self.goalie_stats_by_team[team].append(row)
+            logger.info("FeatureCache: loaded %d goalie stat rows", len(response.data or []))
+        except Exception as exc:
+            logger.warning("FeatureCache: failed to load goalie stats: %s", exc)
+
+    def _load_team_stat_categories(self, client: Client, teams: list[str]) -> None:
+        """Load all team stat categories for all teams in one query."""
+        try:
+            response = (
+                client.table(TEAM_STAT_CATEGORIES_TABLE)
+                .select("*")
+                .in_("team_abbrev", teams)
+                .eq("season", CURRENT_SEASON)
+                .execute()
+            )
+            for row in response.data or []:
+                team = row["team_abbrev"]
+                category = row.get("stat_category", "")
+                self.team_stat_categories[(team, category)] = row.get("data")
+            logger.info("FeatureCache: loaded %d team stat category rows", len(response.data or []))
+        except Exception as exc:
+            logger.warning("FeatureCache: failed to load team stat categories: %s", exc)
+
+    def _load_recent_games(self, client: Client, teams: list[str]) -> None:
+        """Load all completed games for the teams (used for rolling features)."""
+        try:
+            # Load games where any of our teams played (home or away)
+            home_resp = (
+                client.table(GAMES_TABLE)
+                .select("*")
+                .in_("home_team_abbrev", teams)
+                .eq("game_state", "OFF")
+                .order("game_date", desc=True)
+                .execute()
+            )
+            away_resp = (
+                client.table(GAMES_TABLE)
+                .select("*")
+                .in_("away_team_abbrev", teams)
+                .eq("game_state", "OFF")
+                .order("game_date", desc=True)
+                .execute()
+            )
+
+            # Deduplicate by game id and index by team
+            all_games: dict[str, dict[str, Any]] = {}
+            for row in (home_resp.data or []) + (away_resp.data or []):
+                all_games[row["id"]] = row
+
+            # Sort all games by date desc and index by team
+            sorted_games = sorted(all_games.values(), key=lambda g: g["game_date"], reverse=True)
+            for game in sorted_games:
+                home_team = game["home_team_abbrev"]
+                away_team = game["away_team_abbrev"]
+                if home_team not in self.recent_games_by_team:
+                    self.recent_games_by_team[home_team] = []
+                self.recent_games_by_team[home_team].append(game)
+                if away_team not in self.recent_games_by_team:
+                    self.recent_games_by_team[away_team] = []
+                self.recent_games_by_team[away_team].append(game)
+
+            logger.info("FeatureCache: loaded %d unique games for rolling features", len(all_games))
+        except Exception as exc:
+            logger.warning("FeatureCache: failed to load recent games: %s", exc)
+
+    def get_standings(self, team_abbrev: str, as_of_date: str) -> dict[str, Any] | None:
+        """
+        Get the latest standings for a team on or before as_of_date.
+        Preserves leakage prevention by filtering on snapshot_date.
+        """
+        snapshots = self.standings_by_team.get(team_abbrev, [])
+        for snapshot in snapshots:
+            if snapshot.get("snapshot_date", "") <= as_of_date:
+                return snapshot
+        return None
+
+    def get_goalie_stats(self, team_abbrev: str) -> list[dict[str, Any]]:
+        """Get goalie season stats for a team."""
+        return self.goalie_stats_by_team.get(team_abbrev, [])
+
+    def get_team_stat_category(self, team_abbrev: str, category: str) -> dict | None:
+        """Get a team stat category's JSONB data."""
+        return self.team_stat_categories.get((team_abbrev, category))
+
+    def get_recent_games(self, team_abbrev: str, before_date: str, limit: int = 10) -> list[dict[str, Any]]:
+        """
+        Get recent completed games for a team before a date.
+        Preserves leakage prevention by filtering on game_date < before_date.
+        """
+        all_team_games = self.recent_games_by_team.get(team_abbrev, [])
+        filtered = [g for g in all_team_games if g["game_date"] < before_date]
+        return filtered[:limit]
+
+
 def compute_all_features(
     games_df: pd.DataFrame,
     as_of_date: str,
     client: Client,
     registry: dict[str, FeatureDefinition] | None = None,
+    use_cache: bool = False,
+    cache: FeatureCache | None = None,
 ) -> pd.DataFrame:
     """
     Compute all enabled features for a DataFrame of games.
@@ -55,12 +253,19 @@ def compute_all_features(
         as_of_date: Date string YYYY-MM-DD. Features are computed as of this date.
         client: Supabase client.
         registry: Feature registry (loaded from YAML if not provided).
+        use_cache: If True, pre-load all data in bulk to avoid per-game queries.
+        cache: Pre-built FeatureCache. If use_cache=True and no cache provided,
+               one will be built automatically.
 
     Returns:
         DataFrame indexed by game id with one column per feature.
     """
     if registry is None:
         registry = load_feature_registry()
+
+    # Build cache if requested but not provided
+    if use_cache and cache is None:
+        cache = FeatureCache.build(client, games_df)
 
     results: list[dict[str, Any]] = []
 
@@ -78,12 +283,17 @@ def compute_all_features(
 
         row: dict[str, Any] = {"game_id": game_id}
 
-        # Pre-fetch shared data to avoid repeated queries
-        home_standings = read_standings(client, home, standings_date)
-        away_standings = read_standings(client, away, standings_date)
+        # Pre-fetch shared data — from cache or from Supabase
+        if cache is not None:
+            home_standings = cache.get_standings(home, standings_date)
+            away_standings = cache.get_standings(away, standings_date)
+        else:
+            home_standings = read_standings(client, home, standings_date)
+            away_standings = read_standings(client, away, standings_date)
+
         home_recent = None
         away_recent = None
-        # Cache for jsonb_lookup: (team, category) -> data dict
+        # Per-game cache for jsonb_lookup (only used in non-cached path)
         jsonb_cache: dict[tuple[str, str], dict | None] = {}
 
         for feat_name, feat_def in registry.items():
@@ -91,23 +301,29 @@ def compute_all_features(
                 if feat_def.compute_type == "lookup":
                     row[feat_name] = _compute_lookup(
                         feat_def, home, away, home_standings, away_standings,
-                        client, game_date,
+                        client, game_date, cache=cache,
                     )
                 elif feat_def.compute_type == "rolling_team":
                     if home_recent is None:
-                        home_recent = read_recent_games(client, home, game_date, limit=10)
+                        if cache is not None:
+                            home_recent = cache.get_recent_games(home, game_date, limit=10)
+                        else:
+                            home_recent = read_recent_games(client, home, game_date, limit=10)
                     if away_recent is None:
-                        away_recent = read_recent_games(client, away, game_date, limit=10)
+                        if cache is not None:
+                            away_recent = cache.get_recent_games(away, game_date, limit=10)
+                        else:
+                            away_recent = read_recent_games(client, away, game_date, limit=10)
                     row[feat_name] = _compute_rolling_team(
                         feat_def, home, away, home_recent, away_recent,
                     )
                 elif feat_def.compute_type == "rolling_goalie":
                     row[feat_name] = _compute_rolling_goalie(
-                        feat_def, home, away, client, game_date,
+                        feat_def, home, away, client, game_date, cache=cache,
                     )
                 elif feat_def.compute_type == "jsonb_lookup":
                     row[feat_name] = _compute_jsonb_lookup(
-                        feat_def, home, away, client, jsonb_cache,
+                        feat_def, home, away, client, jsonb_cache, cache=cache,
                     )
                 elif feat_def.compute_type == "derived":
                     row[feat_name] = _compute_derived(feat_def, row, home, away,
@@ -140,6 +356,7 @@ def _compute_lookup(
     away_standings: dict[str, Any] | None,
     client: Client,
     game_date: str,
+    cache: FeatureCache | None = None,
 ) -> float:
     """Compute a lookup feature from standings or goalie stats."""
     config = feat_def.config
@@ -174,7 +391,10 @@ def _compute_lookup(
         return np.nan
 
     if table == "goalie_season_stats":
-        goalies = read_goalie_stats(client, team_abbrev, CURRENT_SEASON)
+        if cache is not None:
+            goalies = cache.get_goalie_stats(team_abbrev)
+        else:
+            goalies = read_goalie_stats(client, team_abbrev, CURRENT_SEASON)
         if not goalies:
             return np.nan
         # Select starter: goalie with most games started
@@ -234,6 +454,7 @@ def _compute_rolling_goalie(
     away: str,
     client: Client,
     game_date: str,
+    cache: FeatureCache | None = None,
 ) -> float:
     """
     Compute rolling goalie save% from recent game-level goalie stats.
@@ -241,6 +462,11 @@ def _compute_rolling_goalie(
     Falls back to season average if game-level data isn't available.
     This is a data-quality-first design: we prefer recent form (L10 starts)
     over season averages, but won't break if the granular data is missing.
+
+    Note: Game-level goalie stats are NOT cached because they come from
+    game_goalie_stats (a separate table). The cache speeds up the fallback
+    path (goalie_season_stats). The game-level query is already filtered
+    by team + date so it's fast.
     """
     from ml.config import CURRENT_SEASON, GAME_GOALIE_STATS_TABLE
 
@@ -276,8 +502,11 @@ def _compute_rolling_goalie(
                 if save_pcts:
                     return float(np.mean(save_pcts))
 
-        # Fall back to season average
-        goalies = read_goalie_stats(client, team_abbrev, CURRENT_SEASON)
+        # Fall back to season average — use cache if available
+        if cache is not None:
+            goalies = cache.get_goalie_stats(team_abbrev)
+        else:
+            goalies = read_goalie_stats(client, team_abbrev, CURRENT_SEASON)
         if goalies:
             starter = max(goalies, key=lambda g: g.get("games_started", 0))
             sv = starter.get("save_pctg")
@@ -295,7 +524,8 @@ def _compute_jsonb_lookup(
     home: str,
     away: str,
     client: Client,
-    cache: dict[tuple[str, str], dict | None],
+    per_game_cache: dict[tuple[str, str], dict | None],
+    cache: FeatureCache | None = None,
 ) -> float:
     """
     Extract a value from JSONB data in team_stat_categories.
@@ -310,12 +540,17 @@ def _compute_jsonb_lookup(
     team_abbrev = home if team_key == "home_team" else away
 
     cache_key = (team_abbrev, category)
-    if cache_key not in cache:
-        cache[cache_key] = read_team_stat_category(
-            client, team_abbrev, CURRENT_SEASON, category,
-        )
 
-    data = cache[cache_key]
+    # Use FeatureCache if available, otherwise fall back to per-game cache
+    if cache is not None:
+        data = cache.get_team_stat_category(team_abbrev, category)
+    else:
+        if cache_key not in per_game_cache:
+            per_game_cache[cache_key] = read_team_stat_category(
+                client, team_abbrev, CURRENT_SEASON, category,
+            )
+        data = per_game_cache[cache_key]
+
     if not data:
         return np.nan
 
