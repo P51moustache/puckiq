@@ -41,17 +41,20 @@ import pandas as pd
 from ml.config import (
     CURRENT_SEASON,
     DISCORD_WEBHOOK_URL,
+    ENABLE_TUNING,
     HEALTHCHECK_URL,
     MAX_ECE_FOR_PROMOTION,
     MAX_TRAIN_VAL_GAP,
     MIN_BRIER_IMPROVEMENT,
     MIN_GAMES_FOR_PROMOTION,
     ModelType,
+    TUNING_N_TRIALS,
 )
+from ml.tuning.optuna_tuner import tune_model
 from ml.evaluation.calibration import compute_ece
 from ml.evaluation.overfitting import check_underfitting, detect_overfitting
 from ml.evaluation.validation import walk_forward_cv
-from ml.features.compute import compute_all_features
+from ml.features.compute import FeatureCache, compute_all_features, compute_player_features
 from ml.features.registry import get_model_features, load_feature_registry
 from ml.io.model_storage import ModelStorage
 from ml.io.supabase_client import (
@@ -59,7 +62,12 @@ from ml.io.supabase_client import (
     read_games,
     write_model_metadata,
 )
+from ml.io.supabase_client import (
+    read_player_game_stats,
+    read_player_season_stats,
+)
 from ml.models.game_winner import GameWinnerModel
+from ml.models.player_props import PlayerPropsModel
 from ml.models.spread import SpreadModel
 from ml.models.totals import TotalsModel
 
@@ -97,12 +105,14 @@ def _run() -> None:
     games_df = games_df.sort_values("game_date").reset_index(drop=True)
     logger.info("Loaded %d completed games", len(games_df))
 
-    # Compute features for all games.
+    # Compute features for all games using FeatureCache for bulk loading.
     # Note: compute_all_features uses each game's game_date as the as_of_date,
     # so standings and rolling stats are always from before the game was played.
     registry = load_feature_registry()
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    features_df = compute_all_features(games_df, today, client, registry)
+    logger.info("Building FeatureCache for %d games...", len(games_df))
+    cache = FeatureCache.build(client, games_df)
+    features_df = compute_all_features(games_df, today, client, registry, use_cache=True, cache=cache)
 
     # Build target variables from actual game results.
     # These are what the models try to predict:
@@ -115,8 +125,23 @@ def _run() -> None:
 
     # 2. Retrain each model type
     _retrain_game_winner(storage, features_df, home_win, games_df, client)
+
+    # --- Cross-model feature: inject game_winner predictions for spread/totals ---
+    try:
+        gw_model = storage.load_model(ModelType.GAME_WINNER.value)
+        if gw_model is not None:
+            gw_feature_names = get_model_features(ModelType.GAME_WINNER)
+            gw_available = [f for f in gw_feature_names if f in features_df.columns]
+            X_gw = features_df[gw_available]
+            gw_probs = gw_model.predict(X_gw)
+            features_df["gw_home_win_prob"] = gw_probs
+            logger.info("Injected gw_home_win_prob cross-model feature (%d values)", len(gw_probs))
+    except Exception as exc:
+        logger.warning("Could not inject cross-model feature: %s", exc)
+
     _retrain_spread(storage, features_df, spread, games_df, client)
     _retrain_totals(storage, features_df, total, games_df, client)
+    _retrain_player_props(storage, games_df, client)
 
     # 3. Ping healthcheck
     _ping_healthcheck()
@@ -142,15 +167,27 @@ def _retrain_game_winner(
     model_type = ModelType.GAME_WINNER
     feature_names = get_model_features(model_type)
     available = [f for f in feature_names if f in features_df.columns]
-    X = features_df[available].fillna(0)
+    X = features_df[available]
 
     logger.info("Retraining %s with %d features, %d games", model_type.value, len(available), len(X))
 
     if len(X) < MIN_GAMES_FOR_PROMOTION:
         logger.warning("Not enough games (%d < %d) for promotion", len(X), MIN_GAMES_FOR_PROMOTION)
 
+    # Optuna hyperparameter tuning
+    best_params = None
+    if ENABLE_TUNING:
+        logger.info("Tuning hyperparameters for %s (%d trials)...", model_type.value, TUNING_N_TRIALS)
+        tuning_result = tune_model(model_type, X, targets, n_trials=TUNING_N_TRIALS)
+        best_params = tuning_result["best_params"]
+        logger.info("Best params for %s: %s (best %s=%.4f)",
+                     model_type.value, best_params,
+                     tuning_result["metric_name"], tuning_result["best_value"])
+
+    model_kwargs = {"params": best_params} if best_params else {}
+
     # Walk-forward CV: simulate real-world performance
-    folds = walk_forward_cv(GameWinnerModel, X, targets)
+    folds = walk_forward_cv(GameWinnerModel, X, targets, model_kwargs=model_kwargs)
     if not folds:
         logger.warning("No CV folds completed for %s", model_type.value)
         return
@@ -178,7 +215,7 @@ def _retrain_game_winner(
     import numpy as np
     from ml.config import VALIDATION_WINDOW
     val_size = min(VALIDATION_WINDOW, len(X) // 4)
-    cal_model = GameWinnerModel()
+    cal_model = GameWinnerModel(**model_kwargs)
     cal_model.train(X.iloc[:-val_size], targets.iloc[:-val_size])
     cal_preds = cal_model.predict(X.iloc[-val_size:])
     cal_actuals = targets.iloc[-val_size:].values
@@ -195,7 +232,7 @@ def _retrain_game_winner(
     # Train final model on ALL data (not just the training folds).
     # Why? Walk-forward CV tells us how well the model generalizes. But for the
     # production model, we want to use all available data to maximize accuracy.
-    final_model = GameWinnerModel()
+    final_model = GameWinnerModel(**model_kwargs)
     train_metrics = final_model.train(X, targets)
 
     # Compute overfit gap for metadata
@@ -212,6 +249,7 @@ def _retrain_game_winner(
         feature_importance=final_model.get_feature_importance(),
         verification_features=X.iloc[-1:],  # last game for smoke test
         ece=ece_value,
+        tuned_params=best_params,
     )
 
 
@@ -226,11 +264,23 @@ def _retrain_spread(
     model_type = ModelType.SPREAD
     feature_names = get_model_features(model_type)
     available = [f for f in feature_names if f in features_df.columns]
-    X = features_df[available].fillna(0)
+    X = features_df[available]
 
     logger.info("Retraining %s with %d features, %d games", model_type.value, len(available), len(X))
 
-    folds = walk_forward_cv(SpreadModel, X, targets)
+    # Optuna hyperparameter tuning
+    best_params = None
+    if ENABLE_TUNING:
+        logger.info("Tuning hyperparameters for %s (%d trials)...", model_type.value, TUNING_N_TRIALS)
+        tuning_result = tune_model(model_type, X, targets, n_trials=TUNING_N_TRIALS)
+        best_params = tuning_result["best_params"]
+        logger.info("Best params for %s: %s (best %s=%.4f)",
+                     model_type.value, best_params,
+                     tuning_result["metric_name"], tuning_result["best_value"])
+
+    model_kwargs = {"params": best_params} if best_params else {}
+
+    folds = walk_forward_cv(SpreadModel, X, targets, model_kwargs=model_kwargs)
     if not folds:
         return
 
@@ -245,7 +295,7 @@ def _retrain_spread(
         logger.warning("Underfitting detected for %s: %s — skipping promotion", model_type.value, underfit["reason"])
         return
 
-    final_model = SpreadModel()
+    final_model = SpreadModel(**model_kwargs)
     train_metrics = final_model.train(X, targets)
 
     _maybe_promote(
@@ -257,6 +307,7 @@ def _retrain_spread(
         features_used=available,
         feature_importance=final_model.get_feature_importance(),
         verification_features=X.iloc[-1:],
+        tuned_params=best_params,
     )
 
 
@@ -271,9 +322,16 @@ def _retrain_totals(
     model_type = ModelType.TOTALS
     feature_names = get_model_features(model_type)
     available = [f for f in feature_names if f in features_df.columns]
+    # TotalsModel has a Poisson GLM component (statsmodels) which cannot handle NaN.
+    # LightGBM handles NaN natively, but Poisson GLM requires clean input.
     X = features_df[available].fillna(0)
 
     logger.info("Retraining %s with %d features, %d games", model_type.value, len(available), len(X))
+
+    # Tuning not supported for totals — TotalsModel is a Poisson+LightGBM ensemble
+    # that doesn't accept a params kwarg in its constructor.
+    if ENABLE_TUNING:
+        logger.info("Tuning not supported for %s (Poisson+LightGBM ensemble) — using defaults", model_type.value)
 
     folds = walk_forward_cv(TotalsModel, X, targets)
     if not folds:
@@ -305,6 +363,111 @@ def _retrain_totals(
     )
 
 
+def _retrain_player_props(
+    storage: ModelStorage,
+    games_df: pd.DataFrame,
+    client,
+) -> None:
+    """Retrain player props model (Poisson GLMs for goals/assists/points)."""
+    model_type = ModelType.PLAYER_PROPS
+    logger.info("Retraining %s", model_type.value)
+
+    # Load player-game stats
+    game_ids = games_df["id"].tolist()
+    player_game_df = read_player_game_stats(client, CURRENT_SEASON, game_ids)
+    if player_game_df.empty:
+        logger.warning("No player game stats found — skipping player_props retrain")
+        return
+
+    # Load season stats for features
+    season_stats_df = read_player_season_stats(client, CURRENT_SEASON)
+
+    # Load standings for opponent GA
+    standings_df = None
+    try:
+        resp = client.table("standings").select("*").execute()
+        standings_df = pd.DataFrame(resp.data) if resp.data else None
+    except Exception:
+        pass
+
+    # Compute features
+    features_df = compute_player_features(player_game_df, season_stats_df, standings_df)
+
+    feature_names = get_model_features(model_type)
+    available = [f for f in feature_names if f in features_df.columns]
+    X = features_df[available].fillna(0)  # Poisson GLM cannot handle NaN
+
+    if len(X) < 100:
+        logger.warning("Not enough player-game rows (%d) for player_props", len(X))
+        return
+
+    # Extract targets from player_game_df
+    goals = player_game_df["goals"].astype(float) if "goals" in player_game_df.columns else pd.Series([0] * len(X))
+    assists = player_game_df["assists"].astype(float) if "assists" in player_game_df.columns else pd.Series([0] * len(X))
+    points = player_game_df["points"].astype(float) if "points" in player_game_df.columns else pd.Series([0] * len(X))
+
+    # Align indices
+    goals = goals.iloc[:len(X)].reset_index(drop=True)
+    assists = assists.iloc[:len(X)].reset_index(drop=True)
+    points = points.iloc[:len(X)].reset_index(drop=True)
+
+    # Simple train/test split (80/20) — player data is abundant
+    split_idx = int(len(X) * 0.8)
+    X_train, X_val = X.iloc[:split_idx], X.iloc[split_idx:]
+    g_train, g_val = goals.iloc[:split_idx], goals.iloc[split_idx:]
+    a_train, a_val = assists.iloc[:split_idx], assists.iloc[split_idx:]
+    p_train, p_val = points.iloc[:split_idx], points.iloc[split_idx:]
+
+    # Train
+    model = PlayerPropsModel()
+    train_metrics = model.train(X_train, g_train, a_train, p_train)
+
+    # Evaluate
+    val_metrics = model.evaluate(X_val, g_val, a_val, p_val)
+
+    logger.info("Player props train metrics: %s", train_metrics)
+    logger.info("Player props val metrics: %s", val_metrics)
+
+    # Store model — use simplified promotion (no walk-forward needed)
+    version = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    storage.save_model(model, model_type.value, version,
+                       {"goals_mae": val_metrics["goals"]["mae"],
+                        "assists_mae": val_metrics["assists"]["mae"],
+                        "points_mae": val_metrics["points"]["mae"]})
+
+    # Write metadata — store per-stat MAE in hyperparameters JSONB
+    # (ml_model_metadata has val_mae but not val_goals_mae etc.)
+    avg_mae = (
+        val_metrics["goals"]["mae"]
+        + val_metrics["assists"]["mae"]
+        + val_metrics["points"]["mae"]
+    ) / 3.0
+    write_model_metadata(client, {
+        "model_type": model_type.value,
+        "model_version": version,
+        "training_games": len(X_train),
+        "val_mae": round(avg_mae, 4),
+        "hyperparameters": {
+            "goals_mae": round(val_metrics["goals"]["mae"], 4),
+            "assists_mae": round(val_metrics["assists"]["mae"], 4),
+            "points_mae": round(val_metrics["points"]["mae"], 4),
+        },
+        "features_used": available,
+        "is_active": True,
+        "promoted_at": datetime.now(timezone.utc).isoformat(),
+    })
+
+    # Deactivate old model
+    from ml.config import ML_MODEL_METADATA_TABLE
+    client.table(ML_MODEL_METADATA_TABLE).update(
+        {"is_active": False}
+    ).eq("model_type", model_type.value).eq(
+        "is_active", True
+    ).neq("model_version", version).execute()
+
+    logger.info("Player props model promoted: %s/%s", model_type.value, version)
+
+
 def _maybe_promote(
     storage: ModelStorage,
     client,
@@ -318,6 +481,7 @@ def _maybe_promote(
     feature_importance: dict[str, float],
     verification_features: pd.DataFrame | None = None,
     ece: float | None = None,
+    tuned_params: dict[str, float] | None = None,
 ) -> None:
     """
     Compare new model to current active and promote if better.
@@ -391,9 +555,9 @@ def _maybe_promote(
         "val_rmse": val_metrics.get("rmse"),
         "train_accuracy": train_metrics.get("train_accuracy"),
         "overfit_gap": overfit_gap,
-        "val_ece": ece,
         "feature_importance": feature_importance or None,
         "features_used": features_used,
+        "hyperparameters": tuned_params,  # Optuna tuned params stored here
         "is_active": True,
         "promoted_at": datetime.now(timezone.utc).isoformat(),
     }))

@@ -55,7 +55,7 @@ class TestLoadFeatureRegistry:
                 assert "field" in feat.config, f"JSONB feature '{feat.name}' missing 'field'"
 
     def test_all_features_have_valid_compute_type(self):
-        valid_types = {"lookup", "rolling_team", "rolling_goalie", "jsonb_lookup", "derived"}
+        valid_types = {"lookup", "rolling_team", "rolling_goalie", "jsonb_lookup", "derived", "player_lookup", "rolling_team_advanced", "cross_model", "rolling_xg", "game_detail_lookup"}
         registry = load_feature_registry()
         for feat in registry.values():
             assert feat.compute_type in valid_types, (

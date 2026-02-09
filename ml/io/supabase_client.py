@@ -200,6 +200,79 @@ def read_team_stat_category(
 
 
 @_retry
+def read_team_game_advanced_stats(
+    client: Client, team_abbrev: str, season: int, limit: int = 20
+) -> list[dict[str, Any]]:
+    """Read per-game advanced puck possession stats for a team from skater_game_categories."""
+    from ml.config import SKATER_GAME_CATEGORIES_TABLE
+
+    response = (
+        client.table(SKATER_GAME_CATEGORIES_TABLE)
+        .select("game_id, player_id, team_abbrev, data")
+        .eq("team_abbrev", team_abbrev)
+        .eq("season", season)
+        .eq("stat_category", "puckPossessions")
+        .order("game_id", desc=True)
+        .limit(limit * 20)  # Each game has ~18 skaters
+        .execute()
+    )
+    return response.data or []
+
+
+@_retry
+def read_player_game_stats(
+    client: Client, season: int, game_ids: list[int] | None = None
+) -> pd.DataFrame:
+    """
+    Read game-level skater stats for training player props.
+
+    Returns DataFrame with columns: player_id, game_id, game_date,
+    team_abbrev, goals, assists, points, toi, shots.
+    """
+    from ml.config import GAME_SKATER_STATS_TABLE
+    # game_skater_stats has no 'season' column — filter by game_ids instead.
+    if not game_ids:
+        logger.warning("read_player_game_stats called without game_ids — returning empty")
+        return pd.DataFrame()
+    all_rows: list[dict[str, Any]] = []
+    batch_size = 200
+    for i in range(0, len(game_ids), batch_size):
+        batch = game_ids[i:i + batch_size]
+        response = (
+            client.table(GAME_SKATER_STATS_TABLE)
+            .select("player_id, game_id, team_abbrev, goals, assists, points, toi, shots_on_goal")
+            .in_("game_id", batch)
+            .execute()
+        )
+        all_rows.extend(response.data or [])
+    df = pd.DataFrame(all_rows) if all_rows else pd.DataFrame()
+    # Normalize column names for downstream consumers
+    if "shots_on_goal" in df.columns:
+        df = df.rename(columns={"shots_on_goal": "shots"})
+    return df
+
+
+@_retry
+def read_player_season_stats(
+    client: Client, season: int
+) -> pd.DataFrame:
+    """
+    Read skater season stats for player feature computation.
+
+    Returns DataFrame with columns: player_id, team_abbrev,
+    goals_per_game, avg_toi_per_game, shooting_pctg, etc.
+    """
+    from ml.config import SKATER_SEASON_STATS_TABLE
+    response = (
+        client.table(SKATER_SEASON_STATS_TABLE)
+        .select("*")
+        .eq("season", season)
+        .execute()
+    )
+    return pd.DataFrame(response.data) if response.data else pd.DataFrame()
+
+
+@_retry
 def read_recent_games(
     client: Client, team_abbrev: str, before_date: str, limit: int = 10
 ) -> list[dict[str, Any]]:
@@ -239,6 +312,48 @@ def read_recent_games(
 # ---------------------------------------------------------------------------
 # Write operations (all UPSERT for idempotency)
 # ---------------------------------------------------------------------------
+
+
+@_retry
+def read_game_details(client: Client, game_ids: list[int]) -> list[dict[str, Any]]:
+    """Read game_details for given game IDs (season_series, scratches)."""
+    from ml.config import GAME_DETAILS_TABLE
+    if not game_ids:
+        return []
+    all_rows: list[dict[str, Any]] = []
+    batch_size = 200
+    for i in range(0, len(game_ids), batch_size):
+        batch_ids = game_ids[i:i + batch_size]
+        response = (
+            client.table(GAME_DETAILS_TABLE)
+            .select("game_id, season_series, scratches")
+            .in_("game_id", batch_ids)
+            .execute()
+        )
+        all_rows.extend(response.data or [])
+    return all_rows
+
+
+@_retry
+def read_game_shots(client: Client, game_ids: list[int]) -> list[dict[str, Any]]:
+    """Read shot events from game_play_by_play for given game IDs."""
+    from ml.config import GAME_PLAY_BY_PLAY_TABLE
+    if not game_ids:
+        return []
+    # Supabase IN filter has a limit, so batch if needed
+    all_rows: list[dict[str, Any]] = []
+    batch_size = 200
+    for i in range(0, len(game_ids), batch_size):
+        batch_ids = game_ids[i:i + batch_size]
+        response = (
+            client.table(GAME_PLAY_BY_PLAY_TABLE)
+            .select("game_id, x_coord, y_coord, event_type, team_abbrev, detail")
+            .in_("game_id", batch_ids)
+            .in_("event_type", ["goal", "shot-on-goal", "missed-shot"])
+            .execute()
+        )
+        all_rows.extend(response.data or [])
+    return all_rows
 
 
 @_retry

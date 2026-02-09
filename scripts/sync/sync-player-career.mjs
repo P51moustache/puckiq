@@ -5,12 +5,12 @@
  * and upserts season totals, career totals, awards, last 5 games,
  * and featured stats into the `player_career_data` table.
  *
- * This is heavier than other sync modules (~900 API calls) so it
- * runs on the weekly schedule by default. Can be triggered daily
- * with --daily flag if needed.
+ * Full mode (~900 API calls) runs weekly. Incremental mode (~40-80 calls)
+ * syncs only players who appeared in games in the last 2 days.
  *
  * Usage:
- *   node scripts/sync/sync-player-career.mjs
+ *   node scripts/sync/sync-player-career.mjs                  # Full sync (weekly)
+ *   node scripts/sync/sync-player-career.mjs --incremental    # Recently-active players only (daily)
  */
 
 import { supabase, logConnectionInfo } from './supabase-client.mjs';
@@ -18,11 +18,55 @@ import { fetchWithRetry, sleep, endpoints } from './nhl-api.mjs';
 
 const BATCH_SIZE = 100;
 const DELAY_BETWEEN_REQUESTS_MS = 500;
+const isIncremental = process.argv.includes('--incremental');
 
-async function syncPlayerCareer() {
-  console.log('[sync-player-career] Fetching active player list from Supabase...');
+/**
+ * Get player IDs who appeared in games in the last 2 days.
+ * Uses games table to find recent game IDs, then queries boxscore tables.
+ */
+async function getRecentlyActivePlayerIds() {
+  const twoDaysAgo = new Date();
+  twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+  const dateStr = twoDaysAgo.toISOString().split('T')[0];
 
-  // Get distinct player IDs from both skater and goalie season stats tables
+  // Get recent game IDs from the games table
+  const { data: recentGames, error: gamesErr } = await supabase
+    .from('games')
+    .select('id')
+    .gte('game_date', dateStr);
+
+  if (gamesErr) {
+    console.warn(`[sync-player-career] games query error: ${gamesErr.message}`);
+    return [];
+  }
+
+  const gameIds = (recentGames || []).map(g => g.id);
+  if (gameIds.length === 0) {
+    console.log('[sync-player-career] No recent games found');
+    return [];
+  }
+
+  // Get player IDs from boxscore tables for those games
+  const { data: skaters } = await supabase
+    .from('game_skater_stats')
+    .select('player_id')
+    .in('game_id', gameIds);
+
+  const { data: goalies } = await supabase
+    .from('game_goalie_stats')
+    .select('player_id')
+    .in('game_id', gameIds);
+
+  const ids = new Set();
+  for (const s of (skaters || [])) ids.add(s.player_id);
+  for (const g of (goalies || [])) ids.add(g.player_id);
+  return [...ids].sort((a, b) => a - b);
+}
+
+/**
+ * Get all active player IDs from season stats tables.
+ */
+async function getAllActivePlayerIds() {
   const { data: skaters, error: skaterErr } = await supabase
     .from('skater_season_stats')
     .select('player_id');
@@ -34,13 +78,21 @@ async function syncPlayerCareer() {
   if (skaterErr) console.warn(`[sync-player-career] skater_season_stats query error: ${skaterErr.message}`);
   if (goalieErr) console.warn(`[sync-player-career] goalie_season_stats query error: ${goalieErr.message}`);
 
-  // Deduplicate player IDs
   const playerIdSet = new Set();
   for (const s of (skaters || [])) playerIdSet.add(s.player_id);
   for (const g of (goalies || [])) playerIdSet.add(g.player_id);
+  return [...playerIdSet].sort((a, b) => a - b);
+}
 
-  const playerIds = [...playerIdSet].sort((a, b) => a - b);
-  console.log(`[sync-player-career] Found ${playerIds.length} active players to sync`);
+async function syncPlayerCareer() {
+  const mode = isIncremental ? 'INCREMENTAL' : 'FULL';
+  console.log(`[sync-player-career] Mode: ${mode} — fetching player list from Supabase...`);
+
+  const playerIds = isIncremental
+    ? await getRecentlyActivePlayerIds()
+    : await getAllActivePlayerIds();
+
+  console.log(`[sync-player-career] Found ${playerIds.length} players to sync (${mode})`);
 
   if (playerIds.length === 0) {
     console.log('[sync-player-career] No players found. Run sync-players first.');
@@ -102,7 +154,7 @@ async function syncPlayerCareer() {
   // Log to sync_log
   try {
     await supabase.from('sync_log').insert({
-      sync_type: 'player_career',
+      sync_type: isIncremental ? 'player_career_incremental' : 'player_career',
       status: errors > 0 ? 'failed' : 'completed',
       completed_at: new Date().toISOString(),
       records_processed: fetched,

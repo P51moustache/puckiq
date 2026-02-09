@@ -20,16 +20,14 @@ st.set_page_config(page_title="Player Props — PuckIQ ML", layout="wide")
 st.title("Player Props")
 st.caption(
     "Look up individual player predictions vs actual results. "
-    "Player props are predictions about specific player stats (goals, assists, points) "
-    "embedded as JSONB inside each game prediction. This page extracts and analyzes them."
+    "Player props are Poisson GLM predictions for goals, assists, and points per player. "
+    "Each prediction is stored as a separate row with expected values and player ID."
 )
 
 # ---------------------------------------------------------------------------
 # Check if player props model is available
 # ---------------------------------------------------------------------------
-# The player_props model is a Phase 2 feature — it hasn't been built yet.
-# Show a clear message instead of empty tables.
-
+# Check if the player_props model has been trained and promoted to active.
 from data import get_active_models
 active = get_active_models()
 has_player_model = (
@@ -38,11 +36,10 @@ has_player_model = (
 )
 if not has_player_model:
     st.info(
-        "**Player props model coming soon.** "
-        "The player-level Poisson GLM model is planned for Phase 2. "
-        "Currently active models: game winner, spread, and totals. "
-        "Once the player props model is trained and producing predictions, "
-        "this page will show per-player predicted vs actual stats."
+        "**No active player props model.** "
+        "The player-level Poisson GLM model needs to be trained via the weekly "
+        "retrain pipeline before predictions appear here. "
+        "Once trained and promoted, this page will show per-player predicted vs actual stats."
     )
     st.stop()
 
@@ -96,11 +93,9 @@ def extract_player_predictions(df: pd.DataFrame) -> pd.DataFrame:
     """
     Extract player_predictions JSONB from each prediction row into flat rows.
 
-    Expected JSONB format (array of objects):
-    [
-        {"player_name": "Connor McDavid", "predicted_goals": 0.8, "predicted_assists": 1.2, ...},
-        ...
-    ]
+    Handles two formats:
+    1. Single dict per row (current pipeline): {"player_id": 123, "expected_goals": 0.8, ...}
+    2. List of dicts per row (legacy/alternate): [{"player_name": "...", ...}, ...]
     """
     rows = []
     if df.empty or "player_predictions" not in df.columns:
@@ -108,18 +103,23 @@ def extract_player_predictions(df: pd.DataFrame) -> pd.DataFrame:
 
     for _, row in df.iterrows():
         preds = row.get("player_predictions")
-        if not preds or not isinstance(preds, list):
+        if not preds:
             continue
-        for p in preds:
-            if not isinstance(p, dict):
-                continue
-            flat = {
-                "game_id": row.get("game_id"),
-                "game_date": row.get("game_date"),
-                "model_type": row.get("model_type"),
-            }
-            flat.update(p)
+
+        base = {
+            "game_id": row.get("game_id"),
+            "game_date": row.get("game_date"),
+            "model_type": row.get("model_type"),
+        }
+
+        if isinstance(preds, dict):
+            flat = {**base, **preds}
             rows.append(flat)
+        elif isinstance(preds, list):
+            for p in preds:
+                if isinstance(p, dict):
+                    flat = {**base, **p}
+                    rows.append(flat)
 
     return pd.DataFrame(rows)
 
@@ -128,11 +128,9 @@ def extract_player_scores(df: pd.DataFrame) -> pd.DataFrame:
     """
     Extract player_scores JSONB from each scored prediction row into flat rows.
 
-    Expected JSONB format (array of objects):
-    [
-        {"player_name": "Connor McDavid", "predicted_goals": 0.8, "actual_goals": 1, ...},
-        ...
-    ]
+    Handles two formats:
+    1. Single dict per row: {"player_id": 123, "expected_goals": 0.8, "actual_goals": 1, ...}
+    2. List of dicts per row: [{"player_name": "...", ...}, ...]
     """
     rows = []
     if df.empty or "player_scores" not in df.columns:
@@ -140,18 +138,23 @@ def extract_player_scores(df: pd.DataFrame) -> pd.DataFrame:
 
     for _, row in df.iterrows():
         scores = row.get("player_scores")
-        if not scores or not isinstance(scores, list):
+        if not scores:
             continue
-        for s in scores:
-            if not isinstance(s, dict):
-                continue
-            flat = {
-                "game_id": row.get("game_id"),
-                "game_date": row.get("game_date"),
-                "model_type": row.get("model_type"),
-            }
-            flat.update(s)
+
+        base = {
+            "game_id": row.get("game_id"),
+            "game_date": row.get("game_date"),
+            "model_type": row.get("model_type"),
+        }
+
+        if isinstance(scores, dict):
+            flat = {**base, **scores}
             rows.append(flat)
+        elif isinstance(scores, list):
+            for s in scores:
+                if isinstance(s, dict):
+                    flat = {**base, **s}
+                    rows.append(flat)
 
     return pd.DataFrame(rows)
 
@@ -178,9 +181,9 @@ if not has_predictions and not has_scores:
 # Filter by player name
 # ---------------------------------------------------------------------------
 
-# Determine the name column — might be "player_name", "name", or "player"
+# Determine the name/id column — might be "player_name", "name", "player", or "player_id"
 def find_name_col(df: pd.DataFrame) -> str | None:
-    for col in ["player_name", "name", "player"]:
+    for col in ["player_name", "name", "player", "player_id"]:
         if col in df.columns:
             return col
     return None
@@ -247,13 +250,15 @@ if has_scores and not player_scores.empty and score_name_col:
     st.subheader("Predicted vs Actual")
 
     # Identify stat columns dynamically
-    # Expected patterns: predicted_goals/actual_goals, predicted_assists/actual_assists, etc.
+    # Handles both naming conventions:
+    #   predicted_goals/actual_goals (legacy) and expected_goals/actual_goals (current pipeline)
     stat_types = set()
     for col in player_scores.columns:
-        if col.startswith("predicted_"):
-            stat_name = col.replace("predicted_", "")
-            if f"actual_{stat_name}" in player_scores.columns:
-                stat_types.add(stat_name)
+        for prefix in ("predicted_", "expected_"):
+            if col.startswith(prefix):
+                stat_name = col.replace(prefix, "")
+                if f"actual_{stat_name}" in player_scores.columns:
+                    stat_types.add(stat_name)
 
     if stat_types:
         # Build display table
@@ -265,7 +270,10 @@ if has_scores and not player_scores.empty and score_name_col:
                 "Game": row.get("game_id", ""),
             }
             for stat in sorted(stat_types):
+                # Support both predicted_ and expected_ prefixes
                 pred_val = row.get(f"predicted_{stat}")
+                if pd.isna(pred_val) if pred_val is not None else True:
+                    pred_val = row.get(f"expected_{stat}")
                 actual_val = row.get(f"actual_{stat}")
                 base[f"Pred {stat.title()}"] = (
                     round(pred_val, 2) if pd.notna(pred_val) else None
@@ -287,7 +295,7 @@ if has_scores and not player_scores.empty and score_name_col:
 
         st.dataframe(
             display_df,
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
             height=min(500, len(display_df) * 40 + 40),
         )
@@ -311,7 +319,8 @@ if has_scores and not player_scores.empty and score_name_col:
             for player_name, group in player_scores.groupby(score_name_col):
                 row_data = {"Player": player_name, "Games": len(group)}
                 for stat in sorted(stat_types):
-                    pred_col = f"predicted_{stat}"
+                    # Support both predicted_ and expected_ prefixes
+                    pred_col = f"predicted_{stat}" if f"predicted_{stat}" in group.columns else f"expected_{stat}"
                     actual_col = f"actual_{stat}"
                     if (
                         pred_col in group.columns
@@ -331,7 +340,7 @@ if has_scores and not player_scores.empty and score_name_col:
                 )
                 st.dataframe(
                     mae_df,
-                    use_container_width=True,
+                    width="stretch",
                     hide_index=True,
                 )
 
@@ -352,7 +361,7 @@ if has_scores and not player_scores.empty and score_name_col:
 
             # Pick the first stat type for trending
             primary_stat = sorted(stat_types)[0]
-            pred_col = f"predicted_{primary_stat}"
+            pred_col = f"predicted_{primary_stat}" if f"predicted_{primary_stat}" in player_scores.columns else f"expected_{primary_stat}"
             actual_col = f"actual_{primary_stat}"
 
             if pred_col in player_scores.columns and actual_col in player_scores.columns:
@@ -410,7 +419,7 @@ if has_scores and not player_scores.empty and score_name_col:
                             x=1,
                         ),
                     )
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
 
                     st.caption(
                         f"Rolling 7-day MAE for {primary_stat} predictions. "
@@ -427,7 +436,7 @@ if has_scores and not player_scores.empty and score_name_col:
         # No matched predicted/actual pairs — show raw data
         st.dataframe(
             player_scores,
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
         st.caption(
@@ -446,9 +455,9 @@ elif has_predictions and not player_preds.empty and pred_name_col:
 
     # Show predictions table
     display_cols = ["game_date", "game_id", pred_name_col]
-    # Add any predicted_ columns
+    # Add any predicted_ or expected_ columns
     for col in player_preds.columns:
-        if col.startswith("predicted_"):
+        if col.startswith("predicted_") or col.startswith("expected_"):
             display_cols.append(col)
 
     display_cols = [c for c in display_cols if c in player_preds.columns]
@@ -459,7 +468,7 @@ elif has_predictions and not player_preds.empty and pred_name_col:
         )
         st.dataframe(
             display_df,
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
             height=min(400, len(display_df) * 40 + 40),
         )

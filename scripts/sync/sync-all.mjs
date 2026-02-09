@@ -32,6 +32,7 @@ const modules = [
   // Core: games, standings, teams, player season stats
   { name: 'games', script: 'sync-games.mjs', args: [...(isFullSync ? ['--full'] : []), ...seasonArgs] },
   { name: 'standings', script: 'sync-standings.mjs', args: [...seasonArgs] },
+  { name: 'stat-categories', script: 'sync-stat-categories.mjs', args: [...seasonArgs] },
   { name: 'teams', script: 'sync-teams.mjs', args: [] },
   { name: 'players', script: 'sync-players.mjs', args: [...seasonArgs] },
 
@@ -44,7 +45,10 @@ const modules = [
   // Player trends: game logs daily, advanced stats weekly (Corsi, Fenwick, PDO)
   { name: 'player-trends', script: 'sync-player-trends.mjs', args: [...(isWeekly ? ['--weekly'] : []), ...seasonArgs] },
 
-  // Player career data: landing pages with career totals, awards, last 5 games (weekly only — ~900 API calls)
+  // Player career: incremental daily (recently-active players only, ~40-80 API calls)
+  { name: 'player-career-incremental', script: 'sync-player-career.mjs', args: ['--incremental'] },
+
+  // Player career data: full refresh weekly (all ~900 players)
   ...(isWeekly || isFullSync ? [{ name: 'player-career', script: 'sync-player-career.mjs', args: [] }] : []),
 
   // Edge IQ detailed stats: per-entity endpoints (weekly only — ~900+ API calls)

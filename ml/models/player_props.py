@@ -15,16 +15,14 @@ from sklearn.metrics import mean_absolute_error
 from statsmodels.genmod.families import Poisson as PoissonFamily
 from statsmodels.genmod.generalized_linear_model import GLM
 
+from ml.features.registry import get_model_features
+
 logger = logging.getLogger(__name__)
 
-# Features used for player props
-PLAYER_FEATURES = [
-    "player_gpg",
-    "player_toi",
-    "player_shot_pct",
-    "opponent_ga_per_game",
-    "is_home",
-]
+
+def get_player_features() -> list[str]:
+    """Get player prop features from the registry."""
+    return get_model_features("player_props")
 
 MAX_COUNT = 5  # Max goals/assists to model in distribution
 

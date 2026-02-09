@@ -26,7 +26,7 @@ st.caption(
 # Model type selector
 # ---------------------------------------------------------------------------
 
-MODEL_TYPES = ["game_winner", "spread", "totals"]
+MODEL_TYPES = ["game_winner", "spread", "totals", "player_props"]
 
 model_type = st.selectbox(
     "Model Type",
@@ -102,7 +102,7 @@ if not fi_df.empty and "feature" in fi_df.columns and "importance" in fi_df.colu
         showlegend=False,
         coloraxis_showscale=False,
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     st.caption(
         "**Split gain** measures how much each feature improves the model when used in a "
@@ -214,6 +214,35 @@ if features_used and isinstance(features_used, list) and len(features_used) > 0:
         "rest_advantage": "Home team rest days minus away (positive = home more rested)",
         "home_is_back_to_back": "1 if home team played yesterday, 0 otherwise",
         "away_is_back_to_back": "1 if away team played yesterday, 0 otherwise",
+        # Possession (rolling_team_advanced from skater_game_categories)
+        "home_corsi_pct_l10": "Home team avg Corsi For% over last 10 games (puck possession)",
+        "away_corsi_pct_l10": "Away team avg Corsi For% over last 10 games (puck possession)",
+        "home_fenwick_pct_l10": "Home team avg Fenwick For% over last 10 games (unblocked shots)",
+        "away_fenwick_pct_l10": "Away team avg Fenwick For% over last 10 games (unblocked shots)",
+        # Expected Goals (rolling_xg from shot coordinates)
+        "home_xgf_l10": "Home team avg expected goals for over last 10 games (shot quality)",
+        "away_xgf_l10": "Away team avg expected goals for over last 10 games (shot quality)",
+        "home_xga_l10": "Home team avg expected goals against over last 10 games",
+        "away_xga_l10": "Away team avg expected goals against over last 10 games",
+        # Schedule density
+        "home_games_last_7d": "Number of games played by home team in last 7 days",
+        "away_games_last_7d": "Number of games played by away team in last 7 days",
+        # Head-to-head
+        "h2h_home_win_pct": "Home team win rate vs this opponent this season (H2H)",
+        "h2h_goals_diff": "Home team goal differential vs this opponent this season",
+        # Goalie depth
+        "home_starter_gaa": "Home starting goalie goals against average",
+        "away_starter_gaa": "Away starting goalie goals against average",
+        "home_backup_save_pctg": "Home backup goalie save percentage",
+        "away_backup_save_pctg": "Away backup goalie save percentage",
+        # Cross-model
+        "gw_home_win_prob": "Game winner model's predicted P(home_win) — cross-model signal",
+        # Player props features (player_lookup + derived)
+        "player_gpg": "Player goals per game (season average)",
+        "player_toi": "Player average time on ice per game",
+        "player_shot_pct": "Player shooting percentage",
+        "opponent_ga_per_game": "Opponent goals against per game",
+        "is_home": "1 if player's team is home, 0 if away",
     }
 
     feature_data = []
@@ -225,7 +254,7 @@ if features_used and isinstance(features_used, list) and len(features_used) > 0:
 
     st.dataframe(
         pd.DataFrame(feature_data),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
         height=min(600, len(feature_data) * 40 + 40),
     )

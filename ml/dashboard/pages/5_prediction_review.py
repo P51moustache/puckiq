@@ -32,7 +32,7 @@ st.subheader("Filters")
 filter_col1, filter_col2, filter_col3, filter_col4 = st.columns(4)
 
 with filter_col1:
-    MODEL_TYPES = ["All", "game_winner", "spread", "totals"]
+    MODEL_TYPES = ["All", "game_winner", "spread", "totals", "player_props"]
     selected_model = st.selectbox(
         "Model Type",
         MODEL_TYPES,
@@ -305,12 +305,12 @@ if display_cols:
     st.dataframe(
         display_df,
         column_config=col_config,
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
         height=min(600, len(display_df) * 40 + 40),
     )
 else:
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    st.dataframe(df, width="stretch", hide_index=True)
 
 st.caption(
     "Each row is one game prediction and its outcome. "
@@ -352,7 +352,7 @@ if "game_date" in df.columns and "was_correct" in df.columns:
                 "accuracy_display": "Accuracy",
             }
         ),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
         height=min(400, len(daily) * 40 + 40),
     )
