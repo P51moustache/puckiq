@@ -184,27 +184,34 @@ class FeatureCache:
     def _load_recent_games(self, client: Client, teams: list[str]) -> None:
         """Load all completed games for the teams (used for rolling features)."""
         try:
-            # Load games where any of our teams played (home or away)
-            home_resp = (
-                client.table(GAMES_TABLE)
-                .select("*")
-                .in_("home_team_abbrev", teams)
-                .eq("game_state", "OFF")
-                .order("game_date", desc=True)
-                .execute()
-            )
-            away_resp = (
-                client.table(GAMES_TABLE)
-                .select("*")
-                .in_("away_team_abbrev", teams)
-                .eq("game_state", "OFF")
-                .order("game_date", desc=True)
-                .execute()
-            )
+            # Paginate to handle >1000 games (NHL full season ~1312 games)
+            def _paginated_query(filter_col: str) -> list[dict]:
+                rows: list[dict] = []
+                offset = 0
+                page_size = 1000
+                while True:
+                    resp = (
+                        client.table(GAMES_TABLE)
+                        .select("*")
+                        .in_(filter_col, teams)
+                        .eq("game_state", "OFF")
+                        .order("game_date", desc=True)
+                        .range(offset, offset + page_size - 1)
+                        .execute()
+                    )
+                    batch = resp.data or []
+                    rows.extend(batch)
+                    if len(batch) < page_size:
+                        break
+                    offset += page_size
+                return rows
+
+            home_rows = _paginated_query("home_team_abbrev")
+            away_rows = _paginated_query("away_team_abbrev")
 
             # Deduplicate by game id and index by team
             all_games: dict[str, dict[str, Any]] = {}
-            for row in (home_resp.data or []) + (away_resp.data or []):
+            for row in home_rows + away_rows:
                 all_games[row["id"]] = row
 
             # Sort all games by date desc and index by team
@@ -327,34 +334,52 @@ class FeatureCache:
 
             from ml.config import SKATER_GAME_CATEGORIES_TABLE
 
-            response = (
-                client.table(SKATER_GAME_CATEGORIES_TABLE)
-                .select("game_id, team_abbrev, data")
-                .in_("team_abbrev", teams)
-                .eq("season", CURRENT_SEASON)
-                .eq("stat_category", "puckPossessions")
-                .execute()
-            )
-            rows = response.data or []
+            # Note: team_abbrev column may be NULL in DB (seed bug uses teamAbbrevs
+            # instead of teamAbbrev). Extract team from data JSONB instead.
+            # Supabase returns max 1000 rows per query — paginate to get all.
+            rows: list[dict] = []
+            page_size = 1000
+            offset = 0
+            while True:
+                response = (
+                    client.table(SKATER_GAME_CATEGORIES_TABLE)
+                    .select("game_id, game_date, data")
+                    .eq("season", CURRENT_SEASON)
+                    .eq("stat_category", "puckPossessions")
+                    .range(offset, offset + page_size - 1)
+                    .execute()
+                )
+                batch = response.data or []
+                rows.extend(batch)
+                if len(batch) < page_size:
+                    break
+                offset += page_size
 
             # Group by (team_abbrev, game_id) and average Corsi%/Fenwick% across skaters
+            # Extract team_abbrev from data.teamAbbrev since DB column may be NULL
             game_groups: dict[tuple[str, int], list[dict]] = defaultdict(list)
+            game_dates: dict[tuple[str, int], str] = {}
+            teams_set = set(teams)
             for row in rows:
-                team = row["team_abbrev"]
+                data = row.get("data") or {}
+                if isinstance(data, str):
+                    import json
+                    data = json.loads(data)
+                team = data.get("teamAbbrev") or row.get("team_abbrev") or ""
+                if team not in teams_set:
+                    continue
                 gid = row["game_id"]
-                game_groups[(team, gid)].append(row)
+                game_groups[(team, gid)].append(data)
+                if row.get("game_date"):
+                    game_dates[(team, gid)] = row["game_date"]
 
-            for (team, gid), player_rows in game_groups.items():
+            for (team, gid), player_data_list in game_groups.items():
                 corsi_vals = []
                 fenwick_vals = []
-                for pr in player_rows:
-                    data = pr.get("data") or {}
-                    if isinstance(data, str):
-                        import json
-
-                        data = json.loads(data)
-                    sat = data.get("satForPctg")
-                    usat = data.get("usatForPctg")
+                for data in player_data_list:
+                    # NHL Stats REST API uses satPct/usatPct (not satForPctg/usatForPctg)
+                    sat = data.get("satPct") or data.get("satForPctg")
+                    usat = data.get("usatPct") or data.get("usatForPctg")
                     if sat is not None:
                         corsi_vals.append(float(sat))
                     if usat is not None:
@@ -364,14 +389,15 @@ class FeatureCache:
                     self.advanced_stats_by_team[team] = []
                 self.advanced_stats_by_team[team].append({
                     "game_id": gid,
+                    "game_date": game_dates.get((team, gid), ""),
                     "corsi_pct": float(np.mean(corsi_vals)) if corsi_vals else None,
                     "fenwick_pct": float(np.mean(fenwick_vals)) if fenwick_vals else None,
                 })
 
-            # Sort each team's games by game_id descending (proxy for recency)
+            # Sort by game_date descending (not game_id) to prevent leakage
             for team in self.advanced_stats_by_team:
                 self.advanced_stats_by_team[team].sort(
-                    key=lambda x: x["game_id"], reverse=True
+                    key=lambda x: x.get("game_date", ""), reverse=True
                 )
 
             logger.info(
@@ -382,10 +408,14 @@ class FeatureCache:
             logger.warning("FeatureCache: failed to load advanced stats: %s", exc)
 
     def get_team_advanced_stats(
-        self, team_abbrev: str, limit: int = 10
+        self, team_abbrev: str, before_date: str = "", limit: int = 10
     ) -> list[dict[str, Any]]:
-        """Get team-game advanced stats (Corsi/Fenwick), most recent first."""
-        return self.advanced_stats_by_team.get(team_abbrev, [])[:limit]
+        """Get team-game advanced stats (Corsi/Fenwick), most recent first.
+        Filters by game_date < before_date to prevent data leakage."""
+        all_stats = self.advanced_stats_by_team.get(team_abbrev, [])
+        if before_date:
+            all_stats = [s for s in all_stats if s.get("game_date", "") < before_date]
+        return all_stats[:limit]
 
     def get_recent_games(self, team_abbrev: str, before_date: str, limit: int = 10) -> list[dict[str, Any]]:
         """
@@ -494,7 +524,10 @@ def compute_player_features(
         stats = season_lookup.get(pid, {})
 
         # Player features from season stats
-        gpg = _safe_float(stats.get("goals_per_game") if isinstance(stats, dict) else getattr(stats, "goals_per_game", None))
+        # skater_season_stats has 'goals' and 'games_played', NOT 'goals_per_game'
+        goals = stats.get("goals", 0) if isinstance(stats, dict) else getattr(stats, "goals", 0)
+        gp = stats.get("games_played", 0) if isinstance(stats, dict) else getattr(stats, "games_played", 0)
+        gpg = float(goals) / float(gp) if gp and gp > 0 else np.nan
         toi = _safe_float(stats.get("avg_toi_per_game") if isinstance(stats, dict) else getattr(stats, "avg_toi_per_game", None))
         shot_pct = _safe_float(stats.get("shooting_pctg") if isinstance(stats, dict) else getattr(stats, "shooting_pctg", None))
 
@@ -607,7 +640,7 @@ def compute_all_features(
                     )
                 elif feat_def.compute_type == "rolling_team_advanced":
                     row[feat_name] = _compute_rolling_team_advanced(
-                        feat_def, home, away, cache=cache,
+                        feat_def, home, away, as_of_date=game_date, cache=cache,
                     )
                 elif feat_def.compute_type == "rolling_xg":
                     if home_recent is None:
@@ -783,6 +816,7 @@ def _compute_rolling_team_advanced(
     feat_def: FeatureDefinition,
     home: str,
     away: str,
+    as_of_date: str = "",
     cache: FeatureCache | None = None,
 ) -> float:
     """Compute rolling Corsi% or Fenwick% from cached advanced stats."""
@@ -795,7 +829,7 @@ def _compute_rolling_team_advanced(
     window = config.get("window", 10)
 
     team_abbrev = home if team_key == "home_team" else away
-    games = cache.get_team_advanced_stats(team_abbrev, limit=window)
+    games = cache.get_team_advanced_stats(team_abbrev, before_date=as_of_date, limit=window)
 
     if not games:
         return np.nan
@@ -929,11 +963,8 @@ def _compute_rolling_goalie(
         recent_game_ids: list[int] = []
         if cache is not None:
             # Use cached recent games to get game IDs
-            team_games = cache.get_recent_games(team_abbrev)
-            recent_game_ids = [
-                g["id"] for g in team_games
-                if g.get("game_date", "") < game_date
-            ][:window * 2]
+            team_games = cache.get_recent_games(team_abbrev, game_date)
+            recent_game_ids = [g["id"] for g in team_games][:window * 2]
         if recent_game_ids:
             # Batch query goalie stats for these games
             response = (

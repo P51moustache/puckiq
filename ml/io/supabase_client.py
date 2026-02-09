@@ -104,11 +104,22 @@ def read_games(client: Client, season: int, game_state: str | None = None) -> pd
     Returns:
         DataFrame of game rows.
     """
-    query = client.table(GAMES_TABLE).select("*").eq("season", season)
-    if game_state:
-        query = query.eq("game_state", game_state)
-    response = query.execute()
-    return pd.DataFrame(response.data) if response.data else pd.DataFrame()
+    # Paginate to handle >1000 games per season (NHL has ~1312 regular season games)
+    all_rows: list[dict[str, Any]] = []
+    page_size = 1000
+    offset = 0
+    while True:
+        query = client.table(GAMES_TABLE).select("*").eq("season", season)
+        if game_state:
+            query = query.eq("game_state", game_state)
+        query = query.range(offset, offset + page_size - 1)
+        response = query.execute()
+        batch = response.data or []
+        all_rows.extend(batch)
+        if len(batch) < page_size:
+            break
+        offset += page_size
+    return pd.DataFrame(all_rows) if all_rows else pd.DataFrame()
 
 
 @_retry
@@ -235,7 +246,8 @@ def read_player_game_stats(
         logger.warning("read_player_game_stats called without game_ids — returning empty")
         return pd.DataFrame()
     all_rows: list[dict[str, Any]] = []
-    batch_size = 200
+    # ~40 players per game → batch of 25 games = ~1000 rows, at Supabase limit
+    batch_size = 20
     for i in range(0, len(game_ids), batch_size):
         batch = game_ids[i:i + batch_size]
         response = (
@@ -336,13 +348,17 @@ def read_game_details(client: Client, game_ids: list[int]) -> list[dict[str, Any
 
 @_retry
 def read_game_shots(client: Client, game_ids: list[int]) -> list[dict[str, Any]]:
-    """Read shot events from game_play_by_play for given game IDs."""
+    """Read shot events from game_play_by_play for given game IDs.
+
+    NOTE: Each game has ~300 shot events. Supabase returns max 1000 rows per
+    query by default, so we use small batches (3 games) to stay under the limit.
+    """
     from ml.config import GAME_PLAY_BY_PLAY_TABLE
     if not game_ids:
         return []
-    # Supabase IN filter has a limit, so batch if needed
     all_rows: list[dict[str, Any]] = []
-    batch_size = 200
+    # ~300 shots per game → batch of 3 games = ~900 rows, safely under 1000 limit
+    batch_size = 3
     for i in range(0, len(game_ids), batch_size):
         batch_ids = game_ids[i:i + batch_size]
         response = (
@@ -353,6 +369,7 @@ def read_game_shots(client: Client, game_ids: list[int]) -> list[dict[str, Any]]
             .execute()
         )
         all_rows.extend(response.data or [])
+    logger.info("read_game_shots: fetched %d shot events for %d games", len(all_rows), len(game_ids))
     return all_rows
 
 
