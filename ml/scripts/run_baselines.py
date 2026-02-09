@@ -128,42 +128,11 @@ def _generate_synthetic_data(n_games: int = 300) -> tuple[pd.DataFrame, pd.DataF
         "season": CURRENT_SEASON,
     })
 
-    # Generate synthetic features that correlate with outcomes
-    # Better teams get higher point percentages
-    team_strength = {t: rng.uniform(0.35, 0.70) for t in teams}
-
-    features: list[dict[str, Any]] = []
-    for _, game in games_df.iterrows():
-        home = game["home_team_abbrev"]
-        away = game["away_team_abbrev"]
-        home_pctg = team_strength[home] + rng.normal(0, 0.03)
-        away_pctg = team_strength[away] + rng.normal(0, 0.03)
-        home_pctg = np.clip(home_pctg, 0.0, 1.0)
-        away_pctg = np.clip(away_pctg, 0.0, 1.0)
-
-        features.append({
-            "game_id": game["id"],
-            "home_point_pctg": home_pctg,
-            "away_point_pctg": away_pctg,
-            "point_pctg_diff": home_pctg - away_pctg,
-            "home_goal_diff": rng.integers(-30, 30),
-            "away_goal_diff": rng.integers(-30, 30),
-            "rest_advantage": rng.choice([-2, -1, 0, 1, 2]),
-            "home_starter_save_pctg": rng.uniform(0.890, 0.930),
-            "home_goals_for_l10": rng.uniform(2.0, 4.0),
-            "away_goals_for_l10": rng.uniform(2.0, 4.0),
-            "home_goals_against_l10": rng.uniform(2.0, 4.0),
-            "away_goals_against_l10": rng.uniform(2.0, 4.0),
-            "home_win_pct_l10": rng.uniform(0.2, 0.8),
-            "away_win_pct_l10": rng.uniform(0.2, 0.8),
-            "away_starter_save_pctg": rng.uniform(0.890, 0.930),
-            "home_home_wins": rng.integers(5, 25),
-            "away_road_wins": rng.integers(3, 20),
-            "home_is_back_to_back": float(rng.random() < 0.15),
-            "away_is_back_to_back": float(rng.random() < 0.15),
-        })
-
-    features_df = pd.DataFrame(features).set_index("game_id")
+    # Generate synthetic features auto-discovered from features.yaml
+    from ml.features.registry import generate_synthetic_features
+    n = len(games_df)
+    features_df = generate_synthetic_features(n=n, model_type="game_winner", seed=42)
+    features_df.index = games_df["id"]
 
     return games_df, features_df
 

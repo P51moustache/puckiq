@@ -46,6 +46,14 @@ class TestLoadFeatureRegistry:
             assert isinstance(feat.description, str)
             assert len(feat.description) > 0
 
+    def test_jsonb_lookup_features_have_config(self):
+        """JSONB lookup features should have category and field in config."""
+        registry = load_feature_registry()
+        for feat in registry.values():
+            if feat.compute_type == "jsonb_lookup":
+                assert "category" in feat.config, f"JSONB feature '{feat.name}' missing 'category'"
+                assert "field" in feat.config, f"JSONB feature '{feat.name}' missing 'field'"
+
     def test_all_features_have_valid_compute_type(self):
         valid_types = {"lookup", "rolling_team", "rolling_goalie", "jsonb_lookup", "derived"}
         registry = load_feature_registry()
@@ -66,8 +74,8 @@ class TestLoadFeatureRegistry:
         expected = [
             "home_point_pctg",
             "away_point_pctg",
-            "home_goal_diff",
-            "point_pctg_diff",
+            "home_pp_pct",
+            "away_pk_pct",
             "rest_advantage",
             "home_is_back_to_back",
         ]
@@ -130,11 +138,6 @@ class TestGetModelFeatures:
         assert isinstance(features, list)
         assert len(features) > 0
 
-    def test_player_props_features_non_empty(self):
-        features = get_model_features("player_props")
-        assert isinstance(features, list)
-        assert len(features) > 0
-
     def test_accepts_model_type_enum(self):
         """Should work with ModelType enum values too."""
         features = get_model_features(ModelType.GAME_WINNER)
@@ -153,12 +156,13 @@ class TestGetModelFeatures:
                 assert len(name) > 0
 
     def test_game_winner_contains_key_features(self):
-        """Game winner model should include point percentage and rest features."""
+        """Game winner model should include point percentage, special teams, and rest features."""
         features = get_model_features("game_winner")
         assert "home_point_pctg" in features
         assert "away_point_pctg" in features
         assert "rest_advantage" in features
-        assert "point_pctg_diff" in features
+        assert "home_pp_pct" in features
+        assert "home_pk_pct" in features
 
     def test_totals_contains_goals_features(self):
         """Totals model should include goals-related features."""

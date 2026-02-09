@@ -177,6 +177,29 @@ def read_goalie_stats(
 
 
 @_retry
+def read_team_stat_category(
+    client: Client, team_abbrev: str, season: int, category: str
+) -> dict[str, Any] | None:
+    """
+    Read a single stat category from team_stat_categories.
+
+    Returns the JSONB `data` dict, or None if not found.
+    """
+    response = (
+        client.table(TEAM_STAT_CATEGORIES_TABLE)
+        .select("data")
+        .eq("team_abbrev", team_abbrev)
+        .eq("season", season)
+        .eq("stat_category", category)
+        .limit(1)
+        .execute()
+    )
+    if response.data:
+        return response.data[0].get("data")
+    return None
+
+
+@_retry
 def read_recent_games(
     client: Client, team_abbrev: str, before_date: str, limit: int = 10
 ) -> list[dict[str, Any]]:

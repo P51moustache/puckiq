@@ -79,44 +79,44 @@ if feature_importance:
             fi_df = fi_df.rename(columns={"name": "feature"})
 
 if not fi_df.empty and "feature" in fi_df.columns and "importance" in fi_df.columns:
-        # Sort by importance descending, take top 15
-        fi_df = fi_df.sort_values("importance", ascending=False).head(15)
+    # Sort by importance descending, take top 15
+    fi_df = fi_df.sort_values("importance", ascending=False).head(15)
 
-        # Reverse for horizontal bar chart (top feature at top of chart)
-        fi_df = fi_df.sort_values("importance", ascending=True)
+    # Reverse for horizontal bar chart (top feature at top of chart)
+    fi_df = fi_df.sort_values("importance", ascending=True)
 
-        fig = px.bar(
-            fi_df,
-            x="importance",
-            y="feature",
-            orientation="h",
-            color="importance",
-            color_continuous_scale="Blues",
-        )
-        fig.update_layout(
-            xaxis_title="Importance (split gain)",
-            yaxis_title="",
-            template="plotly_dark",
-            height=max(400, len(fi_df) * 30),
-            margin=dict(l=20, r=20, t=20, b=50),
-            showlegend=False,
-            coloraxis_showscale=False,
-        )
-        st.plotly_chart(fig, use_container_width=True)
+    fig = px.bar(
+        fi_df,
+        x="importance",
+        y="feature",
+        orientation="h",
+        color="importance",
+        color_continuous_scale="Blues",
+    )
+    fig.update_layout(
+        xaxis_title="Importance (split gain)",
+        yaxis_title="",
+        template="plotly_dark",
+        height=max(400, len(fi_df) * 30),
+        margin=dict(l=20, r=20, t=20, b=50),
+        showlegend=False,
+        coloraxis_showscale=False,
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
-        st.caption(
-            "**Split gain** measures how much each feature improves the model when used in a "
-            "decision tree split. Higher = more important. "
-            "If a few features dominate, the model may be too reliant on them. "
-            "If importance is spread evenly, each feature contributes a small amount. "
-            "Ideally, the top features make intuitive hockey sense "
-            "(e.g., goal differential, power play %, recent form)."
-        )
-    else:
-        st.warning(
-            f"Feature importance data has unexpected format. "
-            f"Columns found: {list(fi_df.columns)}"
-        )
+    st.caption(
+        "**Split gain** measures how much each feature improves the model when used in a "
+        "decision tree split. Higher = more important. "
+        "If a few features dominate, the model may be too reliant on them. "
+        "If importance is spread evenly, each feature contributes a small amount. "
+        "Ideally, the top features make intuitive hockey sense "
+        "(e.g., goal differential, power play %, recent form)."
+    )
+elif not fi_df.empty:
+    st.warning(
+        f"Feature importance data has unexpected format. "
+        f"Columns found: {list(fi_df.columns)}"
+    )
 else:
     st.info("No feature importance data available for this model type.")
 
@@ -182,15 +182,19 @@ st.subheader("All Features Used")
 features_used = model.get("features_used")
 
 if features_used and isinstance(features_used, list) and len(features_used) > 0:
-    # Feature descriptions — must match the actual feature names from features.yaml
+    # Feature descriptions — auto-matched from features.yaml feature names.
+    # If a feature isn't listed here, the table shows "—".
     FEATURE_DESCRIPTIONS = {
         # Standings-based (lookup)
         "home_point_pctg": "Home team season point percentage",
         "away_point_pctg": "Away team season point percentage",
-        "home_goal_diff": "Home team season goal differential",
-        "away_goal_diff": "Away team season goal differential",
-        "home_home_wins": "Home team wins at home this season",
-        "away_road_wins": "Away team wins on the road this season",
+        "home_home_win_pct": "Home team win rate at home (wins / home games played)",
+        "away_road_win_pct": "Away team win rate on the road (wins / road games played)",
+        # Special teams (jsonb_lookup from team_stat_categories)
+        "home_pp_pct": "Home team power play percentage",
+        "away_pp_pct": "Away team power play percentage",
+        "home_pk_pct": "Home team penalty kill percentage",
+        "away_pk_pct": "Away team penalty kill percentage",
         # Rolling window (recent form, last 10 games)
         "home_goals_for_l10": "Home team avg goals scored in last 10 games",
         "away_goals_for_l10": "Away team avg goals scored in last 10 games",
@@ -198,15 +202,18 @@ if features_used and isinstance(features_used, list) and len(features_used) > 0:
         "away_goals_against_l10": "Away team avg goals allowed in last 10 games",
         "home_win_pct_l10": "Home team win rate in last 10 games",
         "away_win_pct_l10": "Away team win rate in last 10 games",
+        "home_sog_l10": "Home team avg shots on goal in last 10 games",
+        "away_sog_l10": "Away team avg shots on goal in last 10 games",
         # Goalie stats
         "home_starter_save_pctg": "Home starting goalie save percentage",
         "away_starter_save_pctg": "Away starting goalie save percentage",
+        # Rolling goalie (recent form)
+        "home_starter_save_pctg_l10": "Home starting goalie save% over last 10 starts",
+        "away_starter_save_pctg_l10": "Away starting goalie save% over last 10 starts",
         # Rest / schedule (derived)
         "rest_advantage": "Home team rest days minus away (positive = home more rested)",
         "home_is_back_to_back": "1 if home team played yesterday, 0 otherwise",
         "away_is_back_to_back": "1 if away team played yesterday, 0 otherwise",
-        # Derived
-        "point_pctg_diff": "Home point% minus away point% (positive = home stronger)",
     }
 
     feature_data = []

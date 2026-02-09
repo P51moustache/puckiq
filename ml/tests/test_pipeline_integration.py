@@ -27,30 +27,14 @@ def chronological_dataset():
 
     300 games, chronologically ordered, with features and targets for
     all three model types (game_winner, spread, totals).
+    Auto-discovers features from features.yaml.
     """
+    from ml.features.registry import generate_synthetic_features
+
     np.random.seed(42)
     n = 300
 
-    features = pd.DataFrame({
-        "home_point_pctg": np.random.uniform(0.3, 0.8, n),
-        "away_point_pctg": np.random.uniform(0.3, 0.8, n),
-        "point_pctg_diff": np.random.uniform(-0.4, 0.4, n),
-        "home_goal_diff": np.random.uniform(-30, 30, n),
-        "away_goal_diff": np.random.uniform(-30, 30, n),
-        "home_home_wins": np.random.randint(5, 25, n).astype(float),
-        "away_road_wins": np.random.randint(3, 20, n).astype(float),
-        "home_goals_for_l10": np.random.uniform(2.0, 4.5, n),
-        "away_goals_for_l10": np.random.uniform(2.0, 4.5, n),
-        "home_goals_against_l10": np.random.uniform(2.0, 4.0, n),
-        "away_goals_against_l10": np.random.uniform(2.0, 4.0, n),
-        "home_win_pct_l10": np.random.uniform(0.2, 0.9, n),
-        "away_win_pct_l10": np.random.uniform(0.2, 0.9, n),
-        "home_is_back_to_back": np.random.choice([0, 1], n, p=[0.8, 0.2]).astype(float),
-        "away_is_back_to_back": np.random.choice([0, 1], n, p=[0.8, 0.2]).astype(float),
-        "rest_advantage": np.random.choice([-1, 0, 1, 2], n).astype(float),
-        "home_starter_save_pctg": np.random.uniform(0.88, 0.94, n),
-        "away_starter_save_pctg": np.random.uniform(0.88, 0.94, n),
-    })
+    features = generate_synthetic_features(n=n, model_type="game_winner", seed=42)
 
     targets_binary = pd.Series(
         np.random.choice([0, 1], n, p=[0.45, 0.55]), name="home_win"

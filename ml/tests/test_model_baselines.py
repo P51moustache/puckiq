@@ -119,8 +119,8 @@ class TestSimpleLogisticBaseline:
 
     def test_has_expected_features(self):
         logistic = SimpleLogisticBaseline()
-        assert "point_pctg_diff" in logistic.FEATURES
-        assert "home_goal_diff" in logistic.FEATURES
+        assert "home_point_pctg" in logistic.FEATURES
+        assert "away_point_pctg" in logistic.FEATURES
         assert "rest_advantage" in logistic.FEATURES
 
     def test_fit_and_predict(self, synthetic_game_features, synthetic_targets_binary):
@@ -151,11 +151,11 @@ class TestSimpleLogisticBaseline:
         np.random.seed(42)
         n = len(synthetic_targets_binary)
         features = pd.DataFrame({
-            "point_pctg_diff": np.random.uniform(-0.4, 0.4, n),
-            "home_goal_diff": [np.nan] * n,  # All NaN
-            "away_goal_diff": np.random.uniform(-30, 30, n),
+            "home_point_pctg": [np.nan] * n,  # All NaN
+            "away_point_pctg": np.random.uniform(0.3, 0.8, n),
             "rest_advantage": np.random.choice([-1, 0, 1], n).astype(float),
             "home_starter_save_pctg": np.random.uniform(0.88, 0.94, n),
+            "away_starter_save_pctg": np.random.uniform(0.88, 0.94, n),
         })
         logistic = SimpleLogisticBaseline()
         logistic.fit(features, synthetic_targets_binary)
@@ -184,21 +184,13 @@ class TestEvaluateBaselines:
 
     def test_too_few_games_for_logistic(self):
         """With too few games, logistic baseline should return default metrics."""
+        from ml.features.registry import generate_synthetic_features
         games = pd.DataFrame({
             "home_score": [3, 2],
             "away_score": [1, 4],
             "home_team_abbrev": ["TOR", "BOS"],
             "away_team_abbrev": ["MTL", "NYR"],
         })
-        features = pd.DataFrame({
-            "home_point_pctg": [0.6, 0.5],
-            "away_point_pctg": [0.5, 0.6],
-            "point_pctg_diff": [0.1, -0.1],
-            "home_goal_diff": [10, -5],
-            "away_goal_diff": [-5, 10],
-            "rest_advantage": [0, 1],
-            "home_starter_save_pctg": [0.91, 0.90],
-            "away_starter_save_pctg": [0.90, 0.91],
-        })
+        features = generate_synthetic_features(n=2, model_type="game_winner", seed=99)
         results = evaluate_baselines(games, features)
         assert results["logistic"]["n_games"] == 0
