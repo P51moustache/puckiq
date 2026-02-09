@@ -210,7 +210,7 @@ LGBM_REGRESSOR_DEFAULTS = {
 # Optuna tuning
 # ---------------------------------------------------------------------------
 
-ENABLE_TUNING = False  # Disabled for initial V3 retrain — re-enable after baseline models established
+ENABLE_TUNING = True  # Re-enabled after baseline V3 models established
 TUNING_N_TRIALS = 30  # Fewer than default 50 for weekly retrain speed
 
 
