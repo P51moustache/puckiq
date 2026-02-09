@@ -31,7 +31,12 @@ from supabase import Client
 
 from ml.config import CURRENT_SEASON
 from ml.features.registry import FeatureDefinition, load_feature_registry
-from ml.io.supabase_client import read_goalie_stats, read_recent_games, read_standings
+from ml.io.supabase_client import (
+    read_goalie_stats,
+    read_recent_games,
+    read_standings,
+    read_team_stat_category,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -78,8 +83,8 @@ def compute_all_features(
         away_standings = read_standings(client, away, standings_date)
         home_recent = None
         away_recent = None
-        home_goalies = None
-        away_goalies = None
+        # Cache for jsonb_lookup: (team, category) -> data dict
+        jsonb_cache: dict[tuple[str, str], dict | None] = {}
 
         for feat_name, feat_def in registry.items():
             try:
@@ -99,6 +104,10 @@ def compute_all_features(
                 elif feat_def.compute_type == "rolling_goalie":
                     row[feat_name] = _compute_rolling_goalie(
                         feat_def, home, away, client, game_date,
+                    )
+                elif feat_def.compute_type == "jsonb_lookup":
+                    row[feat_name] = _compute_jsonb_lookup(
+                        feat_def, home, away, client, jsonb_cache,
                     )
                 elif feat_def.compute_type == "derived":
                     row[feat_name] = _compute_derived(feat_def, row, home, away,
@@ -142,7 +151,25 @@ def _compute_lookup(
 
     if table == "standings":
         standings = home_standings if team_key == "home_team" else away_standings
-        if standings and column in standings:
+        if not standings:
+            return np.nan
+
+        # Virtual columns: computed rates from raw standings counts
+        if column == "home_win_pct":
+            wins = standings.get("home_wins", 0) or 0
+            losses = standings.get("home_losses", 0) or 0
+            ot = standings.get("home_ot_losses", 0) or 0
+            total = wins + losses + ot
+            return float(wins / total) if total > 0 else np.nan
+
+        if column == "road_win_pct":
+            wins = standings.get("road_wins", 0) or 0
+            losses = standings.get("road_losses", 0) or 0
+            ot = standings.get("road_ot_losses", 0) or 0
+            total = wins + losses + ot
+            return float(wins / total) if total > 0 else np.nan
+
+        if column in standings:
             return float(standings[column])
         return np.nan
 
@@ -191,6 +218,10 @@ def _compute_rolling_team(
         elif stat == "win":
             home_won = (game.get("home_score", 0) or 0) > (game.get("away_score", 0) or 0)
             values.append(1.0 if (home_won == is_home) else 0.0)
+        elif stat == "sog":
+            sog = game.get("home_sog" if is_home else "away_sog")
+            if sog is not None:
+                values.append(float(sog))
 
     if not values:
         return np.nan
@@ -259,6 +290,50 @@ def _compute_rolling_goalie(
     return np.nan
 
 
+def _compute_jsonb_lookup(
+    feat_def: FeatureDefinition,
+    home: str,
+    away: str,
+    client: Client,
+    cache: dict[tuple[str, str], dict | None],
+) -> float:
+    """
+    Extract a value from JSONB data in team_stat_categories.
+
+    The JSONB `data` column stores a list of team records. We find the
+    record matching our team and extract the requested field.
+    """
+    config = feat_def.config
+    team_key = config.get("team_key", "home_team")
+    category = config.get("category", "")
+    field_name = config.get("field", "")
+    team_abbrev = home if team_key == "home_team" else away
+
+    cache_key = (team_abbrev, category)
+    if cache_key not in cache:
+        cache[cache_key] = read_team_stat_category(
+            client, team_abbrev, CURRENT_SEASON, category,
+        )
+
+    data = cache[cache_key]
+    if not data:
+        return np.nan
+
+    # data is typically a list of team records from the NHL stats API
+    if isinstance(data, list):
+        for record in data:
+            if record.get("teamFullName") or record.get("teamAbbrev"):
+                val = record.get(field_name)
+                if val is not None:
+                    return float(val)
+    elif isinstance(data, dict):
+        val = data.get(field_name)
+        if val is not None:
+            return float(val)
+
+    return np.nan
+
+
 def _compute_derived(
     feat_def: FeatureDefinition,
     current_row: dict[str, Any],
@@ -270,13 +345,6 @@ def _compute_derived(
 ) -> float:
     """Compute a derived feature from already-computed features or game schedule."""
     name = feat_def.name
-
-    if name == "point_pctg_diff":
-        home_pctg = current_row.get("home_point_pctg", np.nan)
-        away_pctg = current_row.get("away_point_pctg", np.nan)
-        if np.isnan(home_pctg) or np.isnan(away_pctg):
-            return np.nan
-        return home_pctg - away_pctg
 
     if name == "rest_advantage":
         home_rest = _days_since_last_game(home_recent, game_date)

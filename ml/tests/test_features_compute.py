@@ -123,26 +123,6 @@ class TestBackToBackDetection:
 class TestComputeDerived:
     """Tests for _compute_derived with different feature types."""
 
-    def test_point_pctg_diff(self):
-        feat = FeatureDefinition(
-            name="point_pctg_diff",
-            description="test",
-            compute_type="derived",
-        )
-        row = {"home_point_pctg": 0.7, "away_point_pctg": 0.5}
-        result = _compute_derived(feat, row, "TOR", "BOS", None, None, "2025-01-15")
-        assert abs(result - 0.2) < 1e-9
-
-    def test_point_pctg_diff_with_nan(self):
-        feat = FeatureDefinition(
-            name="point_pctg_diff",
-            description="test",
-            compute_type="derived",
-        )
-        row = {"home_point_pctg": np.nan, "away_point_pctg": 0.5}
-        result = _compute_derived(feat, row, "TOR", "BOS", None, None, "2025-01-15")
-        assert np.isnan(result)
-
     def test_rest_advantage(self):
         feat = FeatureDefinition(
             name="rest_advantage",

@@ -15,6 +15,10 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from data import get_active_models, get_model_metadata, get_scores_last_n_days
 
+# Import per-metric overfitting thresholds from the ML config
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".."))
+from ml.config import OVERFITTING_THRESHOLDS
+
 st.set_page_config(page_title="Overview — PuckIQ ML", layout="wide")
 st.title("Overview")
 st.caption(
@@ -114,17 +118,19 @@ st.caption(
 # ---------------------------------------------------------------------------
 
 overfit_gap = primary.get("overfit_gap")
-if pd.notna(overfit_gap) and overfit_gap > 0.05:
+accuracy_threshold = OVERFITTING_THRESHOLDS.get("accuracy", 0.05)
+watch_threshold = accuracy_threshold * 0.6  # 60% of the danger threshold
+if pd.notna(overfit_gap) and overfit_gap > accuracy_threshold:
     st.error(
         f"**Overfitting Alert**: The active model's train-validation gap is "
-        f"{overfit_gap:.1%} (threshold: 5.0%). "
+        f"{overfit_gap:.1%} (threshold: {accuracy_threshold:.1%}). "
         f"The model may be memorizing training data instead of learning generalizable patterns. "
         f"Consider reducing model complexity or increasing regularization."
     )
-elif pd.notna(overfit_gap) and overfit_gap > 0.03:
+elif pd.notna(overfit_gap) and overfit_gap > watch_threshold:
     st.warning(
         f"**Overfitting Watch**: Train-validation gap is {overfit_gap:.1%}. "
-        f"Not yet critical, but approaching the 5% threshold."
+        f"Not yet critical, but approaching the {accuracy_threshold:.1%} threshold."
     )
 
 # ---------------------------------------------------------------------------

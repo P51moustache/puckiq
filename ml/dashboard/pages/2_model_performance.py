@@ -104,6 +104,43 @@ if evaluation is None:
 # Reliability diagram (THE key visualization)
 # ---------------------------------------------------------------------------
 
+st.subheader("Calibration Quality")
+
+# ECE metric — single-number summary of calibration quality
+ece_val = evaluation.get("ece")
+if ece_val is not None and pd.notna(ece_val):
+    ece_col1, ece_col2 = st.columns([1, 3])
+    with ece_col1:
+        st.metric("ECE", f"{ece_val:.4f}")
+    with ece_col2:
+        if ece_val < 0.03:
+            st.success(
+                "**Excellent calibration** — ECE < 0.03. "
+                "Predicted probabilities closely match actual outcomes."
+            )
+        elif ece_val < 0.05:
+            st.success(
+                "**Good calibration** — ECE < 0.05. "
+                "Predicted probabilities are reasonably well-matched to actual outcomes."
+            )
+        elif ece_val < 0.10:
+            st.warning(
+                "**Fair calibration** — ECE is between 0.05 and 0.10. "
+                "There is noticeable miscalibration; predictions are somewhat off."
+            )
+        else:
+            st.error(
+                "**Poor calibration** — ECE exceeds 0.10. "
+                "Predicted probabilities don't match actual outcomes well. "
+                "Consider Platt scaling or isotonic regression to recalibrate."
+            )
+    st.caption(
+        "**Expected Calibration Error (ECE)** is the weighted average gap between "
+        "predicted probabilities and actual outcomes across all buckets. "
+        "Lower is better. 0 = perfect calibration. "
+        "Typical good models achieve ECE < 0.05."
+    )
+
 st.subheader("Reliability Diagram")
 
 calibration_buckets = evaluation.get("calibration_buckets")

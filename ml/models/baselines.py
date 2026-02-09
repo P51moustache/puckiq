@@ -81,18 +81,17 @@ class FavoriteBaseline:
 
 class SimpleLogisticBaseline:
     """
-    Logistic regression with 5 core features.
+    Logistic regression with core features.
 
-    Features: point_pctg_diff, goal_diff_diff, rest_advantage,
-              home_starter_save_pctg, away_starter_save_pctg.
+    Features: home/away point percentage, rest, and goalie save percentage.
     """
 
     FEATURES = [
-        "point_pctg_diff",
-        "home_goal_diff",
-        "away_goal_diff",
+        "home_point_pctg",
+        "away_point_pctg",
         "rest_advantage",
         "home_starter_save_pctg",
+        "away_starter_save_pctg",
     ]
 
     def __init__(self) -> None:

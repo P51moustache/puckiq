@@ -2,42 +2,25 @@
 Shared fixtures for PuckIQ ML pipeline tests.
 
 All fixtures generate synthetic data so tests run offline without Supabase.
+Feature columns are auto-generated from features.yaml — no manual updates
+needed when features are added or removed.
 """
 
 import pytest
 import numpy as np
 import pandas as pd
 
+from ml.features.registry import generate_synthetic_features, get_model_features
+
 
 @pytest.fixture
 def synthetic_game_features():
     """Generate synthetic game features for testing.
 
-    Returns a DataFrame with 200 rows and 18 feature columns that mirror
-    the real feature set used by the game_winner, spread, and totals models.
+    Returns a DataFrame with 200 rows and columns matching the game_winner
+    model's feature set from features.yaml. Auto-discovers features.
     """
-    np.random.seed(42)
-    n = 200
-    return pd.DataFrame({
-        "home_point_pctg": np.random.uniform(0.3, 0.8, n),
-        "away_point_pctg": np.random.uniform(0.3, 0.8, n),
-        "point_pctg_diff": np.random.uniform(-0.4, 0.4, n),
-        "home_goal_diff": np.random.uniform(-30, 30, n),
-        "away_goal_diff": np.random.uniform(-30, 30, n),
-        "home_home_wins": np.random.randint(5, 25, n).astype(float),
-        "away_road_wins": np.random.randint(3, 20, n).astype(float),
-        "home_goals_for_l10": np.random.uniform(2.0, 4.5, n),
-        "away_goals_for_l10": np.random.uniform(2.0, 4.5, n),
-        "home_goals_against_l10": np.random.uniform(2.0, 4.0, n),
-        "away_goals_against_l10": np.random.uniform(2.0, 4.0, n),
-        "home_win_pct_l10": np.random.uniform(0.2, 0.9, n),
-        "away_win_pct_l10": np.random.uniform(0.2, 0.9, n),
-        "home_is_back_to_back": np.random.choice([0, 1], n, p=[0.8, 0.2]).astype(float),
-        "away_is_back_to_back": np.random.choice([0, 1], n, p=[0.8, 0.2]).astype(float),
-        "rest_advantage": np.random.choice([-1, 0, 1, 2], n).astype(float),
-        "home_starter_save_pctg": np.random.uniform(0.88, 0.94, n),
-        "away_starter_save_pctg": np.random.uniform(0.88, 0.94, n),
-    })
+    return generate_synthetic_features(n=200, model_type="game_winner", seed=42)
 
 
 @pytest.fixture
@@ -90,16 +73,11 @@ def synthetic_games_df():
 
 @pytest.fixture
 def synthetic_features_with_pctg(synthetic_games_df):
-    """Feature matrix with point percentages, indexed by game_id."""
-    np.random.seed(42)
+    """Feature matrix with all game_winner features, indexed by game_id.
+
+    Auto-discovers features from features.yaml.
+    """
     n = len(synthetic_games_df)
-    return pd.DataFrame({
-        "home_point_pctg": np.random.uniform(0.3, 0.8, n),
-        "away_point_pctg": np.random.uniform(0.3, 0.8, n),
-        "point_pctg_diff": np.random.uniform(-0.4, 0.4, n),
-        "home_goal_diff": np.random.uniform(-30, 30, n),
-        "away_goal_diff": np.random.uniform(-30, 30, n),
-        "rest_advantage": np.random.choice([-1, 0, 1, 2], n).astype(float),
-        "home_starter_save_pctg": np.random.uniform(0.88, 0.94, n),
-        "away_starter_save_pctg": np.random.uniform(0.88, 0.94, n),
-    }, index=synthetic_games_df["id"])
+    df = generate_synthetic_features(n=n, model_type="game_winner", seed=42)
+    df.index = synthetic_games_df["id"]
+    return df

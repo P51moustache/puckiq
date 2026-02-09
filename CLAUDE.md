@@ -340,6 +340,56 @@ const analytics = useAnalytics();
 analytics.trackFeatureUsed('feature_name', { param: 'value' });
 ```
 
+## ML Prediction Pipeline
+
+### Overview
+The `ml/` directory contains a LightGBM-based prediction pipeline for NHL games. Three models: `game_winner` (classification), `spread` (regression), `totals` (Poisson+LightGBM ensemble). All models train on Supabase data and evaluate with walk-forward cross-validation.
+
+### Key Files
+```
+ml/features/features.yaml    - Single source of truth for all ML features
+ml/features/registry.py      - Loads YAML, provides get_model_features() + generate_synthetic_features()
+ml/features/compute.py       - Computes feature values from Supabase data
+ml/models/                   - game_winner.py, spread.py, totals.py, baselines.py
+ml/evaluation/               - validation.py (walk-forward CV), calibration.py, overfitting.py
+ml/pipeline/                 - weekly_retrain.py, monthly_eval.py, daily_predict.py
+ml/scripts/run_baselines.py  - Baseline evaluation (run with --dry-run for synthetic data)
+ml/dashboard/                - Streamlit dashboard (pages/ for each view)
+ml/config.py                 - All constants, thresholds, hyperparameters
+ml/tests/                    - 284 tests, run with: ml/.venv/bin/python -m pytest ml/tests/ -x -q
+```
+
+### How to Add/Remove ML Features
+`features.yaml` is the single source of truth. Tests, baselines, and synthetic data auto-discover from it.
+
+**To add a feature:**
+1. Define it in `ml/features/features.yaml` under `features:`
+2. Add it to the relevant model(s) under `model_features:`
+3. If it uses a new `compute` type, implement the handler in `ml/features/compute.py`
+4. That's it — no test files need updating
+
+**To remove a feature:**
+1. Delete it from `features:` in `features.yaml`
+2. Remove it from any `model_features:` lists
+3. That's it
+
+**Compute types** (defined in features.yaml, implemented in compute.py):
+- `lookup` — Single value from a Supabase table (standings, goalie_season_stats)
+- `rolling_team` — Rolling average over recent games (goals_for, goals_against, win, sog)
+- `rolling_goalie` — Rolling average over recent goalie starts (save_pctg)
+- `jsonb_lookup` — Extract value from JSONB `data` column in team_stat_categories
+- `derived` — Computed from other values (rest_advantage, back-to-back detection)
+
+### Running the ML Pipeline
+```bash
+ml/.venv/bin/python -m ml.scripts.run_baselines --dry-run   # Baselines (no Supabase needed)
+ml/.venv/bin/python -m pytest ml/tests/ -x -q               # All 284 tests
+ml/.venv/bin/python -m streamlit run ml/dashboard/Home.py    # Dashboard
+```
+
+### ML Python Environment
+The ML pipeline uses its own venv at `ml/.venv/` (Python 3.13). Do NOT use the system Python. Always prefix ML commands with `ml/.venv/bin/python`.
+
 ## Performance Considerations
 
 - Use `useCallback` for event handlers in lists
@@ -372,6 +422,6 @@ analytics.trackFeatureUsed('feature_name', { param: 'value' });
 
 ---
 
-**Last Updated**: 2026-02-07 (Major cleanup: removed dead code, deprecated annotations, unused packages)
-**Version**: 2.3.0
+**Last Updated**: 2026-02-08 (Added ML pipeline docs, feature registry V2 with auto-discovery)
+**Version**: 2.4.0
 **Maintained by**: Development Team

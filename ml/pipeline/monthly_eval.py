@@ -50,8 +50,8 @@ from ml.config import (
     ML_SCORES_TABLE,
     ModelType,
 )
-from ml.evaluation.calibration import compute_calibration_buckets
-from ml.evaluation.overfitting import compute_train_val_gap_history
+from ml.evaluation.calibration import compute_calibration_buckets, compute_ece
+from ml.evaluation.overfitting import compute_train_val_gap_history, detect_overfitting
 from ml.features.compute import compute_all_features
 from ml.features.registry import load_feature_registry
 from ml.io.supabase_client import create_supabase_client, read_games
@@ -100,6 +100,7 @@ def _run() -> None:
     #    if ALL predictions are between 0.48 and 0.52, we'd get ~50% accuracy but
     #    zero useful confidence information. Calibration tells us if the probability
     #    values themselves are meaningful.
+    ece_score = None
     if "home_win_prob" in scores_df.columns and "was_correct" in scores_df.columns:
         # For calibration, we need predicted probability and binary outcome.
         # was_correct is already binary (True/False), which numpy treats as 1/0.
@@ -115,6 +116,7 @@ def _run() -> None:
             }
             for b in buckets
         ]
+        ece_score = compute_ece(predictions, actuals)
     else:
         calibration_data = []
 
@@ -151,8 +153,9 @@ def _run() -> None:
     metadata_list = _load_model_metadata_history(client, ModelType.GAME_WINNER.value)
     gap_history = compute_train_val_gap_history(metadata_list)
 
-    # Check if latest model shows overfitting
+    # Check if latest model shows overfitting, and compute per-metric gaps
     is_overfitting = gap_history[-1]["is_overfitting"] if gap_history else False
+    per_metric_gaps = gap_history[-1].get("gaps", {}) if gap_history else {}
 
     # 6. Write evaluation to ml_model_evaluations.
     #    Column names must match the DB schema exactly.
@@ -170,6 +173,8 @@ def _run() -> None:
         "vs_rule_based": vs_rule,
         "train_val_gap_history": gap_history,
         "is_overfitting": is_overfitting,
+        "ece": ece_score,
+        "per_metric_gaps": per_metric_gaps,
     }
 
     # Match the DB UNIQUE constraint: (model_type, model_version, evaluation_date)

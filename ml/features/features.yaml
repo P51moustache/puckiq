@@ -1,13 +1,20 @@
-# PuckIQ ML Feature Registry — V1
+# PuckIQ ML Feature Registry — V2
 #
 # Each feature defines how it is computed:
-#   lookup       — single value from a Supabase table (standings, goalie stats)
-#   rolling_team — rolling window over recent games
-#   jsonb_lookup — extract value from JSONB column in team_stat_categories
-#   derived      — computed from other features (no direct DB query)
+#   lookup        — single value from a Supabase table (standings, goalie stats)
+#   rolling_team  — rolling window over recent games
+#   rolling_goalie — rolling window over recent goalie starts
+#   jsonb_lookup  — extract value from JSONB column in team_stat_categories
+#   derived       — computed from other features (no direct DB query)
 #
 # CRITICAL: All features use as_of_date to prevent data leakage.
 # Standings use the snapshot from the day BEFORE the game.
+#
+# TO ADD A NEW FEATURE:
+#   1. Define it below in the `features:` section
+#   2. Add it to the relevant model(s) in `model_features:`
+#   3. If it's a new compute type, implement it in compute.py
+#   That's it — tests, baselines, and dashboard auto-discover from this file.
 
 features:
   # ---------------------------------------------------------------
@@ -35,45 +42,23 @@ features:
     tier: 1
     enabled: true
 
-  home_goal_diff:
-    description: "Home team season goal differential"
+  home_home_win_pct:
+    description: "Home team win percentage at home this season"
     compute: lookup
     lookup:
       table: standings
-      column: goal_differential
-      team_key: home_team
-      date_mode: latest_before
-    tier: 1
-    enabled: true
-
-  away_goal_diff:
-    description: "Away team season goal differential"
-    compute: lookup
-    lookup:
-      table: standings
-      column: goal_differential
-      team_key: away_team
-      date_mode: latest_before
-    tier: 1
-    enabled: true
-
-  home_home_wins:
-    description: "Home team wins at home this season"
-    compute: lookup
-    lookup:
-      table: standings
-      column: home_wins
+      column: home_win_pct
       team_key: home_team
       date_mode: latest_before
     tier: 2
     enabled: true
 
-  away_road_wins:
-    description: "Away team wins on the road this season"
+  away_road_win_pct:
+    description: "Away team win percentage on the road this season"
     compute: lookup
     lookup:
       table: standings
-      column: road_wins
+      column: road_win_pct
       team_key: away_team
       date_mode: latest_before
     tier: 2
@@ -148,6 +133,28 @@ features:
     tier: 1
     enabled: true
 
+  home_sog_l10:
+    description: "Home team avg shots on goal in last 10 games"
+    compute: rolling_team
+    rolling:
+      stat: sog
+      team_key: home_team
+      window: 10
+      aggregation: mean
+    tier: 2
+    enabled: true
+
+  away_sog_l10:
+    description: "Away team avg shots on goal in last 10 games"
+    compute: rolling_team
+    rolling:
+      stat: sog
+      team_key: away_team
+      window: 10
+      aggregation: mean
+    tier: 2
+    enabled: true
+
   # ---------------------------------------------------------------
   # Goalie (lookup from goalie_season_stats)
   # ---------------------------------------------------------------
@@ -197,6 +204,53 @@ features:
     enabled: true
 
   # ---------------------------------------------------------------
+  # Special teams (jsonb_lookup from team_stat_categories)
+  # ---------------------------------------------------------------
+  home_pp_pct:
+    description: "Home team power play percentage"
+    compute: jsonb_lookup
+    jsonb:
+      table: team_stat_categories
+      category: powerplay
+      field: powerPlayPct
+      team_key: home_team
+    tier: 1
+    enabled: true
+
+  away_pp_pct:
+    description: "Away team power play percentage"
+    compute: jsonb_lookup
+    jsonb:
+      table: team_stat_categories
+      category: powerplay
+      field: powerPlayPct
+      team_key: away_team
+    tier: 1
+    enabled: true
+
+  home_pk_pct:
+    description: "Home team penalty kill percentage"
+    compute: jsonb_lookup
+    jsonb:
+      table: team_stat_categories
+      category: penaltykill
+      field: penaltyKillPct
+      team_key: home_team
+    tier: 1
+    enabled: true
+
+  away_pk_pct:
+    description: "Away team penalty kill percentage"
+    compute: jsonb_lookup
+    jsonb:
+      table: team_stat_categories
+      category: penaltykill
+      field: penaltyKillPct
+      team_key: away_team
+    tier: 1
+    enabled: true
+
+  # ---------------------------------------------------------------
   # Rest / schedule (derived from games table)
   # ---------------------------------------------------------------
   rest_advantage:
@@ -211,37 +265,23 @@ features:
     enabled: true
 
   home_is_back_to_back:
-    description: "1 if home team played yesterday, 0 otherwise"
+    description: "1 if home team played yesterday (rest = 1 day), 0 otherwise"
     compute: derived
     derived:
-      formula: 1 if home_rest_days == 0 else 0
+      formula: 1 if home_rest_days == 1 else 0
       inputs:
         - home_rest_days
     tier: 2
     enabled: true
 
   away_is_back_to_back:
-    description: "1 if away team played yesterday, 0 otherwise"
+    description: "1 if away team played yesterday (rest = 1 day), 0 otherwise"
     compute: derived
     derived:
-      formula: 1 if away_rest_days == 0 else 0
+      formula: 1 if away_rest_days == 1 else 0
       inputs:
         - away_rest_days
     tier: 2
-    enabled: true
-
-  # ---------------------------------------------------------------
-  # Derived (computed from other features)
-  # ---------------------------------------------------------------
-  point_pctg_diff:
-    description: "Home point% minus away point% (positive = home is stronger)"
-    compute: derived
-    derived:
-      formula: home_point_pctg - away_point_pctg
-      inputs:
-        - home_point_pctg
-        - away_point_pctg
-    tier: 1
     enabled: true
 
 
@@ -252,57 +292,59 @@ model_features:
   game_winner:
     - home_point_pctg
     - away_point_pctg
-    - home_goal_diff
-    - away_goal_diff
-    - home_home_wins
-    - away_road_wins
+    - home_home_win_pct
+    - away_road_win_pct
     - home_goals_for_l10
     - away_goals_for_l10
     - home_goals_against_l10
     - away_goals_against_l10
     - home_win_pct_l10
     - away_win_pct_l10
+    - home_sog_l10
+    - away_sog_l10
     - home_starter_save_pctg
     - away_starter_save_pctg
     - home_starter_save_pctg_l10
     - away_starter_save_pctg_l10
+    - home_pp_pct
+    - away_pp_pct
+    - home_pk_pct
+    - away_pk_pct
     - rest_advantage
     - home_is_back_to_back
     - away_is_back_to_back
-    - point_pctg_diff
 
   spread:
     - home_point_pctg
     - away_point_pctg
-    - home_goal_diff
-    - away_goal_diff
     - home_goals_for_l10
     - away_goals_for_l10
     - home_goals_against_l10
     - away_goals_against_l10
+    - home_sog_l10
+    - away_sog_l10
     - home_starter_save_pctg
     - away_starter_save_pctg
     - home_starter_save_pctg_l10
     - away_starter_save_pctg_l10
+    - home_pp_pct
+    - away_pp_pct
+    - home_pk_pct
+    - away_pk_pct
     - rest_advantage
-    - point_pctg_diff
 
   totals:
     - home_goals_for_l10
     - away_goals_for_l10
     - home_goals_against_l10
     - away_goals_against_l10
+    - home_sog_l10
+    - away_sog_l10
     - home_starter_save_pctg
     - away_starter_save_pctg
     - home_starter_save_pctg_l10
     - away_starter_save_pctg_l10
-    - home_point_pctg
-    - away_point_pctg
-
-  player_props:
-    - player_gpg
-    - player_apg
-    - player_toi
-    - player_shot_pct
-    - opponent_ga_per_game
-    - is_home
+    - home_pp_pct
+    - away_pp_pct
+    - home_pk_pct
+    - away_pk_pct
