@@ -242,7 +242,7 @@ def _retrain_game_winner(
     _maybe_promote(
         storage, client, model_type, final_model,
         val_metrics=avg_val_metrics,
-        train_metrics=train_metrics,
+        train_metrics=avg_train_metrics,  # Use CV train metrics, not final model
         overfit_gap=overfit_gap,
         n_games=len(X),
         features_used=available,
@@ -250,6 +250,7 @@ def _retrain_game_winner(
         verification_features=X.iloc[-1:],  # last game for smoke test
         ece=ece_value,
         tuned_params=best_params,
+        training_date_range=f"{games_df['game_date'].min()} to {games_df['game_date'].max()}",
     )
 
 
@@ -301,13 +302,14 @@ def _retrain_spread(
     _maybe_promote(
         storage, client, model_type, final_model,
         val_metrics=avg_val_metrics,
-        train_metrics=train_metrics,
+        train_metrics=avg_train_metrics,  # Use CV train metrics, not final model
         overfit_gap=overfit_gap,
         n_games=len(X),
         features_used=available,
         feature_importance=final_model.get_feature_importance(),
         verification_features=X.iloc[-1:],
         tuned_params=best_params,
+        training_date_range=f"{games_df['game_date'].min()} to {games_df['game_date'].max()}",
     )
 
 
@@ -354,12 +356,13 @@ def _retrain_totals(
     _maybe_promote(
         storage, client, model_type, final_model,
         val_metrics=avg_val_metrics,
-        train_metrics=train_metrics,
+        train_metrics=avg_train_metrics,  # Use CV train metrics, not final model
         overfit_gap=overfit_gap,
         n_games=len(X),
         features_used=available,
         feature_importance=final_model.get_feature_importance(),
         verification_features=X.iloc[-1:],
+        training_date_range=f"{games_df['game_date'].min()} to {games_df['game_date'].max()}",
     )
 
 
@@ -442,10 +445,16 @@ def _retrain_player_props(
         + val_metrics["assists"]["mae"]
         + val_metrics["points"]["mae"]
     ) / 3.0
+    # Compute training date range from the games
+    date_min = games_df["game_date"].min() if "game_date" in games_df.columns else None
+    date_max = games_df["game_date"].max() if "game_date" in games_df.columns else None
+    training_date_range = f"{date_min} to {date_max}" if date_min and date_max else None
+
     write_model_metadata(client, {
         "model_type": model_type.value,
         "model_version": version,
         "training_games": len(X_train),
+        "training_date_range": training_date_range,
         "val_mae": round(avg_mae, 4),
         "hyperparameters": {
             "goals_mae": round(val_metrics["goals"]["mae"], 4),
@@ -482,6 +491,7 @@ def _maybe_promote(
     verification_features: pd.DataFrame | None = None,
     ece: float | None = None,
     tuned_params: dict[str, float] | None = None,
+    training_date_range: str | None = None,
 ) -> None:
     """
     Compare new model to current active and promote if better.
@@ -548,6 +558,7 @@ def _maybe_promote(
         "model_type": model_type.value,
         "model_version": version,
         "training_games": n_games,
+        "training_date_range": training_date_range,
         "val_brier_score": val_metrics.get("brier_score"),
         "val_accuracy": val_metrics.get("accuracy"),
         "val_log_loss": val_metrics.get("log_loss"),
