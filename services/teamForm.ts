@@ -89,6 +89,7 @@ export async function fetchTeamForm(
     const { data, error } = await supabase
       .from('games')
       .select('*')
+      .eq('game_type', 2)
       .or(`home_team_abbrev.eq.${teamAbbrev},away_team_abbrev.eq.${teamAbbrev}`)
       .in('game_state', ['FINAL', 'OFF'])
       .order('game_date', { ascending: false })
