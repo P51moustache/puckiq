@@ -1,7 +1,7 @@
 # Pinned for reproducible builds. Update with: pip-compile or manual bump.
 # Python version: 3.12 (must match ml/requirements.txt)
 streamlit==1.41.1
-supabase==2.11.0
+supabase==2.27.3
 plotly==5.24.1
 pandas==2.2.3
 python-dotenv==1.0.1
