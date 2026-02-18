@@ -16,7 +16,7 @@ import streamlit as st
 
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from data import get_active_models, get_model_metadata_by_type, get_latest_evaluation
+from data import get_active_models, get_model_metadata_by_type, get_latest_evaluation, OVERFITTING_THRESHOLDS
 
 st.set_page_config(page_title="Overfitting Monitor — PuckIQ ML", layout="wide")
 st.title("Overfitting Monitor")
@@ -61,11 +61,6 @@ if model_row.empty:
 
 model = model_row.iloc[0]
 overfit_gap = model.get("overfit_gap")
-
-# Import per-metric thresholds from the ML config
-import sys as _sys, os as _os
-_sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), "..", ".."))
-from ml.config import OVERFITTING_THRESHOLDS
 
 # Use model-type-appropriate metric and threshold.
 # game_winner uses accuracy gap (0-1 scale, displayed as %).

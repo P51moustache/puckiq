@@ -16,6 +16,18 @@ from supabase import Client, create_client
 load_dotenv()
 
 # ---------------------------------------------------------------------------
+# Constants (duplicated from ml/config.py to avoid import dependency)
+# ---------------------------------------------------------------------------
+
+OVERFITTING_THRESHOLDS = {
+    "accuracy": 0.05,
+    "brier_score": 0.05,
+    "mae": 0.50,
+    "rmse": 0.50,
+    "log_loss": 0.10,
+}
+
+# ---------------------------------------------------------------------------
 # Supabase connection
 # ---------------------------------------------------------------------------
 
