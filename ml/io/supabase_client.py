@@ -122,6 +122,35 @@ def read_games(client: Client, season: int, game_state: str | None = None) -> pd
     return pd.DataFrame(all_rows) if all_rows else pd.DataFrame()
 
 
+def read_games_multi(
+    client: Client, seasons: list[int], game_state: str | None = None
+) -> pd.DataFrame:
+    """
+    Read games from multiple seasons and concatenate into a single DataFrame.
+
+    Args:
+        seasons: List of season integers (e.g. [20232024, 20242025, 20252026]).
+        game_state: Optional filter (FUT, LIVE, FINAL, OFF).
+
+    Returns:
+        DataFrame of game rows sorted by game_date.
+    """
+    frames: list[pd.DataFrame] = []
+    for season in seasons:
+        df = read_games(client, season, game_state=game_state)
+        if not df.empty:
+            frames.append(df)
+            logger.info("read_games_multi: loaded %d games for season %d", len(df), season)
+
+    if not frames:
+        return pd.DataFrame()
+
+    combined = pd.concat(frames, ignore_index=True)
+    combined = combined.sort_values("game_date").reset_index(drop=True)
+    logger.info("read_games_multi: %d total games across %d seasons", len(combined), len(seasons))
+    return combined
+
+
 @_retry
 def read_standings(
     client: Client, team_abbrev: str, as_of_date: str
@@ -379,16 +408,22 @@ def write_predictions(client: Client, predictions: list[dict[str, Any]]) -> int:
     UPSERT predictions to ml_predictions.
 
     Each prediction must include: game_id, model_type, model_version (at minimum).
-    The UNIQUE constraint is (game_id, model_type, model_version), so we can store
-    predictions from multiple model versions for the same game.
+    The UNIQUE constraint is (game_id, model_type, model_version, player_id), so
+    we can store per-player predictions for player_props. Non-player-props rows
+    use player_id=0 (injected automatically if missing).
 
     Returns number of rows written.
     """
     if not predictions:
         return 0
-    # Match the DB UNIQUE constraint: (game_id, model_type, model_version)
+    # Ensure all rows have player_id (default 0 for non-player-props)
+    for p in predictions:
+        if "player_id" not in p:
+            p["player_id"] = 0
+
+    # Match the DB UNIQUE constraint: (game_id, model_type, model_version, player_id)
     response = client.table(ML_PREDICTIONS_TABLE).upsert(
-        predictions, on_conflict="game_id,model_type,model_version"
+        predictions, on_conflict="game_id,model_type,model_version,player_id"
     ).execute()
     count = len(response.data) if response.data else 0
     logger.info("Wrote %d predictions to %s", count, ML_PREDICTIONS_TABLE)
@@ -401,12 +436,20 @@ def write_scores(client: Client, scores: list[dict[str, Any]]) -> int:
     UPSERT prediction scores to ml_prediction_scores.
 
     Each score must include: game_id, model_type (at minimum).
+    The UNIQUE constraint is (game_id, model_type, player_id).
+    Non-player-props rows use player_id=0 (injected automatically if missing).
     Returns number of rows written.
     """
     if not scores:
         return 0
+
+    # Ensure all rows have player_id (default 0 for non-player-props)
+    for s in scores:
+        if "player_id" not in s:
+            s["player_id"] = 0
+
     response = client.table(ML_SCORES_TABLE).upsert(
-        scores, on_conflict="game_id,model_type"
+        scores, on_conflict="game_id,model_type,player_id"
     ).execute()
     count = len(response.data) if response.data else 0
     logger.info("Wrote %d scores to %s", count, ML_SCORES_TABLE)

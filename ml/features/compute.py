@@ -70,9 +70,13 @@ class FeatureCache:
     def __init__(self) -> None:
         # standings_by_team: team_abbrev -> list of dicts sorted by snapshot_date desc
         self.standings_by_team: dict[str, list[dict[str, Any]]] = {}
-        # goalie_stats_by_team: team_abbrev -> list of goalie stat dicts
+        # goalie_stats_by_team_season: (team_abbrev, season) -> list of goalie stat dicts
+        self.goalie_stats_by_team_season: dict[tuple[str, int], list[dict[str, Any]]] = {}
+        # Legacy accessor (populated from goalie_stats_by_team_season for current season)
         self.goalie_stats_by_team: dict[str, list[dict[str, Any]]] = {}
-        # team_stat_categories: (team_abbrev, category) -> data dict or None
+        # team_stat_categories: (team_abbrev, season, category) -> data dict or None
+        self.team_stat_categories_by_season: dict[tuple[str, int, str], dict | None] = {}
+        # Legacy accessor (populated for current season)
         self.team_stat_categories: dict[tuple[str, str], dict | None] = {}
         # recent_games_by_team: team_abbrev -> list of game dicts sorted by game_date desc
         self.recent_games_by_team: dict[str, list[dict[str, Any]]] = {}
@@ -82,15 +86,26 @@ class FeatureCache:
         self.shots_by_game: dict[int, list[dict[str, Any]]] = {}
         # game_details_by_id: game_id -> {season_series, scratches} dict
         self.game_details_by_id: dict[int, dict[str, Any]] = {}
+        # Seasons this cache was built for
+        self.seasons: list[int] = [CURRENT_SEASON]
 
     @classmethod
-    def build(cls, client: Client, games_df: pd.DataFrame) -> "FeatureCache":
+    def build(
+        cls, client: Client, games_df: pd.DataFrame,
+        seasons: list[int] | None = None,
+    ) -> "FeatureCache":
         """
         Build a cache by pre-loading all data needed for the games in games_df.
 
         Makes ~4 bulk queries instead of O(games * features) individual queries.
+
+        Args:
+            client: Supabase client.
+            games_df: DataFrame of games to compute features for.
+            seasons: List of seasons to load stats for. Defaults to [CURRENT_SEASON].
         """
         cache = cls()
+        cache.seasons = seasons or [CURRENT_SEASON]
 
         # Collect unique teams from the games
         teams = set()
@@ -99,18 +114,19 @@ class FeatureCache:
             teams.add(game["away_team_abbrev"])
         teams_list = sorted(teams)
 
-        logger.info("FeatureCache: pre-loading data for %d teams", len(teams_list))
+        logger.info("FeatureCache: pre-loading data for %d teams, %d seasons",
+                     len(teams_list), len(cache.seasons))
 
         # 1. Load ALL standings for these teams (all snapshot dates)
         cache._load_standings(client, teams_list)
 
-        # 2. Load ALL goalie season stats for these teams
+        # 2. Load ALL goalie season stats for these teams (all requested seasons)
         cache._load_goalie_stats(client, teams_list)
 
-        # 3. Load ALL team stat categories for these teams
+        # 3. Load ALL team stat categories for these teams (all requested seasons)
         cache._load_team_stat_categories(client, teams_list)
 
-        # 4. Load recent games for these teams (all completed games this season)
+        # 4. Load recent games for these teams (all completed games across all seasons)
         cache._load_recent_games(client, teams_list)
 
         # 5. Load advanced puck possession stats
@@ -145,39 +161,52 @@ class FeatureCache:
             logger.warning("FeatureCache: failed to load standings: %s", exc)
 
     def _load_goalie_stats(self, client: Client, teams: list[str]) -> None:
-        """Load all goalie season stats for all teams in one query."""
+        """Load goalie season stats for all teams across all requested seasons."""
         try:
             response = (
                 client.table(GOALIE_SEASON_STATS_TABLE)
                 .select("*")
                 .in_("team_abbrev", teams)
-                .eq("season", CURRENT_SEASON)
+                .in_("season", self.seasons)
                 .execute()
             )
             for row in response.data or []:
                 team = row["team_abbrev"]
-                if team not in self.goalie_stats_by_team:
-                    self.goalie_stats_by_team[team] = []
-                self.goalie_stats_by_team[team].append(row)
-            logger.info("FeatureCache: loaded %d goalie stat rows", len(response.data or []))
+                season = row.get("season", CURRENT_SEASON)
+                key = (team, season)
+                if key not in self.goalie_stats_by_team_season:
+                    self.goalie_stats_by_team_season[key] = []
+                self.goalie_stats_by_team_season[key].append(row)
+                # Also populate legacy accessor for current season
+                if season == CURRENT_SEASON:
+                    if team not in self.goalie_stats_by_team:
+                        self.goalie_stats_by_team[team] = []
+                    self.goalie_stats_by_team[team].append(row)
+            logger.info("FeatureCache: loaded %d goalie stat rows across %d seasons",
+                         len(response.data or []), len(self.seasons))
         except Exception as exc:
             logger.warning("FeatureCache: failed to load goalie stats: %s", exc)
 
     def _load_team_stat_categories(self, client: Client, teams: list[str]) -> None:
-        """Load all team stat categories for all teams in one query."""
+        """Load team stat categories for all teams across all requested seasons."""
         try:
             response = (
                 client.table(TEAM_STAT_CATEGORIES_TABLE)
                 .select("*")
                 .in_("team_abbrev", teams)
-                .eq("season", CURRENT_SEASON)
+                .in_("season", self.seasons)
                 .execute()
             )
             for row in response.data or []:
                 team = row["team_abbrev"]
+                season = row.get("season", CURRENT_SEASON)
                 category = row.get("stat_category", "")
-                self.team_stat_categories[(team, category)] = row.get("data")
-            logger.info("FeatureCache: loaded %d team stat category rows", len(response.data or []))
+                self.team_stat_categories_by_season[(team, season, category)] = row.get("data")
+                # Also populate legacy accessor for current season
+                if season == CURRENT_SEASON:
+                    self.team_stat_categories[(team, category)] = row.get("data")
+            logger.info("FeatureCache: loaded %d team stat category rows across %d seasons",
+                         len(response.data or []), len(self.seasons))
         except Exception as exc:
             logger.warning("FeatureCache: failed to load team stat categories: %s", exc)
 
@@ -319,12 +348,22 @@ class FeatureCache:
             "road_ot_losses": road_ot_losses,
         }
 
-    def get_goalie_stats(self, team_abbrev: str) -> list[dict[str, Any]]:
-        """Get goalie season stats for a team."""
+    def get_goalie_stats(self, team_abbrev: str, season: int | None = None) -> list[dict[str, Any]]:
+        """Get goalie season stats for a team. Falls back to legacy dict."""
+        if season is not None:
+            result = self.goalie_stats_by_team_season.get((team_abbrev, season), [])
+            if result:
+                return result
         return self.goalie_stats_by_team.get(team_abbrev, [])
 
-    def get_team_stat_category(self, team_abbrev: str, category: str) -> dict | None:
-        """Get a team stat category's JSONB data."""
+    def get_team_stat_category(
+        self, team_abbrev: str, category: str, season: int | None = None,
+    ) -> dict | None:
+        """Get a team stat category's JSONB data. Falls back to legacy dict."""
+        if season is not None:
+            result = self.team_stat_categories_by_season.get((team_abbrev, season, category))
+            if result is not None:
+                return result
         return self.team_stat_categories.get((team_abbrev, category))
 
     def _load_advanced_stats(self, client: Client, teams: list[str]) -> None:
@@ -339,21 +378,22 @@ class FeatureCache:
             # Supabase returns max 1000 rows per query — paginate to get all.
             rows: list[dict] = []
             page_size = 1000
-            offset = 0
-            while True:
-                response = (
-                    client.table(SKATER_GAME_CATEGORIES_TABLE)
-                    .select("game_id, game_date, data")
-                    .eq("season", CURRENT_SEASON)
-                    .eq("stat_category", "puckPossessions")
-                    .range(offset, offset + page_size - 1)
-                    .execute()
-                )
-                batch = response.data or []
-                rows.extend(batch)
-                if len(batch) < page_size:
-                    break
-                offset += page_size
+            for season in self.seasons:
+                offset = 0
+                while True:
+                    response = (
+                        client.table(SKATER_GAME_CATEGORIES_TABLE)
+                        .select("game_id, game_date, data")
+                        .eq("season", season)
+                        .eq("stat_category", "puckPossessions")
+                        .range(offset, offset + page_size - 1)
+                        .execute()
+                    )
+                    batch = response.data or []
+                    rows.extend(batch)
+                    if len(batch) < page_size:
+                        break
+                    offset += page_size
 
             # Group by (team_abbrev, game_id) and average Corsi%/Fenwick% across skaters
             # Extract team_abbrev from data.teamAbbrev since DB column may be NULL
@@ -595,6 +635,7 @@ def compute_all_features(
         home = game["home_team_abbrev"]
         away = game["away_team_abbrev"]
         game_date = str(game.get("game_date", as_of_date))
+        game_season = game.get("season", CURRENT_SEASON)
 
         # Use the day before game_date for standings to prevent leakage.
         # WHY YESTERDAY? Because today's standings might include today's game result.
@@ -622,7 +663,7 @@ def compute_all_features(
                 if feat_def.compute_type == "lookup":
                     row[feat_name] = _compute_lookup(
                         feat_def, home, away, home_standings, away_standings,
-                        client, game_date, cache=cache,
+                        client, game_date, cache=cache, season=game_season,
                     )
                 elif feat_def.compute_type == "rolling_team":
                     if home_recent is None:
@@ -659,10 +700,12 @@ def compute_all_features(
                 elif feat_def.compute_type == "rolling_goalie":
                     row[feat_name] = _compute_rolling_goalie(
                         feat_def, home, away, client, game_date, cache=cache,
+                        season=game_season,
                     )
                 elif feat_def.compute_type == "jsonb_lookup":
                     row[feat_name] = _compute_jsonb_lookup(
                         feat_def, home, away, client, jsonb_cache, cache=cache,
+                        season=game_season,
                     )
                 elif feat_def.compute_type == "game_detail_lookup":
                     row[feat_name] = _compute_game_detail_lookup(
@@ -703,6 +746,7 @@ def _compute_lookup(
     client: Client,
     game_date: str,
     cache: FeatureCache | None = None,
+    season: int = CURRENT_SEASON,
 ) -> float:
     """Compute a lookup feature from standings or goalie stats."""
     config = feat_def.config
@@ -738,9 +782,9 @@ def _compute_lookup(
 
     if table == "goalie_season_stats":
         if cache is not None:
-            goalies = cache.get_goalie_stats(team_abbrev)
+            goalies = cache.get_goalie_stats(team_abbrev, season=season)
         else:
-            goalies = read_goalie_stats(client, team_abbrev, CURRENT_SEASON)
+            goalies = read_goalie_stats(client, team_abbrev, season)
         if not goalies:
             return np.nan
 
@@ -936,6 +980,7 @@ def _compute_rolling_goalie(
     client: Client,
     game_date: str,
     cache: FeatureCache | None = None,
+    season: int = CURRENT_SEASON,
 ) -> float:
     """
     Compute rolling goalie save% from recent game-level goalie stats.
@@ -995,9 +1040,9 @@ def _compute_rolling_goalie(
     # Fall back to season average — use cache if available
     try:
         if cache is not None:
-            goalies = cache.get_goalie_stats(team_abbrev)
+            goalies = cache.get_goalie_stats(team_abbrev, season=season)
         else:
-            goalies = read_goalie_stats(client, team_abbrev, CURRENT_SEASON)
+            goalies = read_goalie_stats(client, team_abbrev, season)
         if goalies:
             starter = max(goalies, key=lambda g: g.get("games_started", 0))
             sv = starter.get("save_pctg")
@@ -1022,6 +1067,7 @@ def _compute_jsonb_lookup(
     client: Client,
     per_game_cache: dict[tuple[str, str], dict | None],
     cache: FeatureCache | None = None,
+    season: int = CURRENT_SEASON,
 ) -> float:
     """
     Extract a value from JSONB data in team_stat_categories.
@@ -1039,11 +1085,11 @@ def _compute_jsonb_lookup(
 
     # Use FeatureCache if available, otherwise fall back to per-game cache
     if cache is not None:
-        data = cache.get_team_stat_category(team_abbrev, category)
+        data = cache.get_team_stat_category(team_abbrev, category, season=season)
     else:
         if cache_key not in per_game_cache:
             per_game_cache[cache_key] = read_team_stat_category(
-                client, team_abbrev, CURRENT_SEASON, category,
+                client, team_abbrev, season, category,
             )
         data = per_game_cache[cache_key]
 

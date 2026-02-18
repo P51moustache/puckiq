@@ -91,52 +91,65 @@ scores_df = get_prediction_scores(
 
 def extract_player_predictions(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Extract player_predictions JSONB from each prediction row into flat rows.
+    Extract player predictions into flat rows.
 
-    Handles two formats:
-    1. Single dict per row (current pipeline): {"player_id": 123, "expected_goals": 0.8, ...}
-    2. List of dicts per row (legacy/alternate): [{"player_name": "...", ...}, ...]
+    With the new schema, each prediction row has a player_id column directly.
+    The player_predictions JSONB contains expected_goals/assists/points.
+    Also handles legacy formats for backwards compatibility.
     """
     rows = []
-    if df.empty or "player_predictions" not in df.columns:
+    if df.empty:
         return pd.DataFrame()
 
-    for _, row in df.iterrows():
-        preds = row.get("player_predictions")
-        if not preds:
-            continue
+    # Filter to player_props rows only
+    pp_df = df[df["model_type"] == "player_props"] if "model_type" in df.columns else df
 
+    for _, row in pp_df.iterrows():
         base = {
             "game_id": row.get("game_id"),
             "game_date": row.get("game_date"),
             "model_type": row.get("model_type"),
         }
 
-        if isinstance(preds, dict):
-            flat = {**base, **preds}
-            rows.append(flat)
-        elif isinstance(preds, list):
-            for p in preds:
-                if isinstance(p, dict):
-                    flat = {**base, **p}
-                    rows.append(flat)
+        # New schema: player_id is a direct column
+        if "player_id" in row.index and row.get("player_id") and row.get("player_id") != 0:
+            base["player_id"] = row["player_id"]
+
+        preds = row.get("player_predictions")
+        if preds:
+            if isinstance(preds, dict):
+                flat = {**base, **preds}
+                rows.append(flat)
+            elif isinstance(preds, list):
+                for p in preds:
+                    if isinstance(p, dict):
+                        flat = {**base, **p}
+                        rows.append(flat)
+        elif base.get("player_id"):
+            # Row has player_id but no JSONB — still include it
+            rows.append(base)
 
     return pd.DataFrame(rows)
 
 
 def extract_player_scores(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Extract player_scores JSONB from each scored prediction row into flat rows.
+    Extract player scores into flat rows.
 
-    Handles two formats:
-    1. Single dict per row: {"player_id": 123, "expected_goals": 0.8, "actual_goals": 1, ...}
-    2. List of dicts per row: [{"player_name": "...", ...}, ...]
+    With the new schema, each score row has a player_id column directly.
+    The player_scores JSONB contains per-stat predicted/actual/error values.
+    Also handles legacy formats for backwards compatibility.
     """
     rows = []
-    if df.empty or "player_scores" not in df.columns:
+    if df.empty:
         return pd.DataFrame()
 
-    for _, row in df.iterrows():
+    # Filter to player_props rows only
+    pp_df = df[df["model_type"] == "player_props"] if "model_type" in df.columns else df
+    if pp_df.empty or "player_scores" not in pp_df.columns:
+        return pd.DataFrame()
+
+    for _, row in pp_df.iterrows():
         scores = row.get("player_scores")
         if not scores:
             continue
@@ -146,6 +159,10 @@ def extract_player_scores(df: pd.DataFrame) -> pd.DataFrame:
             "game_date": row.get("game_date"),
             "model_type": row.get("model_type"),
         }
+
+        # New schema: player_id is a direct column
+        if "player_id" in row.index and row.get("player_id") and row.get("player_id") != 0:
+            base["player_id"] = row["player_id"]
 
         if isinstance(scores, dict):
             flat = {**base, **scores}

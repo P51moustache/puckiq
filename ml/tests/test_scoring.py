@@ -246,6 +246,107 @@ class TestScoreUnknownModelType:
         assert result is None
 
 
+class TestScorePlayerProps:
+    """Tests for _compute_score with ModelType.PLAYER_PROPS."""
+
+    def test_player_props_scoring(self):
+        prediction = {
+            "game_id": "game_pp1",
+            "game_date": "2025-01-15",
+            "player_id": 8478402,
+            "player_predictions": {
+                "expected_goals": 0.8,
+                "expected_assists": 0.5,
+                "expected_points": 1.3,
+            },
+            "_actual_player_stats": {
+                "goals": 1,
+                "assists": 0,
+                "points": 1,
+            },
+        }
+        actual = {
+            "home_team_abbrev": "TOR",
+            "away_team_abbrev": "BOS",
+            "home_score": 4,
+            "away_score": 2,
+        }
+        result = _compute_score(prediction, actual, ModelType.PLAYER_PROPS)
+        assert result is not None
+        assert result["player_id"] == 8478402
+        assert result["player_scores"]["goals_error"] == abs(0.8 - 1)
+        assert result["player_scores"]["assists_error"] == 0.5
+        assert result["player_scores"]["points_error"] == abs(1.3 - 1)
+
+    def test_player_props_no_actual_stats_returns_none(self):
+        """If actual player stats aren't available, skip scoring."""
+        prediction = {
+            "game_id": "game_pp2",
+            "game_date": "2025-01-15",
+            "player_id": 8478402,
+            "player_predictions": {
+                "expected_goals": 0.5,
+                "expected_assists": 0.3,
+                "expected_points": 0.8,
+            },
+            "_actual_player_stats": None,
+        }
+        actual = {
+            "home_team_abbrev": "TOR",
+            "away_team_abbrev": "BOS",
+            "home_score": 3,
+            "away_score": 2,
+        }
+        result = _compute_score(prediction, actual, ModelType.PLAYER_PROPS)
+        assert result is None
+
+    def test_player_props_no_player_id_returns_none(self):
+        """Predictions without player_id should be skipped."""
+        prediction = {
+            "game_id": "game_pp3",
+            "game_date": "2025-01-15",
+            "player_id": 0,
+            "player_predictions": {},
+            "_actual_player_stats": {"goals": 1},
+        }
+        actual = {
+            "home_team_abbrev": "TOR",
+            "away_team_abbrev": "BOS",
+            "home_score": 3,
+            "away_score": 2,
+        }
+        result = _compute_score(prediction, actual, ModelType.PLAYER_PROPS)
+        assert result is None
+
+    def test_player_props_perfect_prediction(self):
+        prediction = {
+            "game_id": "game_pp4",
+            "game_date": "2025-01-15",
+            "player_id": 8479318,
+            "player_predictions": {
+                "expected_goals": 1.0,
+                "expected_assists": 2.0,
+                "expected_points": 3.0,
+            },
+            "_actual_player_stats": {
+                "goals": 1,
+                "assists": 2,
+                "points": 3,
+            },
+        }
+        actual = {
+            "home_team_abbrev": "TOR",
+            "away_team_abbrev": "BOS",
+            "home_score": 5,
+            "away_score": 2,
+        }
+        result = _compute_score(prediction, actual, ModelType.PLAYER_PROPS)
+        assert result is not None
+        assert result["player_scores"]["goals_error"] == 0.0
+        assert result["player_scores"]["assists_error"] == 0.0
+        assert result["player_scores"]["points_error"] == 0.0
+
+
 class TestScoreWithMissingData:
     """Tests for edge cases with missing or None scores."""
 
