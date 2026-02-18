@@ -72,7 +72,7 @@ def main() -> None:
     if games_df.empty:
         logger.warning("No completed games found")
         return
-    games_df = games_df.sort_values("game_date").reset_index(drop=True)
+    games_df = games_df.drop_duplicates(subset=["id"]).sort_values("game_date").reset_index(drop=True)
     n_total = len(games_df)
     split_idx = int(n_total * TRAIN_FRACTION)
     logger.info("Loaded %d completed games across %d seasons, split at %d (train=%d, test=%d)",

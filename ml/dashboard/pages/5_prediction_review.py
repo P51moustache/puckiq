@@ -111,10 +111,13 @@ predictions_df = get_predictions(
 # Merge on game_id + model_type to get confidence and other prediction fields
 if not predictions_df.empty:
     merge_cols = ["game_id", "model_type"]
+    # Include player_id in merge key when both tables have it (player_props rows)
+    if "player_id" in predictions_df.columns and "player_id" in scores_df.columns:
+        merge_cols = ["game_id", "model_type", "player_id"]
     # Select only useful prediction columns to avoid clashes
     pred_extra_cols = []
     for col in ["confidence", "data_quality", "top_factors"]:
-        if col in predictions_df.columns:
+        if col in predictions_df.columns and col not in merge_cols:
             pred_extra_cols.append(col)
 
     if pred_extra_cols:
