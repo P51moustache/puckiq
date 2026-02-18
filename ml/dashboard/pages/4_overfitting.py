@@ -180,7 +180,7 @@ if per_metric_gaps and isinstance(per_metric_gaps, dict) and len(per_metric_gaps
             })
 
     if gap_rows:
-        st.dataframe(pd.DataFrame(gap_rows), width="stretch", hide_index=True)
+        st.dataframe(pd.DataFrame(gap_rows), use_container_width=True, hide_index=True)
         st.caption(
             "Per-metric gaps use different thresholds because metrics have different scales. "
             "Accuracy and Brier are 0-1, so a 0.05 gap is meaningful. "
@@ -289,7 +289,7 @@ if evaluation is not None:
                 ),
             )
 
-            st.plotly_chart(fig, width="stretch")
+            st.plotly_chart(fig, use_container_width=True)
 
             st.caption(
                 "This chart shows how the train-validation gap has changed over time. "
@@ -448,7 +448,7 @@ else:
             "%Y-%m-%d %H:%M"
         )
 
-    st.dataframe(display_df, width="stretch", hide_index=True)
+    st.dataframe(display_df, use_container_width=True, hide_index=True)
 
     if model_type in _CLASSIFICATION_MODELS:
         st.caption(
@@ -544,7 +544,7 @@ if not active_models.empty and "overfit_gap" in active_models.columns:
             showlegend=False,
         )
 
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, use_container_width=True)
 
         st.caption(
             "Side-by-side comparison of overfitting across all active model types. "

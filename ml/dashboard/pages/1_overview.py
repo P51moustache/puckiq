@@ -158,7 +158,7 @@ if len(active_models) > 1:
         row["Overfit Gap"] = f"{gap:.1%}" if pd.notna(gap) else "—"
         summary_rows.append(row)
 
-    st.dataframe(pd.DataFrame(summary_rows), width="stretch", hide_index=True)
+    st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
     st.caption(
         "Summary of all active models. **Primary Metric** is Brier score for game_winner "
         "(lower = better) and MAE for spread/totals/player_props (lower = better)."
@@ -234,7 +234,7 @@ else:
             margin=dict(l=50, r=20, t=20, b=50),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         )
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, use_container_width=True)
 
         st.caption(
             "Each dot is one day's accuracy (games correct / total games). "
@@ -274,7 +274,7 @@ else:
                 lambda x: f"{x:.4f}" if pd.notna(x) else "—"
             )
 
-    st.dataframe(display_df, width="stretch", hide_index=True)
+    st.dataframe(display_df, use_container_width=True, hide_index=True)
 
     st.caption(
         "Each row is a model version. **is_active = True** means it is the model "

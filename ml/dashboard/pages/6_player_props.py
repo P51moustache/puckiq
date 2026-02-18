@@ -312,7 +312,7 @@ if has_scores and not player_scores.empty and score_name_col:
 
         st.dataframe(
             display_df,
-            width="stretch",
+            use_container_width=True,
             hide_index=True,
             height=min(500, len(display_df) * 40 + 40),
         )
@@ -357,7 +357,7 @@ if has_scores and not player_scores.empty and score_name_col:
                 )
                 st.dataframe(
                     mae_df,
-                    width="stretch",
+                    use_container_width=True,
                     hide_index=True,
                 )
 
@@ -436,7 +436,7 @@ if has_scores and not player_scores.empty and score_name_col:
                             x=1,
                         ),
                     )
-                    st.plotly_chart(fig, width="stretch")
+                    st.plotly_chart(fig, use_container_width=True)
 
                     st.caption(
                         f"Rolling 7-day MAE for {primary_stat} predictions. "
@@ -453,7 +453,7 @@ if has_scores and not player_scores.empty and score_name_col:
         # No matched predicted/actual pairs — show raw data
         st.dataframe(
             player_scores,
-            width="stretch",
+            use_container_width=True,
             hide_index=True,
         )
         st.caption(
@@ -485,7 +485,7 @@ elif has_predictions and not player_preds.empty and pred_name_col:
         )
         st.dataframe(
             display_df,
-            width="stretch",
+            use_container_width=True,
             hide_index=True,
             height=min(400, len(display_df) * 40 + 40),
         )

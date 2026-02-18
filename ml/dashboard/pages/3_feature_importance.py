@@ -102,7 +102,7 @@ if not fi_df.empty and "feature" in fi_df.columns and "importance" in fi_df.colu
         showlegend=False,
         coloraxis_showscale=False,
     )
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
     st.caption(
         "**Split gain** measures how much each feature improves the model when used in a "
@@ -254,7 +254,7 @@ if features_used and isinstance(features_used, list) and len(features_used) > 0:
 
     st.dataframe(
         pd.DataFrame(feature_data),
-        width="stretch",
+        use_container_width=True,
         hide_index=True,
         height=min(600, len(feature_data) * 40 + 40),
     )

@@ -314,12 +314,12 @@ if display_cols:
     st.dataframe(
         display_df,
         column_config=col_config,
-        width="stretch",
+        use_container_width=True,
         hide_index=True,
         height=min(600, len(display_df) * 40 + 40),
     )
 else:
-    st.dataframe(df, width="stretch", hide_index=True)
+    st.dataframe(df, use_container_width=True, hide_index=True)
 
 st.caption(
     "Each row is one game prediction and its outcome. "
@@ -361,7 +361,7 @@ if "game_date" in df.columns and "was_correct" in df.columns:
                 "accuracy_display": "Accuracy",
             }
         ),
-        width="stretch",
+        use_container_width=True,
         hide_index=True,
         height=min(400, len(daily) * 40 + 40),
     )

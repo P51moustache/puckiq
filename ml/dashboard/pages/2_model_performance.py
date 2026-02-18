@@ -96,7 +96,7 @@ if evaluation is None:
             margin=dict(l=20, r=20, t=20, b=50),
             showlegend=False, coloraxis_showscale=False,
         )
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, use_container_width=True)
 
     st.stop()
 
@@ -192,7 +192,7 @@ if calibration_buckets and isinstance(calibration_buckets, list) and len(calibra
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
 
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
     st.caption(
         "**How to read this chart:** Each point shows a bucket of predictions grouped by "
@@ -233,7 +233,7 @@ if accuracy_by_confidence and isinstance(accuracy_by_confidence, (list, dict)):
                 lambda x: f"{x:.1%}" if pd.notna(x) else "—"
             )
 
-        st.dataframe(conf_df, width="stretch", hide_index=True)
+        st.dataframe(conf_df, use_container_width=True, hide_index=True)
 
         st.caption(
             "**High confidence** predictions (above 65% probability) should have the highest accuracy. "
@@ -291,7 +291,7 @@ if baseline_data["Baseline"]:
     # Add a zero line
     fig.add_vline(x=0, line_dash="dash", line_color="white", opacity=0.3)
 
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
     st.caption(
         "**Lift** = how many percentage points better the ML model is compared to each baseline. "
