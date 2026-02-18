@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from data import get_active_models, get_model_metadata, get_scores_last_n_days
 
 # Import per-metric overfitting thresholds from the ML config
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "..", ".."))
 from ml.config import OVERFITTING_THRESHOLDS
 
 st.set_page_config(page_title="Overview — PuckIQ ML", layout="wide")
