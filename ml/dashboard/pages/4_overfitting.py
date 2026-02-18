@@ -64,7 +64,7 @@ overfit_gap = model.get("overfit_gap")
 
 # Import per-metric thresholds from the ML config
 import sys as _sys, os as _os
-_sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), ".."))
+_sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), "..", ".."))
 from ml.config import OVERFITTING_THRESHOLDS
 
 # Use model-type-appropriate metric and threshold.

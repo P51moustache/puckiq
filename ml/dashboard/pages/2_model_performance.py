@@ -164,8 +164,8 @@ if calibration_buckets and isinstance(calibration_buckets, list) and len(calibra
     # Actual calibration points
     fig.add_trace(
         go.Scatter(
-            x=cal_df["predicted_prob"],
-            y=cal_df["actual_prob"],
+            x=cal_df.get("predicted_avg", cal_df.get("predicted_prob", pd.Series())),
+            y=cal_df.get("actual_avg", cal_df.get("actual_prob", pd.Series())),
             mode="lines+markers",
             name="Model Calibration",
             line=dict(color="#1f77b4", width=3),

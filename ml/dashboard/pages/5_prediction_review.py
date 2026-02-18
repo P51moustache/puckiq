@@ -170,9 +170,14 @@ if df.empty:
 
 st.subheader("Summary")
 
+# Only count rows where was_correct is not null (spread/totals don't have it)
+has_correct = df["was_correct"].notna() if "was_correct" in df.columns else pd.Series(dtype=bool)
+scored_df = df[has_correct] if has_correct.any() else pd.DataFrame()
+
 total_predictions = len(df)
-correct_predictions = df["was_correct"].sum() if "was_correct" in df.columns else 0
-accuracy = correct_predictions / total_predictions if total_predictions > 0 else 0
+total_scored = len(scored_df)
+correct_predictions = scored_df["was_correct"].sum() if not scored_df.empty else 0
+accuracy = correct_predictions / total_scored if total_scored > 0 else 0
 
 summary_col1, summary_col2, summary_col3, summary_col4 = st.columns(4)
 
@@ -183,10 +188,11 @@ with summary_col2:
     st.metric("Correct", int(correct_predictions))
 
 with summary_col3:
-    st.metric("Incorrect", int(total_predictions - correct_predictions))
+    incorrect = int(total_scored - correct_predictions) if total_scored > 0 else 0
+    st.metric("Incorrect", incorrect)
 
 with summary_col4:
-    st.metric("Accuracy", f"{accuracy:.1%}")
+    st.metric("Accuracy", f"{accuracy:.1%}" if total_scored > 0 else "N/A")
 
 st.caption(
     "These stats reflect only the filtered results shown below. "
