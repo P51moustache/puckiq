@@ -45,8 +45,9 @@ class BaseLGBMModel(ABC):
         features_df: pd.DataFrame,
         targets: pd.Series,
         eval_set: tuple[pd.DataFrame, pd.Series] | None = None,
+        sample_weight: pd.Series | np.ndarray | None = None,
     ) -> dict[str, float]:
-        """Train the model with optional early stopping."""
+        """Train the model with optional early stopping and sample weights."""
         self.feature_names = list(features_df.columns)
         X = features_df.values
         y = targets.values
@@ -58,6 +59,10 @@ class BaseLGBMModel(ABC):
             X_val, y_val = eval_set
             fit_kwargs["eval_set"] = [(X_val.values, y_val.values)]
             fit_kwargs["callbacks"] = [lgb.early_stopping(20, verbose=False)]
+
+        if sample_weight is not None:
+            w = np.asarray(sample_weight)
+            fit_kwargs["sample_weight"] = w[:len(X)]
 
         self.model.fit(X, y, **fit_kwargs)
 

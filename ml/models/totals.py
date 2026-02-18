@@ -61,6 +61,7 @@ class PoissonComponent:
         features_df: pd.DataFrame,
         targets: pd.Series,
         eval_set: tuple[pd.DataFrame, pd.Series] | None = None,
+        sample_weight: pd.Series | np.ndarray | None = None,
     ) -> dict[str, float]:
         """Fit a Poisson GLM. eval_set is accepted for interface compatibility but
         not used — statsmodels GLM doesn't support early stopping."""
@@ -69,7 +70,10 @@ class PoissonComponent:
 
         # Add constant for intercept
         X_with_const = np.column_stack([np.ones(len(X)), X])
-        self.model = GLM(y, X_with_const, family=PoissonFamily()).fit()
+        fit_kwargs: dict[str, Any] = {}
+        if sample_weight is not None:
+            fit_kwargs["freq_weights"] = np.asarray(sample_weight, dtype=float)[:len(X)]
+        self.model = GLM(y, X_with_const, family=PoissonFamily()).fit(**fit_kwargs)
 
         preds = self.model.predict(X_with_const)
         metrics = {
@@ -150,10 +154,13 @@ class TotalsModel:
         features_df: pd.DataFrame,
         targets: pd.Series,
         eval_set: tuple[pd.DataFrame, pd.Series] | None = None,
+        sample_weight: pd.Series | np.ndarray | None = None,
     ) -> dict[str, float]:
         """Train both sub-models on the same data."""
-        p_metrics = self.poisson.train(features_df, targets, eval_set=eval_set)
-        l_metrics = self.lgbm.train(features_df, targets, eval_set=eval_set)
+        p_metrics = self.poisson.train(features_df, targets, eval_set=eval_set,
+                                        sample_weight=sample_weight)
+        l_metrics = self.lgbm.train(features_df, targets, eval_set=eval_set,
+                                     sample_weight=sample_weight)
 
         # Ensemble on training data
         preds = self.predict(features_df)

@@ -22,6 +22,7 @@ from typing import Any
 from supabase import Client
 
 from ml.config import (
+    GAME_SKATER_STATS_TABLE,
     GAMES_TABLE,
     ML_PREDICTIONS_TABLE,
     ModelType,
@@ -70,6 +71,27 @@ def score_yesterdays_predictions(client: Client) -> int:
     )
     games_by_id = {g["id"]: g for g in (games_resp.data or [])}
 
+    # Pre-fetch actual player stats for player_props scoring
+    player_props_preds = [p for p in predictions if p.get("model_type") == ModelType.PLAYER_PROPS and p.get("player_id")]
+    actual_player_stats: dict[tuple[int, int], dict[str, Any]] = {}
+    if player_props_preds:
+        try:
+            pp_game_ids = list({p["game_id"] for p in player_props_preds})
+            # Batch query game_skater_stats
+            batch_size = 20
+            for i in range(0, len(pp_game_ids), batch_size):
+                batch = pp_game_ids[i:i + batch_size]
+                resp = (
+                    client.table(GAME_SKATER_STATS_TABLE)
+                    .select("player_id, game_id, goals, assists, points")
+                    .in_("game_id", batch)
+                    .execute()
+                )
+                for row in resp.data or []:
+                    actual_player_stats[(row["game_id"], row["player_id"])] = row
+        except Exception as exc:
+            logger.warning("Failed to fetch player stats for scoring: %s", exc)
+
     scores: list[dict[str, Any]] = []
     for pred in predictions:
         game = games_by_id.get(pred["game_id"])
@@ -77,6 +99,12 @@ def score_yesterdays_predictions(client: Client) -> int:
             continue
 
         model_type = pred["model_type"]
+
+        # Inject actual player stats for player_props scoring
+        if model_type == ModelType.PLAYER_PROPS and pred.get("player_id"):
+            key = (pred["game_id"], pred["player_id"])
+            pred["_actual_player_stats"] = actual_player_stats.get(key)
+
         score_row = _compute_score(pred, game, model_type)
         if score_row:
             scores.append(score_row)
@@ -133,6 +161,8 @@ def _compute_score(
         return _score_spread(prediction, actual_spread, base)
     elif model_type == ModelType.TOTALS:
         return _score_totals(prediction, actual_total, base)
+    elif model_type == ModelType.PLAYER_PROPS:
+        return _score_player_props(prediction, base)
 
     return None
 
@@ -198,4 +228,55 @@ def _score_totals(
         **base,
         "predicted_total": predicted_total,
         "total_error": total_error,
+    }
+
+
+def _score_player_props(
+    prediction: dict[str, Any],
+    base: dict[str, Any],
+) -> dict[str, Any] | None:
+    """
+    Score a player props prediction.
+
+    Player props predictions have a player_id column and player_predictions JSONB
+    with expected_goals/assists/points. Actual stats must be looked up separately
+    by the caller (score_yesterdays_predictions) and injected into _actual_player_stats.
+
+    Returns score row with player_scores JSONB containing per-stat errors.
+    """
+    player_id = prediction.get("player_id", 0)
+    if not player_id:
+        return None
+
+    preds_jsonb = prediction.get("player_predictions") or {}
+    actual = prediction.get("_actual_player_stats") or {}
+
+    if not actual:
+        return None
+
+    expected_goals = preds_jsonb.get("expected_goals", 0.0)
+    expected_assists = preds_jsonb.get("expected_assists", 0.0)
+    expected_points = preds_jsonb.get("expected_points", 0.0)
+
+    actual_goals = actual.get("goals", 0)
+    actual_assists = actual.get("assists", 0)
+    actual_points = actual.get("points", 0)
+
+    player_scores = {
+        "player_id": player_id,
+        "expected_goals": expected_goals,
+        "actual_goals": actual_goals,
+        "goals_error": abs(expected_goals - actual_goals),
+        "expected_assists": expected_assists,
+        "actual_assists": actual_assists,
+        "assists_error": abs(expected_assists - actual_assists),
+        "expected_points": expected_points,
+        "actual_points": actual_points,
+        "points_error": abs(expected_points - actual_points),
+    }
+
+    return {
+        **base,
+        "player_id": player_id,
+        "player_scores": player_scores,
     }
