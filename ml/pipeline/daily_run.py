@@ -389,7 +389,7 @@ def _predict_player_props(
     # Predict
     preds = model.predict(X)
 
-    # Build prediction rows
+    # Build per-player prediction rows (one row per player, with player_id column)
     predictions = []
     for i, (_, row) in enumerate(features_df.iterrows()):
         predictions.append({
@@ -397,8 +397,8 @@ def _predict_player_props(
             "model_type": ModelType.PLAYER_PROPS.value,
             "model_version": model_version,
             "game_date": today,
+            "player_id": int(row.get("player_id", 0)),
             "player_predictions": {
-                "player_id": int(row.get("player_id", 0)),
                 "expected_goals": float(preds["goals"][i]),
                 "expected_assists": float(preds["assists"][i]),
                 "expected_points": float(preds["points"][i]),

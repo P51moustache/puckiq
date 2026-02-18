@@ -51,6 +51,15 @@ STEP_SIZE = 50
 CURRENT_SEASON_WEIGHT = 1.0
 PRIOR_SEASON_WEIGHT = 0.7
 
+# Multi-season training: train on these seasons (oldest first)
+TRAINING_SEASONS = [20232024, 20242025, 20252026]
+
+SEASON_WEIGHTS = {
+    20232024: PRIOR_SEASON_WEIGHT,
+    20242025: PRIOR_SEASON_WEIGHT,
+    20252026: CURRENT_SEASON_WEIGHT,
+}
+
 
 # ---------------------------------------------------------------------------
 # Model promotion thresholds
