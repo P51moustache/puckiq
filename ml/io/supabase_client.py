@@ -146,7 +146,7 @@ def read_games_multi(
         return pd.DataFrame()
 
     combined = pd.concat(frames, ignore_index=True)
-    combined = combined.sort_values("game_date").reset_index(drop=True)
+    combined = combined.drop_duplicates(subset=["id"]).sort_values("game_date").reset_index(drop=True)
     logger.info("read_games_multi: %d total games across %d seasons", len(combined), len(seasons))
     return combined
 

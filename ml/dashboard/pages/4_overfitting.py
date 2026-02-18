@@ -174,7 +174,7 @@ per_metric_gaps = evaluation.get("per_metric_gaps") if evaluation else None
 if per_metric_gaps and isinstance(per_metric_gaps, dict) and len(per_metric_gaps) > 0:
     gap_rows = []
     for metric, gap_val in per_metric_gaps.items():
-        t = OVERFITTING_THRESHOLDS.get(metric, accuracy_threshold)
+        t = OVERFITTING_THRESHOLDS.get(metric, gap_threshold)
         if gap_val is not None:
             status = "Overfitting" if gap_val > t else ("Watch" if gap_val > t * 0.6 else "Healthy")
             gap_rows.append({
