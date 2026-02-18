@@ -48,6 +48,8 @@ from ml.config import (
     MIN_BRIER_IMPROVEMENT,
     MIN_GAMES_FOR_PROMOTION,
     ModelType,
+    SEASON_WEIGHTS,
+    TRAINING_SEASONS,
     TUNING_N_TRIALS,
 )
 from ml.tuning.optuna_tuner import tune_model
@@ -60,6 +62,7 @@ from ml.io.model_storage import ModelStorage
 from ml.io.supabase_client import (
     create_supabase_client,
     read_games,
+    read_games_multi,
     write_model_metadata,
 )
 from ml.io.supabase_client import (
@@ -93,17 +96,20 @@ def _run() -> None:
     client = create_supabase_client()
     storage = ModelStorage(client)
 
-    # 1. Get all completed games this season.
+    # 1. Get all completed games across training seasons.
     #    We train on finished games only (game_state='OFF') — these have final scores.
-    games_df = read_games(client, CURRENT_SEASON, game_state="OFF")
+    games_df = read_games_multi(client, TRAINING_SEASONS, game_state="OFF")
     if games_df.empty:
-        logger.warning("No completed games found for season %d", CURRENT_SEASON)
+        logger.warning("No completed games found for seasons %s", TRAINING_SEASONS)
         return
 
     # Sort chronologically — CRITICAL for walk-forward CV.
     # If games aren't in time order, the model could train on future data.
     games_df = games_df.sort_values("game_date").reset_index(drop=True)
-    logger.info("Loaded %d completed games", len(games_df))
+    logger.info("Loaded %d completed games across %d seasons", len(games_df), len(TRAINING_SEASONS))
+
+    # Compute sample weights from season (prior seasons weighted less)
+    sample_weights = games_df["season"].map(SEASON_WEIGHTS).fillna(1.0)
 
     # Compute features for all games using FeatureCache for bulk loading.
     # Note: compute_all_features uses each game's game_date as the as_of_date,
@@ -111,7 +117,7 @@ def _run() -> None:
     registry = load_feature_registry()
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     logger.info("Building FeatureCache for %d games...", len(games_df))
-    cache = FeatureCache.build(client, games_df)
+    cache = FeatureCache.build(client, games_df, seasons=TRAINING_SEASONS)
     features_df = compute_all_features(games_df, today, client, registry, use_cache=True, cache=cache)
 
     # Build target variables from actual game results.
@@ -123,8 +129,8 @@ def _run() -> None:
     spread = games_df["home_score"] - games_df["away_score"]
     total = games_df["home_score"] + games_df["away_score"]
 
-    # 2. Retrain each model type
-    _retrain_game_winner(storage, features_df, home_win, games_df, client)
+    # 2. Retrain each model type (pass sample_weights for multi-season weighting)
+    _retrain_game_winner(storage, features_df, home_win, games_df, client, sample_weights)
 
     # --- Cross-model feature: inject game_winner predictions for spread/totals ---
     try:
@@ -139,8 +145,8 @@ def _run() -> None:
     except Exception as exc:
         logger.warning("Could not inject cross-model feature: %s", exc)
 
-    _retrain_spread(storage, features_df, spread, games_df, client)
-    _retrain_totals(storage, features_df, total, games_df, client)
+    _retrain_spread(storage, features_df, spread, games_df, client, sample_weights)
+    _retrain_totals(storage, features_df, total, games_df, client, sample_weights)
     _retrain_player_props(storage, games_df, client)
 
     # 3. Ping healthcheck
@@ -154,6 +160,7 @@ def _retrain_game_winner(
     targets: pd.Series,
     games_df: pd.DataFrame,
     client,
+    sample_weights: pd.Series | None = None,
 ) -> None:
     """
     Retrain game winner model with walk-forward CV.
@@ -187,7 +194,7 @@ def _retrain_game_winner(
     model_kwargs = {"params": best_params} if best_params else {}
 
     # Walk-forward CV: simulate real-world performance
-    folds = walk_forward_cv(GameWinnerModel, X, targets, model_kwargs=model_kwargs)
+    folds = walk_forward_cv(GameWinnerModel, X, targets, model_kwargs=model_kwargs, sample_weights=sample_weights)
     if not folds:
         logger.warning("No CV folds completed for %s", model_type.value)
         return
@@ -233,7 +240,7 @@ def _retrain_game_winner(
     # Why? Walk-forward CV tells us how well the model generalizes. But for the
     # production model, we want to use all available data to maximize accuracy.
     final_model = GameWinnerModel(**model_kwargs)
-    train_metrics = final_model.train(X, targets)
+    train_metrics = final_model.train(X, targets, sample_weight=sample_weights)
 
     # Compute overfit gap for metadata
     overfit_gap = overfit["gaps"].get("accuracy", overfit["gaps"].get("brier_score", 0.0))
@@ -260,6 +267,7 @@ def _retrain_spread(
     targets: pd.Series,
     games_df: pd.DataFrame,
     client,
+    sample_weights: pd.Series | None = None,
 ) -> None:
     """Retrain spread model."""
     model_type = ModelType.SPREAD
@@ -281,7 +289,7 @@ def _retrain_spread(
 
     model_kwargs = {"params": best_params} if best_params else {}
 
-    folds = walk_forward_cv(SpreadModel, X, targets, model_kwargs=model_kwargs)
+    folds = walk_forward_cv(SpreadModel, X, targets, model_kwargs=model_kwargs, sample_weights=sample_weights)
     if not folds:
         return
 
@@ -297,7 +305,7 @@ def _retrain_spread(
         return
 
     final_model = SpreadModel(**model_kwargs)
-    train_metrics = final_model.train(X, targets)
+    train_metrics = final_model.train(X, targets, sample_weight=sample_weights)
 
     _maybe_promote(
         storage, client, model_type, final_model,
@@ -319,6 +327,7 @@ def _retrain_totals(
     targets: pd.Series,
     games_df: pd.DataFrame,
     client,
+    sample_weights: pd.Series | None = None,
 ) -> None:
     """Retrain totals model (Poisson + LightGBM ensemble)."""
     model_type = ModelType.TOTALS
@@ -335,7 +344,7 @@ def _retrain_totals(
     if ENABLE_TUNING:
         logger.info("Tuning not supported for %s (Poisson+LightGBM ensemble) — using defaults", model_type.value)
 
-    folds = walk_forward_cv(TotalsModel, X, targets)
+    folds = walk_forward_cv(TotalsModel, X, targets, sample_weights=sample_weights)
     if not folds:
         return
 
@@ -351,7 +360,7 @@ def _retrain_totals(
         return
 
     final_model = TotalsModel()
-    train_metrics = final_model.train(X, targets)
+    train_metrics = final_model.train(X, targets, sample_weight=sample_weights)
 
     _maybe_promote(
         storage, client, model_type, final_model,
@@ -375,15 +384,20 @@ def _retrain_player_props(
     model_type = ModelType.PLAYER_PROPS
     logger.info("Retraining %s", model_type.value)
 
-    # Load player-game stats
+    # Load player-game stats across all training seasons
     game_ids = games_df["id"].tolist()
     player_game_df = read_player_game_stats(client, CURRENT_SEASON, game_ids)
     if player_game_df.empty:
         logger.warning("No player game stats found — skipping player_props retrain")
         return
 
-    # Load season stats for features
-    season_stats_df = read_player_season_stats(client, CURRENT_SEASON)
+    # Load season stats across all training seasons
+    season_frames = []
+    for season in TRAINING_SEASONS:
+        sdf = read_player_season_stats(client, season)
+        if not sdf.empty:
+            season_frames.append(sdf)
+    season_stats_df = pd.concat(season_frames, ignore_index=True) if season_frames else pd.DataFrame()
 
     # Load standings for opponent GA
     standings_df = None

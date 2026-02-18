@@ -70,6 +70,7 @@ def walk_forward_cv(
     val_window: int = VALIDATION_WINDOW,
     step_size: int = STEP_SIZE,
     model_kwargs: dict[str, Any] | None = None,
+    sample_weights: pd.Series | None = None,
 ) -> list[FoldResult]:
     """
     Run expanding-window walk-forward cross-validation.
@@ -84,6 +85,7 @@ def walk_forward_cv(
         val_window: Number of games per validation fold.
         step_size: How many games to expand the training window per step.
         model_kwargs: Optional kwargs passed to model_class constructor.
+        sample_weights: Optional per-sample weights (e.g. season weights for multi-season).
 
     Returns:
         List of FoldResult objects, one per fold.
@@ -103,8 +105,13 @@ def walk_forward_cv(
         X_val = features_df.iloc[val_start:val_end]
         y_val = targets.iloc[val_start:val_end]
 
+        # Slice sample weights for this fold's training data
+        train_kwargs: dict[str, Any] = {"eval_set": (X_val, y_val)}
+        if sample_weights is not None:
+            train_kwargs["sample_weight"] = sample_weights.iloc[:train_end]
+
         model = model_class(**(model_kwargs or {}))
-        train_metrics = model.train(X_train, y_train, eval_set=(X_val, y_val))
+        train_metrics = model.train(X_train, y_train, **train_kwargs)
         val_metrics = model.evaluate(X_val, y_val)
 
         result = FoldResult(
