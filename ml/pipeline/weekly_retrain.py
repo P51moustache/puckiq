@@ -56,7 +56,8 @@ from ml.tuning.optuna_tuner import tune_model
 from ml.evaluation.calibration import compute_ece
 from ml.evaluation.overfitting import check_underfitting, detect_overfitting
 from ml.evaluation.validation import detect_concept_drift, walk_forward_cv
-from ml.features.compute import FeatureCache, compute_all_features, compute_player_features
+from ml.features.compute import compute_player_features
+from ml.features.disk_cache import compute_features_with_cache
 from ml.features.registry import get_model_features, load_feature_registry
 from ml.io.model_storage import ModelStorage
 from ml.io.supabase_client import (
@@ -112,14 +113,14 @@ def _run() -> None:
     # Compute sample weights from season (prior seasons weighted less)
     sample_weights = games_df["season"].map(SEASON_WEIGHTS).fillna(1.0)
 
-    # Compute features for all games using FeatureCache for bulk loading.
-    # Note: compute_all_features uses each game's game_date as the as_of_date,
-    # so standings and rolling stats are always from before the game was played.
+    # Compute features for all games using disk cache for incremental runs.
+    # First run computes all features (~40 min). Subsequent runs only compute
+    # features for new games (~5-30s) because the rest are cached on disk.
     registry = load_feature_registry()
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    logger.info("Building FeatureCache for %d games...", len(games_df))
-    cache = FeatureCache.build(client, games_df, seasons=TRAINING_SEASONS)
-    features_df = compute_all_features(games_df, today, client, registry, use_cache=True, cache=cache)
+    logger.info("Computing features for %d games (with disk cache)...", len(games_df))
+    features_df = compute_features_with_cache(
+        games_df, client, registry=registry, seasons=TRAINING_SEASONS,
+    )
 
     # Build target variables from actual game results.
     # These are what the models try to predict:
