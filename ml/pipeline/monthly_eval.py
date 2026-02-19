@@ -52,7 +52,7 @@ from ml.config import (
 )
 from ml.evaluation.calibration import compute_calibration_buckets, compute_ece
 from ml.evaluation.overfitting import compute_train_val_gap_history
-from ml.features.compute import FeatureCache, compute_all_features
+from ml.features.disk_cache import compute_features_with_cache
 from ml.features.registry import load_feature_registry
 from ml.io.supabase_client import create_supabase_client, read_games
 from ml.models.baselines import evaluate_baselines
@@ -85,10 +85,10 @@ def _run() -> None:
     baseline_results: dict[str, Any] = {}
     if not games_df.empty:
         games_df = games_df.sort_values("game_date").reset_index(drop=True)
-        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         registry = load_feature_registry()
-        cache = FeatureCache.build(client, games_df)
-        features_df = compute_all_features(games_df, today, client, registry, use_cache=True, cache=cache)
+        features_df = compute_features_with_cache(
+            games_df, client, registry=registry,
+        )
         baseline_results = evaluate_baselines(games_df, features_df)
 
     # Evaluate each model type: game_winner, spread, totals.

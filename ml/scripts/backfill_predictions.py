@@ -22,7 +22,8 @@ from ml.config import (
     ModelType,
     TRAINING_SEASONS,
 )
-from ml.features.compute import FeatureCache, compute_all_features, compute_player_features
+from ml.features.compute import compute_player_features
+from ml.features.disk_cache import compute_features_with_cache
 from ml.features.registry import get_model_features, load_feature_registry
 from ml.io.supabase_client import (
     create_supabase_client,
@@ -78,12 +79,12 @@ def main() -> None:
     logger.info("Loaded %d completed games across %d seasons, split at %d (train=%d, test=%d)",
                 n_total, len(TRAINING_SEASONS), split_idx, split_idx, n_total - split_idx)
 
-    # Compute features for ALL games (cache is shared)
+    # Compute features for ALL games (disk cache shared across runs)
     registry = load_feature_registry()
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    logger.info("Building FeatureCache...")
-    cache = FeatureCache.build(client, games_df, seasons=TRAINING_SEASONS)
-    features_df = compute_all_features(games_df, today, client, registry, use_cache=True, cache=cache)
+    logger.info("Computing features (with disk cache)...")
+    features_df = compute_features_with_cache(
+        games_df, client, registry=registry, seasons=TRAINING_SEASONS,
+    )
 
     # Targets
     home_win = (games_df["home_score"] > games_df["away_score"]).astype(int)
