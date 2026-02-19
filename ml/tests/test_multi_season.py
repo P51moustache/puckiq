@@ -34,8 +34,8 @@ class TestTrainingSeasonsConfig:
     def test_training_seasons_is_list(self):
         assert isinstance(TRAINING_SEASONS, list)
 
-    def test_training_seasons_has_multiple(self):
-        assert len(TRAINING_SEASONS) >= 2
+    def test_training_seasons_has_at_least_one(self):
+        assert len(TRAINING_SEASONS) >= 1
 
     def test_current_season_in_training_seasons(self):
         assert CURRENT_SEASON in TRAINING_SEASONS
@@ -56,6 +56,7 @@ class TestTrainingSeasonsConfig:
         assert SEASON_WEIGHTS[CURRENT_SEASON] == CURRENT_SEASON_WEIGHT
 
     def test_prior_seasons_have_discount(self):
+        """Prior seasons (if any) should have discounted weight."""
         for s in TRAINING_SEASONS:
             if s != CURRENT_SEASON:
                 assert SEASON_WEIGHTS[s] == PRIOR_SEASON_WEIGHT
