@@ -269,35 +269,44 @@ if "was_correct" in df.columns:
     display_cols.append("was_correct")
     col_config["was_correct"] = st.column_config.CheckboxColumn("Correct?")
 
+# Helper: format nullable numeric columns as strings to avoid "None" display
+def _fmt_pct(x):
+    return f"{x:.1%}" if pd.notna(x) else ""
+
+def _fmt_dec(x):
+    return f"{x:.1f}" if pd.notna(x) else ""
+
 if "home_win_prob" in df.columns:
     display_cols.append("home_win_prob")
-    col_config["home_win_prob"] = st.column_config.NumberColumn(
-        "Home Win Prob", format="%.1%%"
-    )
+    col_config["home_win_prob"] = st.column_config.TextColumn("Home Win Prob")
 
 if "effective_confidence" in df.columns:
     display_cols.append("effective_confidence")
-    col_config["effective_confidence"] = st.column_config.NumberColumn(
-        "Confidence", format="%.1%%"
-    )
+    col_config["effective_confidence"] = st.column_config.TextColumn("Confidence")
 
 if "predicted_spread" in df.columns and df["predicted_spread"].notna().any():
     display_cols.append("predicted_spread")
-    col_config["predicted_spread"] = st.column_config.NumberColumn(
-        "Pred Spread", format="%.1f"
-    )
+    col_config["predicted_spread"] = st.column_config.TextColumn("Pred Spread")
 
 if "actual_spread" in df.columns and df["actual_spread"].notna().any():
     display_cols.append("actual_spread")
-    col_config["actual_spread"] = st.column_config.NumberColumn(
-        "Actual Spread", format="%.1f"
-    )
+    col_config["actual_spread"] = st.column_config.TextColumn("Actual Spread")
 
 if "spread_error" in df.columns and df["spread_error"].notna().any():
     display_cols.append("spread_error")
-    col_config["spread_error"] = st.column_config.NumberColumn(
-        "Spread Error", format="%.1f"
-    )
+    col_config["spread_error"] = st.column_config.TextColumn("Spread Error")
+
+if "predicted_total" in df.columns and df["predicted_total"].notna().any():
+    display_cols.append("predicted_total")
+    col_config["predicted_total"] = st.column_config.TextColumn("Pred Total")
+
+if "actual_total" in df.columns and df["actual_total"].notna().any():
+    display_cols.append("actual_total")
+    col_config["actual_total"] = st.column_config.TextColumn("Actual Total")
+
+if "total_error" in df.columns and df["total_error"].notna().any():
+    display_cols.append("total_error")
+    col_config["total_error"] = st.column_config.TextColumn("Total Error")
 
 if "confidence" in df.columns and "effective_confidence" not in display_cols:
     display_cols.append("confidence")
@@ -310,6 +319,20 @@ if display_cols:
     # Sort by date descending
     sort_col = "game_date" if "game_date" in df.columns else display_cols[0]
     display_df = df[display_cols].sort_values(sort_col, ascending=False)
+
+    # Fill None/NaN string columns with "—" so they don't display as "None"
+    for col in ["predicted_winner", "actual_winner"]:
+        if col in display_df.columns:
+            display_df[col] = display_df[col].fillna("—")
+
+    # Pre-format nullable numeric columns as strings to prevent "None" display
+    for col in ["home_win_prob", "effective_confidence"]:
+        if col in display_df.columns:
+            display_df[col] = display_df[col].apply(_fmt_pct)
+    for col in ["predicted_spread", "actual_spread", "spread_error",
+                "predicted_total", "actual_total", "total_error"]:
+        if col in display_df.columns:
+            display_df[col] = display_df[col].apply(_fmt_dec)
 
     st.dataframe(
         display_df,
