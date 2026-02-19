@@ -16,7 +16,7 @@ import streamlit as st
 
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from data import get_active_models, get_model_metadata_by_type, get_latest_evaluation, OVERFITTING_THRESHOLDS
+from data import get_active_models, get_model_metadata_by_type, get_latest_evaluation, OVERFITTING_THRESHOLDS, compute_effective_overfit_gap, extract_summary_from_gap_history
 
 st.set_page_config(page_title="Overfitting Monitor — PuckIQ ML", layout="wide")
 st.title("Overfitting Monitor")
@@ -60,7 +60,7 @@ if model_row.empty:
     st.stop()
 
 model = model_row.iloc[0]
-overfit_gap = model.get("overfit_gap")
+overfit_gap = compute_effective_overfit_gap(model)
 
 # Use model-type-appropriate metric and threshold.
 # game_winner uses accuracy gap (0-1 scale, displayed as %).
@@ -165,6 +165,10 @@ st.subheader("Per-Metric Overfit Gaps")
 evaluation = get_latest_evaluation(model_type)
 
 per_metric_gaps = evaluation.get("per_metric_gaps") if evaluation else None
+# Fall back to extracting from train_val_gap_history _summary entry
+if not per_metric_gaps:
+    summary = extract_summary_from_gap_history(evaluation)
+    per_metric_gaps = summary.get("per_metric_gaps")
 
 if per_metric_gaps and isinstance(per_metric_gaps, dict) and len(per_metric_gaps) > 0:
     gap_rows = []
@@ -206,104 +210,126 @@ if evaluation is not None:
     gap_history = evaluation.get("train_val_gap_history")
 
     if gap_history and isinstance(gap_history, list) and len(gap_history) > 0:
-        gap_df = pd.DataFrame(gap_history)
+        # Actual format: [{"version": "v3_...", "gaps": {"accuracy": 0.03}, "is_overfitting": false}, ...]
+        # Filter out the _summary entry (metadata, not a version).
+        version_entries = [
+            entry for entry in gap_history
+            if isinstance(entry, dict) and entry.get("version") != "_summary"
+        ]
 
-        # Expect columns like {date, gap} or {version, gap} or {timestamp, train_val_gap}
-        # Normalize column names
-        date_col = None
-        gap_col = None
-        for col in gap_df.columns:
-            if col in ("date", "timestamp", "evaluation_date", "created_at"):
-                date_col = col
-            if col in ("gap", "train_val_gap", "overfit_gap"):
-                gap_col = col
+        if len(version_entries) >= 2:
+            # Extract the primary gap metric per model type
+            gap_key = "accuracy" if is_classification else "mae"
+            chart_rows = []
+            for i, entry in enumerate(version_entries):
+                gaps = entry.get("gaps", {})
+                gap_val = gaps.get(gap_key)
+                if gap_val is not None:
+                    chart_rows.append({
+                        "index": i,
+                        "version": entry.get("version", f"v{i}"),
+                        "gap": gap_val,
+                    })
 
-        if date_col and gap_col:
-            gap_df[date_col] = pd.to_datetime(gap_df[date_col])
-            gap_df = gap_df.sort_values(date_col)
+            if chart_rows:
+                gap_df = pd.DataFrame(chart_rows)
 
-            fig = go.Figure()
+                fig = go.Figure()
 
-            # Alert zone (red shading above 5%)
-            fig.add_hrect(
-                y0=0.05,
-                y1=gap_df[gap_col].max() * 1.2 if gap_df[gap_col].max() > 0.05 else 0.10,
-                fillcolor="red",
-                opacity=0.1,
-                line_width=0,
-                annotation_text="Overfitting Zone",
-                annotation_position="top left",
-            )
-
-            # Warning zone (yellow shading 3-5%)
-            fig.add_hrect(
-                y0=0.03,
-                y1=0.05,
-                fillcolor="yellow",
-                opacity=0.08,
-                line_width=0,
-            )
-
-            # Gap trend line
-            fig.add_trace(
-                go.Scatter(
-                    x=gap_df[date_col],
-                    y=gap_df[gap_col],
-                    mode="lines+markers",
-                    name="Train-Val Gap",
-                    line=dict(color="#1f77b4", width=3),
-                    marker=dict(size=8),
+                # Alert zone (red shading above threshold)
+                max_gap = gap_df["gap"].max()
+                fig.add_hrect(
+                    y0=gap_threshold,
+                    y1=max(gap_threshold * 2, max_gap * 1.2),
+                    fillcolor="red",
+                    opacity=0.1,
+                    line_width=0,
+                    annotation_text="Overfitting Zone",
+                    annotation_position="top left",
                 )
-            )
 
-            # Threshold lines
-            fig.add_hline(
-                y=0.05,
-                line_dash="dash",
-                line_color="red",
-                opacity=0.7,
-                annotation_text="Danger (5%)",
-            )
-            fig.add_hline(
-                y=0.03,
-                line_dash="dash",
-                line_color="#ffc107",
-                opacity=0.7,
-                annotation_text="Watch (3%)",
-            )
+                # Warning zone
+                fig.add_hrect(
+                    y0=watch_threshold,
+                    y1=gap_threshold,
+                    fillcolor="yellow",
+                    opacity=0.08,
+                    line_width=0,
+                )
 
-            fig.update_layout(
-                xaxis_title="Date",
-                yaxis_title="Train-Val Gap",
-                yaxis_tickformat=".1%",
-                yaxis_range=[0, max(0.10, gap_df[gap_col].max() * 1.3)],
-                template="plotly_dark",
-                height=450,
-                margin=dict(l=50, r=20, t=20, b=50),
-                legend=dict(
-                    orientation="h",
-                    yanchor="bottom",
-                    y=1.02,
-                    xanchor="right",
-                    x=1,
-                ),
-            )
+                # Gap trend line
+                fig.add_trace(
+                    go.Scatter(
+                        x=gap_df["version"],
+                        y=gap_df["gap"],
+                        mode="lines+markers",
+                        name=f"Train-Val {gap_key.upper()} Gap",
+                        line=dict(color="#1f77b4", width=3),
+                        marker=dict(size=8),
+                    )
+                )
 
-            st.plotly_chart(fig, use_container_width=True)
+                # Threshold lines
+                if is_classification:
+                    fmt_danger = f"{gap_threshold:.0%}"
+                    fmt_watch = f"{watch_threshold:.0%}"
+                else:
+                    fmt_danger = f"{gap_threshold:.2f}"
+                    fmt_watch = f"{watch_threshold:.2f}"
 
-            st.caption(
-                "This chart shows how the train-validation gap has changed over time. "
-                "The **red zone** (above 5%) indicates overfitting. "
-                "The **yellow zone** (3-5%) is a warning area. "
-                "A healthy model stays in the white zone below 3%. "
-                "If the gap is trending upward, the model is increasingly memorizing "
-                "training data with each version — a sign to add regularization or simplify."
+                fig.add_hline(
+                    y=gap_threshold,
+                    line_dash="dash",
+                    line_color="red",
+                    opacity=0.7,
+                    annotation_text=f"Danger ({fmt_danger})",
+                )
+                fig.add_hline(
+                    y=watch_threshold,
+                    line_dash="dash",
+                    line_color="#ffc107",
+                    opacity=0.7,
+                    annotation_text=f"Watch ({fmt_watch})",
+                )
+
+                y_format = ".1%" if is_classification else ".3f"
+                fig.update_layout(
+                    xaxis_title="Model Version",
+                    yaxis_title=f"Train-Val {gap_key.upper()} Gap",
+                    yaxis_tickformat=y_format,
+                    yaxis_range=[0, max(gap_threshold * 2, max_gap * 1.3)],
+                    template="plotly_dark",
+                    height=450,
+                    margin=dict(l=50, r=20, t=20, b=50),
+                    legend=dict(
+                        orientation="h",
+                        yanchor="bottom",
+                        y=1.02,
+                        xanchor="right",
+                        x=1,
+                    ),
+                )
+
+                st.plotly_chart(fig, use_container_width=True)
+
+                st.caption(
+                    "This chart shows how the train-validation gap has changed across model versions. "
+                    f"The **red zone** (above {fmt_danger}) indicates overfitting. "
+                    f"The **yellow zone** ({fmt_watch}-{fmt_danger}) is a warning area. "
+                    "If the gap is trending upward, the model is increasingly memorizing "
+                    "training data with each version — a sign to add regularization or simplify."
+                )
+            else:
+                st.info(f"No '{gap_key}' gap values found in the version history.")
+        elif len(version_entries) == 1:
+            st.info(
+                "Only one model version in the gap history — "
+                "the trend chart requires at least 2 versions."
             )
         else:
-            st.warning(
-                f"Gap history data has unexpected format. "
-                f"Columns found: {list(gap_df.columns)}. "
-                f"Expected a date column and a gap column."
+            st.info(
+                "No train/val gap history available — "
+                "this data accumulates after multiple evaluation cycles."
             )
     else:
         st.info(
@@ -471,8 +497,11 @@ else:
 
 st.subheader("Overfit Gap by Model Type")
 
-if not active_models.empty and "overfit_gap" in active_models.columns:
-    gap_data = active_models[["model_type", "overfit_gap"]].copy()
+if not active_models.empty:
+    gap_data = active_models[["model_type", "overfit_gap", "train_accuracy", "val_accuracy"]].copy()
+    gap_data["overfit_gap"] = gap_data.apply(
+        lambda row: compute_effective_overfit_gap(row), axis=1
+    )
     gap_data = gap_data.dropna(subset=["overfit_gap"])
 
     if not gap_data.empty:

@@ -13,7 +13,7 @@ import streamlit as st
 # Adjust import path — Streamlit pages run from the dashboard/ directory
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from data import get_active_models, get_model_metadata, get_scores_last_n_days, OVERFITTING_THRESHOLDS
+from data import get_active_models, get_model_metadata, get_scores_last_n_days, OVERFITTING_THRESHOLDS, compute_effective_overfit_gap
 
 st.set_page_config(page_title="Overview — PuckIQ ML", layout="wide")
 st.title("Overview")
@@ -82,23 +82,32 @@ with col3:
     if pd.notna(acc_30d):
         st.metric(label="30-Day Accuracy", value=f"{acc_30d:.1%}")
     else:
-        val_mae = primary.get("val_mae")
-        st.metric(
-            label="Val MAE",
-            value=f"{val_mae:.3f}" if pd.notna(val_mae) else "N/A",
-            help="Validation MAE from training (production metrics appear after games are scored)",
-        )
+        # game_winner is classification — Val MAE is irrelevant; show Training Games instead
+        if primary.get("model_type") == "game_winner":
+            training_games = primary.get("training_games")
+            st.metric(
+                label="Training Games",
+                value=f"{int(training_games):,}" if pd.notna(training_games) else "N/A",
+                help="Number of games used to train the active model",
+            )
+        else:
+            val_mae = primary.get("val_mae")
+            st.metric(
+                label="Val MAE",
+                value=f"{val_mae:.3f}" if pd.notna(val_mae) else "N/A",
+                help="Validation MAE from training (production metrics appear after games are scored)",
+            )
 
 with col4:
     acc_season = primary.get("prod_accuracy_season")
     if pd.notna(acc_season):
         st.metric(label="Season Accuracy", value=f"{acc_season:.1%}")
     else:
-        training_games = primary.get("training_games")
+        effective_gap = compute_effective_overfit_gap(primary)
         st.metric(
-            label="Training Games",
-            value=f"{int(training_games):,}" if pd.notna(training_games) else "N/A",
-            help="Number of games used to train the active model",
+            label="Overfit Gap",
+            value=f"{effective_gap:.1%}" if effective_gap is not None else "N/A",
+            help="Train accuracy minus val accuracy. Lower is healthier.",
         )
 
 st.caption(
@@ -113,17 +122,17 @@ st.caption(
 # Overfitting alert
 # ---------------------------------------------------------------------------
 
-overfit_gap = primary.get("overfit_gap")
+overfit_gap = compute_effective_overfit_gap(primary)
 accuracy_threshold = OVERFITTING_THRESHOLDS.get("accuracy", 0.05)
 watch_threshold = accuracy_threshold * 0.6  # 60% of the danger threshold
-if pd.notna(overfit_gap) and overfit_gap > accuracy_threshold:
+if overfit_gap is not None and overfit_gap > accuracy_threshold:
     st.error(
         f"**Overfitting Alert**: The active model's train-validation gap is "
         f"{overfit_gap:.1%} (threshold: {accuracy_threshold:.1%}). "
         f"The model may be memorizing training data instead of learning generalizable patterns. "
         f"Consider reducing model complexity or increasing regularization."
     )
-elif pd.notna(overfit_gap) and overfit_gap > watch_threshold:
+elif overfit_gap is not None and overfit_gap > watch_threshold:
     st.warning(
         f"**Overfitting Watch**: Train-validation gap is {overfit_gap:.1%}. "
         f"Not yet critical, but approaching the {accuracy_threshold:.1%} threshold."
@@ -141,7 +150,7 @@ if len(active_models) > 1:
         row = {
             "Model": m.get("model_type", ""),
             "Version": m.get("model_version", ""),
-            "Games": int(m["training_games"]) if pd.notna(m.get("training_games")) else None,
+            "Training Size": int(m["training_games"]) if pd.notna(m.get("training_games")) else None,
         }
         # Show primary metric per model type
         if m.get("model_type") == "game_winner":
@@ -154,8 +163,8 @@ if len(active_models) > 1:
             rmse_val = m.get("val_rmse")
             row["Primary Metric"] = f"MAE: {mae_val:.3f}" if pd.notna(mae_val) else "—"
             row["Secondary"] = f"RMSE: {rmse_val:.3f}" if pd.notna(rmse_val) else "—"
-        gap = m.get("overfit_gap")
-        row["Overfit Gap"] = f"{gap:.1%}" if pd.notna(gap) else "—"
+        gap = compute_effective_overfit_gap(m)
+        row["Overfit Gap"] = f"{gap:.1%}" if gap is not None else "—"
         summary_rows.append(row)
 
     st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)

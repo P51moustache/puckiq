@@ -212,6 +212,46 @@ def get_latest_evaluation(model_type: str) -> dict | None:
 # ---------------------------------------------------------------------------
 
 
+def compute_effective_overfit_gap(model: dict | pd.Series) -> float | None:
+    """Compute the real overfit gap, even when the DB value is 0.
+
+    The DB ``overfit_gap`` may be 0 because ``weekly_retrain`` stored final-
+    model metrics (LightGBM memorises training data → train_accuracy=1.0)
+    instead of cross-validation train metrics.  When the stored gap is 0 (or
+    missing) but both ``train_accuracy`` and ``val_accuracy`` are available we
+    fall back to ``abs(train_accuracy - val_accuracy)``.
+    """
+    gap = model.get("overfit_gap") if isinstance(model, dict) else model.get("overfit_gap")
+    train_acc = model.get("train_accuracy") if isinstance(model, dict) else model.get("train_accuracy")
+    val_acc = model.get("val_accuracy") if isinstance(model, dict) else model.get("val_accuracy")
+
+    if pd.notna(gap) and gap != 0:
+        return float(gap)
+
+    if pd.notna(train_acc) and pd.notna(val_acc):
+        return abs(float(train_acc) - float(val_acc))
+
+    return float(gap) if pd.notna(gap) else None
+
+
+def extract_summary_from_gap_history(evaluation: dict | None) -> dict:
+    """Extract ECE and per_metric_gaps from the _summary entry in train_val_gap_history.
+
+    The monthly evaluation stores these inside the gap history list as an entry
+    with ``version == "_summary"`` because ``ml_model_evaluations`` has no
+    dedicated columns for them.
+    """
+    if evaluation is None:
+        return {}
+    gap_history = evaluation.get("train_val_gap_history")
+    if not isinstance(gap_history, list):
+        return {}
+    for entry in gap_history:
+        if isinstance(entry, dict) and entry.get("version") == "_summary":
+            return entry
+    return {}
+
+
 @st.cache_data(ttl=60)
 def get_pipeline_status() -> dict:
     """Get last run times for each pipeline phase.

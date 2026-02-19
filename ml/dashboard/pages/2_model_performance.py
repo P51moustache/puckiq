@@ -12,7 +12,7 @@ import streamlit as st
 
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from data import get_active_models, get_evaluations, get_latest_evaluation
+from data import get_active_models, get_evaluations, get_latest_evaluation, extract_summary_from_gap_history
 
 st.set_page_config(page_title="Model Performance — PuckIQ ML", layout="wide")
 st.title("Model Performance")
@@ -108,6 +108,10 @@ st.subheader("Calibration Quality")
 
 # ECE metric — single-number summary of calibration quality
 ece_val = evaluation.get("ece")
+# Fall back to extracting ECE from train_val_gap_history _summary entry
+if ece_val is None or (isinstance(ece_val, float) and pd.isna(ece_val)):
+    summary = extract_summary_from_gap_history(evaluation)
+    ece_val = summary.get("ece")
 if ece_val is not None and pd.notna(ece_val):
     ece_col1, ece_col2 = st.columns([1, 3])
     with ece_col1:
