@@ -11,6 +11,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+import numpy as np
 import pandas as pd
 from supabase import Client, create_client
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -130,7 +131,7 @@ def read_games(
 
 
 def read_games_multi(
-    client: Client, seasons: list[int], game_state: str | None = None
+    client: Client, seasons: list[int], game_state: str | list[str] | None = None
 ) -> pd.DataFrame:
     """
     Read games from multiple seasons and concatenate into a single DataFrame.
@@ -334,7 +335,7 @@ def read_recent_games(
         client.table(GAMES_TABLE)
         .select("*")
         .eq("home_team_abbrev", team_abbrev)
-        .eq("game_state", "OFF")
+        .in_("game_state", ["OFF", "FINAL"])
         .lt("game_date", before_date)
         .order("game_date", desc=True)
         .limit(limit)
@@ -345,7 +346,7 @@ def read_recent_games(
         client.table(GAMES_TABLE)
         .select("*")
         .eq("away_team_abbrev", team_abbrev)
-        .eq("game_state", "OFF")
+        .in_("game_state", ["OFF", "FINAL"])
         .lt("game_date", before_date)
         .order("game_date", desc=True)
         .limit(limit)
@@ -360,6 +361,27 @@ def read_recent_games(
 # ---------------------------------------------------------------------------
 # Write operations (all UPSERT for idempotency)
 # ---------------------------------------------------------------------------
+
+
+def _to_native(obj: Any) -> Any:
+    """Recursively convert numpy types to Python native for JSON serialization.
+
+    Supabase/PostgREST requires JSON-serializable types.  numpy int32, float64,
+    bool_ etc. are NOT serializable and will cause 400 errors on write.
+    """
+    if isinstance(obj, dict):
+        return {k: _to_native(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_to_native(v) for v in obj]
+    if isinstance(obj, np.integer):
+        return int(obj)
+    if isinstance(obj, np.floating):
+        return float(obj)
+    if isinstance(obj, np.bool_):
+        return bool(obj)
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    return obj
 
 
 @_retry
@@ -423,6 +445,8 @@ def write_predictions(client: Client, predictions: list[dict[str, Any]]) -> int:
     """
     if not predictions:
         return 0
+    # Convert numpy types to native Python for JSON serialization
+    predictions = _to_native(predictions)
     # Ensure all rows have player_id (default 0 for non-player-props)
     for p in predictions:
         if "player_id" not in p:
@@ -450,6 +474,8 @@ def write_scores(client: Client, scores: list[dict[str, Any]]) -> int:
     if not scores:
         return 0
 
+    # Convert numpy types to native Python for JSON serialization
+    scores = _to_native(scores)
     # Ensure all rows have player_id (default 0 for non-player-props)
     for s in scores:
         if "player_id" not in s:

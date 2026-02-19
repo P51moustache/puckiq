@@ -701,23 +701,7 @@ def _maybe_promote(
 
     # Step 2: Write new model metadata with is_active=True
     # (Briefly, two models may be active — that's intentional and safe)
-    #
-    # Convert numpy types to native Python — Supabase JSON serialization
-    # doesn't understand numpy int32/float64 etc.
-    def _to_native(obj):
-        """Recursively convert numpy types to Python native for JSON."""
-        import numpy as np
-        if isinstance(obj, dict):
-            return {k: _to_native(v) for k, v in obj.items()}
-        if isinstance(obj, (list, tuple)):
-            return [_to_native(v) for v in obj]
-        if isinstance(obj, (np.integer,)):
-            return int(obj)
-        if isinstance(obj, (np.floating,)):
-            return float(obj)
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        return obj
+    from ml.io.supabase_client import _to_native
 
     write_model_metadata(client, _to_native({
         "model_type": model_type.value,

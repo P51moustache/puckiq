@@ -223,7 +223,7 @@ class FeatureCache:
                         client.table(GAMES_TABLE)
                         .select("*")
                         .in_(filter_col, teams)
-                        .eq("game_state", "OFF")
+                        .in_("game_state", ["OFF", "FINAL"])
                         .order("game_date", desc=True)
                         .range(offset, offset + page_size - 1)
                         .execute()
@@ -1036,7 +1036,7 @@ def _compute_rolling_goalie(
             # Batch query goalie stats for these games
             response = (
                 client.table(GAME_GOALIE_STATS_TABLE)
-                .select("game_id, save_pctg, decision, player_name")
+                .select("game_id, save_pctg, decision, player_id")
                 .eq("team_abbrev", team_abbrev)
                 .in_("game_id", recent_game_ids)
                 .execute()
