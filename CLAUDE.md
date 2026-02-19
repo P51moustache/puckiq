@@ -403,7 +403,7 @@ Backwards compatible — omit `use_cache` for single-game predictions (original 
 ### Running the ML Pipeline
 ```bash
 ml/.venv/bin/python -m ml.scripts.run_baselines --dry-run   # Baselines (no Supabase needed)
-ml/.venv/bin/python -m pytest ml/tests/ -x -q               # All 313 tests
+ml/.venv/bin/python -m pytest ml/tests/ -x -q               # All 562 tests
 cd ml/dashboard && streamlit run app.py                      # Dashboard locally
 ```
 
@@ -433,9 +433,43 @@ ml/dashboard/
 - New metrics → add display in the relevant page
 - Model changes → check `MODEL_TYPES` list across all pages
 - Verify locally: `cd ml/dashboard && streamlit run app.py`
-- Redeploy: push to HF Space repo
 - Env vars needed: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `DASHBOARD_PASSWORD`
 - Pipeline controls also need: `SUPABASE_SERVICE_ROLE_KEY`
+
+### Deploying Dashboard to HF Space
+
+**Space URL:** https://huggingface.co/spaces/p51moustache/puckiq-ml-dashboard
+
+**Deploy via CLI (use ML venv — huggingface_hub is installed there):**
+```bash
+ml/.venv/bin/python -c "
+from huggingface_hub import HfApi
+import os
+
+api = HfApi()
+repo_id = 'p51moustache/puckiq-ml-dashboard'
+dashboard_dir = 'ml/dashboard'
+
+for root, dirs, files in os.walk(dashboard_dir):
+    dirs[:] = [d for d in dirs if d != '__pycache__']
+    for f in files:
+        if f.endswith('.pyc'):
+            continue
+        local_path = os.path.join(root, f)
+        repo_path = os.path.relpath(local_path, dashboard_dir)
+        api.upload_file(
+            path_or_fileobj=local_path,
+            path_in_repo=repo_path,
+            repo_id=repo_id,
+            repo_type='space',
+        )
+print('Deploy complete!')
+"
+```
+
+**Auth:** HF token stored locally via `huggingface-cli login` (write token named 'puckiq')
+**Trigger:** Deploy after any dashboard file changes. HF Space auto-rebuilds on file upload.
+**Verify:** Visit https://huggingface.co/spaces/p51moustache/puckiq-ml-dashboard after deploy
 
 ## Performance Considerations
 

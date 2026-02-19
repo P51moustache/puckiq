@@ -22,6 +22,7 @@ st.caption(
     "KPIs come from the active model metadata; the accuracy trend "
     "is computed from scored predictions over the last 90 days."
 )
+st.caption("Data refreshes every 5 minutes. Last cache reset tracked by Streamlit.")
 
 # ---------------------------------------------------------------------------
 # Active model KPIs

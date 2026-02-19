@@ -155,7 +155,7 @@ def _load_live_data() -> tuple[pd.DataFrame, pd.DataFrame]:
     client = create_supabase_client()
 
     logger.info("Loading completed games for season %d...", CURRENT_SEASON)
-    games_df = read_games(client, season=CURRENT_SEASON, game_state="OFF")
+    games_df = read_games(client, season=CURRENT_SEASON, game_state=["OFF", "FINAL"])
 
     if games_df.empty:
         logger.error("No completed games found for season %d", CURRENT_SEASON)

@@ -456,6 +456,8 @@ features:
 
   # ---------------------------------------------------------------
   # Player props (player_lookup from skater stats)
+  # NOTE: player_lookup features are computed by compute_player_features() in compute.py,
+  # NOT by compute_all_features(). They are only used by the player_props model.
   # ---------------------------------------------------------------
   player_gpg:
     description: "Player goals per game (season avg)"
@@ -504,6 +506,8 @@ features:
 
   # ---------------------------------------------------------------
   # Cross-model (computed in pipeline, not in compute.py)
+  # NOTE: cross_model features are injected by the pipeline (weekly_retrain.py, daily_run.py)
+  # after the game_winner model predicts. compute_all_features() sets these to NaN as placeholder.
   # ---------------------------------------------------------------
   gw_home_win_prob:
     description: "Game winner model P(home_win) — cross-model signal for spread/totals"

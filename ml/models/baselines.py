@@ -140,6 +140,10 @@ def evaluate_baselines(
     Returns:
         Dict mapping baseline name -> metrics dict.
     """
+    assert games_df["game_date"].is_monotonic_increasing, (
+        "Games must be sorted by game_date for temporal train/test split"
+    )
+
     targets = (games_df["home_score"] > games_df["away_score"]).astype(int)
 
     results: dict[str, Any] = {}

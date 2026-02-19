@@ -712,13 +712,24 @@ def compute_all_features(
                         feat_def, game_id, home, away, cache=cache,
                     )
                 elif feat_def.compute_type == "cross_model":
-                    # Cross-model features are injected by the pipeline, not computed here
+                    # cross_model features are injected by the pipeline (weekly_retrain.py,
+                    # daily_run.py), not computed here
                     row[feat_name] = np.nan
                 elif feat_def.compute_type == "derived":
                     row[feat_name] = _compute_derived(feat_def, row, home, away,
                                                        home_recent, away_recent, game_date)
-                else:
+                elif feat_def.compute_type == "player_lookup":
+                    # player_lookup features are computed by compute_player_features()
+                    # separately (one row per player-game, not one row per game).
+                    # Set NaN here as placeholder for game-level feature matrix.
                     row[feat_name] = np.nan
+                else:
+                    raise ValueError(
+                        f"Unknown compute_type '{feat_def.compute_type}' for feature '{feat_name}'. "
+                        f"Valid types: lookup, rolling_team, rolling_team_advanced, rolling_xg, "
+                        f"rolling_goalie, jsonb_lookup, game_detail_lookup, cross_model, derived, "
+                        f"player_lookup"
+                    )
             except Exception as exc:
                 logger.warning("Failed to compute %s for game %s: %s", feat_name, game_id, exc)
                 row[feat_name] = np.nan
@@ -947,6 +958,8 @@ def _compute_rolling_xg(
     recent = recent[:window]
 
     xg_values = []
+    total_shots = 0
+    missing_coords = 0
     for game in recent:
         game_id = game["id"]
         shots = cache.get_game_shots(game_id)
@@ -955,6 +968,9 @@ def _compute_rolling_xg(
 
         game_xg = 0.0
         for shot in shots:
+            total_shots += 1
+            if shot.get("x_coord") is None or shot.get("y_coord") is None:
+                missing_coords += 1
             shot_team = shot.get("team_abbrev", "")
             xg_val = _compute_shot_xg(
                 shot.get("x_coord"),
@@ -967,6 +983,12 @@ def _compute_rolling_xg(
                 game_xg += xg_val
 
         xg_values.append(game_xg)
+
+    if total_shots > 0 and missing_coords > 0.2 * total_shots:
+        logger.warning(
+            "%.0f%% of shots missing coordinates for %s — xG estimates degraded",
+            100 * missing_coords / max(total_shots, 1), team_abbrev
+        )
 
     if not xg_values:
         return np.nan

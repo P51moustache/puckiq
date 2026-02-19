@@ -52,11 +52,23 @@ def load_feature_registry(
     for name, spec in raw.get("features", {}).items():
         if not spec.get("enabled", True):
             continue
+        compute_type = spec.get("compute", "lookup")
+        config = spec.get(compute_type, {}) if compute_type else {}
+        # Backwards compatibility: rolling_team, rolling_team_advanced, rolling_xg,
+        # and rolling_goalie all store config under the "rolling" key in YAML
+        if not config and compute_type in ("rolling_team", "rolling_team_advanced", "rolling_xg", "rolling_goalie"):
+            config = spec.get("rolling", {})
+        # game_detail_lookup stores config under "game_detail"
+        if not config and compute_type == "game_detail_lookup":
+            config = spec.get("game_detail", {})
+        # jsonb_lookup stores config under "jsonb"
+        if not config and compute_type == "jsonb_lookup":
+            config = spec.get("jsonb", {})
         features[name] = FeatureDefinition(
             name=name,
             description=spec.get("description", ""),
-            compute_type=spec.get("compute", "lookup"),
-            config=spec.get("lookup", spec.get("rolling", spec.get("jsonb", spec.get("derived", spec.get("player_lookup", spec.get("game_detail", spec.get("cross_model", {}))))))),
+            compute_type=compute_type,
+            config=config,
             enabled=True,
             tier=spec.get("tier", 1),
         )
