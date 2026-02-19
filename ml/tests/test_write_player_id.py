@@ -25,8 +25,9 @@ class TestWritePredictionsPlayerId:
         ]
         write_predictions(client, predictions)
 
-        # Verify player_id was injected
-        assert predictions[0]["player_id"] == 0
+        # Check the data actually passed to Supabase upsert
+        upserted = client.table.return_value.upsert.call_args[0][0]
+        assert upserted[0]["player_id"] == 0
 
         # Verify on_conflict includes player_id
         call_args = client.table.return_value.upsert.call_args
@@ -44,7 +45,8 @@ class TestWritePredictionsPlayerId:
         ]
         write_predictions(client, predictions)
 
-        assert predictions[0]["player_id"] == 8478402
+        upserted = client.table.return_value.upsert.call_args[0][0]
+        assert upserted[0]["player_id"] == 8478402
 
 
 class TestWriteScoresPlayerId:
@@ -62,7 +64,9 @@ class TestWriteScoresPlayerId:
         ]
         write_scores(client, scores)
 
-        assert scores[0]["player_id"] == 0
+        # Check the data actually passed to Supabase upsert
+        upserted = client.table.return_value.upsert.call_args[0][0]
+        assert upserted[0]["player_id"] == 0
 
     @patch("ml.io.supabase_client._retry", lambda f: f)
     def test_preserves_existing_player_id(self):
@@ -76,4 +80,5 @@ class TestWriteScoresPlayerId:
         ]
         write_scores(client, scores)
 
-        assert scores[0]["player_id"] == 8478402
+        upserted = client.table.return_value.upsert.call_args[0][0]
+        assert upserted[0]["player_id"] == 8478402

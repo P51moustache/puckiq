@@ -370,6 +370,7 @@ class TestReadRecentGames:
         table_mock = client.table.return_value
         table_mock.select.return_value = table_mock
         table_mock.eq.return_value = table_mock
+        table_mock.in_.return_value = table_mock
         table_mock.lt.return_value = table_mock
         table_mock.order.return_value = table_mock
         table_mock.limit.return_value = table_mock
@@ -401,6 +402,7 @@ class TestReadRecentGames:
         table_mock = client.table.return_value
         table_mock.select.return_value = table_mock
         table_mock.eq.return_value = table_mock
+        table_mock.in_.return_value = table_mock
         table_mock.lt.return_value = table_mock
         table_mock.order.return_value = table_mock
         table_mock.limit.return_value = table_mock
@@ -423,6 +425,7 @@ class TestReadRecentGames:
         table_mock = client.table.return_value
         table_mock.select.return_value = table_mock
         table_mock.eq.return_value = table_mock
+        table_mock.in_.return_value = table_mock
         table_mock.lt.return_value = table_mock
         table_mock.order.return_value = table_mock
         table_mock.limit.return_value = table_mock
@@ -989,7 +992,9 @@ class TestWritePredictions:
 
         write_predictions(client, predictions)
 
-        assert predictions[0]["player_id"] == 0
+        # Check the data actually passed to Supabase upsert
+        upserted = client.table.return_value.upsert.call_args[0][0]
+        assert upserted[0]["player_id"] == 0
 
     @patch("ml.io.supabase_client._retry", lambda f: f)
     def test_preserves_existing_player_id(self):
@@ -1006,7 +1011,8 @@ class TestWritePredictions:
 
         write_predictions(client, predictions)
 
-        assert predictions[0]["player_id"] == 8478402
+        upserted = client.table.return_value.upsert.call_args[0][0]
+        assert upserted[0]["player_id"] == 8478402
 
     @patch("ml.io.supabase_client._retry", lambda f: f)
     def test_returns_zero_for_empty_input(self):
@@ -1091,7 +1097,9 @@ class TestWriteScores:
         scores = [{"game_id": 1, "model_type": "game_winner"}]
         write_scores(client, scores)
 
-        assert scores[0]["player_id"] == 0
+        # Check the data actually passed to Supabase upsert
+        upserted = client.table.return_value.upsert.call_args[0][0]
+        assert upserted[0]["player_id"] == 0
 
 
 class TestWriteModelMetadata:
