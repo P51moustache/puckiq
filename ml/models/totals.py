@@ -148,6 +148,9 @@ class TotalsModel:
         self.lgbm = LGBMComponent()
         self.poisson_weight = poisson_weight
         self.lgbm_weight = lgbm_weight
+        assert abs(self.poisson_weight + self.lgbm_weight - 1.0) < 1e-6, (
+            f"Ensemble weights must sum to 1.0, got {self.poisson_weight + self.lgbm_weight}"
+        )
 
     def train(
         self,

@@ -60,6 +60,10 @@ class FoldResult:
     val_size: int
     train_metrics: dict[str, float] = field(default_factory=dict)
     val_metrics: dict[str, float] = field(default_factory=dict)
+    # Optional: OOS predictions and actuals for this fold (used for calibration).
+    # Only populated when collect_predictions=True in walk_forward_cv.
+    val_predictions: list[float] | None = None
+    val_actuals: list[int] | None = None
 
 
 def walk_forward_cv(
@@ -71,6 +75,7 @@ def walk_forward_cv(
     step_size: int = STEP_SIZE,
     model_kwargs: dict[str, Any] | None = None,
     sample_weights: pd.Series | None = None,
+    collect_predictions: bool = False,
 ) -> list[FoldResult]:
     """
     Run expanding-window walk-forward cross-validation.
@@ -86,6 +91,9 @@ def walk_forward_cv(
         step_size: How many games to expand the training window per step.
         model_kwargs: Optional kwargs passed to model_class constructor.
         sample_weights: Optional per-sample weights (e.g. season weights for multi-season).
+        collect_predictions: If True, store OOS predictions and actuals on each FoldResult.
+            Used for computing calibration (ECE) across all folds. Only works for models
+            whose predict() returns a 1-D array of probabilities (e.g., GameWinnerModel).
 
     Returns:
         List of FoldResult objects, one per fold.
@@ -114,12 +122,25 @@ def walk_forward_cv(
         train_metrics = model.train(X_train, y_train, **train_kwargs)
         val_metrics = model.evaluate(X_val, y_val)
 
+        # Optionally collect OOS predictions for calibration analysis
+        val_preds = None
+        val_acts = None
+        if collect_predictions:
+            try:
+                raw_preds = model.predict(X_val)
+                val_preds = [float(p) for p in raw_preds]
+                val_acts = [int(a) for a in y_val.values]
+            except Exception as exc:
+                logger.warning("Failed to collect predictions for fold %d: %s", fold_idx, exc)
+
         result = FoldResult(
             fold_idx=fold_idx,
             train_size=len(X_train),
             val_size=len(X_val),
             train_metrics=train_metrics,
             val_metrics=val_metrics,
+            val_predictions=val_preds,
+            val_actuals=val_acts,
         )
         results.append(result)
 

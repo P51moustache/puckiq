@@ -73,6 +73,8 @@ with col1:
         value=_format_age(status.get("last_prediction")),
         help="Most recent prediction written to ml_predictions",
     )
+    if status.get("last_prediction"):
+        st.caption(f"Last run: {status['last_prediction']}")
 
 with col2:
     st.metric(
@@ -80,6 +82,8 @@ with col2:
         value=_format_age(status.get("last_training")),
         help="Most recent model training (ml_model_metadata)",
     )
+    if status.get("last_training"):
+        st.caption(f"Last run: {status['last_training']}")
 
 with col3:
     st.metric(
@@ -87,6 +91,8 @@ with col3:
         value=_format_age(status.get("last_scoring")),
         help="Most recent prediction scoring (ml_prediction_scores)",
     )
+    if status.get("last_scoring"):
+        st.caption(f"Last run: {status['last_scoring']}")
 
 with col4:
     st.metric(
@@ -94,6 +100,8 @@ with col4:
         value=_format_age(status.get("last_evaluation")),
         help="Most recent monthly evaluation (ml_model_evaluations)",
     )
+    if status.get("last_evaluation"):
+        st.caption(f"Last run: {status['last_evaluation']}")
 
 # Schedule reference
 with st.expander("Scheduled Runs (GitHub Actions)"):

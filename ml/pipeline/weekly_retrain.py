@@ -55,7 +55,7 @@ from ml.config import (
 from ml.tuning.optuna_tuner import tune_model
 from ml.evaluation.calibration import compute_ece
 from ml.evaluation.overfitting import check_underfitting, detect_overfitting
-from ml.evaluation.validation import walk_forward_cv
+from ml.evaluation.validation import detect_concept_drift, walk_forward_cv
 from ml.features.compute import FeatureCache, compute_all_features, compute_player_features
 from ml.features.registry import get_model_features, load_feature_registry
 from ml.io.model_storage import ModelStorage
@@ -97,8 +97,9 @@ def _run() -> None:
     storage = ModelStorage(client)
 
     # 1. Get all completed games across training seasons.
-    #    We train on finished games only (game_state='OFF') — these have final scores.
-    games_df = read_games_multi(client, TRAINING_SEASONS, game_state="OFF")
+    #    We train on finished games (OFF = officially closed, FINAL = just ended).
+    #    Both have valid final scores.
+    games_df = read_games_multi(client, TRAINING_SEASONS, game_state=["OFF", "FINAL"])
     if games_df.empty:
         logger.warning("No completed games found for seasons %s", TRAINING_SEASONS)
         return
@@ -193,14 +194,30 @@ def _retrain_game_winner(
 
     model_kwargs = {"params": best_params} if best_params else {}
 
-    # Walk-forward CV: simulate real-world performance
-    folds = walk_forward_cv(GameWinnerModel, X, targets, model_kwargs=model_kwargs, sample_weights=sample_weights)
+    # Walk-forward CV: simulate real-world performance.
+    # collect_predictions=True so we can compute ECE from all OOS predictions.
+    folds = walk_forward_cv(
+        GameWinnerModel, X, targets,
+        model_kwargs=model_kwargs, sample_weights=sample_weights,
+        collect_predictions=True,
+    )
     if not folds:
         logger.warning("No CV folds completed for %s", model_type.value)
         return
 
     avg_val_metrics = _average_fold_metrics(folds, "val_metrics")
     avg_train_metrics = _average_fold_metrics(folds, "train_metrics")
+
+    # Concept drift detection (informational only — does NOT block promotion).
+    # Analyzes metric trends across CV folds to warn if model performance is
+    # degrading on more recent data, which could indicate the data distribution
+    # is shifting (e.g., rule changes, mid-season roster overhauls).
+    drift_result = detect_concept_drift(folds)
+    if drift_result.get("drift_detected"):
+        logger.warning(
+            "Concept drift detected for %s: %s",
+            model_type.value, drift_result.get("reasons", "unknown"),
+        )
 
     # Overfitting check: if training accuracy is much higher than validation
     # accuracy, the model is memorizing patterns instead of learning them.
@@ -216,18 +233,34 @@ def _retrain_game_winner(
         logger.warning("Underfitting detected for %s: %s — skipping promotion", model_type.value, underfit["reason"])
         return
 
-    # Calibration check (game_winner only): compute ECE from the last CV fold's
-    # out-of-sample predictions. We train a fresh model on the last fold's
-    # training split and predict on the validation split to get real OOS probs.
+    # Calibration check (game_winner only): compute ECE from ALL walk-forward CV
+    # fold OOS predictions. Each fold produces honest out-of-sample predictions
+    # (trained only on past data), so concatenating them gives a much larger sample
+    # than using a single fold. More data = more reliable ECE estimate.
     import numpy as np
-    from ml.config import VALIDATION_WINDOW
-    val_size = min(VALIDATION_WINDOW, len(X) // 4)
-    cal_model = GameWinnerModel(**model_kwargs)
-    cal_model.train(X.iloc[:-val_size], targets.iloc[:-val_size])
-    cal_preds = cal_model.predict(X.iloc[-val_size:])
-    cal_actuals = targets.iloc[-val_size:].values
-    ece_value = compute_ece(np.asarray(cal_preds), np.asarray(cal_actuals))
-    logger.info("Calibration ECE for %s: %.4f (max allowed: %.4f)", model_type.value, ece_value, MAX_ECE_FOR_PROMOTION)
+    all_oos_preds = []
+    all_oos_actuals = []
+    for fold in folds:
+        if fold.val_predictions is not None and fold.val_actuals is not None:
+            all_oos_preds.extend(fold.val_predictions)
+            all_oos_actuals.extend(fold.val_actuals)
+
+    if len(all_oos_preds) == 0:
+        logger.warning("No OOS predictions collected — falling back to last-fold calibration")
+        from ml.config import VALIDATION_WINDOW
+        val_size = min(VALIDATION_WINDOW, len(X) // 4)
+        cal_model = GameWinnerModel(**model_kwargs)
+        cal_model.train(X.iloc[:-val_size], targets.iloc[:-val_size])
+        cal_preds = cal_model.predict(X.iloc[-val_size:])
+        cal_actuals = targets.iloc[-val_size:].values
+        ece_value = compute_ece(np.asarray(cal_preds), np.asarray(cal_actuals))
+    else:
+        ece_value = compute_ece(np.asarray(all_oos_preds), np.asarray(all_oos_actuals))
+
+    logger.info(
+        "Calibration ECE for %s: %.4f (from %d OOS predictions, max allowed: %.4f)",
+        model_type.value, ece_value, len(all_oos_preds), MAX_ECE_FOR_PROMOTION,
+    )
 
     if ece_value > MAX_ECE_FOR_PROMOTION:
         logger.warning(
@@ -245,11 +278,15 @@ def _retrain_game_winner(
     # Compute overfit gap for metadata
     overfit_gap = overfit["gaps"].get("accuracy", overfit["gaps"].get("brier_score", 0.0))
 
-    # Compare to current active model and maybe promote
+    # Compare to current active model and maybe promote.
+    #
+    # NOTE: train_metrics here are CV-fold averages, NOT final model metrics.
+    # The final model trains on ALL data, so its train accuracy would be ~1.0 for LightGBM.
+    # CV-averaged metrics are more informative for overfitting detection.
     _maybe_promote(
         storage, client, model_type, final_model,
         val_metrics=avg_val_metrics,
-        train_metrics=avg_train_metrics,  # Use CV train metrics, not final model
+        train_metrics=avg_train_metrics,
         overfit_gap=overfit_gap,
         n_games=len(X),
         features_used=available,
@@ -295,6 +332,15 @@ def _retrain_spread(
 
     avg_val_metrics = _average_fold_metrics(folds, "val_metrics")
     avg_train_metrics = _average_fold_metrics(folds, "train_metrics")
+
+    # Concept drift detection (informational only — does NOT block promotion)
+    drift_result = detect_concept_drift(folds, metric_name="mae")
+    if drift_result.get("drift_detected"):
+        logger.warning(
+            "Concept drift detected for %s: %s",
+            model_type.value, drift_result.get("reasons", "unknown"),
+        )
+
     overfit = detect_overfitting(avg_train_metrics, avg_val_metrics)
     overfit_gap = overfit["gaps"].get("mae", 0.0)
 
@@ -307,10 +353,13 @@ def _retrain_spread(
     final_model = SpreadModel(**model_kwargs)
     train_metrics = final_model.train(X, targets, sample_weight=sample_weights)
 
+    # NOTE: train_metrics here are CV-fold averages, NOT final model metrics.
+    # The final model trains on ALL data, so its train accuracy would be ~1.0 for LightGBM.
+    # CV-averaged metrics are more informative for overfitting detection.
     _maybe_promote(
         storage, client, model_type, final_model,
         val_metrics=avg_val_metrics,
-        train_metrics=avg_train_metrics,  # Use CV train metrics, not final model
+        train_metrics=avg_train_metrics,
         overfit_gap=overfit_gap,
         n_games=len(X),
         features_used=available,
@@ -350,6 +399,15 @@ def _retrain_totals(
 
     avg_val_metrics = _average_fold_metrics(folds, "val_metrics")
     avg_train_metrics = _average_fold_metrics(folds, "train_metrics")
+
+    # Concept drift detection (informational only — does NOT block promotion)
+    drift_result = detect_concept_drift(folds, metric_name="mae")
+    if drift_result.get("drift_detected"):
+        logger.warning(
+            "Concept drift detected for %s: %s",
+            model_type.value, drift_result.get("reasons", "unknown"),
+        )
+
     overfit = detect_overfitting(avg_train_metrics, avg_val_metrics)
     overfit_gap = overfit["gaps"].get("mae", 0.0)
 
@@ -362,10 +420,13 @@ def _retrain_totals(
     final_model = TotalsModel()
     train_metrics = final_model.train(X, targets, sample_weight=sample_weights)
 
+    # NOTE: train_metrics here are CV-fold averages, NOT final model metrics.
+    # The final model trains on ALL data, so its train accuracy would be ~1.0 for LightGBM.
+    # CV-averaged metrics are more informative for overfitting detection.
     _maybe_promote(
         storage, client, model_type, final_model,
         val_metrics=avg_val_metrics,
-        train_metrics=avg_train_metrics,  # Use CV train metrics, not final model
+        train_metrics=avg_train_metrics,
         overfit_gap=overfit_gap,
         n_games=len(X),
         features_used=available,
@@ -428,24 +489,113 @@ def _retrain_player_props(
     assists = assists.iloc[:len(X)].reset_index(drop=True)
     points = points.iloc[:len(X)].reset_index(drop=True)
 
-    # Simple train/test split (80/20) — player data is abundant
-    split_idx = int(len(X) * 0.8)
-    X_train, X_val = X.iloc[:split_idx], X.iloc[split_idx:]
-    g_train, g_val = goals.iloc[:split_idx], goals.iloc[split_idx:]
-    a_train, a_val = assists.iloc[:split_idx], assists.iloc[split_idx:]
-    p_train, p_val = points.iloc[:split_idx], points.iloc[split_idx:]
+    # --- Walk-forward CV for player props ---
+    # PlayerPropsModel has a non-standard train() signature (goals, assists, points
+    # as separate args), so we can't use the generic walk_forward_cv(). Instead,
+    # we implement the same expanding-window logic inline, ensuring validation
+    # data is always chronologically AFTER training data.
+    from ml.config import MIN_TRAINING_GAMES, VALIDATION_WINDOW, STEP_SIZE
+    min_train = max(MIN_TRAINING_GAMES, 100)
+    val_window = VALIDATION_WINDOW
+    step_size = STEP_SIZE
+    n = len(X)
+    fold_val_metrics_list: list[dict] = []
+    fold_train_metrics_list: list[dict] = []
+    train_end = min_train
+    fold_idx = 0
 
-    # Train
-    model = PlayerPropsModel()
-    train_metrics = model.train(X_train, g_train, a_train, p_train)
+    while train_end + val_window <= n:
+        val_start = train_end
+        val_end = val_start + val_window
 
-    # Evaluate
-    val_metrics = model.evaluate(X_val, g_val, a_val, p_val)
+        X_train_fold = X.iloc[:train_end]
+        X_val_fold = X.iloc[val_start:val_end]
+        g_train_fold = goals.iloc[:train_end]
+        g_val_fold = goals.iloc[val_start:val_end]
+        a_train_fold = assists.iloc[:train_end]
+        a_val_fold = assists.iloc[val_start:val_end]
+        p_train_fold = points.iloc[:train_end]
+        p_val_fold = points.iloc[val_start:val_end]
+
+        fold_model = PlayerPropsModel()
+        fold_train_m = fold_model.train(X_train_fold, g_train_fold, a_train_fold, p_train_fold)
+        fold_val_m = fold_model.evaluate(X_val_fold, g_val_fold, a_val_fold, p_val_fold)
+
+        fold_train_metrics_list.append(fold_train_m)
+        fold_val_metrics_list.append(fold_val_m)
+
+        logger.info(
+            "Player props fold %d: train=%d, val=%d, val_goals_mae=%.4f, val_assists_mae=%.4f, val_points_mae=%.4f",
+            fold_idx, train_end, val_window,
+            fold_val_m["goals"]["mae"], fold_val_m["assists"]["mae"], fold_val_m["points"]["mae"],
+        )
+
+        fold_idx += 1
+        train_end += step_size
+
+    if not fold_val_metrics_list:
+        logger.warning("No CV folds completed for player_props — falling back to 80/20 split")
+        split_idx = int(n * 0.8)
+        X_train, X_val = X.iloc[:split_idx], X.iloc[split_idx:]
+        g_train, g_val = goals.iloc[:split_idx], goals.iloc[split_idx:]
+        a_train, a_val = assists.iloc[:split_idx], assists.iloc[split_idx:]
+        p_train, p_val = points.iloc[:split_idx], points.iloc[split_idx:]
+
+        model = PlayerPropsModel()
+        train_metrics = model.train(X_train, g_train, a_train, p_train)
+        val_metrics = model.evaluate(X_val, g_val, a_val, p_val)
+    else:
+        # Average validation metrics across all folds
+        avg_goals_mae = sum(m["goals"]["mae"] for m in fold_val_metrics_list) / len(fold_val_metrics_list)
+        avg_assists_mae = sum(m["assists"]["mae"] for m in fold_val_metrics_list) / len(fold_val_metrics_list)
+        avg_points_mae = sum(m["points"]["mae"] for m in fold_val_metrics_list) / len(fold_val_metrics_list)
+
+        val_metrics = {
+            "goals": {"mae": avg_goals_mae},
+            "assists": {"mae": avg_assists_mae},
+            "points": {"mae": avg_points_mae},
+        }
+
+        # Train final model on ALL data
+        model = PlayerPropsModel()
+        train_metrics = model.train(X, goals, assists, points)
 
     logger.info("Player props train metrics: %s", train_metrics)
     logger.info("Player props val metrics: %s", val_metrics)
 
-    # Store model — use simplified promotion (no walk-forward needed)
+    # --- Quality gates for player props ---
+    # Check 1: Model can produce predictions (not broken)
+    import numpy as np
+    try:
+        test_preds = model.predict(X.iloc[-5:])
+        for prop_name in ("goals", "assists", "points"):
+            preds_arr = np.asarray(test_preds[prop_name])
+            if np.any(np.isnan(preds_arr)):
+                logger.error("Player props quality gate FAILED: NaN predictions for %s — skipping promotion", prop_name)
+                return
+            if len(preds_arr) > 1 and np.all(preds_arr == preds_arr[0]):
+                logger.warning("Player props quality gate WARNING: identical predictions for %s", prop_name)
+    except Exception as exc:
+        logger.error("Player props quality gate FAILED: prediction error: %s — skipping promotion", exc)
+        return
+
+    # Check 2: Validation MAE sanity check — if average MAE is unreasonably high,
+    # the model is not learning anything useful. Threshold: avg MAE > 2.0 means
+    # predictions are off by 2+ goals/assists/points per game on average.
+    avg_mae = (
+        val_metrics["goals"]["mae"]
+        + val_metrics["assists"]["mae"]
+        + val_metrics["points"]["mae"]
+    ) / 3.0
+    MAX_PLAYER_PROPS_MAE = 2.0
+    if avg_mae > MAX_PLAYER_PROPS_MAE:
+        logger.warning(
+            "Player props quality gate WARNING: avg MAE %.4f > %.1f — model may be too weak",
+            avg_mae, MAX_PLAYER_PROPS_MAE,
+        )
+        # Informational warning, not a hard block — player props are inherently noisy
+
+    # --- Promote ---
     version = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     storage.save_model(model, model_type.value, version,
                        {"goals_mae": val_metrics["goals"]["mae"],
@@ -454,26 +604,24 @@ def _retrain_player_props(
 
     # Write metadata — store per-stat MAE in hyperparameters JSONB
     # (ml_model_metadata has val_mae but not val_goals_mae etc.)
-    avg_mae = (
-        val_metrics["goals"]["mae"]
-        + val_metrics["assists"]["mae"]
-        + val_metrics["points"]["mae"]
-    ) / 3.0
     # Compute training date range from the games
     date_min = games_df["game_date"].min() if "game_date" in games_df.columns else None
     date_max = games_df["game_date"].max() if "game_date" in games_df.columns else None
     training_date_range = f"{date_min} to {date_max}" if date_min and date_max else None
 
+    n_training_games = len(X) if fold_val_metrics_list else int(len(X) * 0.8)
+
     write_model_metadata(client, {
         "model_type": model_type.value,
         "model_version": version,
-        "training_games": len(X_train),
+        "training_games": n_training_games,
         "training_date_range": training_date_range,
         "val_mae": round(avg_mae, 4),
         "hyperparameters": {
             "goals_mae": round(val_metrics["goals"]["mae"], 4),
             "assists_mae": round(val_metrics["assists"]["mae"], 4),
             "points_mae": round(val_metrics["points"]["mae"], 4),
+            "cv_folds": len(fold_val_metrics_list) if fold_val_metrics_list else 0,
         },
         "features_used": available,
         "is_active": True,
@@ -488,7 +636,10 @@ def _retrain_player_props(
         "is_active", True
     ).neq("model_version", version).execute()
 
-    logger.info("Player props model promoted: %s/%s", model_type.value, version)
+    logger.info(
+        "Player props model promoted: %s/%s (avg_mae=%.4f, cv_folds=%d)",
+        model_type.value, version, avg_mae, len(fold_val_metrics_list) if fold_val_metrics_list else 0,
+    )
 
 
 def _maybe_promote(

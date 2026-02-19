@@ -24,6 +24,13 @@ st.caption(
     "Each prediction is stored as a separate row with expected values and player ID."
 )
 
+st.warning(
+    "**Work in Progress** — Player props predictions are not yet available in the dashboard. "
+    "The `ml_predictions` table has a UNIQUE constraint on `(game_id, model_type, model_version)` "
+    "which prevents storing multiple player predictions per game. "
+    "This will be resolved in a future update with a dedicated player predictions table."
+)
+
 # ---------------------------------------------------------------------------
 # Check if player props model is available
 # ---------------------------------------------------------------------------

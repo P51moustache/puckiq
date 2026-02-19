@@ -68,7 +68,7 @@ def main() -> None:
     client = create_supabase_client()
 
     # Load all completed games across training seasons
-    games_df = read_games_multi(client, TRAINING_SEASONS, game_state="OFF")
+    games_df = read_games_multi(client, TRAINING_SEASONS, game_state=["OFF", "FINAL"])
     if games_df.empty:
         logger.warning("No completed games found")
         return

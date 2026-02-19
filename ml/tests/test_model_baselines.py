@@ -190,6 +190,7 @@ class TestEvaluateBaselines:
             "away_score": [1, 4],
             "home_team_abbrev": ["TOR", "BOS"],
             "away_team_abbrev": ["MTL", "NYR"],
+            "game_date": ["2025-10-10", "2025-10-11"],
         })
         features = generate_synthetic_features(n=2, model_type="game_winner", seed=99)
         results = evaluate_baselines(games, features)

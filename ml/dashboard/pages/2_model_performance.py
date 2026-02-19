@@ -20,6 +20,7 @@ st.caption(
     "Deep dive into model calibration and comparison against baselines. "
     "A well-calibrated model means: when it says 70% chance, the team actually wins ~70% of the time."
 )
+st.caption("Data refreshes every 5 minutes. Last cache reset tracked by Streamlit.")
 
 # ---------------------------------------------------------------------------
 # Model type selector

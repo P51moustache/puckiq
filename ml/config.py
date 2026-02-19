@@ -91,11 +91,7 @@ OVERFITTING_THRESHOLDS = {
 }
 MIN_CALIBRATION_QUALITY = 0.80    # Calibration R² — predicted probabilities must roughly
                                   #   match actual outcomes (1.0 = perfect calibration)
-MAX_ECE_FOR_PROMOTION = 0.35      # Maximum Expected Calibration Error for game_winner
-                                  #   promotion. ECE measures how well predicted probabilities
-                                  #   match actual win rates. 0.15 means "P(win)=0.7 should
-                                  #   correspond to ~55-85% actual win rate" — reasonable for
-                                  #   hockey where upsets are common.
+MAX_ECE_FOR_PROMOTION = 0.15      # ECE measures miscalibration; 0.15 ensures predictions within ~15% of true probabilities
 
 # ---------------------------------------------------------------------------
 # Underfitting thresholds — model must beat these minimums or it's too weak

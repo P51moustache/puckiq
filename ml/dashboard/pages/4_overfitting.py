@@ -204,8 +204,6 @@ else:
 
 st.subheader("Train/Val Gap Trend")
 
-evaluation = get_latest_evaluation(model_type)
-
 if evaluation is not None:
     gap_history = evaluation.get("train_val_gap_history")
 

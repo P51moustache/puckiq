@@ -93,13 +93,18 @@ def check_data_freshness(client: Client) -> bool:
 
 
 @_retry
-def read_games(client: Client, season: int, game_state: str | None = None) -> pd.DataFrame:
+def read_games(
+    client: Client,
+    season: int,
+    game_state: str | list[str] | None = None,
+) -> pd.DataFrame:
     """
     Read games from the games table.
 
     Args:
         season: Season integer (e.g. 20252026).
-        game_state: Optional filter (FUT, LIVE, FINAL, OFF).
+        game_state: Optional filter — single state string (e.g. "OFF"),
+            list of states (e.g. ["OFF", "FINAL"]), or None for all.
 
     Returns:
         DataFrame of game rows.
@@ -110,7 +115,9 @@ def read_games(client: Client, season: int, game_state: str | None = None) -> pd
     offset = 0
     while True:
         query = client.table(GAMES_TABLE).select("*").eq("season", season)
-        if game_state:
+        if isinstance(game_state, list):
+            query = query.in_("game_state", game_state)
+        elif game_state:
             query = query.eq("game_state", game_state)
         query = query.range(offset, offset + page_size - 1)
         response = query.execute()
