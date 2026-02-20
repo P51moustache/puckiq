@@ -31,8 +31,8 @@ class SpreadModel(BaseLGBMModel):
     def _compute_train_metrics(self, X: np.ndarray, y: np.ndarray) -> dict[str, float]:
         train_preds = self.model.predict(X)
         return {
-            "train_mae": float(mean_absolute_error(y, train_preds)),
-            "train_rmse": float(np.sqrt(mean_squared_error(y, train_preds))),
+            "mae": float(mean_absolute_error(y, train_preds)),
+            "rmse": float(np.sqrt(mean_squared_error(y, train_preds))),
         }
 
     def evaluate(

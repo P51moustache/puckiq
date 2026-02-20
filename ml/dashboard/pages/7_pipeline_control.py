@@ -240,8 +240,8 @@ st.divider()
 st.markdown("### Weekly Retrain")
 st.markdown(
     "Retrains all models (game_winner, spread, totals, player_props) on the latest completed games. "
-    "Uses walk-forward cross-validation and only promotes new models if they beat "
-    "the current active model."
+    "Uses walk-forward cross-validation and only promotes new models if they pass all quality gates "
+    "(accuracy, Brier score, per-metric overfitting thresholds, calibration)."
 )
 
 weekly_rate_limited = _is_rate_limited("weekly")

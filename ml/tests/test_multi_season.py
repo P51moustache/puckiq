@@ -231,7 +231,7 @@ class TestSampleWeightsCV:
         class _WeightCapture:
             def train(self, features_df, targets, eval_set=None, sample_weight=None):
                 received_weights.append(sample_weight)
-                return {"train_accuracy": 0.6}
+                return {"accuracy": 0.6}
 
             def evaluate(self, features_df, targets):
                 return {"accuracy": 0.55, "n_games": len(features_df)}
@@ -260,7 +260,7 @@ class TestSampleWeightsCV:
             def train(self, features_df, targets, eval_set=None, sample_weight=None):
                 if sample_weight is not None:
                     weight_lengths.append(len(sample_weight))
-                return {"train_accuracy": 0.6}
+                return {"accuracy": 0.6}
 
             def evaluate(self, features_df, targets):
                 return {"accuracy": 0.55, "n_games": len(features_df)}
@@ -286,7 +286,7 @@ class TestSampleWeightsCV:
         class _KwargCapture:
             def train(self, features_df, targets, eval_set=None, **kwargs):
                 received_kwargs.append(kwargs)
-                return {"train_accuracy": 0.6}
+                return {"accuracy": 0.6}
 
             def evaluate(self, features_df, targets):
                 return {"accuracy": 0.55, "n_games": len(features_df)}
@@ -322,7 +322,7 @@ class TestSampleWeightsModel:
 
         model = GameWinnerModel()
         metrics = model.train(X, y, sample_weight=weights)
-        assert "train_accuracy" in metrics
+        assert "accuracy" in metrics
 
     def test_spread_accepts_sample_weight(self):
         """SpreadModel.train() should accept sample_weight parameter."""
@@ -335,7 +335,7 @@ class TestSampleWeightsModel:
 
         model = SpreadModel()
         metrics = model.train(X, y, sample_weight=weights)
-        assert "train_mae" in metrics
+        assert "mae" in metrics
 
     def test_totals_accepts_sample_weight(self):
         """TotalsModel.train() should accept sample_weight parameter."""
@@ -348,4 +348,4 @@ class TestSampleWeightsModel:
 
         model = TotalsModel()
         metrics = model.train(X, y, sample_weight=weights)
-        assert "ensemble_mae" in metrics
+        assert "mae" in metrics

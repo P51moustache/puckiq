@@ -212,22 +212,27 @@ def get_latest_evaluation(model_type: str) -> dict | None:
 # ---------------------------------------------------------------------------
 
 
+_CLASSIFICATION_MODELS = {"game_winner"}
+
+
 def compute_effective_overfit_gap(model: dict | pd.Series) -> float | None:
     """Compute the real overfit gap, even when the DB value is 0.
 
     The DB ``overfit_gap`` may be 0 because ``weekly_retrain`` stored final-
     model metrics (LightGBM memorises training data → train_accuracy=1.0)
     instead of cross-validation train metrics.  When the stored gap is 0 (or
-    missing) but both ``train_accuracy`` and ``val_accuracy`` are available we
-    fall back to ``abs(train_accuracy - val_accuracy)``.
+    missing) we fall back to computing from available columns:
+    - Classification (game_winner): abs(train_accuracy - val_accuracy)
+    - Regression (spread/totals): no fallback (train MAE not stored in DB)
     """
     gap = model.get("overfit_gap") if isinstance(model, dict) else model.get("overfit_gap")
-    train_acc = model.get("train_accuracy") if isinstance(model, dict) else model.get("train_accuracy")
-    val_acc = model.get("val_accuracy") if isinstance(model, dict) else model.get("val_accuracy")
 
     if pd.notna(gap) and gap != 0:
         return float(gap)
 
+    # Fallback: recompute from accuracy columns (classification models only)
+    train_acc = model.get("train_accuracy") if isinstance(model, dict) else model.get("train_accuracy")
+    val_acc = model.get("val_accuracy") if isinstance(model, dict) else model.get("val_accuracy")
     if pd.notna(train_acc) and pd.notna(val_acc):
         return abs(float(train_acc) - float(val_acc))
 

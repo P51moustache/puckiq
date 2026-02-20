@@ -162,15 +162,15 @@ class TestDetectOverfitting:
 
 
 class TestComputeTrainValGapHistory:
-    """Tests for compute_train_val_gap_history()."""
+    """Tests for compute_train_val_gap_history().
+
+    Metadata comes from flat DB columns (train_accuracy, val_accuracy, etc.),
+    NOT nested train_metrics/val_metrics dicts.
+    """
 
     def test_returns_list(self):
         metadata = [
-            {
-                "version": "v1",
-                "train_metrics": {"accuracy": 0.60},
-                "val_metrics": {"accuracy": 0.58},
-            },
+            {"model_version": "v1", "train_accuracy": 0.60, "val_accuracy": 0.58},
         ]
         history = compute_train_val_gap_history(metadata)
         assert isinstance(history, list)
@@ -178,16 +178,8 @@ class TestComputeTrainValGapHistory:
 
     def test_each_entry_has_required_fields(self):
         metadata = [
-            {
-                "version": "v1",
-                "train_metrics": {"accuracy": 0.60},
-                "val_metrics": {"accuracy": 0.58},
-            },
-            {
-                "version": "v2",
-                "train_metrics": {"accuracy": 0.65},
-                "val_metrics": {"accuracy": 0.55},
-            },
+            {"model_version": "v1", "train_accuracy": 0.60, "val_accuracy": 0.58},
+            {"model_version": "v2", "train_accuracy": 0.65, "val_accuracy": 0.55},
         ]
         history = compute_train_val_gap_history(metadata)
         for entry in history:
@@ -197,16 +189,8 @@ class TestComputeTrainValGapHistory:
 
     def test_detects_overfitting_in_later_version(self):
         metadata = [
-            {
-                "version": "v1",
-                "train_metrics": {"accuracy": 0.60},
-                "val_metrics": {"accuracy": 0.58},
-            },
-            {
-                "version": "v2",
-                "train_metrics": {"accuracy": 0.85},
-                "val_metrics": {"accuracy": 0.55},
-            },
+            {"model_version": "v1", "train_accuracy": 0.60, "val_accuracy": 0.58},
+            {"model_version": "v2", "train_accuracy": 0.85, "val_accuracy": 0.55},
         ]
         history = compute_train_val_gap_history(metadata)
         assert history[0]["is_overfitting"] is False
@@ -216,21 +200,38 @@ class TestComputeTrainValGapHistory:
         history = compute_train_val_gap_history([])
         assert history == []
 
-    def test_missing_metrics_handled(self):
-        """Metadata without train/val metrics should not crash."""
-        metadata = [{"version": "v1"}]
+    def test_missing_metrics_skipped(self):
+        """Metadata without train/val metrics should be skipped."""
+        metadata = [{"model_version": "v1"}]
         history = compute_train_val_gap_history(metadata)
-        assert len(history) == 1
-        assert history[0]["is_overfitting"] is False
+        assert len(history) == 0
 
     def test_preserves_version_labels(self):
         metadata = [
-            {"version": "2025-01-15", "train_metrics": {}, "val_metrics": {}},
-            {"version": "2025-01-22", "train_metrics": {}, "val_metrics": {}},
+            {"model_version": "2025-01-15", "train_accuracy": 0.60, "val_accuracy": 0.58},
+            {"model_version": "2025-01-22", "train_accuracy": 0.62, "val_accuracy": 0.57},
         ]
         history = compute_train_val_gap_history(metadata)
         assert history[0]["version"] == "2025-01-15"
         assert history[1]["version"] == "2025-01-22"
+
+    def test_regression_model_with_mae(self):
+        """Regression models use val_mae instead of val_accuracy."""
+        metadata = [
+            {"model_version": "v1", "val_mae": 2.10, "val_rmse": 2.80, "overfit_gap": 0.35},
+        ]
+        history = compute_train_val_gap_history(metadata)
+        assert len(history) == 1
+        assert "mae" in history[0]["gaps"]
+
+    def test_stored_gap_used_when_no_train_metrics(self):
+        """If overfit_gap is stored but train metrics are missing, use stored gap."""
+        metadata = [
+            {"model_version": "v1", "val_accuracy": 0.53, "overfit_gap": 0.07},
+        ]
+        history = compute_train_val_gap_history(metadata)
+        assert len(history) == 1
+        assert history[0]["gaps"]["accuracy"] == 0.07
 
 
 class TestCheckUnderfitting:

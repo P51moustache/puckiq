@@ -81,7 +81,7 @@ class TestTunedParamsPassToModels:
 
         model = GameWinnerModel(params=best_params)
         train_metrics = model.train(features, targets)
-        assert "train_accuracy" in train_metrics
+        assert "accuracy" in train_metrics
 
         preds = model.predict(features)
         assert len(preds) == len(features)
@@ -103,7 +103,7 @@ class TestTunedParamsPassToModels:
 
         model = SpreadModel(params=best_params)
         train_metrics = model.train(features, targets)
-        assert "train_mae" in train_metrics
+        assert "mae" in train_metrics
 
         preds = model.predict(features)
         assert len(preds) == len(features)

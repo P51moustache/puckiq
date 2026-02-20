@@ -714,7 +714,7 @@ def _maybe_promote(
         "val_log_loss": val_metrics.get("log_loss"),
         "val_mae": val_metrics.get("mae"),
         "val_rmse": val_metrics.get("rmse"),
-        "train_accuracy": train_metrics.get("train_accuracy"),
+        "train_accuracy": train_metrics.get("accuracy"),
         "overfit_gap": overfit_gap,
         "feature_importance": feature_importance or None,
         "features_used": features_used,
@@ -794,9 +794,15 @@ def _maybe_promote(
             _rollback(f"Accuracy {accuracy:.4f} below minimum {MIN_ACCURACY} (worse than coin flip)")
             return
 
-        # Gate 6: Not overfitting
-        if overfit_gap > MAX_TRAIN_VAL_GAP:
-            _rollback(f"Overfitting detected: train/val gap {overfit_gap:.4f} exceeds {MAX_TRAIN_VAL_GAP}")
+        # Gate 6: Not overfitting — use per-metric threshold so regression models
+        # (MAE in goal units) aren't compared against the accuracy threshold.
+        from ml.config import OVERFITTING_THRESHOLDS
+        if model_type == ModelType.GAME_WINNER:
+            gap_threshold = OVERFITTING_THRESHOLDS.get("accuracy", MAX_TRAIN_VAL_GAP)
+        else:
+            gap_threshold = OVERFITTING_THRESHOLDS.get("mae", MAX_TRAIN_VAL_GAP)
+        if overfit_gap > gap_threshold:
+            _rollback(f"Overfitting detected: train/val gap {overfit_gap:.4f} exceeds {gap_threshold}")
             return
 
         logger.info(
