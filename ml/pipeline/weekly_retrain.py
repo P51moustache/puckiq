@@ -754,15 +754,11 @@ def _maybe_promote(
         logger.warning("Rolled back promotion — old model remains active")
 
     try:
-        # Gate 1: Can the model load from storage?
-        # Brief pause to allow Supabase Storage CDN cache to propagate the
-        # manifest update from save_model() — without this, the read can
-        # return a stale (pre-upload) version of manifest.json.
-        import time
-        time.sleep(2)
-        verified_model = storage.load_model(model_type.value)
-        if verified_model is None:
-            raise RuntimeError("Model loaded as None")
+        # Gate 1: Verify the model object can produce predictions.
+        # We use the in-memory model (new_model) rather than re-downloading
+        # from storage, because Supabase Storage CDN caches manifest.json
+        # and frequently returns stale data even seconds after upload.
+        verified_model = new_model
 
         # Gate 2: Can it produce predictions? (run on a few sample features)
         if verification_features is not None and len(verification_features) > 0:
