@@ -156,6 +156,95 @@ features:
     enabled: true
 
   # ---------------------------------------------------------------
+  # Rolling window L5 (short-term momentum)
+  # ---------------------------------------------------------------
+  home_win_pct_l5:
+    description: "Home team win rate in last 5 games (short-term momentum)"
+    compute: rolling_team
+    rolling:
+      stat: win
+      team_key: home_team
+      window: 5
+      aggregation: mean
+    tier: 2
+    enabled: true
+
+  away_win_pct_l5:
+    description: "Away team win rate in last 5 games (short-term momentum)"
+    compute: rolling_team
+    rolling:
+      stat: win
+      team_key: away_team
+      window: 5
+      aggregation: mean
+    tier: 2
+    enabled: true
+
+  home_goals_for_l5:
+    description: "Home team avg goals scored in last 5 games"
+    compute: rolling_team
+    rolling:
+      stat: goals_for
+      team_key: home_team
+      window: 5
+      aggregation: mean
+    tier: 2
+    enabled: true
+
+  away_goals_for_l5:
+    description: "Away team avg goals scored in last 5 games"
+    compute: rolling_team
+    rolling:
+      stat: goals_for
+      team_key: away_team
+      window: 5
+      aggregation: mean
+    tier: 2
+    enabled: true
+
+  home_goals_against_l5:
+    description: "Home team avg goals allowed in last 5 games"
+    compute: rolling_team
+    rolling:
+      stat: goals_against
+      team_key: home_team
+      window: 5
+      aggregation: mean
+    tier: 2
+    enabled: true
+
+  away_goals_against_l5:
+    description: "Away team avg goals allowed in last 5 games"
+    compute: rolling_team
+    rolling:
+      stat: goals_against
+      team_key: away_team
+      window: 5
+      aggregation: mean
+    tier: 2
+    enabled: true
+
+  home_starter_save_pctg_l5:
+    description: "Home starting goalie save% in last 5 starts (short-term form)"
+    compute: rolling_goalie
+    rolling:
+      stat: save_pctg
+      team_key: home_team
+      window: 5
+    tier: 2
+    enabled: true
+
+  away_starter_save_pctg_l5:
+    description: "Away starting goalie save% in last 5 starts (short-term form)"
+    compute: rolling_goalie
+    rolling:
+      stat: save_pctg
+      team_key: away_team
+      window: 5
+    tier: 2
+    enabled: true
+
+  # ---------------------------------------------------------------
   # Goalie (lookup from goalie_season_stats)
   # ---------------------------------------------------------------
   home_starter_save_pctg:
@@ -533,33 +622,33 @@ model_features:
     - away_goals_against_l10
     - home_win_pct_l10
     - away_win_pct_l10
+    - home_win_pct_l5
+    - away_win_pct_l5
+    - home_goals_for_l5
+    - away_goals_for_l5
+    - home_goals_against_l5
+    - away_goals_against_l5
     - home_sog_l10
     - away_sog_l10
     - home_starter_save_pctg
     - away_starter_save_pctg
     - home_starter_save_pctg_l10
     - away_starter_save_pctg_l10
+    - home_starter_save_pctg_l5
+    - away_starter_save_pctg_l5
     - home_pp_pct
     - away_pp_pct
     - home_pk_pct
     - away_pk_pct
     - rest_advantage
-    - home_is_back_to_back
-    - away_is_back_to_back
     - home_corsi_pct_l10
     - away_corsi_pct_l10
-    - home_fenwick_pct_l10
-    - away_fenwick_pct_l10
     - home_xgf_l10
     - away_xgf_l10
     - home_xga_l10
     - away_xga_l10
     - home_games_last_7d
     - away_games_last_7d
-    - h2h_home_win_pct
-    - h2h_goals_diff
-    - home_starter_gaa
-    - away_starter_gaa
 
   spread:
     - home_point_pctg
@@ -581,18 +670,12 @@ model_features:
     - rest_advantage
     - home_corsi_pct_l10
     - away_corsi_pct_l10
-    - home_fenwick_pct_l10
-    - away_fenwick_pct_l10
     - home_xgf_l10
     - away_xgf_l10
     - home_xga_l10
     - away_xga_l10
     - home_games_last_7d
     - away_games_last_7d
-    - h2h_home_win_pct
-    - h2h_goals_diff
-    - home_starter_gaa
-    - away_starter_gaa
     - gw_home_win_prob
 
   totals:
@@ -612,16 +695,12 @@ model_features:
     - away_pk_pct
     - home_corsi_pct_l10
     - away_corsi_pct_l10
-    - home_fenwick_pct_l10
-    - away_fenwick_pct_l10
     - home_xgf_l10
     - away_xgf_l10
     - home_xga_l10
     - away_xga_l10
     - home_games_last_7d
     - away_games_last_7d
-    - home_starter_gaa
-    - away_starter_gaa
     - home_backup_save_pctg
     - away_backup_save_pctg
     - gw_home_win_prob

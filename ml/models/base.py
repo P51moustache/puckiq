@@ -58,7 +58,7 @@ class BaseLGBMModel(ABC):
         if eval_set is not None:
             X_val, y_val = eval_set
             fit_kwargs["eval_set"] = [(X_val.values, y_val.values)]
-            fit_kwargs["callbacks"] = [lgb.early_stopping(20, verbose=False)]
+            fit_kwargs["callbacks"] = [lgb.early_stopping(10, verbose=False)]
 
         if sample_weight is not None:
             w = np.asarray(sample_weight)

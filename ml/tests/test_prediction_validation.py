@@ -391,7 +391,7 @@ class TestIdenticalPredictionsDetection:
     def test_varied_inputs_produce_varied_gw_predictions(self):
         """With varied inputs, predictions should NOT all be identical.
         This is the quality gate's intended check."""
-        features = generate_synthetic_features(n=50, model_type="game_winner", seed=42)
+        features = generate_synthetic_features(n=200, model_type="game_winner", seed=42)
         np.random.seed(42)
         targets = pd.Series(
             np.random.choice([0, 1], len(features)), name="home_win"

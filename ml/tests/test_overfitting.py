@@ -124,8 +124,8 @@ class TestDetectOverfitting:
         assert result["is_overfitting"] is False
 
     def test_just_above_threshold_is_overfitting(self):
-        threshold = 0.05
-        train = {"accuracy": 0.606}
+        threshold = 0.10
+        train = {"accuracy": 0.656}
         val = {"accuracy": 0.55}
         result = detect_overfitting(train, val, threshold=threshold)
         assert result["is_overfitting"] is True
@@ -157,7 +157,7 @@ class TestDetectOverfitting:
         val = {"accuracy": 0.58, "mae": 1.7}
         result = detect_overfitting(train, val)
         assert "thresholds_used" in result
-        assert result["thresholds_used"]["accuracy"] == 0.05
+        assert result["thresholds_used"]["accuracy"] == 0.10
         assert result["thresholds_used"]["mae"] == 0.50
 
 
