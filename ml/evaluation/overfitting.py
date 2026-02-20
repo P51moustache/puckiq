@@ -192,10 +192,13 @@ def compute_train_val_gap_history(
     """
     Compute historical train-val gap trend from model metadata records.
 
-    Each metadata record should contain train_metrics and val_metrics dicts.
+    Metadata comes from flat DB columns (train_accuracy, val_accuracy, val_mae,
+    etc.), NOT nested train_metrics/val_metrics dicts. This function reconstructs
+    the metric dicts that detect_overfitting() expects.
 
     Args:
-        model_metadata_list: List of model metadata records, ordered chronologically.
+        model_metadata_list: List of model metadata records from ml_model_metadata,
+            ordered chronologically.
 
     Returns:
         List of dicts with version, gaps, and is_overfitting per entry.
@@ -203,9 +206,39 @@ def compute_train_val_gap_history(
     history: list[dict[str, Any]] = []
 
     for meta in model_metadata_list:
-        train_m = meta.get("train_metrics", {})
-        val_m = meta.get("val_metrics", {})
-        version = meta.get("version", "unknown")
+        # Reconstruct train/val metric dicts from flat DB columns.
+        train_m: dict[str, float] = {}
+        val_m: dict[str, float] = {}
+
+        if meta.get("train_accuracy") is not None:
+            train_m["accuracy"] = meta["train_accuracy"]
+        if meta.get("val_accuracy") is not None:
+            val_m["accuracy"] = meta["val_accuracy"]
+        if meta.get("val_brier_score") is not None:
+            val_m["brier_score"] = meta["val_brier_score"]
+        if meta.get("val_log_loss") is not None:
+            val_m["log_loss"] = meta["val_log_loss"]
+        if meta.get("val_mae") is not None:
+            val_m["mae"] = meta["val_mae"]
+        if meta.get("val_rmse") is not None:
+            val_m["rmse"] = meta["val_rmse"]
+
+        version = meta.get("model_version", meta.get("version", "unknown"))
+
+        # If the DB already has overfit_gap stored, use it directly.
+        # Otherwise compute from whatever metrics we have.
+        stored_gap = meta.get("overfit_gap")
+        if stored_gap is not None and stored_gap != 0 and (not train_m or not val_m):
+            # Can't recompute but have stored value — use it as-is.
+            history.append({
+                "version": version,
+                "gaps": {"accuracy": stored_gap} if meta.get("val_accuracy") is not None else {"mae": stored_gap},
+                "is_overfitting": False,  # Can't determine without both metrics
+            })
+            continue
+
+        if not train_m or not val_m:
+            continue
 
         result = detect_overfitting(train_m, val_m)
         history.append({

@@ -70,8 +70,8 @@ class TestEndToEndGameWinner:
         # 2. Train final model on all data
         model = GameWinnerModel()
         train_metrics = model.train(features, targets_binary)
-        assert "train_accuracy" in train_metrics
-        assert "train_brier" in train_metrics
+        assert "accuracy" in train_metrics
+        assert "brier_score" in train_metrics
 
         # 3. Evaluate on the last chunk (simulating holdout)
         holdout_X = features.iloc[-50:]
@@ -157,7 +157,7 @@ class TestEndToEndTotals:
         train_metrics = model.train(features, targets_total)
         assert "poisson_mae" in train_metrics
         assert "lgbm_mae" in train_metrics
-        assert "ensemble_mae" in train_metrics
+        assert "mae" in train_metrics
 
         # Evaluate
         holdout_X = features.iloc[-50:]

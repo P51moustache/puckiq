@@ -23,24 +23,24 @@ class TestGameWinnerTrain:
     def test_train_metrics_have_expected_keys(self, synthetic_game_features, synthetic_targets_binary):
         model = GameWinnerModel()
         metrics = model.train(synthetic_game_features, synthetic_targets_binary)
-        assert "train_accuracy" in metrics
-        assert "train_brier" in metrics
-        assert "train_log_loss" in metrics
+        assert "accuracy" in metrics
+        assert "brier_score" in metrics
+        assert "log_loss" in metrics
 
     def test_train_accuracy_in_valid_range(self, synthetic_game_features, synthetic_targets_binary):
         model = GameWinnerModel()
         metrics = model.train(synthetic_game_features, synthetic_targets_binary)
-        assert 0.0 <= metrics["train_accuracy"] <= 1.0
+        assert 0.0 <= metrics["accuracy"] <= 1.0
 
     def test_train_brier_in_valid_range(self, synthetic_game_features, synthetic_targets_binary):
         model = GameWinnerModel()
         metrics = model.train(synthetic_game_features, synthetic_targets_binary)
-        assert 0.0 <= metrics["train_brier"] <= 1.0
+        assert 0.0 <= metrics["brier_score"] <= 1.0
 
     def test_train_log_loss_positive(self, synthetic_game_features, synthetic_targets_binary):
         model = GameWinnerModel()
         metrics = model.train(synthetic_game_features, synthetic_targets_binary)
-        assert metrics["train_log_loss"] > 0
+        assert metrics["log_loss"] > 0
 
     def test_train_sets_model(self, synthetic_game_features, synthetic_targets_binary):
         model = GameWinnerModel()
@@ -63,7 +63,7 @@ class TestGameWinnerTrain:
         y_val = synthetic_targets_binary.iloc[split:]
         metrics = model.train(X_train, y_train, eval_set=(X_val, y_val))
         assert isinstance(metrics, dict)
-        assert "train_accuracy" in metrics
+        assert "accuracy" in metrics
 
     def test_custom_params(self, synthetic_game_features, synthetic_targets_binary):
         """Custom LightGBM params should override defaults."""

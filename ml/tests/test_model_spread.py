@@ -23,24 +23,24 @@ class TestSpreadModelTrain:
     def test_train_metrics_have_mae_and_rmse(self, synthetic_game_features, synthetic_targets_spread):
         model = SpreadModel()
         metrics = model.train(synthetic_game_features, synthetic_targets_spread)
-        assert "train_mae" in metrics
-        assert "train_rmse" in metrics
+        assert "mae" in metrics
+        assert "rmse" in metrics
 
     def test_train_mae_non_negative(self, synthetic_game_features, synthetic_targets_spread):
         model = SpreadModel()
         metrics = model.train(synthetic_game_features, synthetic_targets_spread)
-        assert metrics["train_mae"] >= 0
+        assert metrics["mae"] >= 0
 
     def test_train_rmse_non_negative(self, synthetic_game_features, synthetic_targets_spread):
         model = SpreadModel()
         metrics = model.train(synthetic_game_features, synthetic_targets_spread)
-        assert metrics["train_rmse"] >= 0
+        assert metrics["rmse"] >= 0
 
     def test_rmse_greater_or_equal_to_mae(self, synthetic_game_features, synthetic_targets_spread):
         """RMSE is always >= MAE for any dataset."""
         model = SpreadModel()
         metrics = model.train(synthetic_game_features, synthetic_targets_spread)
-        assert metrics["train_rmse"] >= metrics["train_mae"] - 1e-9
+        assert metrics["rmse"] >= metrics["mae"] - 1e-9
 
     def test_train_sets_model(self, synthetic_game_features, synthetic_targets_spread):
         model = SpreadModel()

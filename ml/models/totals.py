@@ -170,8 +170,8 @@ class TotalsModel:
         metrics = {
             **p_metrics,
             **l_metrics,
-            "ensemble_mae": float(mean_absolute_error(targets.values, preds)),
-            "ensemble_rmse": float(np.sqrt(mean_squared_error(targets.values, preds))),
+            "mae": float(mean_absolute_error(targets.values, preds)),
+            "rmse": float(np.sqrt(mean_squared_error(targets.values, preds))),
         }
         logger.info("TotalsModel trained: %s", metrics)
         return metrics

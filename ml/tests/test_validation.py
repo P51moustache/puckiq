@@ -17,7 +17,7 @@ class _DummyClassifier:
 
     def train(self, features_df, targets, eval_set=None):
         self._n_train = len(features_df)
-        return {"train_accuracy": 0.6}
+        return {"accuracy": 0.6}
 
     def evaluate(self, features_df, targets):
         return {"accuracy": 0.55, "n_games": len(features_df)}
@@ -28,7 +28,7 @@ class _DummyRegressor:
 
     def train(self, features_df, targets, eval_set=None):
         self._n_train = len(features_df)
-        return {"train_mae": 2.0}
+        return {"mae": 2.0}
 
     def evaluate(self, features_df, targets):
         return {"mae": 2.5, "n_games": len(features_df)}
@@ -127,7 +127,7 @@ class TestWalkForwardCV:
 
             def train(self, features_df, targets, eval_set=None):
                 self.train_max_idx = features_df["f1"].max()
-                return {"train_accuracy": 0.6}
+                return {"accuracy": 0.6}
 
             def evaluate(self, features_df, targets):
                 self.val_min_idx = features_df["f1"].min()
@@ -162,7 +162,7 @@ class TestWalkForwardCV:
             min_train=100, val_window=50, step_size=50,
         )
         for r in results:
-            assert "train_accuracy" in r.train_metrics
+            assert "accuracy" in r.train_metrics
             assert "accuracy" in r.val_metrics
 
     def test_works_with_regressor(self):
@@ -176,7 +176,7 @@ class TestWalkForwardCV:
         )
         assert len(results) == 2
         for r in results:
-            assert "train_mae" in r.train_metrics
+            assert "mae" in r.train_metrics
             assert "mae" in r.val_metrics
 
     def test_model_kwargs_passed(self):
@@ -187,7 +187,7 @@ class TestWalkForwardCV:
                 self.my_param = my_param
 
             def train(self, features_df, targets, eval_set=None):
-                return {"train_accuracy": 0.6}
+                return {"accuracy": 0.6}
 
             def evaluate(self, features_df, targets):
                 return {"accuracy": 0.55, "n_games": len(features_df)}

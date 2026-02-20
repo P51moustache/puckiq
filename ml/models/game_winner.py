@@ -31,9 +31,9 @@ class GameWinnerModel(BaseLGBMModel):
         train_probs = self.model.predict_proba(X)[:, 1]
         train_preds = self.model.predict(X)
         return {
-            "train_accuracy": float(accuracy_score(y, train_preds)),
-            "train_brier": float(brier_score_loss(y, train_probs)),
-            "train_log_loss": float(log_loss(y, train_probs)),
+            "accuracy": float(accuracy_score(y, train_preds)),
+            "brier_score": float(brier_score_loss(y, train_probs)),
+            "log_loss": float(log_loss(y, train_probs)),
         }
 
     def predict(self, features_df: pd.DataFrame) -> np.ndarray:

@@ -13,7 +13,7 @@ import streamlit as st
 # Adjust import path — Streamlit pages run from the dashboard/ directory
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from data import get_active_models, get_model_metadata, get_scores_last_n_days, OVERFITTING_THRESHOLDS, compute_effective_overfit_gap
+from data import get_active_models, get_model_metadata, get_scores_last_n_days, OVERFITTING_THRESHOLDS, compute_effective_overfit_gap, _CLASSIFICATION_MODELS
 
 st.set_page_config(page_title="Overview — PuckIQ ML", layout="wide")
 st.title("Overview")
@@ -165,7 +165,10 @@ if len(active_models) > 1:
             row["Primary Metric"] = f"MAE: {mae_val:.3f}" if pd.notna(mae_val) else "—"
             row["Secondary"] = f"RMSE: {rmse_val:.3f}" if pd.notna(rmse_val) else "—"
         gap = compute_effective_overfit_gap(m)
-        row["Overfit Gap"] = f"{gap:.1%}" if gap is not None else "—"
+        if gap is not None:
+            row["Overfit Gap"] = f"{gap:.1%}" if m.get("model_type") in _CLASSIFICATION_MODELS else f"{gap:.3f}"
+        else:
+            row["Overfit Gap"] = "—"
         summary_rows.append(row)
 
     st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
@@ -273,11 +276,25 @@ else:
     display_df = model_table[available_cols].copy()
 
     # Format percentages
-    for col in ["val_accuracy", "train_accuracy", "overfit_gap"]:
+    for col in ["val_accuracy", "train_accuracy"]:
         if col in display_df.columns:
             display_df[col] = display_df[col].apply(
                 lambda x: f"{x:.1%}" if pd.notna(x) else "—"
             )
+    # Format overfit_gap: percentage for classification, decimal for regression
+    if "overfit_gap" in display_df.columns and "model_type" in display_df.columns:
+        display_df["overfit_gap"] = display_df.apply(
+            lambda row: (
+                f"{row['overfit_gap']:.1%}" if pd.notna(row.get("overfit_gap")) and row.get("model_type") in _CLASSIFICATION_MODELS
+                else f"{row['overfit_gap']:.3f}" if pd.notna(row.get("overfit_gap"))
+                else "—"
+            ),
+            axis=1,
+        )
+    elif "overfit_gap" in display_df.columns:
+        display_df["overfit_gap"] = display_df["overfit_gap"].apply(
+            lambda x: f"{x:.1%}" if pd.notna(x) else "—"
+        )
     for col in ["val_brier_score"]:
         if col in display_df.columns:
             display_df[col] = display_df[col].apply(
@@ -288,6 +305,7 @@ else:
 
     st.caption(
         "Each row is a model version. **is_active = True** means it is the model "
-        "currently serving predictions. **overfit_gap** = train_accuracy - val_accuracy. "
-        "A healthy gap is under 3%."
+        "currently serving predictions. **overfit_gap** measures generalization: "
+        "accuracy gap (%) for game_winner, MAE gap (goals) for spread/totals. "
+        "Per-metric thresholds apply (accuracy: 5%, MAE: 0.50 goals)."
     )

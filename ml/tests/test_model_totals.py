@@ -110,14 +110,14 @@ class TestTotalsModel:
         metrics = model.train(synthetic_game_features, synthetic_targets_total)
         assert "poisson_mae" in metrics
         assert "lgbm_mae" in metrics
-        assert "ensemble_mae" in metrics
-        assert "ensemble_rmse" in metrics
+        assert "mae" in metrics
+        assert "rmse" in metrics
 
     def test_ensemble_mae_non_negative(self, synthetic_game_features, synthetic_targets_total):
         model = TotalsModel()
         metrics = model.train(synthetic_game_features, synthetic_targets_total)
-        assert metrics["ensemble_mae"] >= 0
-        assert metrics["ensemble_rmse"] >= 0
+        assert metrics["mae"] >= 0
+        assert metrics["rmse"] >= 0
 
     def test_predict_returns_array(self, synthetic_game_features, synthetic_targets_total):
         model = TotalsModel()
