@@ -65,7 +65,7 @@ SEASON_WEIGHTS = {
 # Model promotion thresholds
 # ---------------------------------------------------------------------------
 
-MIN_BRIER_IMPROVEMENT = 0.005     # New model must improve Brier by at least this much
+MIN_BRIER_IMPROVEMENT = 0.003     # New model must improve Brier by at least this much
 MIN_GAMES_FOR_PROMOTION = 200     # Minimum games in training set before promoting
 
 # ---------------------------------------------------------------------------
