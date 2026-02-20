@@ -755,6 +755,11 @@ def _maybe_promote(
 
     try:
         # Gate 1: Can the model load from storage?
+        # Brief pause to allow Supabase Storage CDN cache to propagate the
+        # manifest update from save_model() — without this, the read can
+        # return a stale (pre-upload) version of manifest.json.
+        import time
+        time.sleep(2)
         verified_model = storage.load_model(model_type.value)
         if verified_model is None:
             raise RuntimeError("Model loaded as None")
