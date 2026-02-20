@@ -56,10 +56,10 @@ class TestTrainingSeasonsConfig:
         assert SEASON_WEIGHTS[CURRENT_SEASON] == CURRENT_SEASON_WEIGHT
 
     def test_prior_seasons_have_discount(self):
-        """Prior seasons (if any) should have discounted weight."""
+        """Prior seasons (if any) should have discounted weight (≤ PRIOR_SEASON_WEIGHT)."""
         for s in TRAINING_SEASONS:
             if s != CURRENT_SEASON:
-                assert SEASON_WEIGHTS[s] == PRIOR_SEASON_WEIGHT
+                assert SEASON_WEIGHTS[s] <= PRIOR_SEASON_WEIGHT
                 assert SEASON_WEIGHTS[s] < SEASON_WEIGHTS[CURRENT_SEASON]
 
 

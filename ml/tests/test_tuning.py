@@ -16,8 +16,8 @@ class TestSuggestParams:
         trial = study.ask()
         params = _suggest_lgbm_params(trial)
         expected_keys = {
-            "num_leaves", "learning_rate", "n_estimators",
-            "min_child_samples", "reg_alpha", "reg_lambda",
+            "num_leaves", "max_depth", "learning_rate", "n_estimators",
+            "min_child_samples", "min_split_gain", "reg_alpha", "reg_lambda",
             "subsample", "colsample_bytree",
         }
         assert set(params.keys()) == expected_keys
@@ -28,8 +28,8 @@ class TestSuggestParams:
         trial = study.ask()
         params = _suggest_lgbm_params(trial)
         assert 15 <= params["num_leaves"] <= 63
-        assert 0.01 <= params["learning_rate"] <= 0.3
-        assert 50 <= params["n_estimators"] <= 300
+        assert 0.005 <= params["learning_rate"] <= 0.3
+        assert 100 <= params["n_estimators"] <= 500
 
 
 class TestTuneModel:

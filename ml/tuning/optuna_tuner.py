@@ -45,11 +45,13 @@ def _suggest_lgbm_params(trial: optuna.Trial) -> dict[str, Any]:
     """Suggest LightGBM hyperparameters for a single trial."""
     return {
         "num_leaves": trial.suggest_int("num_leaves", 15, 63),
-        "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3, log=True),
-        "n_estimators": trial.suggest_int("n_estimators", 50, 300),
-        "min_child_samples": trial.suggest_int("min_child_samples", 10, 50),
-        "reg_alpha": trial.suggest_float("reg_alpha", 1e-3, 1.0, log=True),
-        "reg_lambda": trial.suggest_float("reg_lambda", 1e-3, 1.0, log=True),
+        "max_depth": trial.suggest_int("max_depth", 3, 8),
+        "learning_rate": trial.suggest_float("learning_rate", 0.005, 0.3, log=True),
+        "n_estimators": trial.suggest_int("n_estimators", 100, 500),
+        "min_child_samples": trial.suggest_int("min_child_samples", 30, 100),
+        "min_split_gain": trial.suggest_float("min_split_gain", 0.01, 1.0, log=True),
+        "reg_alpha": trial.suggest_float("reg_alpha", 0.1, 2.0, log=True),
+        "reg_lambda": trial.suggest_float("reg_lambda", 0.1, 2.0, log=True),
         "subsample": trial.suggest_float("subsample", 0.6, 1.0),
         "colsample_bytree": trial.suggest_float("colsample_bytree", 0.6, 1.0),
     }

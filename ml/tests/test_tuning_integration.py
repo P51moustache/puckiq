@@ -115,11 +115,13 @@ class TestWalkForwardCVWithModelKwargs:
         features, targets = synthetic_game_winner_data
         tuned_params = {
             "num_leaves": 20,
+            "max_depth": 5,
             "learning_rate": 0.05,
-            "n_estimators": 80,
-            "min_child_samples": 15,
-            "reg_alpha": 0.05,
-            "reg_lambda": 0.05,
+            "n_estimators": 150,
+            "min_child_samples": 50,
+            "min_split_gain": 0.1,
+            "reg_alpha": 0.5,
+            "reg_lambda": 0.5,
             "objective": "binary",
             "metric": "binary_logloss",
             "verbose": -1,
