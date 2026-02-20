@@ -116,6 +116,9 @@ def read_games(
     offset = 0
     while True:
         query = client.table(GAMES_TABLE).select("*").eq("season", season)
+        # Only regular season games (game_type=2). Excludes preseason (1),
+        # playoffs (3), and international events like 4 Nations Face-Off (9).
+        query = query.eq("game_type", 2)
         if isinstance(game_state, list):
             query = query.in_("game_state", game_state)
         elif game_state:
