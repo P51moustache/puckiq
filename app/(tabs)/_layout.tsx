@@ -52,6 +52,13 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="chart.bar.fill" color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="hub"
+        options={{
+          title: 'Hub',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.crop.circle.fill" color={color} />,
+        }}
+      />
       {/* Hidden screens - loaded by stats.tsx via lazy import, not in tab bar */}
       <Tabs.Screen name="models" options={{ href: null }} />
       <Tabs.Screen name="teams" options={{ href: null }} />
