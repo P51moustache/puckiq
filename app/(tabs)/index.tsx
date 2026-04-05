@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { RefreshControl, ScrollView, Share, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import GameDeepDiveModal from '../../components/GameDeepDiveModal';
+import FinishSetupCard from '../../components/FinishSetupCard';
 import HeroBanner from '../../components/HeroBanner';
 import LiveNowBar from '../../components/LiveNowBar';
 import AllGamesCard from '../../components/AllGamesCard';
@@ -19,6 +20,7 @@ import Toast from '../../components/Toast';
 import InfoTooltip from '../../components/InfoTooltip';
 import { useTonightData } from '../../hooks/useTonightData';
 import { useGlossary } from '../../hooks/useGlossary';
+import RosterBuilder from '../../components/RosterBuilder';
 import type { SituationalFactors } from '../../types/predictions';
 
 export default function TonightScreen() {
@@ -27,6 +29,9 @@ export default function TonightScreen() {
   // Deep dive modal state (UI-coupled, stays in component)
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedGame, setSelectedGame] = useState<any>(null);
+
+  // Roster builder modal (triggered by FinishSetupCard)
+  const [rosterBuilderVisible, setRosterBuilderVisible] = useState(false);
 
   // Glossary tooltip state
   const glossary = useGlossary();
@@ -243,6 +248,9 @@ export default function TonightScreen() {
           />
         )}
 
+        {/* FINISH SETUP NUDGE — for users who skipped onboarding roster */}
+        <FinishSetupCard onSetUpNow={() => setRosterBuilderVisible(true)} />
+
         {/* LIVE NOW BAR — below hero during live games */}
         {gameCount > 0 && (
           <LiveNowBar
@@ -426,6 +434,13 @@ export default function TonightScreen() {
         visible={glossary.visible}
         entry={glossary.entry}
         onClose={glossary.dismiss}
+      />
+
+      {/* Roster Builder Modal */}
+      <RosterBuilder
+        visible={rosterBuilderVisible}
+        onDismiss={() => setRosterBuilderVisible(false)}
+        onSaved={() => setRosterBuilderVisible(false)}
       />
 
       {/* Toast Notification */}
