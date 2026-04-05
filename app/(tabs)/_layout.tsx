@@ -30,19 +30,26 @@ export default function TabLayout() {
           },
         }),
       }}>
-      {/* Main 3 tabs — Players left, Upcoming center, Explore right */}
+      {/* 5-tab layout: Today, My Team, Players, Explore, Hub */}
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Today',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="hockey.puck.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="myteam"
+        options={{
+          title: 'My Team',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.2.fill" color={color} />,
+        }}
+      />
       <Tabs.Screen
         name="players"
         options={{
           title: 'Players',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.2.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Upcoming',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="hockey.puck.fill" color={color} />,
         }}
       />
       <Tabs.Screen
