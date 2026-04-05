@@ -17,14 +17,18 @@ import { getTeamColors } from '../../constants/teamColors';
 import { Ionicons } from '@expo/vector-icons';
 import CompactPlayerRow from '../../components/CompactPlayerRow';
 import ElevatedPlayerRow from '../../components/ElevatedPlayerRow';
+import FantasyProjectionRow from '../../components/FantasyProjectionRow';
 import GoalieSpotlightCard from '../../components/GoalieSpotlightCard';
 import HeroLeaderCard from '../../components/HeroLeaderCard';
 import PlayerDetailModal from '../../components/PlayerDetailModal';
 import PlayerProjectionCard from '../../components/PlayerProjectionCard';
+import PremiumGate from '../../components/PremiumGate';
 import { Skeleton } from '../../components/ui/SkeletonLoader';
 import { ThemedView } from '../../components/ThemedView';
 import { theme } from '../../constants/theme';
 import { useAnalytics } from '../../hooks/useAnalytics';
+import { getWaiverWireRecommendations } from '../../services/fantasyProjections';
+import type { PlayerProjection as FantasyPlayerProjection } from '../../types/fantasy';
 import {
   searchPlayers,
   type PlayerSearchResult,
@@ -76,6 +80,9 @@ export default function PlayersScreen() {
   // State — hit rates (loaded per-player)
   const [hitRates, setHitRates] = useState<Map<number, HitRateResult>>(new Map());
 
+  // State — fantasy projections (tonight's projections section)
+  const [fantasyProjections, setFantasyProjections] = useState<FantasyPlayerProjection[]>([]);
+
   // State — search
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<PlayerSearchResult[]>([]);
@@ -119,6 +126,16 @@ export default function PlayersScreen() {
       // Step 3: Projections (calls getPlayersPlayingTonight which also hits the VIEW)
       const tonight = await getPlayerProjections(15);
       setProjections(tonight);
+
+      // Step 3.5: Fantasy projections (tonight's top projected players)
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        const fantasyData = await getWaiverWireRecommendations([], 'yahoo', today, 10);
+        setFantasyProjections(fantasyData);
+      } catch {
+        // Non-critical — don't block the rest of the page
+        setFantasyProjections([]);
+      }
 
       // Step 4: Supplementary data (hit rates, L10 stats, leader trends)
       const allPlayerIds = [
@@ -507,6 +524,24 @@ export default function PlayersScreen() {
                     onPress={handlePlayerTap}
                   />
                 ))}
+              </View>
+            )}
+
+            {/* TONIGHT'S PROJECTIONS — fantasy points (premium gated) */}
+            {fantasyProjections.length > 0 && (
+              <View style={styles.section}>
+                {renderSectionHeader("TONIGHT'S PROJECTIONS")}
+                <PremiumGate feature="Fantasy Projections">
+                  <View>
+                    {fantasyProjections.slice(0, 10).map((proj) => (
+                      <FantasyProjectionRow
+                        key={proj.playerId}
+                        projection={proj}
+                        onPress={handlePlayerTap}
+                      />
+                    ))}
+                  </View>
+                </PremiumGate>
               </View>
             )}
 

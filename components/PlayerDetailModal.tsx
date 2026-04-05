@@ -11,9 +11,12 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { IconSymbol } from './ui/IconSymbol';
 import { theme } from '../constants/theme';
 import { getTeamColors } from '../constants/teamColors';
+import { getWaiverWireRecommendations } from '../services/fantasyProjections';
+import type { PlayerProjection } from '../types/fantasy';
 import {
   getPlayerDetail,
   type PlayerDetail,
@@ -51,11 +54,13 @@ export default function PlayerDetailModal({
   const [detail, setDetail] = useState<PlayerDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fantasyProjection, setFantasyProjection] = useState<PlayerProjection | null>(null);
 
   useEffect(() => {
     if (!visible || !playerId) {
       setDetail(null);
       setError(null);
+      setFantasyProjection(null);
       return;
     }
 
@@ -78,7 +83,22 @@ export default function PlayerDetailModal({
         if (mounted) setLoading(false);
       }
     }
+
+    async function loadFantasy() {
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        const all = await getWaiverWireRecommendations([], 'yahoo', today, 100);
+        const match = all.find((p) => p.playerId === playerId);
+        if (mounted && match) {
+          setFantasyProjection(match);
+        }
+      } catch {
+        // Non-critical
+      }
+    }
+
     load();
+    loadFantasy();
     return () => { mounted = false; };
   }, [visible, playerId]);
 
@@ -213,6 +233,9 @@ export default function PlayerDetailModal({
 
             {/* Edge IQ */}
             {detail.edgeStats && renderEdgeSection(detail.edgeStats)}
+
+            {/* Fantasy Projection */}
+            {renderFantasySection(fantasyProjection)}
 
             {/* Career */}
             {detail.career ? (
@@ -613,6 +636,110 @@ function renderGoalieTrends(trends: GoalieTrends) {
 }
 
 // ---------------------------------------------------------------------------
+// Render helpers — Fantasy Projection
+// ---------------------------------------------------------------------------
+
+const REC_COLORS: Record<string, { bg: string; text: string }> = {
+  START: { bg: 'rgba(34, 197, 94, 0.15)', text: '#22c55e' },
+  UPSIDE: { bg: 'rgba(59, 130, 246, 0.15)', text: '#3b82f6' },
+  FLEX: { bg: 'rgba(251, 191, 36, 0.15)', text: '#fbbf24' },
+  SIT: { bg: 'rgba(239, 68, 68, 0.15)', text: '#ef4444' },
+};
+
+function renderFantasySection(projection: PlayerProjection | null) {
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionLabel}>FANTASY</Text>
+      {projection ? (
+        <View style={styles.trendCard}>
+          {/* Projected points + recommendation */}
+          <View style={styles.fantasyTopRow}>
+            <View style={styles.fantasyPointsBox}>
+              <Text style={styles.trendBigValue}>{projection.fantasyPoints.toFixed(1)}</Text>
+              <Text style={styles.trendCardLabel}>Projected FPts</Text>
+            </View>
+            <View style={styles.fantasyRecBox}>
+              {(() => {
+                const rc = REC_COLORS[projection.recommendation] || REC_COLORS.FLEX;
+                return (
+                  <View style={[styles.fantasyRecBadge, { backgroundColor: rc.bg, borderColor: rc.text }]}>
+                    <Text style={[styles.fantasyRecText, { color: rc.text }]}>
+                      {projection.recommendation}
+                    </Text>
+                  </View>
+                );
+              })()}
+              {projection.reason ? (
+                <Text style={styles.fantasyReasonText} numberOfLines={2}>{projection.reason}</Text>
+              ) : null}
+            </View>
+          </View>
+
+          {/* Floor / Ceiling bar */}
+          <View style={styles.fantasyBarContainer}>
+            <View style={styles.fantasyBarLabels}>
+              <Text style={styles.fantasyBarLabel}>Floor: {projection.floor.toFixed(1)}</Text>
+              <Text style={styles.fantasyBarLabel}>Ceil: {projection.ceiling.toFixed(1)}</Text>
+            </View>
+            <View style={styles.fantasyBarTrack}>
+              <View
+                style={[
+                  styles.fantasyBarFill,
+                  {
+                    left: '0%',
+                    width: projection.ceiling > 0
+                      ? `${Math.min(100, (projection.fantasyPoints / projection.ceiling) * 100)}%`
+                      : '50%',
+                  },
+                ]}
+              />
+            </View>
+          </View>
+
+          {/* Category breakdown */}
+          <View style={styles.fantasyCategoryRow}>
+            <View style={styles.fantasyCat}>
+              <Text style={styles.fantasyCatValue}>{projection.predGoals.toFixed(1)}</Text>
+              <Text style={styles.fantasyCatLabel}>G</Text>
+            </View>
+            <View style={styles.fantasyCat}>
+              <Text style={styles.fantasyCatValue}>{projection.predAssists.toFixed(1)}</Text>
+              <Text style={styles.fantasyCatLabel}>A</Text>
+            </View>
+            <View style={styles.fantasyCat}>
+              <Text style={styles.fantasyCatValue}>{projection.predSog.toFixed(1)}</Text>
+              <Text style={styles.fantasyCatLabel}>SOG</Text>
+            </View>
+            <View style={styles.fantasyCat}>
+              <Text style={styles.fantasyCatValue}>{projection.predHits.toFixed(1)}</Text>
+              <Text style={styles.fantasyCatLabel}>Hits</Text>
+            </View>
+            <View style={styles.fantasyCat}>
+              <Text style={styles.fantasyCatValue}>{projection.predBlocks.toFixed(1)}</Text>
+              <Text style={styles.fantasyCatLabel}>Blk</Text>
+            </View>
+          </View>
+
+          {/* Opponent */}
+          {projection.opponentAbbrev && (
+            <Text style={styles.fantasyOpponent}>
+              {projection.isHome ? 'vs' : '@'} {projection.opponentAbbrev}
+            </Text>
+          )}
+        </View>
+      ) : (
+        <View style={styles.trendCard}>
+          <View style={styles.fantasyEmptyContainer}>
+            <Ionicons name="calendar-outline" size={24} color={theme.subtext} />
+            <Text style={styles.emptyText}>No projection available — player may not be playing today</Text>
+          </View>
+        </View>
+      )}
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Formatters
 // ---------------------------------------------------------------------------
 
@@ -944,5 +1071,100 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: theme.subtext,
     marginTop: 2,
+  },
+
+  // Fantasy section
+  fantasyTopRow: {
+    flexDirection: 'row',
+    marginBottom: 14,
+    gap: 14,
+  },
+  fantasyPointsBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 80,
+  },
+  fantasyRecBox: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: 6,
+  },
+  fantasyRecBadge: {
+    alignSelf: 'flex-start',
+    borderWidth: 1.5,
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  fantasyRecText: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  fantasyReasonText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: theme.subtext,
+  },
+  fantasyBarContainer: {
+    marginBottom: 14,
+  },
+  fantasyBarLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  fantasyBarLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: theme.subtext,
+  },
+  fantasyBarTrack: {
+    height: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 3,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  fantasyBarFill: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    backgroundColor: theme.accent,
+    borderRadius: 3,
+  },
+  fantasyCategoryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 10,
+  },
+  fantasyCat: {
+    alignItems: 'center',
+  },
+  fantasyCatValue: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: theme.text,
+    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+    fontVariant: ['tabular-nums'] as any,
+  },
+  fantasyCatLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: theme.subtext,
+    textTransform: 'uppercase',
+    marginTop: 2,
+  },
+  fantasyOpponent: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.subtext,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  fantasyEmptyContainer: {
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
   },
 });
