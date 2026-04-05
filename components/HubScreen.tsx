@@ -11,6 +11,7 @@ import {
 import { theme } from '../constants/theme';
 import { useAuthContext } from './auth/AuthProvider';
 import { useSubscription } from './SubscriptionProvider';
+import AccuracyTracker from './AccuracyTracker';
 import {
   FantasyNotificationPreferences,
   DEFAULT_FANTASY_PREFS,
@@ -133,6 +134,11 @@ export default function HubScreen() {
               </View>
             )}
           </View>
+        </View>
+
+        {/* Accuracy Tracker */}
+        <View style={styles.section}>
+          <AccuracyTracker />
         </View>
 
         {/* Subscription Section */}
