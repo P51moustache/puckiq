@@ -1,5 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../constants/theme';
 
 interface TonightPreviewProps {
@@ -8,72 +11,128 @@ interface TonightPreviewProps {
   onContinueFree: () => void;
 }
 
-const PRO_FEATURES = [
-  'ML-powered start/sit recommendations',
-  'Waiver wire pickup alerts',
-  'Matchup strength analysis',
-  'Trade value calculator',
-  'Injury impact projections',
+const PRO_FEATURES: { icon: keyof typeof Ionicons.glyphMap; color: string; text: string }[] = [
+  { icon: 'analytics', color: '#60a5fa', text: 'ML-powered start/sit recommendations' },
+  { icon: 'notifications', color: '#fbbf24', text: 'Waiver wire pickup alerts' },
+  { icon: 'shield-checkmark', color: '#10b981', text: 'Matchup strength analysis' },
+  { icon: 'swap-horizontal', color: '#a78bfa', text: 'Trade value calculator' },
+  { icon: 'medkit', color: '#ef4444', text: 'Injury impact projections' },
 ];
 
 export function TonightPreview({ hasRoster, onStartTrial, onContinueFree }: TonightPreviewProps) {
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={['#0f172a', '#1e3a8a', '#071023']}
+      style={styles.container}
+      start={{ x: 0.5, y: 0 }}
+      end={{ x: 0.5, y: 1 }}
+    >
       <View style={styles.content}>
-        <Text style={styles.title}>Here's what PuckIQ sees tonight</Text>
+        <Animated.Text entering={FadeInDown.duration(500)} style={styles.title}>
+          Here's what PuckIQ{'\n'}sees tonight
+        </Animated.Text>
 
-        <View style={styles.predictionCard}>
+        {/* Hero prediction card */}
+        <Animated.View entering={FadeInDown.duration(600).delay(200)} style={styles.predictionCard}>
           <View style={styles.predictionHeader}>
-            <Text style={styles.teamVs}>COL vs EDM</Text>
-            <View style={styles.confidenceBadge}>
-              <Text style={styles.confidenceText}>72% confidence</Text>
+            <View style={styles.teamBlock}>
+              <View style={styles.teamLogo}>
+                <Text style={styles.teamLogoText}>COL</Text>
+              </View>
+              <Text style={styles.teamName}>Avalanche</Text>
+            </View>
+
+            <View style={styles.vsBlock}>
+              <Text style={styles.vsText}>VS</Text>
+              <View style={styles.confidenceBadge}>
+                <Ionicons name="diamond" size={10} color="#60a5fa" />
+                <Text style={styles.confidenceText}>72%</Text>
+              </View>
+            </View>
+
+            <View style={styles.teamBlock}>
+              <View style={styles.teamLogo}>
+                <Text style={styles.teamLogoText}>EDM</Text>
+              </View>
+              <Text style={styles.teamName}>Oilers</Text>
             </View>
           </View>
-          <Text style={styles.predictionPick}>COL predicted to win</Text>
+
+          {/* Win probability bar */}
+          <View style={styles.probContainer}>
+            <Text style={styles.probPercent}>62%</Text>
+            <View style={styles.probBarTrack}>
+              <LinearGradient
+                colors={['#60a5fa', '#3b82f6']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={[styles.probBarFill, { width: '62%' }]}
+              />
+            </View>
+            <Text style={styles.probPercentRight}>38%</Text>
+          </View>
+
           <Text style={styles.predictionDetail}>
             Strong road record, MacKinnon on a 5-game point streak
           </Text>
-        </View>
+        </Animated.View>
 
         {hasRoster && (
-          <View style={styles.insightCard}>
+          <Animated.View entering={FadeIn.duration(400).delay(500)} style={styles.insightCard}>
+            <View style={styles.insightIcon}>
+              <Ionicons name="flash" size={16} color="#fbbf24" />
+            </View>
             <Text style={styles.insightText}>
               McDavid is a must-start tonight — soft matchup vs SEA
             </Text>
-          </View>
+          </Animated.View>
         )}
 
-        <View style={styles.proSection}>
+        {/* Pro features */}
+        <Animated.View entering={FadeInDown.duration(500).delay(500)} style={styles.proSection}>
           <Text style={styles.proTitle}>PuckIQ Pro includes:</Text>
-          {PRO_FEATURES.map((feature) => (
-            <View key={feature} style={styles.proRow}>
-              <Text style={styles.proBullet}>*</Text>
-              <Text style={styles.proFeature}>{feature}</Text>
-            </View>
+          {PRO_FEATURES.map((feature, i) => (
+            <Animated.View
+              key={feature.text}
+              entering={FadeInDown.duration(400).delay(600 + i * 80)}
+              style={styles.proRow}
+            >
+              <View style={[styles.proIconCircle, { backgroundColor: `${feature.color}18` }]}>
+                <Ionicons name={feature.icon} size={16} color={feature.color} />
+              </View>
+              <Text style={styles.proFeature}>{feature.text}</Text>
+            </Animated.View>
           ))}
-        </View>
+        </Animated.View>
       </View>
 
-      <View style={styles.buttons}>
-        <TouchableOpacity style={styles.trialButton} onPress={onStartTrial}>
-          <Text style={styles.trialText}>Start Free Trial</Text>
+      <Animated.View entering={FadeInDown.duration(500).delay(1000)} style={styles.buttons}>
+        <TouchableOpacity onPress={onStartTrial} activeOpacity={0.85}>
+          <LinearGradient
+            colors={['#3b82f6', '#2563eb', '#1d4ed8']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.trialButton}
+          >
+            <Text style={styles.trialText}>Start Free Trial</Text>
+          </LinearGradient>
         </TouchableOpacity>
+        <Text style={styles.trialSubtext}>7 days free, then $6.99/mo</Text>
 
-        <TouchableOpacity onPress={onContinueFree} style={styles.freeLink}>
+        <TouchableOpacity onPress={onContinueFree} style={styles.freeLink} activeOpacity={0.6}>
           <Text style={styles.freeText}>Continue Free</Text>
         </TouchableOpacity>
-      </View>
-    </View>
+      </Animated.View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.background,
-    paddingHorizontal: 32,
-    paddingTop: 80,
-    paddingBottom: 48,
+    paddingHorizontal: 24,
+    paddingTop: 60,
+    paddingBottom: 36,
     justifyContent: 'space-between',
   },
   content: {
@@ -81,113 +140,208 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: '700',
-    color: theme.text,
+    fontWeight: '800',
+    color: '#ffffff',
     lineHeight: 36,
-    marginBottom: 24,
+    marginBottom: 20,
+    letterSpacing: -0.5,
   },
+
+  // Prediction card
   predictionCard: {
-    backgroundColor: theme.card,
+    backgroundColor: '#192e5e',
     borderRadius: 16,
     padding: 20,
-    marginBottom: 16,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: theme.factbox,
+    borderColor: '#2a4080',
+    shadowColor: '#60a5fa',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 8,
   },
   predictionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 16,
   },
-  teamVs: {
-    fontSize: 20,
+  teamBlock: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  teamLogo: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(96, 165, 250, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(96, 165, 250, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  teamLogoText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#ffffff',
+    letterSpacing: 0.5,
+  },
+  teamName: {
+    fontSize: 12,
+    color: '#98a6bf',
+    fontWeight: '500',
+  },
+  vsBlock: {
+    alignItems: 'center',
+    paddingHorizontal: 12,
+  },
+  vsText: {
+    fontSize: 11,
     fontWeight: '700',
-    color: theme.text,
+    color: '#5a6a85',
+    letterSpacing: 2,
+    marginBottom: 6,
   },
   confidenceBadge: {
-    backgroundColor: theme.factbox,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(96, 165, 250, 0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    gap: 4,
   },
   confidenceText: {
-    color: theme.accent,
-    fontSize: 13,
-    fontWeight: '600',
+    color: '#60a5fa',
+    fontSize: 12,
+    fontWeight: '700',
   },
-  predictionPick: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.accent,
-    marginBottom: 4,
+
+  // Probability bar
+  probContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 8,
+  },
+  probPercent: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#60a5fa',
+    width: 44,
+  },
+  probBarTrack: {
+    flex: 1,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    overflow: 'hidden',
+  },
+  probBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  probPercentRight: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#5a6a85',
+    width: 44,
+    textAlign: 'right',
   },
   predictionDetail: {
-    fontSize: 14,
-    color: theme.subtext,
-    lineHeight: 20,
+    fontSize: 13,
+    color: '#98a6bf',
+    lineHeight: 19,
   },
+
+  // Insight card
   insightCard: {
-    backgroundColor: theme.factbox,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(251, 191, 36, 0.08)',
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    borderLeftWidth: 3,
-    borderLeftColor: theme.accent,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.2)',
+  },
+  insightIcon: {
+    marginRight: 10,
   },
   insightText: {
-    color: theme.text,
-    fontSize: 15,
+    color: '#e6eef8',
+    fontSize: 14,
     fontWeight: '500',
-    lineHeight: 22,
+    lineHeight: 20,
+    flex: 1,
   },
+
+  // Pro features
   proSection: {
     marginTop: 8,
   },
   proTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
-    color: theme.text,
+    color: '#e6eef8',
     marginBottom: 12,
+    letterSpacing: 0.3,
   },
   proRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 8,
+    alignItems: 'center',
+    marginBottom: 10,
   },
-  proBullet: {
-    color: theme.accent,
-    fontSize: 14,
-    fontWeight: '700',
-    marginRight: 10,
-    marginTop: 1,
+  proIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
   },
   proFeature: {
-    color: theme.subtext,
+    color: '#98a6bf',
     fontSize: 14,
     lineHeight: 20,
     flex: 1,
   },
+
+  // CTA
   buttons: {
-    gap: 12,
+    gap: 4,
   },
   trialButton: {
-    backgroundColor: theme.accent,
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: 18,
+    borderRadius: 14,
     alignItems: 'center',
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 10,
   },
   trialText: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '700',
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  trialSubtext: {
+    color: '#98a6bf',
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 8,
   },
   freeLink: {
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 12,
   },
   freeText: {
-    color: theme.subtext,
+    color: '#98a6bf',
     fontSize: 15,
+    textDecorationLine: 'underline',
   },
 });

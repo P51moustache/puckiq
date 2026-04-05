@@ -19,6 +19,32 @@ jest.mock('@expo/vector-icons', () => ({
   Ionicons: 'Ionicons',
 }));
 
+jest.mock('expo-linear-gradient', () => ({
+  LinearGradient: ({ children, ...props }: any) => {
+    const React = require('react');
+    return React.createElement('LinearGradient', props, children);
+  },
+}));
+
+jest.mock('react-native-reanimated', () => {
+  const React = require('react');
+  return {
+    __esModule: true,
+    default: {
+      View: ({ children, ...props }: any) =>
+        React.createElement('View', props, children),
+      createAnimatedComponent: (c: any) => c,
+    },
+    useSharedValue: (v: any) => ({ value: v }),
+    useAnimatedStyle: () => ({}),
+    withRepeat: (v: any) => v,
+    withTiming: (v: any) => v,
+    withSequence: (...args: any[]) => args[0],
+    Easing: { inOut: (e: any) => e, ease: {} },
+    FadeInUp: { duration: () => ({ delay: () => ({}) }) },
+  };
+});
+
 const mockUseSubscription = jest.fn(() => ({
   isPremium: false,
   loading: false,
@@ -30,6 +56,10 @@ jest.mock('../SubscriptionProvider', () => ({
 }));
 
 import React from 'react';
+
+// Mock hooks so direct function calls work outside render context
+jest.spyOn(React, 'useEffect').mockImplementation((() => {}) as any);
+
 import PremiumGate from '../PremiumGate';
 
 // Helper to find elements in the rendered tree
