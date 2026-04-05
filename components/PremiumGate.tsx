@@ -38,9 +38,9 @@ export default function PremiumGate({ children, feature, onUpgrade }: PremiumGat
 
 const styles = StyleSheet.create({
   wrapper: {
+    flex: 1,
     position: 'relative',
     overflow: 'hidden',
-    borderRadius: 14,
   },
   contentDimmed: {
     opacity: 0.3,
@@ -50,7 +50,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(7, 16, 35, 0.85)',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 14,
     padding: 24,
     gap: 12,
   },

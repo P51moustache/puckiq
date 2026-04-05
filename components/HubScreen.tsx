@@ -191,7 +191,7 @@ export default function HubScreen() {
           <View style={styles.card}>
             <View style={styles.aboutRow}>
               <Text style={styles.aboutLabel}>Version</Text>
-              <Text style={styles.aboutValue}>2.2.0</Text>
+              <Text style={styles.aboutValue}>3.0.0</Text>
             </View>
             <Pressable style={styles.supportLink} testID="support-link">
               <Text style={styles.supportLinkText}>Support</Text>
