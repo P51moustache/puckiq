@@ -2,7 +2,7 @@ export default {
   expo: {
     name: "PuckIQ",
     slug: "learning-project",
-    version: "2.2.0",
+    version: "3.0.0",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     scheme: "learningproject",
@@ -19,7 +19,8 @@ export default {
         ITSAppUsesNonExemptEncryption: false,
         UIBackgroundModes: [
           "remote-notification"
-        ]
+        ],
+        NSUserTrackingUsageDescription: "This allows PuckIQ to show you relevant ads. Your data is not shared with third parties.",
       }
     },
     android: {
@@ -48,6 +49,13 @@ export default {
           imageWidth: 200,
           resizeMode: "contain",
           backgroundColor: "#1a1d29"
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          icon: "./assets/images/icon.png",
+          color: "#60a5fa",
         }
       ]
     ],
