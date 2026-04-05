@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Platform,
   Pressable,
@@ -10,24 +10,79 @@ import {
 } from 'react-native';
 import { theme } from '../constants/theme';
 import { useAuthContext } from './auth/AuthProvider';
+import { useSubscription } from './SubscriptionProvider';
+import {
+  FantasyNotificationPreferences,
+  DEFAULT_FANTASY_PREFS,
+  loadFantasyNotificationPrefs,
+  saveFantasyNotificationPrefs,
+} from '../services/notificationSettings';
 
-interface NotificationPrefs {
-  morningBrief: boolean;
-  injuryAlerts: boolean;
-  gameReminders: boolean;
-}
+type PrefKey = keyof FantasyNotificationPreferences;
+
+const NOTIFICATION_TOGGLES: { key: PrefKey; label: string; testID: string }[] = [
+  { key: 'morningBrief', label: 'Morning Brief', testID: 'toggle-morning-brief' },
+  { key: 'goalieConfirmed', label: 'Goalie Confirmed', testID: 'toggle-goalie-confirmed' },
+  { key: 'injuryAlerts', label: 'Injury Alerts', testID: 'toggle-injury-alerts' },
+  { key: 'gameReminder', label: 'Game Reminders', testID: 'toggle-game-reminders' },
+  { key: 'waiverAlerts', label: 'Waiver Alerts', testID: 'toggle-waiver-alerts' },
+];
 
 export default function HubScreen() {
   const { user, signInWithApple, signInWithGoogle, signOut } = useAuthContext();
-  const [notificationPrefs, setNotificationPrefs] = useState<NotificationPrefs>({
+  const { isPremium } = useSubscription();
+  const [notificationPrefs, setNotificationPrefs] = useState<FantasyNotificationPreferences>({
+    ...DEFAULT_FANTASY_PREFS,
+    // Start all off until loaded from server
     morningBrief: false,
+    goalieConfirmed: false,
     injuryAlerts: false,
-    gameReminders: false,
+    gameReminder: false,
+    waiverAlerts: false,
   });
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
 
-  const togglePref = (key: keyof NotificationPrefs) => {
-    setNotificationPrefs((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
+  // Load prefs from Supabase when user is authenticated
+  useEffect(() => {
+    if (!user?.id) {
+      setPrefsLoaded(false);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const prefs = await loadFantasyNotificationPrefs(user.id);
+        if (!cancelled) {
+          setNotificationPrefs(prefs);
+          setPrefsLoaded(true);
+        }
+      } catch (err) {
+        console.error('[HubScreen] Error loading notification prefs:', err);
+        if (!cancelled) setPrefsLoaded(true);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  const togglePref = useCallback(
+    (key: PrefKey) => {
+      if (!user?.id || !isPremium) return;
+
+      setNotificationPrefs((prev) => {
+        const updated = { ...prev, [key]: !prev[key] };
+        // Fire-and-forget save to Supabase
+        saveFantasyNotificationPrefs(user.id, updated).catch((err) => {
+          console.error('[HubScreen] Error saving notification prefs:', err);
+        });
+        return updated;
+      });
+    },
+    [user?.id, isPremium]
+  );
+
+  const canToggle = !!user && isPremium;
 
   return (
     <View style={styles.container}>
@@ -100,33 +155,27 @@ export default function HubScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Notifications</Text>
           <View style={styles.card}>
-            <View style={styles.toggleRow}>
-              <Text style={styles.toggleLabel}>Morning Brief</Text>
-              <Switch
-                value={notificationPrefs.morningBrief}
-                onValueChange={() => togglePref('morningBrief')}
-                trackColor={{ false: theme.subtle, true: theme.accent }}
-                testID="toggle-morning-brief"
-              />
-            </View>
-            <View style={styles.toggleRow}>
-              <Text style={styles.toggleLabel}>Injury Alerts</Text>
-              <Switch
-                value={notificationPrefs.injuryAlerts}
-                onValueChange={() => togglePref('injuryAlerts')}
-                trackColor={{ false: theme.subtle, true: theme.accent }}
-                testID="toggle-injury-alerts"
-              />
-            </View>
-            <View style={styles.toggleRow}>
-              <Text style={styles.toggleLabel}>Game Reminders</Text>
-              <Switch
-                value={notificationPrefs.gameReminders}
-                onValueChange={() => togglePref('gameReminders')}
-                trackColor={{ false: theme.subtle, true: theme.accent }}
-                testID="toggle-game-reminders"
-              />
-            </View>
+            {NOTIFICATION_TOGGLES.map(({ key, label, testID }) => (
+              <View style={styles.toggleRow} key={key}>
+                <View style={styles.toggleLabelRow}>
+                  <Text style={[styles.toggleLabel, !canToggle && styles.toggleLabelDisabled]}>
+                    {label}
+                  </Text>
+                  {!canToggle && (
+                    <Text style={styles.proLabel} testID={`${testID}-pro-label`}>
+                      Pro feature
+                    </Text>
+                  )}
+                </View>
+                <Switch
+                  value={notificationPrefs[key]}
+                  onValueChange={() => togglePref(key)}
+                  trackColor={{ false: theme.subtle, true: theme.accent }}
+                  disabled={!canToggle}
+                  testID={testID}
+                />
+              </View>
+            ))}
           </View>
         </View>
 
@@ -256,9 +305,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: theme.spacing.sm,
   },
+  toggleLabelRow: {
+    flexDirection: 'column',
+  },
   toggleLabel: {
     fontSize: theme.typography.sizes.sm,
     color: theme.text,
+  },
+  toggleLabelDisabled: {
+    opacity: 0.5,
+  },
+  proLabel: {
+    fontSize: theme.typography.sizes.xs,
+    color: theme.subtext,
+    marginTop: 2,
   },
   aboutRow: {
     flexDirection: 'row',
