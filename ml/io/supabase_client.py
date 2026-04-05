@@ -21,6 +21,7 @@ from ml.config import (
     GOALIE_SEASON_STATS_TABLE,
     MAX_STALENESS_HOURS,
     ML_MODEL_METADATA_TABLE,
+    ML_PLAYER_PROJECTIONS_TABLE,
     ML_PREDICTIONS_TABLE,
     ML_SCORES_TABLE,
     STANDINGS_TABLE,
@@ -509,3 +510,26 @@ def write_model_metadata(client: Client, metadata: dict[str, Any]) -> None:
         "Updated metadata for model_type=%s version=%s",
         metadata.get("model_type"), metadata.get("model_version"),
     )
+
+
+@_retry
+def write_fantasy_projections(client: Client, projections: list[dict[str, Any]]) -> int:
+    """
+    UPSERT fantasy projections to ml_player_projections.
+
+    Each projection must include: game_id, player_id, format (at minimum).
+    The UNIQUE constraint is (game_id, player_id, format).
+
+    Returns number of rows written.
+    """
+    if not projections:
+        return 0
+    # Convert numpy types to native Python for JSON serialization
+    projections = _to_native(projections)
+
+    response = client.table(ML_PLAYER_PROJECTIONS_TABLE).upsert(
+        projections, on_conflict="game_id,player_id,format"
+    ).execute()
+    count = len(response.data) if response.data else 0
+    logger.info("Wrote %d fantasy projections to %s", count, ML_PLAYER_PROJECTIONS_TABLE)
+    return count
