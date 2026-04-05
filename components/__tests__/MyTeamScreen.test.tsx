@@ -28,6 +28,32 @@ jest.mock('@expo/vector-icons', () => {
   };
 });
 
+jest.mock('expo-linear-gradient', () => {
+  const React = require('react');
+  return {
+    LinearGradient: ({ children, ...props }: any) =>
+      React.createElement('LinearGradient', props, children),
+  };
+});
+
+jest.mock('react-native-reanimated', () => {
+  const React = require('react');
+  const View = ({ children, ...props }: any) => React.createElement('View', props, children);
+  const animatedStyle = {};
+  return {
+    __esModule: true,
+    default: { View, createAnimatedComponent: (c: any) => c },
+    FadeIn: { duration: () => ({ delay: () => ({}) }) },
+    FadeInDown: { delay: () => ({ duration: () => ({ springify: () => ({}) }) }) },
+    useSharedValue: (val: any) => ({ value: val }),
+    useAnimatedStyle: (fn: any) => animatedStyle,
+    withRepeat: (val: any) => val,
+    withTiming: (val: any) => val,
+    withSequence: (...vals: any[]) => vals[0],
+    Easing: { inOut: (e: any) => e, ease: {} },
+  };
+});
+
 jest.mock('../SubscriptionProvider', () => ({
   useSubscription: () => ({
     isPremium: true,
@@ -148,14 +174,14 @@ describe('MyTeamScreen', () => {
       const tree = render();
       expect(findByTestId(tree, 'my-team-empty')).toHaveLength(1);
       const texts = getAllText(tree);
-      expect(texts).toContain('Set Up Your Roster');
+      expect(texts).toContain('Build Your Roster');
       expect(texts.some(t => t.includes('personalized start/sit'))).toBe(true);
     });
 
     it('shows setup CTA button', () => {
       const tree = render();
       expect(findByTestId(tree, 'setup-roster-button')).toHaveLength(1);
-      expect(getAllText(tree)).toContain('Build My Roster');
+      expect(getAllText(tree)).toContain('Add Players');
     });
 
     it('does not show roster view', () => {
