@@ -1,23 +1,34 @@
 /**
  * StartSitCard
- * Compact player row showing start/sit recommendation with projected fantasy points.
+ * Premium player recommendation card with broadcast-quality design.
+ * The hero component -- users see these every day.
  */
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { theme } from '../constants/theme';
 import type { PlayerProjection, StartSitRec } from '../types/fantasy';
 
 interface StartSitCardProps {
   projection: PlayerProjection;
   gameTime?: string;
+  index?: number;
 }
 
-const BADGE_COLORS: Record<StartSitRec, string> = {
+const BADGE_CONFIG: Record<StartSitRec, { colors: [string, string]; label: string }> = {
+  START: { colors: ['#10b981', '#059669'], label: 'START' },
+  SIT: { colors: ['#ef4444', '#dc2626'], label: 'SIT' },
+  UPSIDE: { colors: ['#f59e0b', '#d97706'], label: 'UPSIDE' },
+  FLEX: { colors: ['#3b82f6', '#2563eb'], label: 'FLEX' },
+};
+
+const STRIPE_COLORS: Record<StartSitRec, string> = {
   START: '#10b981',
   SIT: '#ef4444',
-  UPSIDE: '#fbbf24',
-  FLEX: '#60a5fa',
+  UPSIDE: '#f59e0b',
+  FLEX: '#3b82f6',
 };
 
 function formatGameTime(startTimeUTC?: string): string {
@@ -30,111 +41,249 @@ function formatGameTime(startTimeUTC?: string): string {
   }
 }
 
-export default function StartSitCard({ projection, gameTime }: StartSitCardProps) {
-  const badgeColor = BADGE_COLORS[projection.recommendation] ?? BADGE_COLORS.FLEX;
+export default function StartSitCard({ projection, gameTime, index = 0 }: StartSitCardProps) {
+  const badge = BADGE_CONFIG[projection.recommendation] ?? BADGE_CONFIG.FLEX;
+  const stripeColor = STRIPE_COLORS[projection.recommendation] ?? STRIPE_COLORS.FLEX;
+
   const matchupText = projection.opponentAbbrev
     ? `${projection.isHome ? 'vs' : '@'} ${projection.opponentAbbrev}`
     : '';
   const timeText = gameTime ? formatGameTime(gameTime) : '';
   const contextParts = [matchupText, timeText].filter(Boolean);
-  const contextText = contextParts.join(' \u2022 ');
+  const contextLine = contextParts.join(' \u00b7 ');
+
+  const rangeWidth = projection.ceiling - projection.floor;
+  const pointsInRange = rangeWidth > 0
+    ? ((projection.fantasyPoints - projection.floor) / rangeWidth) * 100
+    : 50;
 
   return (
-    <View style={styles.container} testID="start-sit-card">
-      <View style={styles.left}>
-        <View style={styles.nameRow}>
-          <Text style={styles.playerName} numberOfLines={1}>
-            {projection.playerName}
-          </Text>
-          <Text style={styles.meta}>
-            {projection.teamAbbrev} \u2022 {projection.position}
-          </Text>
+    <Animated.View
+      entering={FadeInDown.delay(index * 60).duration(400).springify()}
+      style={styles.wrapper}
+      testID="start-sit-card"
+    >
+      {/* Left color stripe */}
+      <View style={[styles.stripe, { backgroundColor: stripeColor }]} />
+
+      <View style={styles.container}>
+        {/* Top row: Badge + Player info */}
+        <View style={styles.topRow}>
+          <LinearGradient
+            colors={badge.colors}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.badge}
+          >
+            <Text style={styles.badgeText}>{badge.label}</Text>
+          </LinearGradient>
+          <View style={styles.positionTeam}>
+            <Text style={styles.positionText}>
+              {projection.position} \u00b7 {projection.teamAbbrev}
+            </Text>
+          </View>
         </View>
-        {contextText ? (
-          <Text style={styles.context}>{contextText}</Text>
-        ) : null}
-        {projection.reason ? (
-          <Text style={styles.reason} numberOfLines={1}>
-            {projection.reason}
-          </Text>
-        ) : null}
-      </View>
-      <View style={styles.right}>
-        <Text style={styles.points}>{projection.fantasyPoints.toFixed(1)}</Text>
-        <Text style={styles.range}>
-          {projection.floor.toFixed(1)}-{projection.ceiling.toFixed(1)}
+
+        {/* Player name */}
+        <Text style={styles.playerName} numberOfLines={1}>
+          {projection.playerName}
         </Text>
-        <View style={[styles.badge, { backgroundColor: badgeColor }]}>
-          <Text style={styles.badgeText}>{projection.recommendation}</Text>
+
+        {/* Divider */}
+        <View style={styles.divider} />
+
+        {/* Stats row: Projected points + Floor/Ceiling */}
+        <View style={styles.statsRow}>
+          <View style={styles.projectedCol}>
+            <Text style={styles.projectedPoints}>
+              {projection.fantasyPoints.toFixed(1)}
+            </Text>
+            <Text style={styles.projectedLabel}>pts projected</Text>
+          </View>
+          <View style={styles.rangeCol}>
+            <View style={styles.rangeLabels}>
+              <Text style={styles.rangeText}>
+                Floor: {projection.floor.toFixed(1)}
+              </Text>
+              <Text style={styles.rangeText}>
+                Ceil: {projection.ceiling.toFixed(1)}
+              </Text>
+            </View>
+            {/* Range bar */}
+            <View style={styles.rangeBarTrack}>
+              <View
+                style={[
+                  styles.rangeBarFill,
+                  {
+                    width: `${Math.min(Math.max(pointsInRange, 5), 95)}%`,
+                    backgroundColor: stripeColor,
+                  },
+                ]}
+              />
+              <View
+                style={[
+                  styles.rangeBarMarker,
+                  {
+                    left: `${Math.min(Math.max(pointsInRange, 5), 95)}%`,
+                    backgroundColor: stripeColor,
+                  },
+                ]}
+              />
+            </View>
+          </View>
+        </View>
+
+        {/* Bottom row: Matchup + Reason */}
+        <View style={styles.bottomRow}>
+          {contextLine ? (
+            <Text style={styles.contextText}>{contextLine}</Text>
+          ) : null}
+          {projection.reason ? (
+            <Text style={styles.reasonText} numberOfLines={1}>
+              {projection.reason}
+            </Text>
+          ) : null}
         </View>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
+  wrapper: {
+    flexDirection: 'row',
+    backgroundColor: '#192e5e',
+    borderRadius: 14,
+    marginBottom: 10,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#2a4080',
+    // Shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  stripe: {
+    width: 4,
+  },
   container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.card,
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 8,
-  },
-  left: {
     flex: 1,
-    marginRight: 12,
+    padding: 14,
+    paddingLeft: 12,
   },
-  nameRow: {
+  // Top row
+  topRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
-  playerName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: theme.text,
-    flexShrink: 1,
-  },
-  meta: {
-    fontSize: 12,
-    color: theme.subtext,
-  },
-  context: {
-    fontSize: 12,
-    color: theme.subtext,
-    marginTop: 2,
-  },
-  reason: {
-    fontSize: 12,
-    color: theme.accent,
-    marginTop: 2,
-    fontStyle: 'italic',
-  },
-  right: {
-    alignItems: 'flex-end',
-    minWidth: 60,
-  },
-  points: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: theme.text,
-  },
-  range: {
-    fontSize: 11,
-    color: theme.subtext,
-    marginTop: 1,
+    justifyContent: 'space-between',
+    marginBottom: 6,
   },
   badge: {
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    marginTop: 4,
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
   },
   badgeText: {
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 11,
+    fontWeight: '800',
     color: '#fff',
-    letterSpacing: 0.5,
+    letterSpacing: 1,
+  },
+  positionTeam: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  positionText: {
+    fontSize: 13,
+    color: '#98a6bf',
+    fontWeight: '500',
+  },
+  // Player name
+  playerName: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#e6eef8',
+    marginBottom: 8,
+  },
+  // Divider
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    marginBottom: 10,
+  },
+  // Stats row
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 10,
+  },
+  projectedCol: {
+    marginRight: 20,
+  },
+  projectedPoints: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#60a5fa',
+    lineHeight: 28,
+  },
+  projectedLabel: {
+    fontSize: 11,
+    color: '#98a6bf',
+    fontWeight: '500',
+    marginTop: 1,
+  },
+  rangeCol: {
+    flex: 1,
+    paddingTop: 2,
+  },
+  rangeLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  rangeText: {
+    fontSize: 12,
+    color: '#98a6bf',
+    fontWeight: '500',
+  },
+  rangeBarTrack: {
+    height: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 2,
+    position: 'relative',
+  },
+  rangeBarFill: {
+    height: 4,
+    borderRadius: 2,
+    opacity: 0.5,
+  },
+  rangeBarMarker: {
+    position: 'absolute',
+    top: -2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginLeft: -4,
+  },
+  // Bottom row
+  bottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  contextText: {
+    fontSize: 12,
+    color: '#98a6bf',
+    fontWeight: '500',
+  },
+  reasonText: {
+    fontSize: 12,
+    color: '#60a5fa',
+    fontStyle: 'italic',
+    fontWeight: '500',
+    flexShrink: 1,
   },
 });

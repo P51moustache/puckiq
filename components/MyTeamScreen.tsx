@@ -1,8 +1,8 @@
 /**
  * MyTeamScreen
- * Main screen component for the Fantasy Command Center "My Team" tab.
- * Shows empty state when no roster, full roster view with start/sit, outlook, waiver wire.
- * Wrapped in PremiumGate.
+ * Premium Fantasy Command Center "My Team" tab.
+ * Broadcast-quality sports analytics dashboard design.
+ * Shows enticing empty state or full roster with start/sit, outlook, waiver wire.
  */
 
 import React, { useState, useCallback, useMemo } from 'react';
@@ -16,6 +16,8 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../constants/theme';
 import PremiumGate from './PremiumGate';
@@ -105,7 +107,7 @@ export default function MyTeamScreen() {
   if (isLoading) {
     return (
       <View style={styles.centered} testID="my-team-loading">
-        <ActivityIndicator size="large" color={theme.accent} />
+        <ActivityIndicator size="large" color="#60a5fa" />
       </View>
     );
   }
@@ -115,21 +117,75 @@ export default function MyTeamScreen() {
       <View style={styles.container}>
         {/* Empty state: no roster */}
         {!hasRoster ? (
-          <View style={styles.emptyState} testID="my-team-empty">
-            <Ionicons name="people-outline" size={56} color={theme.subtext} />
-            <Text style={styles.emptyTitle}>Set Up Your Roster</Text>
+          <Animated.View
+            entering={FadeIn.duration(500)}
+            style={styles.emptyState}
+            testID="my-team-empty"
+          >
+            {/* Glowing icon */}
+            <View style={styles.emptyIconWrapper}>
+              <View style={styles.emptyIconGlow} />
+              <Ionicons name="trophy-outline" size={56} color="#60a5fa" />
+            </View>
+
+            <Text style={styles.emptyTitle}>Build Your Roster</Text>
             <Text style={styles.emptyDescription}>
-              Add your fantasy players to get personalized start/sit recommendations
+              Get personalized start/sit recommendations, projected points, and waiver wire picks
             </Text>
+
+            {/* CTA Button */}
             <TouchableOpacity
-              style={styles.ctaButton}
               onPress={() => setShowRosterBuilder(true)}
+              activeOpacity={0.85}
               testID="setup-roster-button"
             >
-              <Ionicons name="add-circle-outline" size={20} color="#fff" />
-              <Text style={styles.ctaText}>Build My Roster</Text>
+              <LinearGradient
+                colors={['#60a5fa', '#3b82f6']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.ctaButton}
+              >
+                <Ionicons name="add-circle" size={20} color="#fff" />
+                <Text style={styles.ctaText}>Add Players</Text>
+              </LinearGradient>
             </TouchableOpacity>
-          </View>
+
+            {/* Preview teaser cards */}
+            <View style={styles.previewCards}>
+              <Animated.View
+                entering={FadeInDown.delay(200).duration(400)}
+                style={styles.previewCard}
+              >
+                <View style={[styles.previewBadge, { backgroundColor: 'rgba(16, 185, 129, 0.2)' }]}>
+                  <Text style={[styles.previewBadgeText, { color: '#10b981' }]}>START</Text>
+                </View>
+                <Text style={styles.previewPlayerName}>C. McDavid</Text>
+                <Text style={styles.previewPoints}>4.2 pts</Text>
+              </Animated.View>
+
+              <Animated.View
+                entering={FadeInDown.delay(300).duration(400)}
+                style={styles.previewCard}
+              >
+                <View style={[styles.previewBadge, { backgroundColor: 'rgba(96, 165, 250, 0.2)' }]}>
+                  <Text style={[styles.previewBadgeText, { color: '#60a5fa' }]}>PROJ</Text>
+                </View>
+                <Text style={styles.previewPlayerName}>N. MacKinnon</Text>
+                <Text style={styles.previewPoints}>3.8 pts</Text>
+              </Animated.View>
+
+              <Animated.View
+                entering={FadeInDown.delay(400).duration(400)}
+                style={styles.previewCard}
+              >
+                <View style={[styles.previewBadge, { backgroundColor: 'rgba(245, 158, 11, 0.2)' }]}>
+                  <Text style={[styles.previewBadgeText, { color: '#f59e0b' }]}>WAIVER</Text>
+                </View>
+                <Text style={styles.previewPlayerName}>M. Boldy</Text>
+                <Text style={styles.previewPoints}>2.6 pts</Text>
+              </Animated.View>
+            </View>
+          </Animated.View>
         ) : (
           /* Roster view */
           <ScrollView
@@ -139,37 +195,53 @@ export default function MyTeamScreen() {
               <RefreshControl
                 refreshing={false}
                 onRefresh={onRefresh}
-                tintColor={theme.accent}
+                tintColor="#60a5fa"
+                colors={['#60a5fa']}
               />
             }
             testID="my-team-roster"
           >
             {/* Header */}
-            <View style={styles.headerRow}>
+            <Animated.View
+              entering={FadeIn.duration(300)}
+              style={styles.headerRow}
+            >
               <View>
-                <Text style={styles.headerTitle}>My Team — Week {weekNumber}</Text>
-                <View style={styles.formatBadge}>
-                  <Text style={styles.formatBadgeText}>
-                    {formatScoringBadge(roster?.scoringFormat)}
-                  </Text>
+                <Text style={styles.headerTitle}>My Team</Text>
+                <View style={styles.badgeRow}>
+                  <View style={styles.weekBadge}>
+                    <Text style={styles.weekBadgeText}>Week {weekNumber}</Text>
+                  </View>
+                  <LinearGradient
+                    colors={['#60a5fa', '#3b82f6']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.formatBadge}
+                  >
+                    <Text style={styles.formatBadgeText}>
+                      {formatScoringBadge(roster?.scoringFormat)}
+                    </Text>
+                  </LinearGradient>
                 </View>
               </View>
               <TouchableOpacity
                 onPress={() => setShowRosterBuilder(true)}
+                style={styles.editButton}
                 testID="edit-roster-button"
               >
-                <Ionicons name="pencil-outline" size={20} color={theme.accent} />
+                <Ionicons name="pencil" size={16} color="#60a5fa" />
               </TouchableOpacity>
-            </View>
+            </Animated.View>
 
             {/* Today's Lineup */}
             {lineup.length > 0 && (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>
-                  Today's Lineup ({lineup.length})
-                </Text>
-                {lineup.map(p => (
-                  <StartSitCard key={p.playerId} projection={p} />
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>TODAY'S LINEUP</Text>
+                  <View style={styles.sectionUnderline} />
+                </View>
+                {lineup.map((p, idx) => (
+                  <StartSitCard key={p.playerId} projection={p} index={idx} />
                 ))}
               </View>
             )}
@@ -177,22 +249,27 @@ export default function MyTeamScreen() {
             {/* Bench / No Game */}
             {bench.length > 0 && (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>
-                  Bench ({bench.length})
-                </Text>
-                {bench.map(p => (
-                  <StartSitCard key={p.playerId} projection={p} />
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>BENCH</Text>
+                  <View style={[styles.sectionUnderline, { backgroundColor: '#98a6bf' }]} />
+                </View>
+                {bench.map((p, idx) => (
+                  <StartSitCard key={p.playerId} projection={p} index={idx} />
                 ))}
               </View>
             )}
 
             {/* No projections at all */}
             {lineup.length === 0 && bench.length === 0 && (
-              <View style={styles.noProjections}>
+              <Animated.View
+                entering={FadeIn.duration(300)}
+                style={styles.noProjections}
+              >
+                <Ionicons name="time-outline" size={28} color="#98a6bf" />
                 <Text style={styles.noProjectionsText}>
                   No projections available for today. Check back when games are scheduled.
                 </Text>
-              </View>
+              </Animated.View>
             )}
 
             {/* Weekly Outlook */}
@@ -218,50 +295,107 @@ export default function MyTeamScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.background,
+    backgroundColor: '#071023',
   },
   centered: {
     flex: 1,
-    backgroundColor: theme.background,
+    backgroundColor: '#071023',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  // Empty state
+  // ── Empty state ──────────────────────────────────────────
   emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 32,
   },
+  emptyIconWrapper: {
+    width: 96,
+    height: 96,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  emptyIconGlow: {
+    position: 'absolute',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(96, 165, 250, 0.15)',
+  },
   emptyTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: theme.text,
-    marginTop: 16,
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#e6eef8',
     marginBottom: 8,
   },
   emptyDescription: {
     fontSize: 15,
-    color: theme.subtext,
+    color: '#98a6bf',
     textAlign: 'center',
     lineHeight: 22,
-    marginBottom: 24,
+    marginBottom: 28,
+    maxWidth: 320,
   },
   ctaButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.accent,
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    borderRadius: 12,
-    gap: 8,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 14,
+    gap: 10,
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 8,
   },
   ctaText: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 17,
+    fontWeight: '800',
     color: '#fff',
   },
-  // Scroll
+  // Preview teaser cards
+  previewCards: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 36,
+    paddingHorizontal: 8,
+  },
+  previewCard: {
+    flex: 1,
+    backgroundColor: 'rgba(25, 46, 94, 0.6)',
+    borderRadius: 12,
+    padding: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(42, 64, 128, 0.5)',
+  },
+  previewBadge: {
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginBottom: 8,
+  },
+  previewBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  previewPlayerName: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'rgba(230, 238, 248, 0.5)',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  previewPoints: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: 'rgba(96, 165, 250, 0.5)',
+  },
+  // ── Scroll & Header ──────────────────────────────────────
   scroll: {
     flex: 1,
   },
@@ -270,53 +404,85 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'ios' ? 16 : 12,
     paddingBottom: 40,
   },
-  // Header
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 20,
+    marginBottom: 24,
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#e6eef8',
+    marginBottom: 8,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  weekBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  weekBadgeText: {
+    fontSize: 12,
     fontWeight: '700',
-    color: theme.text,
+    color: '#98a6bf',
   },
   formatBadge: {
-    backgroundColor: theme.factbox,
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    marginTop: 6,
-    alignSelf: 'flex-start',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
   formatBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: theme.accent,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#fff',
   },
-  // Sections
+  editButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: 'rgba(96, 165, 250, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  // ── Sections ─────────────────────────────────────────────
   section: {
     marginBottom: 20,
   },
+  sectionHeader: {
+    marginBottom: 12,
+  },
   sectionTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: theme.subtext,
-    marginBottom: 10,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#98a6bf',
+    letterSpacing: 1.5,
+    marginBottom: 6,
+  },
+  sectionUnderline: {
+    height: 2,
+    width: 32,
+    borderRadius: 1,
+    backgroundColor: '#60a5fa',
   },
   noProjections: {
-    backgroundColor: theme.card,
-    borderRadius: 12,
-    padding: 24,
+    backgroundColor: '#192e5e',
+    borderRadius: 14,
+    padding: 28,
     alignItems: 'center',
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#2a4080',
+    gap: 10,
   },
   noProjectionsText: {
     fontSize: 14,
-    color: theme.subtext,
+    color: '#98a6bf',
     textAlign: 'center',
     lineHeight: 20,
   },
