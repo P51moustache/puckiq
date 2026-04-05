@@ -12,7 +12,34 @@ jest.mock('react-native', () => {
     Pressable: ({ children, ...props }: any) => React.createElement('Pressable', props, children),
     Switch: (props: any) => React.createElement('Switch', props),
     Platform: { OS: 'ios' },
-    StyleSheet: { create: (s: any) => s },
+    StyleSheet: { create: (s: any) => s, hairlineWidth: 1 },
+  };
+});
+
+// Mock expo-linear-gradient
+jest.mock('expo-linear-gradient', () => {
+  const React = require('react');
+  return {
+    LinearGradient: ({ children, ...props }: any) => React.createElement('View', props, children),
+  };
+});
+
+// Mock @expo/vector-icons
+jest.mock('@expo/vector-icons', () => {
+  const React = require('react');
+  return {
+    Ionicons: (props: any) => React.createElement('View', { ...props, testID: `icon-${props.name}` }),
+  };
+});
+
+// Mock react-native-reanimated
+jest.mock('react-native-reanimated', () => {
+  const React = require('react');
+  const View = ({ children, ...props }: any) => React.createElement('View', props, children);
+  return {
+    __esModule: true,
+    default: { View },
+    FadeInUp: { delay: () => ({ duration: () => ({}) }), duration: () => ({}) },
   };
 });
 
