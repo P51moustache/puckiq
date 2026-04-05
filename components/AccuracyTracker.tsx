@@ -4,9 +4,8 @@ import { LineChart } from 'react-native-chart-kit';
 import { theme } from '../constants/theme';
 import { getAccuracyStats, type AccuracyStats } from '../services/accuracyStats';
 
-const CHART_WIDTH = Dimensions.get('window').width - 64; // 16px padding each side + 16px card padding each side
-
 export default function AccuracyTracker() {
+  const CHART_WIDTH = Dimensions.get('window').width - 64;
   const [stats, setStats] = useState<AccuracyStats | null>(null);
   const [loading, setLoading] = useState(true);
 
