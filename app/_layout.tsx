@@ -7,6 +7,7 @@ import { useEffect, useMemo } from 'react';
 import 'react-native-reanimated';
 import { AnalyticsProvider } from '../components/analytics/AnalyticsProvider';
 import { AuthProvider } from '../components/auth/AuthProvider';
+import { SubscriptionProvider } from '../components/SubscriptionProvider';
 import { initializeNotifications } from '../services/notifications';
 
 // Keep the splash screen visible while we fetch resources
@@ -40,15 +41,17 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <AnalyticsProvider config={analyticsConfig}>
-        <ThemeProvider value={DarkTheme}>
-          <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="+not-found" />
-          </Stack>
-          <StatusBar style="light" />
-        </ThemeProvider>
-      </AnalyticsProvider>
+      <SubscriptionProvider>
+        <AnalyticsProvider config={analyticsConfig}>
+          <ThemeProvider value={DarkTheme}>
+            <Stack>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="+not-found" />
+            </Stack>
+            <StatusBar style="light" />
+          </ThemeProvider>
+        </AnalyticsProvider>
+      </SubscriptionProvider>
     </AuthProvider>
   );
 }
