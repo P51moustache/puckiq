@@ -15,8 +15,31 @@ jest.mock('react-native', () => ({
     React.createElement('TouchableOpacity', { ...props, onPress }, children),
   ActivityIndicator: (props: any) =>
     React.createElement('ActivityIndicator', props),
+  ScrollView: ({ children, ...props }: any) =>
+    React.createElement('ScrollView', props, children),
+  Dimensions: { get: () => ({ width: 375, height: 812 }) },
   StyleSheet: { create: (s: any) => s },
   Platform: { OS: 'ios' },
+}));
+
+jest.mock('@expo/vector-icons', () => ({
+  Ionicons: 'Ionicons',
+}));
+
+jest.mock('expo-linear-gradient', () => ({
+  LinearGradient: ({ children, ...props }: any) =>
+    React.createElement('LinearGradient', props, children),
+}));
+
+jest.mock('react-native-reanimated', () => ({
+  __esModule: true,
+  default: {
+    View: ({ children, ...props }: any) =>
+      React.createElement('View', props, children),
+    createAnimatedComponent: (c: any) => c,
+  },
+  FadeInUp: { duration: () => ({ delay: () => ({}) }) },
+  FadeInDown: { duration: () => ({ delay: () => ({}) }) },
 }));
 
 jest.mock('../../constants/theme', () => ({
