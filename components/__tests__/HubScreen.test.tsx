@@ -72,6 +72,22 @@ jest.mock('../../services/notificationSettings', () => ({
   saveFantasyNotificationPrefs: (...args: any[]) => mockSavePrefs(...args),
 }));
 
+// Mock child components that have complex dependencies
+jest.mock('../AccuracyTracker', () => {
+  const React = require('react');
+  return () => React.createElement('View', { testID: 'accuracy-tracker' });
+});
+
+jest.mock('../Leaderboard', () => {
+  const React = require('react');
+  return () => React.createElement('View', { testID: 'leaderboard' });
+});
+
+jest.mock('../ReferralCard', () => {
+  const React = require('react');
+  return () => React.createElement('View', { testID: 'referral-card' });
+});
+
 // @ts-expect-error no types for react-test-renderer
 import { create, act } from 'react-test-renderer';
 import React from 'react';
