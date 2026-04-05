@@ -285,9 +285,9 @@ describe('HubScreen', () => {
   });
 
   describe('About section', () => {
-    it('shows version 2.2.0', () => {
+    it('shows version 3.0.0', () => {
       const tree = renderHub();
-      expect(getAllText(tree)).toContain('2.2.0');
+      expect(getAllText(tree)).toContain('3.0.0');
     });
 
     it('shows Support link', () => {
