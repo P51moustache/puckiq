@@ -6,9 +6,8 @@
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { theme } from '../constants/theme';
+import { rinkGlass } from '../constants/theme';
 import type { PlayerProjection, StartSitRec } from '../types/fantasy';
 
 interface StartSitCardProps {
@@ -17,18 +16,18 @@ interface StartSitCardProps {
   index?: number;
 }
 
-const BADGE_CONFIG: Record<StartSitRec, { colors: [string, string]; label: string }> = {
-  START: { colors: ['#10b981', '#059669'], label: 'START' },
-  SIT: { colors: ['#ef4444', '#dc2626'], label: 'SIT' },
-  UPSIDE: { colors: ['#f59e0b', '#d97706'], label: 'UPSIDE' },
-  FLEX: { colors: ['#3b82f6', '#2563eb'], label: 'FLEX' },
+const BADGE_CONFIG: Record<StartSitRec, { color: string; label: string }> = {
+  START: { color: rinkGlass.faceoffDot, label: 'START' },
+  SIT: { color: rinkGlass.redLine, label: 'SIT' },
+  UPSIDE: { color: rinkGlass.powerPlay, label: 'UPSIDE' },
+  FLEX: { color: rinkGlass.blueLight, label: 'FLEX' },
 };
 
 const STRIPE_COLORS: Record<StartSitRec, string> = {
-  START: '#10b981',
-  SIT: '#ef4444',
-  UPSIDE: '#f59e0b',
-  FLEX: '#3b82f6',
+  START: rinkGlass.faceoffDot,
+  SIT: rinkGlass.redLine,
+  UPSIDE: rinkGlass.powerPlay,
+  FLEX: rinkGlass.blueLight,
 };
 
 function formatGameTime(startTimeUTC?: string): string {
@@ -69,14 +68,9 @@ export default function StartSitCard({ projection, gameTime, index = 0 }: StartS
       <View style={styles.container}>
         {/* Top row: Badge + Player info */}
         <View style={styles.topRow}>
-          <LinearGradient
-            colors={badge.colors}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.badge}
-          >
+          <View style={[styles.badge, { backgroundColor: badge.color }]}>
             <Text style={styles.badgeText}>{badge.label}</Text>
-          </LinearGradient>
+          </View>
           <View style={styles.positionTeam}>
             <Text style={styles.positionText}>
               {projection.position} \u00b7 {projection.teamAbbrev}
@@ -152,13 +146,12 @@ export default function StartSitCard({ projection, gameTime, index = 0 }: StartS
 const styles = StyleSheet.create({
   wrapper: {
     flexDirection: 'row',
-    backgroundColor: '#192e5e',
-    borderRadius: 14,
+    backgroundColor: rinkGlass.glass,
+    borderRadius: 12,
     marginBottom: 10,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#2a4080',
-    // Shadow
+    borderColor: rinkGlass.glassBorder,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
@@ -197,20 +190,20 @@ const styles = StyleSheet.create({
   },
   positionText: {
     fontSize: 13,
-    color: '#98a6bf',
+    color: rinkGlass.textSecondary,
     fontWeight: '500',
   },
   // Player name
   playerName: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#e6eef8',
+    color: rinkGlass.textPrimary,
     marginBottom: 8,
   },
   // Divider
   divider: {
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: rinkGlass.glassBorder,
     marginBottom: 10,
   },
   // Stats row
@@ -225,12 +218,13 @@ const styles = StyleSheet.create({
   projectedPoints: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#60a5fa',
+    fontFamily: rinkGlass.fonts.display,
+    color: rinkGlass.textPrimary,
     lineHeight: 28,
   },
   projectedLabel: {
     fontSize: 11,
-    color: '#98a6bf',
+    color: rinkGlass.textSecondary,
     fontWeight: '500',
     marginTop: 1,
   },
@@ -245,12 +239,12 @@ const styles = StyleSheet.create({
   },
   rangeText: {
     fontSize: 12,
-    color: '#98a6bf',
+    color: rinkGlass.textSecondary,
     fontWeight: '500',
   },
   rangeBarTrack: {
     height: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: rinkGlass.boards,
     borderRadius: 2,
     position: 'relative',
   },
@@ -276,12 +270,12 @@ const styles = StyleSheet.create({
   },
   contextText: {
     fontSize: 12,
-    color: '#98a6bf',
+    color: rinkGlass.textSecondary,
     fontWeight: '500',
   },
   reasonText: {
     fontSize: 12,
-    color: '#60a5fa',
+    color: rinkGlass.blueLight,
     fontStyle: 'italic',
     fontWeight: '500',
     flexShrink: 1,
