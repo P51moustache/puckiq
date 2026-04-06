@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 import { HapticTab } from '../../components/HapticTab';
 import { IconSymbol } from '../../components/ui/IconSymbol';
 import TabBarBackground from '../../components/ui/TabBarBackground';
-import { Colors } from '../../constants/Colors';
+import { rinkGlass } from '../../constants/theme';
 
 /** Force the Upcoming tab as the initial route on every app load */
 export const unstable_settings = {
@@ -15,18 +15,24 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors.tint,
-        tabBarInactiveTintColor: Colors.tabIconDefault,
+        tabBarActiveTintColor: rinkGlass.blueLight,
+        tabBarInactiveTintColor: rinkGlass.textMuted,
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarBackground: TabBarBackground,
+        tabBarLabelStyle: {
+          fontSize: 10,
+          fontWeight: '600',
+        },
         tabBarStyle: Platform.select({
           ios: {
             position: 'absolute',
+            backgroundColor: rinkGlass.ice,
+            borderTopColor: rinkGlass.glassBorder,
           },
           default: {
-            backgroundColor: Colors.background,
-            borderTopColor: Colors.tabIconDefault,
+            backgroundColor: rinkGlass.ice,
+            borderTopColor: rinkGlass.glassBorder,
           },
         }),
       }}>
