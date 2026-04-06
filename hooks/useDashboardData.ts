@@ -35,6 +35,8 @@ interface StartSitPlayer {
   opponent: string;
   projectedPoints: number;
   recommendation: 'START' | 'SIT';
+  hasDisagreement?: boolean;
+  disagreementReason?: string;
 }
 
 // WaiverPlayer shape expected by the module
@@ -65,6 +67,10 @@ function transformStartSit(projections: PlayerProjection[]): StartSitPlayer[] {
       opponent: p.opponentAbbrev,
       projectedPoints: p.fantasyPoints,
       recommendation: p.recommendation as 'START' | 'SIT',
+      hasDisagreement: p.confidence === 'low',
+      disagreementReason: p.confidence === 'low'
+        ? (p.reason || 'Close matchup \u2014 model is uncertain')
+        : undefined,
     }));
 }
 

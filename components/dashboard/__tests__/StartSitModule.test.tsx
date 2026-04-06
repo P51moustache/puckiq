@@ -59,6 +59,9 @@ jest.mock('react-native-reanimated', () => {
     useAnimatedStyle: (fn: () => any) => fn(),
     useSharedValue: (val: any) => ({ value: val }),
     withTiming: (val: any) => val,
+    withRepeat: (val: any) => val,
+    withSequence: (val: any) => val,
+    Easing: { inOut: () => undefined, ease: undefined },
     FadeInUp: { delay: () => ({ duration: () => ({}), springify: () => ({ damping: () => ({ stiffness: () => ({}) }) }) }) },
   };
 });
@@ -140,5 +143,44 @@ describe('StartSitModule', () => {
   it('displays team abbreviation', () => {
     const { getAllByText } = render(<StartSitModule players={mockPlayers} />);
     expect(getAllByText('EDM').length).toBe(2);
+  });
+
+  it('shows disagreement reason when hasDisagreement is true', () => {
+    const playersWithDisagreement = [
+      {
+        id: 1,
+        name: 'Connor McDavid',
+        team: 'EDM',
+        opponent: 'CGY',
+        projectedPoints: 4.2,
+        recommendation: 'START' as const,
+        hasDisagreement: true,
+        disagreementReason: 'Tough opponent defense',
+      },
+    ];
+    const { getByText } = render(<StartSitModule players={playersWithDisagreement} />);
+    expect(getByText('Tough opponent defense')).toBeTruthy();
+  });
+
+  it('does not show disagreement text when hasDisagreement is false', () => {
+    const playersNoDisagreement = [
+      {
+        id: 1,
+        name: 'Connor McDavid',
+        team: 'EDM',
+        opponent: 'CGY',
+        projectedPoints: 4.2,
+        recommendation: 'START' as const,
+        hasDisagreement: false,
+      },
+    ];
+    const { queryByText } = render(<StartSitModule players={playersNoDisagreement} />);
+    expect(queryByText('Tough opponent defense')).toBeNull();
+  });
+
+  it('works with players that omit disagreement fields', () => {
+    // Existing mockPlayers don't have disagreement fields — should render fine
+    const { getByText } = render(<StartSitModule players={mockPlayers} />);
+    expect(getByText('Connor McDavid')).toBeTruthy();
   });
 });

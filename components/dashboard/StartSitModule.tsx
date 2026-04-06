@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,15 @@ import {
   PanResponder,
   PanResponderGestureState,
 } from 'react-native';
-import Animated, { FadeInUp, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, {
+  Easing,
+  FadeInUp,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { rinkGlass, theme } from '../../constants/theme';
@@ -21,6 +29,8 @@ interface StartSitPlayer {
   opponent: string;
   projectedPoints: number;
   recommendation: 'START' | 'SIT';
+  hasDisagreement?: boolean;
+  disagreementReason?: string;
 }
 
 interface StartSitModuleProps {
@@ -50,6 +60,28 @@ function PlayerCard({
   const isStart = decision === 'START';
 
   const toggleBgColor = useSharedValue(isStart ? rinkGlass.faceoffDot : rinkGlass.textMuted);
+
+  // Disagreement pulse animation
+  const pulseOpacity = useSharedValue(0.4);
+
+  useEffect(() => {
+    if (player.hasDisagreement) {
+      pulseOpacity.value = withRepeat(
+        withSequence(
+          withTiming(1, { duration: 750, easing: Easing.inOut(Easing.ease) }),
+          withTiming(0.4, { duration: 750, easing: Easing.inOut(Easing.ease) })
+        ),
+        -1,
+        true
+      );
+    }
+  }, []);
+
+  const pulseStyle = useAnimatedStyle(() => ({
+    borderColor: player.hasDisagreement ? rinkGlass.powerPlay : rinkGlass.glassBorder,
+    borderWidth: player.hasDisagreement ? 2 : 1,
+    opacity: player.hasDisagreement ? pulseOpacity.value : 1,
+  }));
 
   // Color wash sweep overlay
   const sweepX = useSharedValue(-160);
@@ -201,6 +233,7 @@ function PlayerCard({
           style={[
             styles.card,
             isPinned && styles.pinnedHighlight,
+            pulseStyle,
             {
               transform: [{ translateX }, { scale: cardScale }],
               opacity: cardOpacity,
@@ -230,6 +263,13 @@ function PlayerCard({
           {/* Projected points */}
           <Text style={styles.projectedPoints}>{player.projectedPoints}</Text>
           <Text style={styles.projLabel}>proj pts</Text>
+
+          {/* Disagreement reason */}
+          {player.hasDisagreement && (
+            <Text style={styles.disagreementText}>
+              {player.disagreementReason}
+            </Text>
+          )}
 
           {/* Toggle button */}
           <TouchableOpacity
@@ -425,6 +465,15 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 12,
+  },
+  disagreementText: {
+    fontSize: 11,
+    color: rinkGlass.powerPlay,
+    fontStyle: 'italic' as const,
+    marginTop: 4,
+    textAlign: 'center' as const,
+    marginBottom: 4,
+    paddingHorizontal: 4,
   },
   toggleButton: {
     paddingHorizontal: 24,
