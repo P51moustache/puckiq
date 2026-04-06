@@ -10,6 +10,7 @@ import AlertsModule from './AlertsModule';
 import WaiverWireModule from './WaiverWireModule';
 import MatchupEdgeModule from './MatchupEdgeModule';
 import DailyInsightModule from './DailyInsightModule';
+import ModulePicker from './ModulePicker';
 
 const ACCENT_COLORS = rinkGlass.moduleAccents as Record<ModuleId, string>;
 
@@ -70,13 +71,29 @@ export default function DashboardContainer() {
   const [modules, setModules] = useState<ModuleConfig[]>([]);
   const [editMode, setEditMode] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showPicker, setShowPicker] = useState(false);
 
   useEffect(() => {
     loadDashboardPrefs().then((prefs) => {
       setModules(prefs.modules);
+      if (prefs.isFirstLaunch) {
+        setShowPicker(true);
+      }
       setLoading(false);
     });
   }, []);
+
+  const handlePickerComplete = useCallback(
+    async (pickedModules: ModuleConfig[]) => {
+      setModules(pickedModules);
+      setShowPicker(false);
+      await saveDashboardPrefs({
+        modules: pickedModules,
+        lastCustomized: new Date().toISOString().slice(0, 10),
+      });
+    },
+    []
+  );
 
   const handleToggle = useCallback(
     async (id: ModuleId) => {
@@ -100,6 +117,8 @@ export default function DashboardContainer() {
 
   return (
     <View style={styles.container}>
+      <ModulePicker visible={showPicker} onComplete={handlePickerComplete} />
+
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Command Center</Text>
         <TouchableOpacity

@@ -3,16 +3,16 @@ import { ModuleConfig, ModuleId, DashboardPreferences, DEFAULT_MODULES } from '.
 
 const STORAGE_KEY = 'puckiq_dashboard_modules';
 
-export async function loadDashboardPrefs(): Promise<DashboardPreferences> {
+export async function loadDashboardPrefs(): Promise<DashboardPreferences & { isFirstLaunch: boolean }> {
   try {
     const raw = await AsyncStorage.getItem(STORAGE_KEY);
     if (raw) {
-      return JSON.parse(raw);
+      return { ...JSON.parse(raw), isFirstLaunch: false };
     }
   } catch (err) {
     console.warn('[DashboardModules] Failed to load preferences:', err);
   }
-  return { modules: [...DEFAULT_MODULES], lastCustomized: null };
+  return { modules: [...DEFAULT_MODULES], lastCustomized: null, isFirstLaunch: true };
 }
 
 export async function saveDashboardPrefs(prefs: DashboardPreferences): Promise<void> {
