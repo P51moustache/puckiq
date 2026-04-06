@@ -61,6 +61,7 @@ function AppContent() {
 export default function RootLayout() {
   const [loaded, error] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
+    'Display-Bold': require('../assets/fonts/Oswald-Bold.ttf'),
   });
 
   const analyticsConfig = useMemo(() => ({ enabled: true, debug: __DEV__ }), []);
