@@ -540,7 +540,7 @@ export const rinkGlass = {
 
   // Font tokens
   fonts: {
-    display: selectFont({ ios: 'System', android: 'Roboto', default: 'System' }),
+    display: 'Display-Bold',  // Oswald Bold — condensed, sporty headlines
     body: selectFont({ ios: 'System', android: 'Roboto', default: 'System' }),
     mono: selectFont({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
   },
