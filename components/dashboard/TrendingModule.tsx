@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,12 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  interpolate,
+} from 'react-native-reanimated';
 import { rinkGlass } from '../../constants/theme';
 import { Sparkline } from '../Sparkline';
 
@@ -42,49 +48,86 @@ function TrendingCard({
   player: TrendingPlayer;
   onWatch?: (id: number) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const rotation = useSharedValue(0);
   const flames = '🔥'.repeat(player.flameCount);
+  const totalPoints = player.recentPoints.reduce((a, b) => a + b, 0);
+
+  const handleFlip = () => {
+    rotation.value = withTiming(rotation.value === 0 ? 180 : 0, {
+      duration: 400,
+    });
+  };
+
+  const frontStyle = useAnimatedStyle(() => ({
+    transform: [{ rotateY: `${rotation.value}deg` }],
+    backfaceVisibility: 'hidden' as const,
+    opacity: interpolate(rotation.value, [0, 90, 91, 180], [1, 1, 0, 0]),
+  }));
+
+  const backStyle = useAnimatedStyle(() => ({
+    transform: [{ rotateY: `${rotation.value + 180}deg` }],
+    backfaceVisibility: 'hidden' as const,
+    opacity: interpolate(rotation.value, [0, 89, 90, 180], [0, 0, 1, 1]),
+    position: 'absolute' as const,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  }));
 
   return (
     <TouchableOpacity
       testID={`card-${player.id}`}
-      style={styles.card}
-      activeOpacity={0.85}
-      onPress={() => setExpanded((prev) => !prev)}
+      activeOpacity={1}
+      onPress={handleFlip}
     >
-      <View style={styles.cardHeader}>
-        <Text style={styles.playerName} numberOfLines={1}>
-          {player.name}
-        </Text>
-        <Text
-          testID={`trend-${player.id}`}
-          style={[styles.trendIndicator, { color: TREND_COLORS[player.trend] }]}
-        >
-          {TREND_SYMBOLS[player.trend]}
-        </Text>
-      </View>
+      <View style={styles.cardWrapper}>
+        <Animated.View style={[styles.card, frontStyle]}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.playerName} numberOfLines={1}>
+              {player.name}
+            </Text>
+            <Text
+              testID={`trend-${player.id}`}
+              style={[
+                styles.trendIndicator,
+                { color: TREND_COLORS[player.trend] },
+              ]}
+            >
+              {TREND_SYMBOLS[player.trend]}
+            </Text>
+          </View>
 
-      <Text style={styles.teamLabel}>{player.team}</Text>
+          <Text style={styles.teamLabel}>{player.team}</Text>
 
-      <Text testID={`flames-${player.id}`} style={styles.flames}>
-        {flames}
-      </Text>
-
-      <View style={styles.sparklineRow}>
-        <Sparkline
-          data={player.recentPoints}
-          width={80}
-          height={20}
-          color={rinkGlass.goalLight}
-        />
-      </View>
-
-      {expanded && (
-        <View testID={`expanded-${player.id}`} style={styles.expandedSection}>
-          <Text style={styles.expandedLabel}>
-            Last {player.recentPoints.length} games:{' '}
-            {player.recentPoints.reduce((a, b) => a + b, 0)} pts
+          <Text testID={`flames-${player.id}`} style={styles.flames}>
+            {flames}
           </Text>
+
+          <View style={styles.sparklineRow}>
+            <Sparkline
+              data={player.recentPoints}
+              width={80}
+              height={20}
+              color={rinkGlass.goalLight}
+            />
+          </View>
+        </Animated.View>
+
+        <Animated.View
+          testID={`back-${player.id}`}
+          style={[styles.cardBack, backStyle]}
+        >
+          <Text style={styles.backHeader}>Why trending</Text>
+
+          <Text style={styles.backPlayerName}>{player.name}</Text>
+
+          <Text testID={`back-stats-${player.id}`} style={styles.backStats}>
+            Last {player.recentPoints.length} games: {totalPoints} pts
+          </Text>
+
+          <Text style={styles.backFlames}>{flames}</Text>
+
           <TouchableOpacity
             testID={`watch-${player.id}`}
             style={styles.watchButton}
@@ -92,8 +135,8 @@ function TrendingCard({
           >
             <Text style={styles.watchButtonText}>Watch</Text>
           </TouchableOpacity>
-        </View>
-      )}
+        </Animated.View>
+      </View>
     </TouchableOpacity>
   );
 }
@@ -166,14 +209,30 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 12,
   },
+  cardWrapper: {
+    width: 160,
+    height: 140,
+    marginHorizontal: 4,
+    position: 'relative',
+  },
   card: {
     width: 160,
+    height: 140,
     backgroundColor: rinkGlass.glass,
     borderWidth: 1,
     borderColor: rinkGlass.glassBorder,
     borderRadius: 12,
     padding: 12,
-    marginHorizontal: 4,
+  },
+  cardBack: {
+    width: 160,
+    height: 140,
+    backgroundColor: rinkGlass.boards,
+    borderWidth: 1,
+    borderColor: rinkGlass.glassBorder,
+    borderRadius: 12,
+    padding: 12,
+    justifyContent: 'space-between',
   },
   cardHeader: {
     flexDirection: 'row',
@@ -203,16 +262,24 @@ const styles = StyleSheet.create({
   sparklineRow: {
     marginTop: 8,
   },
-  expandedSection: {
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: rinkGlass.glassBorder,
+  backHeader: {
+    fontFamily: rinkGlass.fonts.display,
+    fontSize: 11,
+    color: rinkGlass.goalLight,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
-  expandedLabel: {
+  backPlayerName: {
+    fontFamily: rinkGlass.fonts.display,
+    fontSize: 13,
+    color: rinkGlass.textPrimary,
+  },
+  backStats: {
     fontSize: 12,
-    color: rinkGlass.textSecondary,
-    marginBottom: 8,
+    color: rinkGlass.textPrimary,
+  },
+  backFlames: {
+    fontSize: 12,
   },
   watchButton: {
     backgroundColor: rinkGlass.goalLight,

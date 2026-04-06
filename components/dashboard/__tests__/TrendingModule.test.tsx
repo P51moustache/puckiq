@@ -37,6 +37,33 @@ jest.mock('react-native', () => {
   };
 });
 
+jest.mock('react-native-reanimated', () => {
+  const React = require('react');
+  return {
+    __esModule: true,
+    default: {
+      View: ({ children, ...props }: any) => React.createElement('View', props, children),
+      Text: ({ children, ...props }: any) => React.createElement('Text', props, children),
+      createAnimatedComponent: (comp: any) => comp,
+    },
+    useAnimatedStyle: (fn: () => any) => fn(),
+    useSharedValue: (val: any) => ({ value: val }),
+    withTiming: (val: any) => val,
+    interpolate: (value: number, input: number[], output: number[]) => {
+      // Simple linear interpolation mock
+      if (value <= input[0]) return output[0];
+      if (value >= input[input.length - 1]) return output[output.length - 1];
+      for (let i = 0; i < input.length - 1; i++) {
+        if (value >= input[i] && value <= input[i + 1]) {
+          const t = (value - input[i]) / (input[i + 1] - input[i]);
+          return output[i] + t * (output[i + 1] - output[i]);
+        }
+      }
+      return output[0];
+    },
+  };
+});
+
 jest.mock('@expo/vector-icons', () => {
   const React = require('react');
   return {
@@ -77,11 +104,12 @@ const mockPlayers: TrendingPlayer[] = [
 
 describe('TrendingModule', () => {
   it('renders horizontal scroll of player cards', () => {
-    const { getByText } = render(<TrendingModule players={mockPlayers} />);
+    const { getByText, getAllByText } = render(<TrendingModule players={mockPlayers} />);
     expect(getByText('Trending Now')).toBeTruthy();
-    expect(getByText('Connor McDavid')).toBeTruthy();
-    expect(getByText('Nathan MacKinnon')).toBeTruthy();
-    expect(getByText('Auston Matthews')).toBeTruthy();
+    // Names appear on both front and back faces
+    expect(getAllByText('Connor McDavid').length).toBeGreaterThanOrEqual(1);
+    expect(getAllByText('Nathan MacKinnon').length).toBeGreaterThanOrEqual(1);
+    expect(getAllByText('Auston Matthews').length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows flame count based on streak intensity', () => {
@@ -107,24 +135,41 @@ describe('TrendingModule', () => {
     expect(getByText('No trending players right now')).toBeTruthy();
   });
 
-  it('expands card on tap to show extra detail', () => {
-    const { getByTestId, queryByTestId } = render(
+  it('renders back face with "Why trending" details', () => {
+    const { getByTestId, getAllByText } = render(
       <TrendingModule players={mockPlayers} />
     );
-    // Initially no expanded content
-    expect(queryByTestId('expanded-1')).toBeNull();
-    // Tap the card
-    fireEvent.press(getByTestId('card-1'));
-    // Now expanded content should appear
-    expect(getByTestId('expanded-1')).toBeTruthy();
+    // Back face should be rendered (always present, hidden via animation opacity)
+    expect(getByTestId('back-1')).toBeTruthy();
+    // Each card has a "Why trending" header on its back
+    expect(getAllByText('Why trending').length).toBe(3);
   });
 
-  it('shows Watch button in expanded state', () => {
-    const { getByTestId, getByText } = render(
-      <TrendingModule players={mockPlayers} />
+  it('shows stats on back face', () => {
+    const { getByTestId } = render(<TrendingModule players={mockPlayers} />);
+    const backStats = getByTestId('back-stats-1');
+    // McDavid: 2+1+3+2+4 = 12
+    expect(backStats.props.children).toEqual(['Last ', 5, ' games: ', 12, ' pts']);
+  });
+
+  it('shows Watch button on back face', () => {
+    const onWatch = jest.fn();
+    const { getByTestId } = render(
+      <TrendingModule players={mockPlayers} onWatch={onWatch} />
     );
-    fireEvent.press(getByTestId('card-1'));
-    expect(getByText('Watch')).toBeTruthy();
+    // Watch button is on the back face
+    const watchBtn = getByTestId('watch-1');
+    fireEvent.press(watchBtn);
+    expect(onWatch).toHaveBeenCalledWith(1);
+  });
+
+  it('card is tappable for flip interaction', () => {
+    const { getByTestId } = render(<TrendingModule players={mockPlayers} />);
+    // Card should be pressable (flip trigger)
+    const card = getByTestId('card-1');
+    expect(card.props.onPress).toBeDefined();
+    // Should not throw when pressed
+    fireEvent.press(card);
   });
 
   it('shows trend indicator', () => {
