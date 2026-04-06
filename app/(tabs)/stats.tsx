@@ -468,6 +468,7 @@ const localStyles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '700',
     color: rinkGlass.textPrimary,
+    fontFamily: 'Display-Bold',
   },
   subtitle: {
     fontSize: 14,
@@ -500,6 +501,7 @@ const localStyles = StyleSheet.create({
   },
   segmentTextActive: {
     color: rinkGlass.ice,
+    fontWeight: '700',
   },
   content: {
     flex: 1,
@@ -526,6 +528,7 @@ const localStyles = StyleSheet.create({
     letterSpacing: 1.5,
     textTransform: 'uppercase',
     marginBottom: 4,
+    fontFamily: 'Display-Bold',
   },
   tooltipsSectionSubtitle: {
     fontSize: 13,
@@ -580,6 +583,7 @@ const localStyles = StyleSheet.create({
     fontWeight: '700',
     color: rinkGlass.textPrimary,
     marginBottom: 8,
+    fontFamily: 'Display-Bold',
   },
   tooltipText: {
     fontSize: 14,
@@ -610,6 +614,7 @@ const localStyles = StyleSheet.create({
     letterSpacing: 1.5,
     textTransform: 'uppercase',
     marginBottom: 4,
+    fontFamily: 'Display-Bold',
   },
   comparisonSubtitle: {
     fontSize: 13,
@@ -641,6 +646,7 @@ const localStyles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: rinkGlass.textPrimary,
+    fontFamily: 'Display-Bold',
   },
   vsText: {
     fontSize: 14,
@@ -668,6 +674,7 @@ const localStyles = StyleSheet.create({
     color: rinkGlass.textPrimary,
     marginBottom: 12,
     textAlign: 'center',
+    fontFamily: 'Display-Bold',
   },
   pickerItem: {
     paddingVertical: 12,
@@ -683,6 +690,7 @@ const localStyles = StyleSheet.create({
     fontWeight: '600',
     color: rinkGlass.textPrimary,
     textAlign: 'center',
+    fontFamily: 'Display-Bold',
   },
   pickerItemTextActive: {
     color: rinkGlass.ice,
@@ -716,6 +724,7 @@ const localStyles = StyleSheet.create({
   categoryWinner: {
     fontSize: 14,
     fontWeight: '700',
+    fontFamily: 'Display-Bold',
   },
   // Edge content
   edgeLeaderCard: {
@@ -736,16 +745,16 @@ const localStyles = StyleSheet.create({
     color: rinkGlass.textSecondary,
     letterSpacing: 0.5,
     marginBottom: 4,
+    textTransform: 'uppercase',
   },
   edgeLeaderValue: {
-    fontSize: 22,
+    fontSize: 28,
     fontWeight: '800',
     color: rinkGlass.textPrimary,
-    fontFamily: rinkGlass.fonts.mono,
-    fontVariant: ['tabular-nums'] as any,
+    fontFamily: 'Display-Bold',
   },
   edgeLeaderName: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
     color: rinkGlass.blueLight,
   },

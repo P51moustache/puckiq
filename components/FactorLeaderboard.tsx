@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet } from 'react-native';
-import { theme } from '../constants/theme';
+import { theme, rinkGlass } from '../constants/theme';
 import { FactorType } from '../types/factors';
 
 interface FactorRanking {
@@ -107,6 +107,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: theme.text,
+    fontFamily: 'Display-Bold',
   },
   season: {
     fontSize: 12,
@@ -162,6 +163,7 @@ const styles = StyleSheet.create({
   accuracy: {
     fontSize: 16,
     fontWeight: '700',
+    fontFamily: 'Display-Bold',
   },
   legend: {
     marginTop: 12,
