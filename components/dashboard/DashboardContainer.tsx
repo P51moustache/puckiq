@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, ScrollView, Switch, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Switch, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { rinkGlass } from '../../constants/theme';
 import { MODULE_META, ModuleConfig, ModuleId } from '../../types/dashboard';
@@ -140,17 +140,16 @@ export default function DashboardContainer() {
             })}
         </View>
       ) : (
-        <ScrollView
+        <View
           testID="module-scroll"
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
+          style={styles.scrollContent}
         >
           {enabledModules.map((mod) => (
             <View key={mod.id} testID={`module-card-${mod.id}`}>
               {renderModule(mod.id)}
             </View>
           ))}
-        </ScrollView>
+        </View>
       )}
     </View>
   );
@@ -158,7 +157,6 @@ export default function DashboardContainer() {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
   },
   header: {
     flexDirection: 'row',
