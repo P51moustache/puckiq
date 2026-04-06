@@ -60,6 +60,7 @@ import {
   transformMatchups,
   transformInsight,
   buildAlertsFromGames,
+  generateFallbackData,
   type DashboardData,
 } from '../useDashboardData';
 import type { PlayerProjection } from '../../types/fantasy';
@@ -89,6 +90,7 @@ describe('useDashboardData module', () => {
     type _5 = AssertHasKey<DashboardData, 'matchups'>;
     type _6 = AssertHasKey<DashboardData, 'dailyInsight'>;
     type _7 = AssertHasKey<DashboardData, 'isLoading'>;
+    type _7b = AssertHasKey<DashboardData, 'isOffDay'>;
     type _8 = AssertHasKey<DashboardData, 'refresh'>;
 
     // If we get here TypeScript is satisfied
@@ -102,6 +104,81 @@ describe('useDashboardData module', () => {
     expect(typeof transformMatchups).toBe('function');
     expect(typeof transformInsight).toBe('function');
     expect(typeof buildAlertsFromGames).toBe('function');
+    expect(typeof generateFallbackData).toBe('function');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fallback data tests
+// ---------------------------------------------------------------------------
+
+describe('generateFallbackData', () => {
+  it('returns non-empty arrays for all modules', () => {
+    const data = generateFallbackData();
+    expect(data.startSitPlayers.length).toBeGreaterThanOrEqual(3);
+    expect(data.trendingPlayers.length).toBeGreaterThanOrEqual(3);
+    expect(data.alerts.length).toBeGreaterThanOrEqual(2);
+    expect(data.waiverPlayers.length).toBeGreaterThanOrEqual(2);
+    expect(data.matchups.length).toBeGreaterThanOrEqual(2);
+    expect(data.dailyInsight).not.toBeNull();
+  });
+
+  it('start/sit players have correct shape', () => {
+    const { startSitPlayers } = generateFallbackData();
+    for (const p of startSitPlayers) {
+      expect(p.id).toBeLessThan(0); // negative IDs mark fallback
+      expect(p.name).toBeTruthy();
+      expect(p.team).toBeTruthy();
+      expect(p.opponent).toBeTruthy();
+      expect(['START', 'SIT']).toContain(p.recommendation);
+      expect(typeof p.projectedPoints).toBe('number');
+    }
+  });
+
+  it('includes both START and SIT recommendations', () => {
+    const { startSitPlayers } = generateFallbackData();
+    expect(startSitPlayers.some((p) => p.recommendation === 'START')).toBe(true);
+    expect(startSitPlayers.some((p) => p.recommendation === 'SIT')).toBe(true);
+  });
+
+  it('includes at least one disagreement flag', () => {
+    const { startSitPlayers } = generateFallbackData();
+    expect(startSitPlayers.some((p) => p.hasDisagreement)).toBe(true);
+  });
+
+  it('trending players have valid sparkline data', () => {
+    const { trendingPlayers } = generateFallbackData();
+    for (const p of trendingPlayers) {
+      expect(p.recentPoints).toHaveLength(10);
+      expect(p.flameCount).toBeGreaterThanOrEqual(1);
+      expect(p.flameCount).toBeLessThanOrEqual(5);
+      expect(['up', 'down', 'stable']).toContain(p.trend);
+    }
+  });
+
+  it('matchups have valid edge ratings', () => {
+    const { matchups } = generateFallbackData();
+    for (const m of matchups) {
+      expect(m.edgeRating).toBeGreaterThanOrEqual(1);
+      expect(m.edgeRating).toBeLessThanOrEqual(10);
+      expect(m.reasons.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('daily insight has all required fields', () => {
+    const { dailyInsight } = generateFallbackData();
+    expect(dailyInsight.headline).toBeTruthy();
+    expect(dailyInsight.context).toBeTruthy();
+    expect(['bullish', 'bearish', 'surprising']).toContain(dailyInsight.sentiment);
+  });
+
+  it('waiver players have valid positions', () => {
+    const { waiverPlayers } = generateFallbackData();
+    for (const p of waiverPlayers) {
+      expect(['C', 'LW', 'RW', 'D', 'G']).toContain(p.position);
+      expect(p.ownershipPct).toBeGreaterThan(0);
+      expect(p.ownershipPct).toBeLessThan(100);
+    }
   });
 });
 

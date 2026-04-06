@@ -137,6 +137,12 @@ export default function DashboardContainer() {
           testID="module-scroll"
           style={styles.scrollContent}
         >
+          {dashData.isOffDay && (
+            <View testID="off-day-banner" style={styles.offDayBanner}>
+              <Ionicons name="calendar-outline" size={14} color={rinkGlass.textSecondary} />
+              <Text style={styles.offDayText}>No games today · Showing weekly highlights</Text>
+            </View>
+          )}
           {enabledModules.map((mod) => (
             <View key={mod.id} testID={`module-card-${mod.id}`}>
               {renderModule(mod.id, dashData)}
@@ -229,5 +235,18 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 13,
     color: rinkGlass.textSecondary,
+  },
+  offDayBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    marginBottom: 4,
+  },
+  offDayText: {
+    fontSize: 12,
+    color: rinkGlass.textSecondary,
+    fontStyle: 'italic',
   },
 });

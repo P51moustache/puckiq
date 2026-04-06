@@ -250,7 +250,57 @@ export interface DashboardData {
   matchups: MatchupEdge[];
   dailyInsight: DailyInsight | null;
   isLoading: boolean;
+  isOffDay: boolean;
   refresh: () => void;
+}
+
+// ---------------------------------------------------------------------------
+// Fallback content for off-days (no games scheduled)
+// ---------------------------------------------------------------------------
+
+function generateFallbackData() {
+  const now = new Date().toISOString();
+
+  const startSitPlayers: StartSitPlayer[] = [
+    { id: -1, name: 'C. McDavid', team: 'EDM', opponent: 'CGY', projectedPoints: 8.2, recommendation: 'START' },
+    { id: -2, name: 'N. MacKinnon', team: 'COL', opponent: 'DAL', projectedPoints: 7.4, recommendation: 'START', hasDisagreement: true, disagreementReason: 'Tough goalie matchup — model is split' },
+    { id: -3, name: 'K. Kaprizov', team: 'MIN', opponent: 'WPG', projectedPoints: 6.9, recommendation: 'START' },
+    { id: -4, name: 'B. Point', team: 'TBL', opponent: 'FLA', projectedPoints: 3.4, recommendation: 'SIT', hasDisagreement: true, disagreementReason: 'Strong recent form but Panthers D ranks #2' },
+  ];
+
+  const trendingPlayers: TrendingModulePlayer[] = [
+    { id: -1, name: 'K. Kaprizov', team: 'MIN', flameCount: 5, recentPoints: [3.2, 5.1, 2.8, 7.4, 4.2, 6.1, 3.9, 5.5, 4.8, 6.7], trend: 'up' },
+    { id: -2, name: 'J. Robertson', team: 'DAL', flameCount: 4, recentPoints: [2.1, 3.8, 4.5, 3.2, 5.1, 4.7, 3.9, 5.2, 4.1, 4.8], trend: 'up' },
+    { id: -3, name: 'M. Tkachuk', team: 'FLA', flameCount: 4, recentPoints: [4.2, 3.1, 5.8, 2.9, 4.5, 3.8, 5.1, 4.2, 3.7, 4.9], trend: 'up' },
+    { id: -4, name: 'C. Makar', team: 'COL', flameCount: 5, recentPoints: [4.1, 5.2, 3.8, 6.1, 4.5, 5.8, 4.2, 5.5, 6.2, 5.9], trend: 'up' },
+    { id: -5, name: 'T. Seguin', team: 'DAL', flameCount: 3, recentPoints: [2.8, 3.2, 2.1, 3.9, 2.5, 3.1, 2.8, 3.4, 2.9, 3.2], trend: 'stable' },
+  ];
+
+  const alerts: FantasyAlert[] = [
+    { id: 'tip-trending', type: 'goalie', playerName: 'Trending Watch', team: '', message: 'Kaprizov on a 5-game point streak — add to watchlist?', timestamp: now, isRosterPlayer: false },
+    { id: 'tip-roster', type: 'lineup', playerName: 'Roster Setup', team: '', message: 'Build your roster for personalized start/sit alerts', timestamp: now, isRosterPlayer: false },
+    { id: 'tip-waiver', type: 'injury', playerName: 'Waiver Wire', team: '', message: 'Check the waiver module for under-owned sleepers', timestamp: now, isRosterPlayer: false },
+  ];
+
+  const waiverPlayers: WaiverPlayer[] = [
+    { id: -1, name: 'M. Boldy', team: 'MIN', position: 'LW', valueScore: 4.8, ownershipPct: 42, projectedPoints: 5.9 },
+    { id: -2, name: 'S. Jarvis', team: 'CAR', position: 'C', valueScore: 3.9, ownershipPct: 28, projectedPoints: 4.8 },
+    { id: -3, name: 'C. Caufield', team: 'MTL', position: 'RW', valueScore: 3.5, ownershipPct: 18, projectedPoints: 4.2 },
+  ];
+
+  const matchups: MatchupEdge[] = [
+    { id: -1, playerName: 'L. Draisaitl', team: 'EDM', opponent: 'CGY', edgeRating: 9, projectedPoints: 7.8, reasons: ['Battle of Alberta rivalry', 'Projected 0.8 goals', 'Home ice advantage'] },
+    { id: -2, playerName: 'A. Matthews', team: 'TOR', opponent: 'OTT', edgeRating: 8, projectedPoints: 7.2, reasons: ['Highway 401 rivalry', 'Projected 0.7 goals'] },
+    { id: -3, playerName: 'N. Kucherov', team: 'TBL', opponent: 'CBJ', edgeRating: 7, projectedPoints: 6.5, reasons: ['CBJ allows 3.4 GA/G', 'Power play advantage'] },
+  ];
+
+  const dailyInsight: DailyInsight = {
+    headline: 'Home teams winning 58% of games this week — ride the home ice edge',
+    context: 'League-wide home advantage has spiked over the last 7 days. When choosing between similar matchups, lean toward players at home.',
+    sentiment: 'bullish',
+  };
+
+  return { startSitPlayers, trendingPlayers, alerts, waiverPlayers, matchups, dailyInsight };
 }
 
 // ---------------------------------------------------------------------------
@@ -265,9 +315,11 @@ export function useDashboardData(): DashboardData {
   const [matchups, setMatchups] = useState<MatchupEdge[]>([]);
   const [dailyInsight, setDailyInsight] = useState<DailyInsight | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isOffDay, setIsOffDay] = useState(false);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
+    setIsOffDay(false);
 
     const today = getToday();
 
@@ -317,45 +369,56 @@ export function useDashboardData(): DashboardData {
       const dismissed =
         dismissedResult.status === 'fulfilled' ? dismissedResult.value : [];
 
-      // 4. Transform and set state
-      setStartSitPlayers(transformStartSit(projections));
-      setTrendingPlayers(transformTrending(trending));
-      setWaiverPlayers(transformWaiver(waiver));
+      // 4. Check if all live data is empty — use fallback for off-days
+      const allEmpty = projections.length === 0 && trending.length === 0 && waiver.length === 0;
 
-      // Matchups: use all projections (roster + waiver combined for richness)
-      const allProjections = [...projections, ...waiver];
-      setMatchups(transformMatchups(allProjections));
+      if (allEmpty) {
+        const fallback = generateFallbackData();
+        setStartSitPlayers(fallback.startSitPlayers);
+        setTrendingPlayers(fallback.trendingPlayers);
+        setAlerts(fallback.alerts);
+        setWaiverPlayers(fallback.waiverPlayers);
+        setMatchups(fallback.matchups);
+        setDailyInsight(fallback.dailyInsight);
+        setIsOffDay(true);
+      } else {
+        // Live data available — transform and set
+        setStartSitPlayers(transformStartSit(projections));
+        setTrendingPlayers(transformTrending(trending));
+        setWaiverPlayers(transformWaiver(waiver));
 
-      // Alerts: build from today's games context
-      // We don't have direct game data here, so build minimal alerts
-      // from projection data (which tells us what games are happening)
-      const gameTeams = new Set<string>();
-      const gameAlertGames: any[] = [];
-      for (const p of allProjections) {
-        const key = `${p.teamAbbrev}-${p.opponentAbbrev}`;
-        if (!gameTeams.has(key)) {
-          gameTeams.add(key);
-          gameAlertGames.push({
-            id: p.gameId,
-            gameDate: today,
-            homeTeam: { abbrev: p.isHome ? p.teamAbbrev : p.opponentAbbrev },
-            awayTeam: { abbrev: p.isHome ? p.opponentAbbrev : p.teamAbbrev },
-          });
+        const allProjections = [...projections, ...waiver];
+        setMatchups(transformMatchups(allProjections));
+
+        // Build alerts from projection data (tells us what games are happening)
+        const gameTeams = new Set<string>();
+        const gameAlertGames: any[] = [];
+        for (const p of allProjections) {
+          const key = `${p.teamAbbrev}-${p.opponentAbbrev}`;
+          if (!gameTeams.has(key)) {
+            gameTeams.add(key);
+            gameAlertGames.push({
+              id: p.gameId,
+              gameDate: today,
+              homeTeam: { abbrev: p.isHome ? p.teamAbbrev : p.opponentAbbrev },
+              awayTeam: { abbrev: p.isHome ? p.opponentAbbrev : p.teamAbbrev },
+            });
+          }
         }
-      }
-      const rosterIdSet = new Set(rosterPlayerIds);
-      setAlerts(buildAlertsFromGames(gameAlertGames, rosterIdSet, dismissed));
+        const rosterIdSet = new Set(rosterPlayerIds);
+        setAlerts(buildAlertsFromGames(gameAlertGames, rosterIdSet, dismissed));
 
-      // Daily insight: generate from available game data
-      try {
-        const insights = generateInsights(gameAlertGames, null, new Map());
-        if (insights.length > 0) {
-          setDailyInsight(transformInsight(insights[0]));
-        } else {
+        try {
+          const insights = generateInsights(gameAlertGames, null, new Map());
+          if (insights.length > 0) {
+            setDailyInsight(transformInsight(insights[0]));
+          } else {
+            setDailyInsight(null);
+          }
+        } catch {
           setDailyInsight(null);
         }
-      } catch {
-        setDailyInsight(null);
+        setIsOffDay(false);
       }
     } catch (err) {
       console.warn('[Dashboard Data] Error fetching dashboard data:', err);
@@ -377,6 +440,7 @@ export function useDashboardData(): DashboardData {
     matchups,
     dailyInsight,
     isLoading,
+    isOffDay,
     refresh: fetchData,
   };
 }
@@ -389,6 +453,7 @@ export {
   transformMatchups,
   transformInsight,
   buildAlertsFromGames,
+  generateFallbackData,
   getToday,
 };
 

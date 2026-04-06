@@ -53,6 +53,13 @@ jest.mock('react-native-reanimated', () => {
       Text: ({ children, ...props }: any) => React.createElement('Text', props, children),
       createAnimatedComponent: (comp: any) => comp,
     },
+    useAnimatedStyle: (fn: () => any) => fn(),
+    useSharedValue: (val: any) => ({ value: val }),
+    withTiming: (val: any) => val,
+    withSpring: (val: any) => val,
+    withSequence: (val: any) => val,
+    interpolate: (val: any) => 0,
+    Extrapolation: { CLAMP: 'clamp' },
     FadeInDown: { delay: () => ({ duration: () => ({}), springify: () => ({ damping: () => ({ stiffness: () => ({}) }) }) }) },
   };
 });
