@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, Switch, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Switch, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { rinkGlass } from '../../constants/theme';
 import { MODULE_META, ModuleConfig, ModuleId } from '../../types/dashboard';
@@ -11,57 +11,25 @@ import WaiverWireModule from './WaiverWireModule';
 import MatchupEdgeModule from './MatchupEdgeModule';
 import DailyInsightModule from './DailyInsightModule';
 import ModulePicker from './ModulePicker';
+import { useDashboardData } from '../../hooks/useDashboardData';
+import type { DashboardData } from '../../hooks/useDashboardData';
 
 const ACCENT_COLORS = rinkGlass.moduleAccents as Record<ModuleId, string>;
 
-/* ── Mock data for visual preview (replaced by real data later) ── */
-const MOCK_START_SIT = [
-  { id: 1, name: 'Connor McDavid', team: 'EDM', opponent: 'CGY', projectedPoints: 4.2, recommendation: 'START' as const },
-  { id: 2, name: 'Leon Draisaitl', team: 'EDM', opponent: 'CGY', projectedPoints: 3.8, recommendation: 'SIT' as const },
-  { id: 3, name: 'Nick Suzuki', team: 'MTL', opponent: 'TOR', projectedPoints: 3.1, recommendation: 'START' as const },
-];
-
-const MOCK_TRENDING = [
-  { id: 1, name: 'Macklin Celebrini', team: 'SJS', flameCount: 5, recentPoints: [2, 4, 3, 5, 4, 6, 3, 5, 7, 4], trend: 'up' as const },
-  { id: 2, name: 'Jakub Dobes', team: 'MTL', flameCount: 4, recentPoints: [1, 2, 3, 2, 4, 3, 5, 4, 3, 5], trend: 'up' as const },
-];
-
-const MOCK_ALERTS = [
-  { id: '1', type: 'goalie' as const, playerName: 'Jakub Dobes', team: 'MTL', message: 'Confirmed starter tonight vs TOR', timestamp: 'Just now', isRosterPlayer: true },
-  { id: '2', type: 'injury' as const, playerName: 'Auston Matthews', team: 'TOR', message: 'Upper-body, game-time decision', timestamp: '1h ago', isRosterPlayer: false },
-];
-
-const MOCK_WAIVER = [
-  { id: 1, name: 'Marco Rossi', team: 'MIN', position: 'C', valueScore: 4.2, ownershipPct: 12, projectedPoints: 3.5, currentPlayerName: 'J.T. Miller', currentPlayerPoints: 2.1 },
-  { id: 2, name: 'Shane Wright', team: 'SEA', position: 'C', valueScore: 3.1, ownershipPct: 8, projectedPoints: 2.8 },
-];
-
-const MOCK_MATCHUPS = [
-  { id: 1, playerName: 'Nathan MacKinnon', team: 'COL', opponent: 'STL', edgeRating: 9, projectedPoints: 4.5, reasons: ['STL allows 4th-most goals to centers', 'PP1 usage at 22+ min'] },
-  { id: 2, playerName: 'David Pastrnak', team: 'BOS', opponent: 'DET', edgeRating: 7, projectedPoints: 3.9, reasons: ['DET bottom-5 PK', 'Pastrnak on 5-game point streak'] },
-];
-
-const MOCK_INSIGHT = {
-  headline: 'Suzuki has quietly outscored McDavid over the last 10 games',
-  context: 'Nick Suzuki has 14 points in his last 10, compared to McDavid\'s 11. His PP1 time has increased to 4:30/game.',
-  sentiment: 'surprising' as const,
-  dataPoint: '14 pts vs 11 pts (last 10 GP)',
-};
-
-function renderModule(moduleId: ModuleId) {
+function renderModule(moduleId: ModuleId, dashData: DashboardData) {
   switch (moduleId) {
     case 'startSit':
-      return <StartSitModule players={MOCK_START_SIT} />;
+      return <StartSitModule players={dashData.startSitPlayers} />;
     case 'trending':
-      return <TrendingModule players={MOCK_TRENDING} />;
+      return <TrendingModule players={dashData.trendingPlayers} />;
     case 'alerts':
-      return <AlertsModule alerts={MOCK_ALERTS} />;
+      return <AlertsModule alerts={dashData.alerts} />;
     case 'waiverWire':
-      return <WaiverWireModule players={MOCK_WAIVER} />;
+      return <WaiverWireModule players={dashData.waiverPlayers} />;
     case 'matchupEdge':
-      return <MatchupEdgeModule matchups={MOCK_MATCHUPS} />;
+      return <MatchupEdgeModule matchups={dashData.matchups} />;
     case 'dailyInsight':
-      return <DailyInsightModule insight={MOCK_INSIGHT} />;
+      return <DailyInsightModule insight={dashData.dailyInsight} />;
     default:
       return null;
   }
@@ -72,6 +40,7 @@ export default function DashboardContainer() {
   const [editMode, setEditMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showPicker, setShowPicker] = useState(false);
+  const dashData = useDashboardData();
 
   useEffect(() => {
     loadDashboardPrefs().then((prefs) => {
@@ -158,6 +127,11 @@ export default function DashboardContainer() {
               );
             })}
         </View>
+      ) : dashData.isLoading ? (
+        <View testID="dashboard-loading" style={styles.loadingContainer}>
+          <ActivityIndicator size="small" color={rinkGlass.textSecondary} />
+          <Text style={styles.loadingText}>Loading dashboard...</Text>
+        </View>
       ) : (
         <View
           testID="module-scroll"
@@ -165,7 +139,7 @@ export default function DashboardContainer() {
         >
           {enabledModules.map((mod) => (
             <View key={mod.id} testID={`module-card-${mod.id}`}>
-              {renderModule(mod.id)}
+              {renderModule(mod.id, dashData)}
             </View>
           ))}
         </View>
@@ -245,5 +219,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: rinkGlass.textSecondary,
     marginTop: 2,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 13,
+    color: rinkGlass.textSecondary,
   },
 });
