@@ -134,6 +134,7 @@ describe('transformStartSit', () => {
       opponentAbbrev: 'CGY',
       fantasyPoints: 4.5,
       recommendation: 'START',
+      confidence: 'medium',
     });
 
     const result = transformStartSit([proj]);
@@ -144,7 +145,45 @@ describe('transformStartSit', () => {
       opponent: 'CGY',
       projectedPoints: 4.5,
       recommendation: 'START',
+      hasDisagreement: false,
+      disagreementReason: undefined,
     });
+  });
+
+  it('sets hasDisagreement true when confidence is low', () => {
+    const proj = makeProjection({
+      recommendation: 'START',
+      confidence: 'low',
+      reason: 'Tough opponent defense',
+    });
+
+    const result = transformStartSit([proj]);
+    expect(result[0].hasDisagreement).toBe(true);
+    expect(result[0].disagreementReason).toBe('Tough opponent defense');
+  });
+
+  it('uses default disagreement reason when reason is empty and confidence is low', () => {
+    const proj = makeProjection({
+      recommendation: 'SIT',
+      confidence: 'low',
+      reason: '',
+    });
+
+    const result = transformStartSit([proj]);
+    expect(result[0].hasDisagreement).toBe(true);
+    expect(result[0].disagreementReason).toBe('Close matchup \u2014 model is uncertain');
+  });
+
+  it('sets hasDisagreement false when confidence is high', () => {
+    const proj = makeProjection({
+      recommendation: 'START',
+      confidence: 'high',
+      reason: 'Strong matchup',
+    });
+
+    const result = transformStartSit([proj]);
+    expect(result[0].hasDisagreement).toBe(false);
+    expect(result[0].disagreementReason).toBeUndefined();
   });
 
   it('returns empty array for no projections', () => {
