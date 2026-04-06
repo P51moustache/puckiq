@@ -3,12 +3,20 @@ import {
   View,
   Text,
   StyleSheet,
-  Animated as RNAnimated,
   PanResponder,
   PanResponderGestureState,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, {
+  Extrapolation,
+  FadeInDown,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { rinkGlass, theme } from '../../constants/theme';
 import {
   FantasyAlert,
@@ -51,158 +59,135 @@ function SwipeableAlertCard({
   onDismissCard,
   onSaveCard,
 }: SwipeableAlertCardProps) {
-  const translateX = useRef(new RNAnimated.Value(0)).current;
-  const cardHeight = useRef(new RNAnimated.Value(1)).current; // scale factor for height
-  const savedOpacity = useRef(new RNAnimated.Value(0)).current;
+  const swipeX = useSharedValue(0);
+  const savedOpacityVal = useSharedValue(0);
+  const collapseHeight = useSharedValue(500); // large default, set onLayout
+  const collapseMargin = useSharedValue(8);
   const [isSaved, setIsSaved] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
   const color = getAlertColor(alert.type);
-  // Track measured height for collapse animation
   const measuredHeight = useRef(0);
-  const animatedHeight = useRef(new RNAnimated.Value(0)).current;
-  const marginBottom = useRef(new RNAnimated.Value(8)).current;
 
   const handleDismiss = useCallback(() => {
     if (isRemoving) return;
     setIsRemoving(true);
     dismissAlert(alert.id);
-    // Slide out to right, then collapse height
-    RNAnimated.sequence([
-      RNAnimated.timing(translateX, {
-        toValue: 400,
-        duration: 200,
-        useNativeDriver: false,
-      }),
-      RNAnimated.parallel([
-        RNAnimated.timing(animatedHeight, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: false,
-        }),
-        RNAnimated.timing(marginBottom, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: false,
-        }),
-      ]),
-    ]).start(() => {
-      onDismissCard(alert.id);
-    });
-  }, [alert.id, onDismissCard, isRemoving, translateX, animatedHeight, marginBottom]);
+    swipeX.value = withTiming(400, { duration: 200 });
+    setTimeout(() => {
+      collapseHeight.value = withTiming(0, { duration: 200 });
+      collapseMargin.value = withTiming(0, { duration: 200 });
+      setTimeout(() => onDismissCard(alert.id), 220);
+    }, 220);
+  }, [alert.id, onDismissCard, isRemoving]);
 
   const handleSave = useCallback(() => {
     saveAlert(alert.id);
     setIsSaved(true);
-    // Flash "Saved!" then spring back
-    RNAnimated.parallel([
-      RNAnimated.spring(translateX, {
-        toValue: 0,
-        useNativeDriver: false,
-        friction: 6,
-      }),
-      RNAnimated.sequence([
-        RNAnimated.timing(savedOpacity, {
-          toValue: 1,
-          duration: 150,
-          useNativeDriver: false,
-        }),
-        RNAnimated.timing(savedOpacity, {
-          toValue: 0,
-          duration: 600,
-          useNativeDriver: false,
-        }),
-      ]),
-    ]).start(() => {
+    swipeX.value = withSpring(0, { damping: 15, stiffness: 150 });
+    savedOpacityVal.value = withSequence(
+      withTiming(1, { duration: 150 }),
+      withTiming(0, { duration: 600 })
+    );
+    setTimeout(() => {
       setIsSaved(false);
       onSaveCard(alert.id);
-    });
-  }, [alert.id, onSaveCard, translateX, savedOpacity]);
+    }, 800);
+  }, [alert.id, onSaveCard]);
+
+  const handleDismissRef = useRef(handleDismiss);
+  handleDismissRef.current = handleDismiss;
+  const handleSaveRef = useRef(handleSave);
+  handleSaveRef.current = handleSave;
 
   const panResponder = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponder: (_e, gestureState: PanResponderGestureState) =>
-        Math.abs(gestureState.dx) > 10,
-      onPanResponderMove: (_e, gestureState: PanResponderGestureState) => {
-        translateX.setValue(gestureState.dx);
+      onMoveShouldSetPanResponder: (_e, gs: PanResponderGestureState) =>
+        Math.abs(gs.dx) > 10,
+      onPanResponderMove: (_e, gs: PanResponderGestureState) => {
+        swipeX.value = gs.dx;
       },
-      onPanResponderRelease: (_e, gestureState: PanResponderGestureState) => {
-        if (gestureState.dx > SWIPE_THRESHOLD) {
-          // Swiped right — dismiss
-          handleDismiss();
-        } else if (gestureState.dx < -SWIPE_THRESHOLD) {
-          // Swiped left — save
-          handleSave();
+      onPanResponderRelease: (_e, gs: PanResponderGestureState) => {
+        if (gs.dx > SWIPE_THRESHOLD) {
+          handleDismissRef.current();
+        } else if (gs.dx < -SWIPE_THRESHOLD) {
+          handleSaveRef.current();
         } else {
-          // Snap back
-          RNAnimated.spring(translateX, {
-            toValue: 0,
-            useNativeDriver: false,
-            friction: 6,
-          }).start();
+          swipeX.value = withSpring(0, { damping: 15, stiffness: 150 });
         }
       },
     })
   ).current;
 
-  // Interpolate background indicators
-  const rightActionOpacity = translateX.interpolate({
-    inputRange: [0, HINT_THRESHOLD, SWIPE_THRESHOLD],
-    outputRange: [0, 0.6, 1],
-    extrapolate: 'clamp',
-  });
+  const rightActionStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(swipeX.value, [0, HINT_THRESHOLD, SWIPE_THRESHOLD], [0, 0.6, 1], Extrapolation.CLAMP),
+  }));
 
-  const leftActionOpacity = translateX.interpolate({
-    inputRange: [-SWIPE_THRESHOLD, -HINT_THRESHOLD, 0],
-    outputRange: [1, 0.6, 0],
-    extrapolate: 'clamp',
-  });
+  const leftActionStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(swipeX.value, [-SWIPE_THRESHOLD, -HINT_THRESHOLD, 0], [1, 0.6, 0], Extrapolation.CLAMP),
+  }));
+
+  const cardSwipeStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: swipeX.value }],
+  }));
+
+  const collapseStyle = useAnimatedStyle(() => ({
+    maxHeight: collapseHeight.value,
+    marginBottom: collapseMargin.value,
+    overflow: 'hidden' as const,
+  }));
+
+  const savedOverlayStyle = useAnimatedStyle(() => ({
+    opacity: savedOpacityVal.value,
+  }));
 
   return (
     <Animated.View
       entering={FadeInDown.delay(index * 80).springify().damping(theme.animation.spring.damping).stiffness(theme.animation.spring.stiffness)}
     >
-      <RNAnimated.View
-        style={{ height: animatedHeight, marginBottom, overflow: 'hidden' }}
+      <Animated.View
+        style={collapseStyle}
         onLayout={(e) => {
           if (measuredHeight.current === 0) {
             const h = e.nativeEvent.layout.height;
             measuredHeight.current = h;
-            animatedHeight.setValue(h);
+            collapseHeight.value = h;
           }
         }}
       >
         <View style={styles.swipeContainer}>
           {/* Right-swipe action background (dismiss) */}
-          <RNAnimated.View
+          <Animated.View
             style={[
               styles.actionBackground,
               styles.actionLeft,
-              { opacity: rightActionOpacity, backgroundColor: rinkGlass.faceoffDot },
+              rightActionStyle,
+              { backgroundColor: rinkGlass.faceoffDot },
             ]}
           >
             <Ionicons name="checkmark-circle" size={22} color="#fff" />
             <Text style={styles.actionLabel}>Dismiss</Text>
-          </RNAnimated.View>
+          </Animated.View>
 
           {/* Left-swipe action background (save) */}
-          <RNAnimated.View
+          <Animated.View
             style={[
               styles.actionBackground,
               styles.actionRight,
-              { opacity: leftActionOpacity, backgroundColor: rinkGlass.blueLight },
+              leftActionStyle,
+              { backgroundColor: rinkGlass.blueLight },
             ]}
           >
             <Text style={styles.actionLabel}>Save</Text>
             <Ionicons name="bookmark" size={20} color="#fff" />
-          </RNAnimated.View>
+          </Animated.View>
 
           {/* Swipeable card */}
-          <RNAnimated.View
+          <Animated.View
             {...panResponder.panHandlers}
             style={[
               styles.card,
               alert.isRosterPlayer && styles.rosterHighlight,
-              { transform: [{ translateX }] },
+              cardSwipeStyle,
             ]}
             testID={`alert-card-${alert.id}`}
           >
@@ -224,14 +209,14 @@ function SwipeableAlertCard({
 
             {/* Saved overlay */}
             {isSaved && (
-              <RNAnimated.View style={[styles.savedOverlay, { opacity: savedOpacity }]}>
+              <Animated.View style={[styles.savedOverlay, savedOverlayStyle]}>
                 <Ionicons name="bookmark" size={18} color="#fff" />
                 <Text style={styles.savedText}>Saved!</Text>
-              </RNAnimated.View>
+              </Animated.View>
             )}
-          </RNAnimated.View>
+          </Animated.View>
         </View>
-      </RNAnimated.View>
+      </Animated.View>
     </Animated.View>
   );
 }

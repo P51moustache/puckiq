@@ -59,8 +59,11 @@ jest.mock('react-native-reanimated', () => {
     useAnimatedStyle: (fn: () => any) => fn(),
     useSharedValue: (val: any) => ({ value: val }),
     withTiming: (val: any) => val,
+    withSpring: (val: any) => val,
     withRepeat: (val: any) => val,
     withSequence: (val: any) => val,
+    interpolate: (val: any) => 0,
+    Extrapolation: { CLAMP: 'clamp' },
     Easing: { inOut: () => undefined, ease: undefined },
     FadeInUp: { delay: () => ({ duration: () => ({}), springify: () => ({ damping: () => ({ stiffness: () => ({}) }) }) }) },
   };

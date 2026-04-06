@@ -5,17 +5,19 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Animated as RNAnimated,
   PanResponder,
   PanResponderGestureState,
 } from 'react-native';
 import Animated, {
   Easing,
+  Extrapolation,
   FadeInUp,
+  interpolate,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
   withSequence,
+  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -86,10 +88,10 @@ function PlayerCard({
   // Color wash sweep overlay
   const sweepX = useSharedValue(-160);
 
-  // Swipe animation values (horizontal: left=dismiss, right=pin)
-  const translateX = useRef(new RNAnimated.Value(0)).current;
-  const cardOpacity = useRef(new RNAnimated.Value(1)).current;
-  const cardScale = useRef(new RNAnimated.Value(1)).current;
+  // Swipe animation values (reanimated shared values)
+  const swipeX = useSharedValue(0);
+  const cardOpacityVal = useSharedValue(1);
+  const cardScaleVal = useSharedValue(1);
 
   const handleToggle = () => {
     const newDecision = decision === 'START' ? 'SIT' : 'START';
@@ -119,87 +121,72 @@ function PlayerCard({
     if (isRemoving) return;
     setIsRemoving(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    // Slide left and fade out
-    RNAnimated.parallel([
-      RNAnimated.timing(translateX, {
-        toValue: -200,
-        duration: 200,
-        useNativeDriver: false,
-      }),
-      RNAnimated.timing(cardOpacity, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: false,
-      }),
-    ]).start(() => {
-      onDismissCard(player.id);
-    });
-  }, [player.id, isRemoving, onDismissCard, translateX, cardOpacity]);
+    swipeX.value = withTiming(-200, { duration: 200 });
+    cardOpacityVal.value = withTiming(0, { duration: 200 });
+    setTimeout(() => onDismissCard(player.id), 220);
+  }, [player.id, isRemoving, onDismissCard]);
 
   const handlePin = useCallback(() => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    // Snap back then pulse
-    RNAnimated.sequence([
-      RNAnimated.spring(translateX, {
-        toValue: 0,
-        useNativeDriver: false,
-        friction: 6,
-      }),
-      RNAnimated.sequence([
-        RNAnimated.timing(cardScale, {
-          toValue: 1.05,
-          duration: 150,
-          useNativeDriver: false,
-        }),
-        RNAnimated.timing(cardScale, {
-          toValue: 1,
-          duration: 150,
-          useNativeDriver: false,
-        }),
-      ]),
-    ]).start(() => {
-      onPinCard(player.id);
-    });
-  }, [player.id, onPinCard, translateX, cardScale]);
+    swipeX.value = withSpring(0, { damping: 15, stiffness: 150 });
+    cardScaleVal.value = withSequence(
+      withTiming(1.05, { duration: 150 }),
+      withTiming(1, { duration: 150 })
+    );
+    onPinCard(player.id);
+  }, [player.id, onPinCard]);
+
+  // Refs to avoid stale closures in PanResponder
+  const handleDismissRef = useRef(handleDismiss);
+  handleDismissRef.current = handleDismiss;
+  const handlePinRef = useRef(handlePin);
+  handlePinRef.current = handlePin;
 
   const panResponder = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponder: (_e, gestureState: PanResponderGestureState) =>
-        Math.abs(gestureState.dx) > 15 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5,
-      onPanResponderMove: (_e, gestureState: PanResponderGestureState) => {
-        translateX.setValue(gestureState.dx);
+      onMoveShouldSetPanResponder: (_e, gs: PanResponderGestureState) =>
+        Math.abs(gs.dx) > 15 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.5,
+      onPanResponderMove: (_e, gs: PanResponderGestureState) => {
+        swipeX.value = gs.dx;
       },
-      onPanResponderRelease: (_e, gestureState: PanResponderGestureState) => {
-        if (gestureState.dx < -SWIPE_THRESHOLD) {
-          // Swiped left — dismiss
-          handleDismiss();
-        } else if (gestureState.dx > SWIPE_THRESHOLD) {
-          // Swiped right — pin
-          handlePin();
+      onPanResponderRelease: (_e, gs: PanResponderGestureState) => {
+        if (gs.dx < -SWIPE_THRESHOLD) {
+          handleDismissRef.current();
+        } else if (gs.dx > SWIPE_THRESHOLD) {
+          handlePinRef.current();
         } else {
-          // Snap back
-          RNAnimated.spring(translateX, {
-            toValue: 0,
-            useNativeDriver: false,
-            friction: 6,
-          }).start();
+          swipeX.value = withSpring(0, { damping: 15, stiffness: 150 });
         }
       },
     })
   ).current;
 
-  // Interpolate action hint indicators
-  const leftHintOpacity = translateX.interpolate({
-    inputRange: [-SWIPE_THRESHOLD, -HINT_THRESHOLD, 0],
-    outputRange: [1, 0.5, 0],
-    extrapolate: 'clamp',
-  });
+  // Animated styles for swipe hints and card
+  const leftHintStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      swipeX.value,
+      [-SWIPE_THRESHOLD, -HINT_THRESHOLD, 0],
+      [1, 0.5, 0],
+      Extrapolation.CLAMP
+    ),
+  }));
 
-  const rightHintOpacity = translateX.interpolate({
-    inputRange: [0, HINT_THRESHOLD, SWIPE_THRESHOLD],
-    outputRange: [0, 0.5, 1],
-    extrapolate: 'clamp',
-  });
+  const rightHintStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      swipeX.value,
+      [0, HINT_THRESHOLD, SWIPE_THRESHOLD],
+      [0, 0.5, 1],
+      Extrapolation.CLAMP
+    ),
+  }));
+
+  const cardSwipeStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: swipeX.value },
+      { scale: cardScaleVal.value },
+    ],
+    opacity: cardOpacityVal.value,
+  }));
 
   return (
     <Animated.View
@@ -207,37 +194,36 @@ function PlayerCard({
     >
       <View style={styles.cardWrapper}>
         {/* Left-swipe hint (dismiss) */}
-        <RNAnimated.View
+        <Animated.View
           style={[
             styles.hintOverlay,
-            { opacity: leftHintOpacity, backgroundColor: 'rgba(230, 57, 70, 0.25)' },
+            leftHintStyle,
+            { backgroundColor: 'rgba(230, 57, 70, 0.25)' },
           ]}
           pointerEvents="none"
         >
           <Ionicons name="close-circle" size={28} color={rinkGlass.redLine} />
-        </RNAnimated.View>
+        </Animated.View>
 
         {/* Right-swipe hint (pin) */}
-        <RNAnimated.View
+        <Animated.View
           style={[
             styles.hintOverlay,
-            { opacity: rightHintOpacity, backgroundColor: 'rgba(76, 201, 240, 0.25)' },
+            rightHintStyle,
+            { backgroundColor: 'rgba(76, 201, 240, 0.25)' },
           ]}
           pointerEvents="none"
         >
           <Ionicons name="pin" size={28} color={rinkGlass.blueLight} />
-        </RNAnimated.View>
+        </Animated.View>
 
-        <RNAnimated.View
+        <Animated.View
           {...panResponder.panHandlers}
           style={[
             styles.card,
             isPinned && styles.pinnedHighlight,
             pulseStyle,
-            {
-              transform: [{ translateX }, { scale: cardScale }],
-              opacity: cardOpacity,
-            },
+            cardSwipeStyle,
           ]}
         >
           {/* Color wash sweep overlay */}
@@ -281,7 +267,7 @@ function PlayerCard({
               <Text style={styles.toggleText}>{decision}</Text>
             </Animated.View>
           </TouchableOpacity>
-        </RNAnimated.View>
+        </Animated.View>
       </View>
     </Animated.View>
   );

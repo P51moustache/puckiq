@@ -31,9 +31,36 @@ jest.mock('react-native', () => {
         return style || {};
       },
     },
+    ActivityIndicator: (props: any) => React.createElement('ActivityIndicator', props),
     Platform: { OS: 'ios', select: (opts: any) => opts.ios },
   };
 });
+
+const mockDashData = {
+  startSitPlayers: [
+    { id: 1, name: 'C. McDavid', team: 'EDM', opponent: 'CGY', projectedPoints: 8.2, recommendation: 'START' },
+  ],
+  trendingPlayers: [
+    { id: 2, name: 'K. Kaprizov', team: 'MIN', flameCount: 5, recentPoints: [3, 5, 3, 7, 4, 6, 4, 5, 5, 7], trend: 'up' },
+  ],
+  alerts: [
+    { id: 'a1', type: 'goalie', playerName: 'Test Alert', team: 'EDM', message: 'Goalie confirmed', timestamp: '2026-04-05T00:00:00Z', isRosterPlayer: false },
+  ],
+  waiverPlayers: [
+    { id: 3, name: 'M. Boldy', team: 'MIN', position: 'LW', valueScore: 4.8, ownershipPct: 42, projectedPoints: 5.9 },
+  ],
+  matchups: [
+    { id: 4, playerName: 'L. Draisaitl', team: 'EDM', opponent: 'CGY', edgeRating: 9, projectedPoints: 7.8, reasons: ['Battle of Alberta'] },
+  ],
+  dailyInsight: { headline: 'Home teams winning 58%', context: 'Lean toward home players', sentiment: 'bullish' },
+  isLoading: false,
+  isOffDay: false,
+  refresh: jest.fn(),
+};
+
+jest.mock('../../../hooks/useDashboardData', () => ({
+  useDashboardData: () => mockDashData,
+}));
 
 jest.mock('@expo/vector-icons', () => {
   const React = require('react');
@@ -60,7 +87,62 @@ jest.mock('react-native-reanimated', () => {
     withTiming: (val: any) => val,
     withSpring: (val: any) => val,
     withDelay: (_: any, val: any) => val,
+    withRepeat: (val: any) => val,
+    withSequence: (...vals: any[]) => vals[0],
     Layout: {},
+  };
+});
+
+jest.mock('expo-haptics', () => ({
+  impactAsync: jest.fn(),
+  ImpactFeedbackStyle: { Light: 'light', Medium: 'medium', Heavy: 'heavy' },
+}));
+
+// Mock child module components to isolate DashboardContainer tests
+jest.mock('../StartSitModule', () => {
+  const React = require('react');
+  return {
+    __esModule: true,
+    default: () => React.createElement('View', {}, React.createElement('Text', {}, 'Start / Sit')),
+  };
+});
+
+jest.mock('../TrendingModule', () => {
+  const React = require('react');
+  return {
+    TrendingModule: () => React.createElement('View', {}, React.createElement('Text', {}, 'Trending Now')),
+  };
+});
+
+jest.mock('../AlertsModule', () => {
+  const React = require('react');
+  return {
+    __esModule: true,
+    default: () => React.createElement('View', {}, React.createElement('Text', {}, 'Alerts')),
+  };
+});
+
+jest.mock('../WaiverWireModule', () => {
+  const React = require('react');
+  return {
+    __esModule: true,
+    default: () => React.createElement('View', {}, React.createElement('Text', {}, 'Waiver Wire')),
+  };
+});
+
+jest.mock('../MatchupEdgeModule', () => {
+  const React = require('react');
+  return {
+    __esModule: true,
+    default: () => React.createElement('View', {}, React.createElement('Text', {}, 'Matchup Edge')),
+  };
+});
+
+jest.mock('../DailyInsightModule', () => {
+  const React = require('react');
+  return {
+    __esModule: true,
+    default: () => React.createElement('View', {}, React.createElement('Text', {}, 'Daily Insight')),
   };
 });
 
