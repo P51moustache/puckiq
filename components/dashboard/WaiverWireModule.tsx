@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import Animated, { FadeInUp } from 'react-native-reanimated';
+import { View, Text, TouchableOpacity, Pressable, StyleSheet } from 'react-native';
+import Animated, { FadeInUp, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { rinkGlass } from '../../constants/theme';
+import { rinkGlass, theme } from '../../constants/theme';
 
 interface WaiverPlayer {
   id: number;
@@ -23,13 +23,22 @@ interface WaiverWireModuleProps {
 function WaiverCard({ player, rank, index }: { player: WaiverPlayer; rank: number; index: number }) {
   const [expanded, setExpanded] = useState(false);
   const [added, setAdded] = useState(false);
+  const pressed = useSharedValue(1);
+
+  const pressAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pressed.value }],
+  }));
 
   const hasComparison = player.currentPlayerName != null;
 
   return (
+    <Pressable
+      onPressIn={() => { pressed.value = withTiming(rinkGlass.pressScale, { duration: 100 }); }}
+      onPressOut={() => { pressed.value = withTiming(1, { duration: 100 }); }}
+    >
     <Animated.View
-      entering={FadeInUp.delay(index * 80).duration(400)}
-      style={styles.card}
+      entering={FadeInUp.delay(index * 80).springify().damping(theme.animation.spring.damping).stiffness(theme.animation.spring.stiffness)}
+      style={[styles.card, pressAnimStyle]}
     >
       <View style={styles.cardRow}>
         {/* Rank badge */}
@@ -93,6 +102,7 @@ function WaiverCard({ player, rank, index }: { player: WaiverPlayer; rank: numbe
         </View>
       )}
     </Animated.View>
+    </Pressable>
   );
 }
 
