@@ -21,9 +21,9 @@ export interface PremiumGateProps {
 }
 
 const PRO_BENEFITS = [
-  { icon: 'analytics-outline' as const, text: 'ML-Powered Predictions' },
-  { icon: 'swap-horizontal-outline' as const, text: 'Start/Sit Engine' },
-  { icon: 'search-outline' as const, text: 'Waiver Wire Scout' },
+  { icon: 'analytics-outline' as const, text: 'ML-Powered Predictions', color: '#f72585' },
+  { icon: 'swap-horizontal-outline' as const, text: 'Start/Sit Engine', color: '#06d6a0' },
+  { icon: 'search-outline' as const, text: 'Waiver Wire Scout', color: '#4cc9f0' },
 ];
 
 export default function PremiumGate({ children, feature, onUpgrade }: PremiumGateProps) {
@@ -66,7 +66,7 @@ export default function PremiumGate({ children, feature, onUpgrade }: PremiumGat
 
       {/* Glass overlay */}
       <LinearGradient
-        colors={['rgba(7, 16, 35, 0.55)', 'rgba(7, 16, 35, 0.92)', 'rgba(7, 16, 35, 0.98)']}
+        colors={['rgba(10, 14, 26, 0.55)', 'rgba(10, 14, 26, 0.92)', 'rgba(10, 14, 26, 0.98)']}
         locations={[0, 0.5, 1]}
         style={styles.gradientOverlay}
         testID="premium-gate-overlay"
@@ -90,8 +90,8 @@ export default function PremiumGate({ children, feature, onUpgrade }: PremiumGat
           <View style={styles.benefitsContainer}>
             {PRO_BENEFITS.map((benefit) => (
               <View key={benefit.text} style={styles.benefitRow}>
-                <View style={styles.benefitIconWrap}>
-                  <Ionicons name={benefit.icon} size={16} color={theme.accent} />
+                <View style={[styles.benefitIconWrap, { backgroundColor: `${benefit.color}1F` }]}>
+                  <Ionicons name={benefit.icon} size={16} color={benefit.color} />
                 </View>
                 <Text style={styles.benefitText}>{benefit.text}</Text>
               </View>
@@ -106,7 +106,7 @@ export default function PremiumGate({ children, feature, onUpgrade }: PremiumGat
             style={styles.ctaTouchable}
           >
             <LinearGradient
-              colors={['#60a5fa', '#3b82f6', '#1e40af']}
+              colors={['#4cc9f0', '#f72585']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.ctaGradient}
@@ -138,15 +138,15 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   glassCard: {
-    backgroundColor: 'rgba(25, 46, 94, 0.65)',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(96, 165, 250, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     padding: 28,
     alignItems: 'center',
     width: '100%',
     maxWidth: 340,
-    shadowColor: '#3b82f6',
+    shadowColor: '#4cc9f0',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.15,
     shadowRadius: 24,
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
     height: 64,
     borderRadius: 32,
     borderWidth: 2,
-    borderColor: '#60a5fa',
+    borderColor: '#4cc9f0',
     backgroundColor: 'transparent',
   },
   glowRingOuter: {
@@ -174,14 +174,14 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 40,
     borderWidth: 1,
-    borderColor: 'rgba(96, 165, 250, 0.3)',
+    borderColor: 'rgba(76, 201, 240, 0.3)',
     backgroundColor: 'transparent',
   },
   lockCircle: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: 'rgba(59, 130, 246, 0.3)',
+    backgroundColor: 'rgba(76, 201, 240, 0.3)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -192,11 +192,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     letterSpacing: 0.5,
     marginBottom: 4,
+    fontFamily: 'Display-Bold',
   },
   featureText: {
     fontSize: 14,
     fontWeight: '500',
-    color: theme.subtext,
+    color: '#8b95b0',
     textAlign: 'center',
     marginBottom: 20,
   },
@@ -214,12 +215,11 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 8,
-    backgroundColor: 'rgba(96, 165, 250, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   benefitText: {
-    color: theme.text,
+    color: '#f0f4ff',
     fontSize: 14,
     fontWeight: '500',
   },
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 14,
     overflow: 'hidden',
-    shadowColor: '#3b82f6',
+    shadowColor: '#f72585',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 12,
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   trialSubtext: {
-    color: theme.subtext,
+    color: '#8b95b0',
     fontSize: 12,
     fontWeight: '500',
     marginTop: 10,
