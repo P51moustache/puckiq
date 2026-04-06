@@ -9,7 +9,7 @@ import {
   Modal,
   Platform,
 } from 'react-native';
-import { theme } from '../../constants/theme';
+import { rinkGlass } from '../../constants/theme';
 import { ThemedView } from '../../components/ThemedView';
 import { FactorLeaderboard } from '../../components/FactorLeaderboard';
 import { useAnalytics } from '../../hooks/useAnalytics';
@@ -141,7 +141,7 @@ function TeamComparisonTool() {
   );
 
   const renderCategoryRow = (label: string, winner: string | undefined) => {
-    const color = winner === 'home' ? '#22c55e' : winner === 'away' ? '#ef4444' : theme.subtext;
+    const color = winner === 'home' ? '#22c55e' : winner === 'away' ? '#ef4444' : rinkGlass.textSecondary;
     const winLabel = winner === 'home' ? teamA : winner === 'away' ? teamB : 'Tie';
     return (
       <View key={label} style={localStyles.categoryRow}>
@@ -155,7 +155,7 @@ function TeamComparisonTool() {
     <View style={localStyles.comparisonContainer}>
       <View style={{ marginBottom: 4 }}>
         <Text style={localStyles.comparisonTitle}>Team Comparison</Text>
-        <View style={{ width: 32, height: 2, backgroundColor: theme.accent, borderRadius: 1, marginTop: 4, opacity: 0.6 }} />
+        <View style={{ width: 32, height: 2, backgroundColor: rinkGlass.blueLight, borderRadius: 1, marginTop: 4, opacity: 0.6 }} />
       </View>
       <Text style={localStyles.comparisonSubtitle}>Compare two teams head-to-head</Text>
 
@@ -165,7 +165,7 @@ function TeamComparisonTool() {
         {renderTeamPicker(teamB, setTeamB, showPickerB, setShowPickerB)}
       </View>
 
-      {loading && <ActivityIndicator size="small" color={theme.accent} style={{ marginTop: 16 }} />}
+      {loading && <ActivityIndicator size="small" color={rinkGlass.blueLight} style={{ marginTop: 16 }} />}
 
       {winners && statsA && statsB && !loading && (
         <View style={localStyles.resultsContainer}>
@@ -206,7 +206,7 @@ function EdgeContent() {
   if (loading) {
     return (
       <View style={localStyles.loadingContainer}>
-        <ActivityIndicator size="large" color={theme.accent} />
+        <ActivityIndicator size="large" color={rinkGlass.blueLight} />
       </View>
     );
   }
@@ -216,7 +216,7 @@ function EdgeContent() {
       {/* Season Leaders */}
       <View style={{ paddingHorizontal: 0, marginBottom: 12 }}>
         <Text style={localStyles.tooltipsSectionTitle}>Season Leaders</Text>
-        <View style={{ width: 32, height: 2, backgroundColor: theme.accent, borderRadius: 1, marginTop: 4, opacity: 0.6 }} />
+        <View style={{ width: 32, height: 2, backgroundColor: rinkGlass.blueLight, borderRadius: 1, marginTop: 4, opacity: 0.6 }} />
       </View>
       <View style={{ gap: 12, marginBottom: 24 }}>
         {skaterLanding?.hardestShot && (
@@ -252,7 +252,7 @@ function EdgeContent() {
         <>
           <View style={{ paddingHorizontal: 0, marginBottom: 12 }}>
             <Text style={localStyles.tooltipsSectionTitle}>Last Game Night</Text>
-            <View style={{ width: 32, height: 2, backgroundColor: theme.accent, borderRadius: 1, marginTop: 4, opacity: 0.6 }} />
+            <View style={{ width: 32, height: 2, backgroundColor: rinkGlass.blueLight, borderRadius: 1, marginTop: 4, opacity: 0.6 }} />
           </View>
           <Text style={localStyles.tooltipsSectionSubtitle}>{byTheNumbers.gameDate}</Text>
           <View style={{ gap: 12, marginBottom: 24 }}>
@@ -291,7 +291,7 @@ function EdgeContent() {
         <>
           <View style={{ paddingHorizontal: 0, marginBottom: 12 }}>
             <Text style={localStyles.tooltipsSectionTitle}>Team Edge Rankings</Text>
-            <View style={{ width: 32, height: 2, backgroundColor: theme.accent, borderRadius: 1, marginTop: 4, opacity: 0.6 }} />
+            <View style={{ width: 32, height: 2, backgroundColor: rinkGlass.blueLight, borderRadius: 1, marginTop: 4, opacity: 0.6 }} />
           </View>
           <View style={{ gap: 12, marginBottom: 24 }}>
             {teamLanding.shotAttemptsOver90 && (
@@ -326,7 +326,7 @@ function EdgeContent() {
 
       {!skaterLanding && !teamLanding && !byTheNumbers && (
         <View style={{ alignItems: 'center', paddingTop: 40 }}>
-          <Text style={{ color: theme.subtext, fontSize: 14 }}>Edge data unavailable</Text>
+          <Text style={{ color: rinkGlass.textSecondary, fontSize: 14 }}>Edge data unavailable</Text>
         </View>
       )}
 
@@ -347,7 +347,7 @@ function FactorsContent() {
       <View style={localStyles.tooltipsSection}>
         <View style={{ marginBottom: 4 }}>
           <Text style={localStyles.tooltipsSectionTitle}>Advanced Stats Guide</Text>
-          <View style={{ width: 32, height: 2, backgroundColor: theme.accent, borderRadius: 1, marginTop: 4, opacity: 0.6 }} />
+          <View style={{ width: 32, height: 2, backgroundColor: rinkGlass.blueLight, borderRadius: 1, marginTop: 4, opacity: 0.6 }} />
         </View>
         <Text style={localStyles.tooltipsSectionSubtitle}>Tap any stat to learn more</Text>
         <View style={localStyles.statChips}>
@@ -388,7 +388,7 @@ export default function ExploreScreen() {
 
   const renderLoadingFallback = () => (
     <View style={localStyles.loadingContainer}>
-      <ActivityIndicator size="large" color={theme.accent} />
+      <ActivityIndicator size="large" color={rinkGlass.blueLight} />
     </View>
   );
 
@@ -456,7 +456,7 @@ export default function ExploreScreen() {
 const localStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.background,
+    backgroundColor: rinkGlass.ice,
     paddingTop: 0,
   },
   header: {
@@ -467,21 +467,21 @@ const localStyles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: theme.text,
+    color: rinkGlass.textPrimary,
   },
   subtitle: {
     fontSize: 14,
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     marginTop: 4,
   },
   segmentControl: {
     flexDirection: 'row',
-    backgroundColor: theme.card,
+    backgroundColor: rinkGlass.boards,
     borderRadius: 10,
     marginHorizontal: 16,
     padding: 3,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: rinkGlass.glassBorder,
   },
   segmentButton: {
     flex: 1,
@@ -491,15 +491,15 @@ const localStyles = StyleSheet.create({
     borderRadius: 8,
   },
   segmentButtonActive: {
-    backgroundColor: theme.accent,
+    backgroundColor: rinkGlass.blueLight,
   },
   segmentText: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
   },
   segmentTextActive: {
-    color: theme.text,
+    color: rinkGlass.ice,
   },
   content: {
     flex: 1,
@@ -520,16 +520,16 @@ const localStyles = StyleSheet.create({
     marginTop: 24,
   },
   tooltipsSectionTitle: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '800',
-    color: theme.accent,
+    color: rinkGlass.textPrimary,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
     marginBottom: 4,
   },
   tooltipsSectionSubtitle: {
     fontSize: 13,
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     marginBottom: 12,
   },
   statChips: {
@@ -538,12 +538,12 @@ const localStyles = StyleSheet.create({
     gap: 8,
   },
   statChip: {
-    backgroundColor: theme.card,
+    backgroundColor: rinkGlass.glass,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: rinkGlass.glassBorder,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
@@ -553,7 +553,7 @@ const localStyles = StyleSheet.create({
   statChipText: {
     fontSize: 13,
     fontWeight: '600',
-    color: theme.accent,
+    color: rinkGlass.blueLight,
   },
   tooltipOverlay: {
     flex: 1,
@@ -562,13 +562,13 @@ const localStyles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   tooltipContainer: {
-    backgroundColor: theme.card,
+    backgroundColor: rinkGlass.boards,
     borderRadius: 16,
     padding: 24,
     marginHorizontal: 40,
     maxWidth: 320,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: rinkGlass.glassBorder,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
@@ -578,24 +578,24 @@ const localStyles = StyleSheet.create({
   tooltipTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: theme.text,
+    color: rinkGlass.textPrimary,
     marginBottom: 8,
   },
   tooltipText: {
     fontSize: 14,
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     lineHeight: 22,
     marginBottom: 16,
   },
   tooltipClose: {
     alignSelf: 'flex-end',
-    backgroundColor: theme.accent,
+    backgroundColor: rinkGlass.blueLight,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
   },
   tooltipCloseText: {
-    color: theme.text,
+    color: rinkGlass.ice,
     fontWeight: '600',
     fontSize: 14,
   },
@@ -604,16 +604,16 @@ const localStyles = StyleSheet.create({
     marginTop: 32,
   },
   comparisonTitle: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '800',
-    color: theme.accent,
+    color: rinkGlass.textPrimary,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
     marginBottom: 4,
   },
   comparisonSubtitle: {
     fontSize: 13,
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     marginBottom: 16,
   },
   pickerRow: {
@@ -623,12 +623,12 @@ const localStyles = StyleSheet.create({
     gap: 12,
   },
   teamPickerButton: {
-    backgroundColor: theme.card,
+    backgroundColor: rinkGlass.glass,
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: rinkGlass.glassBorder,
     minWidth: 100,
     alignItems: 'center',
     shadowColor: '#000',
@@ -640,22 +640,22 @@ const localStyles = StyleSheet.create({
   teamPickerText: {
     fontSize: 16,
     fontWeight: '700',
-    color: theme.text,
+    color: rinkGlass.textPrimary,
   },
   vsText: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
   },
   pickerContainer: {
-    backgroundColor: theme.card,
+    backgroundColor: rinkGlass.boards,
     borderRadius: 16,
     padding: 20,
     marginHorizontal: 40,
     maxWidth: 300,
     maxHeight: 500,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: rinkGlass.glassBorder,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
@@ -665,7 +665,7 @@ const localStyles = StyleSheet.create({
   pickerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: theme.text,
+    color: rinkGlass.textPrimary,
     marginBottom: 12,
     textAlign: 'center',
   },
@@ -676,24 +676,24 @@ const localStyles = StyleSheet.create({
     marginBottom: 4,
   },
   pickerItemActive: {
-    backgroundColor: theme.accent,
+    backgroundColor: rinkGlass.blueLight,
   },
   pickerItemText: {
     fontSize: 16,
     fontWeight: '600',
-    color: theme.text,
+    color: rinkGlass.textPrimary,
     textAlign: 'center',
   },
   pickerItemTextActive: {
-    color: theme.text,
+    color: rinkGlass.ice,
   },
   resultsContainer: {
     marginTop: 20,
-    backgroundColor: theme.card,
+    backgroundColor: rinkGlass.glass,
     borderRadius: 14,
     padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: rinkGlass.glassBorder,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
@@ -706,12 +706,12 @@ const localStyles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+    borderBottomColor: rinkGlass.glassBorder,
   },
   categoryLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.text,
+    color: rinkGlass.textPrimary,
   },
   categoryWinner: {
     fontSize: 14,
@@ -719,11 +719,11 @@ const localStyles = StyleSheet.create({
   },
   // Edge content
   edgeLeaderCard: {
-    backgroundColor: theme.card,
+    backgroundColor: rinkGlass.glass,
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: rinkGlass.glassBorder,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
@@ -733,20 +733,20 @@ const localStyles = StyleSheet.create({
   edgeLeaderLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     letterSpacing: 0.5,
     marginBottom: 4,
   },
   edgeLeaderValue: {
     fontSize: 22,
     fontWeight: '800',
-    color: theme.text,
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+    color: rinkGlass.textPrimary,
+    fontFamily: rinkGlass.fonts.mono,
     fontVariant: ['tabular-nums'] as any,
   },
   edgeLeaderName: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.accent,
+    color: rinkGlass.blueLight,
   },
 });
