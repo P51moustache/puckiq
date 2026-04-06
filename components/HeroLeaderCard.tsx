@@ -155,7 +155,7 @@ export default React.memo(function HeroLeaderCard({
             recentIsUp && { color: rinkGlass.faceoffDot },
             recentIsDown && { color: rinkGlass.redLine },
           ]}>
-            {recentAvg.toFixed(2)}
+            {recentAvg > 0 ? recentAvg.toFixed(2) : '—'}
           </Text>
           <Text style={styles.formSubLabel}>per game</Text>
         </View>

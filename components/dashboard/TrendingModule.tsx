@@ -50,7 +50,7 @@ function TrendingCard({
 }) {
   const rotation = useSharedValue(0);
   const flames = '🔥'.repeat(player.flameCount);
-  const totalPoints = player.recentPoints.reduce((a, b) => a + b, 0);
+  const totalPoints = +player.recentPoints.reduce((a, b) => a + b, 0).toFixed(1);
 
   const handleFlip = () => {
     rotation.value = withTiming(rotation.value === 0 ? 180 : 0, {
