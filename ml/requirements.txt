@@ -1,14 +1,14 @@
-# Pinned for reproducible builds. Update with: pip-compile or manual bump.
+# Pinned to match local training venv (ml/.venv). Update all together.
 # Python version: 3.12 (must match .github/workflows/*.yml and Dockerfile)
-lightgbm==4.5.0
-pandas==2.2.3
-numpy==1.26.4
+lightgbm==4.6.0
+pandas==2.3.3
+numpy==2.4.2
 scikit-learn==1.8.0
-statsmodels==0.14.4
+statsmodels==0.14.6
 supabase==2.27.3
-joblib==1.4.2
-pyyaml==6.0.2
+joblib==1.5.3
+pyyaml==6.0.3
 optuna==4.1.0
 httpx==0.28.1
-tenacity==9.0.0
-python-dotenv==1.0.1
+tenacity==9.1.4
+python-dotenv==1.2.1
