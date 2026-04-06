@@ -1,5 +1,14 @@
 jest.mock('react-native', () => {
   const React = require('react');
+  const mockAnimatedValue = (val: number) => ({
+    _value: val,
+    setValue: jest.fn(),
+    interpolate: jest.fn(() => 0),
+    addListener: jest.fn(),
+    removeListener: jest.fn(),
+    removeAllListeners: jest.fn(),
+    stopAnimation: jest.fn(),
+  });
   return {
     View: ({ children, ...props }: any) => React.createElement('View', props, children),
     Text: ({ children, ...props }: any) => React.createElement('Text', props, children),
@@ -11,8 +20,27 @@ jest.mock('react-native', () => {
         }
         return style || {};
       },
+      absoluteFillObject: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        top: 0,
+        bottom: 0,
+      },
     },
     Platform: { OS: 'ios', select: (opts: any) => opts.ios },
+    Animated: {
+      View: ({ children, ...props }: any) => React.createElement('View', props, children),
+      Text: ({ children, ...props }: any) => React.createElement('Text', props, children),
+      Value: function(val: number) { return mockAnimatedValue(val); },
+      timing: jest.fn(() => ({ start: (cb?: () => void) => cb?.() })),
+      spring: jest.fn(() => ({ start: (cb?: () => void) => cb?.() })),
+      sequence: jest.fn(() => ({ start: (cb?: () => void) => cb?.() })),
+      parallel: jest.fn(() => ({ start: (cb?: () => void) => cb?.() })),
+    },
+    PanResponder: {
+      create: jest.fn(() => ({ panHandlers: {} })),
+    },
   };
 });
 
@@ -25,7 +53,7 @@ jest.mock('react-native-reanimated', () => {
       Text: ({ children, ...props }: any) => React.createElement('Text', props, children),
       createAnimatedComponent: (comp: any) => comp,
     },
-    FadeInDown: { delay: () => ({ duration: () => ({}) }) },
+    FadeInDown: { delay: () => ({ duration: () => ({}), springify: () => ({ damping: () => ({ stiffness: () => ({}) }) }) }) },
   };
 });
 
