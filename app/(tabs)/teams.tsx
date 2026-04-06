@@ -1248,7 +1248,7 @@ export default function TeamsScreen({ embedded = false }: TeamsScreenProps) {
                     divisionFilter === div && localStyles.filterButtonTextActive,
                   ]}
                 >
-                  {div}
+                  {div === 'Metropolitan' ? 'Metro' : div}
                 </Text>
               </TouchableOpacity>
             ))}

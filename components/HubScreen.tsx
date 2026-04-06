@@ -62,15 +62,10 @@ function SectionHeader({ icon, title }: { icon: keyof typeof Ionicons.glyphMap; 
 function StatCard({ value, label, delay }: { value: string; label: string; delay: number }) {
   return (
     <Animated.View entering={FadeInUp.delay(delay).duration(500)} style={s.statCardOuter}>
-      <LinearGradient
-        colors={[rinkGlass.blueLight, rinkGlass.goalLight]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={s.statCard}
-      >
+      <View style={s.statCard}>
         <Text style={s.statValue}>{value}</Text>
         <Text style={s.statLabel}>{label}</Text>
-      </LinearGradient>
+      </View>
     </Animated.View>
   );
 }
@@ -483,22 +478,23 @@ const s = StyleSheet.create({
     padding: 14,
     borderWidth: 1,
     borderColor: rinkGlass.glassBorder,
+    backgroundColor: rinkGlass.glass,
     alignItems: 'center',
   },
   statValue: {
     fontSize: 24,
     fontWeight: '800',
-    color: rinkGlass.textPrimary,
+    color: rinkGlass.blueLight,
     letterSpacing: -0.5,
     fontFamily: rinkGlass.fonts.display,
   },
   statLabel: {
-    fontSize: 11,
-    fontWeight: '500',
+    fontSize: 10,
+    fontWeight: '600',
     color: rinkGlass.textSecondary,
-    marginTop: 2,
+    marginTop: 4,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
 
   /* Sections */
