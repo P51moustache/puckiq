@@ -8,7 +8,7 @@ import React, { useCallback, useMemo } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { theme } from '../constants/theme';
+import { rinkGlass } from '../constants/theme';
 import { getTeamColors } from '../constants/teamColors';
 import type {
   PlayerProjection,
@@ -22,17 +22,17 @@ import type {
 // ---------------------------------------------------------------------------
 
 const TREND_COLORS: Record<string, string> = {
-  HOT: '#ef4444',
-  WARM: '#f97316',
-  STEADY: '#60a5fa',
+  HOT: rinkGlass.goalLight,
+  WARM: rinkGlass.powerPlay,
+  STEADY: rinkGlass.blueLight,
   COOL: '#38bdf8',
-  COLD: '#6366f1',
+  COLD: rinkGlass.blueLight,
 };
 
 const CONFIDENCE_COLORS: Record<ProjectionConfidence, string> = {
-  HIGH: theme.semantic.positive,
-  MEDIUM: '#fbbf24',
-  LOW: '#6b7280',
+  HIGH: rinkGlass.faceoffDot,
+  MEDIUM: rinkGlass.powerPlay,
+  LOW: rinkGlass.textMuted,
 };
 
 const STAT_LABELS: Record<StatCategory, string> = {
@@ -63,7 +63,7 @@ export default React.memo(function PlayerProjectionCard({
   onPress,
 }: PlayerProjectionCardProps) {
   const teamColors = getTeamColors(projection.teamAbbrev);
-  const trendColor = TREND_COLORS[projection.trendLabel] || theme.accent;
+  const trendColor = TREND_COLORS[projection.trendLabel] || rinkGlass.blueLight;
   const confColor = CONFIDENCE_COLORS[projection.confidence];
 
   const handlePress = useCallback(
@@ -162,7 +162,7 @@ export default React.memo(function PlayerProjectionCard({
 
 function ProjectionRow({ projection }: { projection: StatProjection }) {
   const isOver = projection.direction === 'OVER';
-  const arrowColor = isOver ? theme.semantic.positive : theme.semantic.negative;
+  const arrowColor = isOver ? rinkGlass.faceoffDot : rinkGlass.redLine;
   const arrowIcon = isOver ? 'arrow-up' : 'arrow-down';
 
   return (
@@ -218,15 +218,15 @@ function formatGameTime(utcTime: string): string {
 const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
-    backgroundColor: theme.card,
+    backgroundColor: rinkGlass.glass,
     borderRadius: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: rinkGlass.glassBorder,
     overflow: 'hidden',
   },
   cardPressed: {
-    transform: [{ scale: 0.97 }],
+    transform: [{ scale: rinkGlass.pressScale }],
     opacity: 0.9,
   },
   accentBar: {
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 23,
-    backgroundColor: theme.subtle,
+    backgroundColor: rinkGlass.boards,
     borderWidth: 2,
   },
   nameContainer: {
@@ -257,18 +257,18 @@ const styles = StyleSheet.create({
   playerName: {
     fontSize: 15,
     fontWeight: '700',
-    color: theme.text,
+    color: rinkGlass.textPrimary,
     marginBottom: 2,
   },
   matchupText: {
     fontSize: 12,
     fontWeight: '600',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
   },
   gameTimeText: {
     fontSize: 11,
     fontWeight: '600',
-    color: theme.accent,
+    color: rinkGlass.blueLight,
     marginTop: 1,
   },
 
@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
 
   // Projections
   projectionsContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: rinkGlass.glassHighlight,
     borderRadius: 10,
     padding: 10,
     gap: 8,
@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
     width: 32,
     fontSize: 12,
     fontWeight: '700',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     textTransform: 'uppercase',
   },
   projValues: {
@@ -332,7 +332,7 @@ const styles = StyleSheet.create({
   projectedValue: {
     fontSize: 16,
     fontWeight: '800',
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+    fontFamily: rinkGlass.fonts.mono,
     fontVariant: ['tabular-nums'] as any,
   },
   projArrow: {
@@ -342,7 +342,7 @@ const styles = StyleSheet.create({
   projSeasonAvg: {
     fontSize: 11,
     fontWeight: '600',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
   },
   directionBadge: {
     borderRadius: 4,
@@ -365,6 +365,6 @@ const styles = StyleSheet.create({
   streakText: {
     fontSize: 11,
     fontWeight: '600',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
   },
 });

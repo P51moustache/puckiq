@@ -13,7 +13,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { IconSymbol } from './ui/IconSymbol';
-import { theme } from '../constants/theme';
+import { rinkGlass } from '../constants/theme';
 import { getTeamColors } from '../constants/teamColors';
 import { getWaiverWireRecommendations } from '../services/fantasyProjections';
 import type { PlayerProjection } from '../types/fantasy';
@@ -130,13 +130,13 @@ export default function PlayerDetailModal({
             style={styles.closeButton}
             testID="player-detail-close"
           >
-            <IconSymbol name="xmark.circle.fill" size={28} color={theme.subtext} />
+            <IconSymbol name="xmark.circle.fill" size={28} color={rinkGlass.textSecondary} />
           </TouchableOpacity>
         </View>
 
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={theme.accent} />
+            <ActivityIndicator size="large" color={rinkGlass.blueLight} />
             <Text style={styles.loadingText}>Loading player data...</Text>
           </View>
         ) : error ? (
@@ -162,8 +162,8 @@ export default function PlayerDetailModal({
                 <Text style={styles.heroName}>{detail.bio.fullName}</Text>
                 <View style={styles.heroMeta}>
                   {detail.bio.sweaterNumber !== undefined && (
-                    <View style={[styles.heroBadge, { borderColor: teamColors?.primary || theme.accent }]}>
-                      <Text style={[styles.heroBadgeText, { color: teamColors?.primary || theme.accent }]}>
+                    <View style={[styles.heroBadge, { borderColor: teamColors?.primary || rinkGlass.blueLight }]}>
+                      <Text style={[styles.heroBadgeText, { color: teamColors?.primary || rinkGlass.blueLight }]}>
                         #{detail.bio.sweaterNumber}
                       </Text>
                     </View>
@@ -461,7 +461,7 @@ function renderSkaterTrendsSection(trends: SkaterTrends, teamColor?: string) {
 }
 
 function renderHotColdSection(hc: HotColdData) {
-  const color = TREND_COLORS[hc.trendLabel] || theme.accent;
+  const color = TREND_COLORS[hc.trendLabel] || rinkGlass.blueLight;
   return (
     <View style={styles.section}>
       <Text style={styles.sectionLabel}>TREND</Text>
@@ -730,7 +730,7 @@ function renderFantasySection(projection: PlayerProjection | null) {
       ) : (
         <View style={styles.trendCard}>
           <View style={styles.fantasyEmptyContainer}>
-            <Ionicons name="calendar-outline" size={24} color={theme.subtext} />
+            <Ionicons name="calendar-outline" size={24} color={rinkGlass.textSecondary} />
             <Text style={styles.emptyText}>No projection available — player may not be playing today</Text>
           </View>
         </View>
@@ -789,7 +789,7 @@ function formatCareerKey(key: string): string {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.background,
+    backgroundColor: rinkGlass.ice,
   },
   accentBar: {
     height: 4,
@@ -813,7 +813,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 14,
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
   },
   errorText: {
     fontSize: 14,
@@ -838,9 +838,9 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: theme.subtle,
+    backgroundColor: rinkGlass.boards,
     borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: rinkGlass.glassBorder,
   },
   heroInfo: {
     flex: 1,
@@ -848,7 +848,7 @@ const styles = StyleSheet.create({
   heroName: {
     fontSize: 22,
     fontWeight: '800',
-    color: theme.text,
+    color: rinkGlass.textPrimary,
     marginBottom: 6,
   },
   heroMeta: {
@@ -870,7 +870,7 @@ const styles = StyleSheet.create({
   heroTeamPos: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
   },
 
   // Sections
@@ -880,7 +880,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 13,
     fontWeight: '800',
-    color: theme.accent,
+    color: rinkGlass.blueLight,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
     marginBottom: 10,
@@ -890,12 +890,12 @@ const styles = StyleSheet.create({
   bioGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    backgroundColor: theme.card,
+    backgroundColor: rinkGlass.glass,
     borderRadius: 12,
     padding: 12,
     gap: 0,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: rinkGlass.glassBorder,
   },
   bioItem: {
     width: '50%',
@@ -905,7 +905,7 @@ const styles = StyleSheet.create({
   bioLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 2,
@@ -913,18 +913,18 @@ const styles = StyleSheet.create({
   bioValue: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.text,
+    color: rinkGlass.textPrimary,
   },
 
   // Stat grid
   statGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    backgroundColor: theme.card,
+    backgroundColor: rinkGlass.glass,
     borderRadius: 12,
     padding: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: rinkGlass.glassBorder,
   },
   statCell: {
     width: '20%',
@@ -934,28 +934,28 @@ const styles = StyleSheet.create({
   statCellLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     marginBottom: 4,
     textTransform: 'uppercase',
   },
   statCellValue: {
     fontSize: 16,
     fontWeight: '800',
-    color: theme.text,
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+    color: rinkGlass.textPrimary,
+    fontFamily: rinkGlass.fonts.mono,
     fontVariant: ['tabular-nums'] as any,
   },
   statCellHighlight: {
-    color: theme.accent,
+    color: rinkGlass.blueLight,
   },
 
   // Games table
   gamesTable: {
-    backgroundColor: theme.card,
+    backgroundColor: rinkGlass.glass,
     borderRadius: 12,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: rinkGlass.glassBorder,
   },
   gamesHeaderRow: {
     flexDirection: 'row',
@@ -969,7 +969,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 11,
     fontWeight: '700',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     textAlign: 'center',
     textTransform: 'uppercase',
   },
@@ -985,39 +985,39 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     fontWeight: '600',
-    color: theme.text,
+    color: rinkGlass.textPrimary,
     textAlign: 'center',
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+    fontFamily: rinkGlass.fonts.mono,
     fontVariant: ['tabular-nums'] as any,
   },
 
   emptyText: {
     fontSize: 13,
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     textAlign: 'center',
     paddingVertical: 16,
   },
 
   // Trend cards
   trendCard: {
-    backgroundColor: theme.card,
+    backgroundColor: rinkGlass.glass,
     borderRadius: 12,
     padding: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: rinkGlass.glassBorder,
   },
   trendBigValue: {
     fontSize: 28,
     fontWeight: '800',
-    color: theme.accent,
+    color: rinkGlass.blueLight,
     textAlign: 'center',
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+    fontFamily: rinkGlass.fonts.mono,
     fontVariant: ['tabular-nums'] as any,
   },
   trendCardLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     textAlign: 'center',
     marginTop: 4,
   },
@@ -1041,7 +1041,7 @@ const styles = StyleSheet.create({
   trendStreakText: {
     fontSize: 13,
     fontWeight: '600',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
   },
   trendCompareRow: {
     flexDirection: 'row',
@@ -1055,21 +1055,21 @@ const styles = StyleSheet.create({
   trendCompareLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     textTransform: 'uppercase',
     marginBottom: 4,
   },
   trendCompareRecent: {
     fontSize: 16,
     fontWeight: '800',
-    color: theme.text,
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+    color: rinkGlass.textPrimary,
+    fontFamily: rinkGlass.fonts.mono,
     fontVariant: ['tabular-nums'] as any,
   },
   trendCompareSeason: {
     fontSize: 11,
     fontWeight: '600',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     marginTop: 2,
   },
 
@@ -1104,7 +1104,7 @@ const styles = StyleSheet.create({
   fantasyReasonText: {
     fontSize: 12,
     fontWeight: '500',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
   },
   fantasyBarContainer: {
     marginBottom: 14,
@@ -1117,7 +1117,7 @@ const styles = StyleSheet.create({
   fantasyBarLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
   },
   fantasyBarTrack: {
     height: 6,
@@ -1130,7 +1130,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     bottom: 0,
-    backgroundColor: theme.accent,
+    backgroundColor: rinkGlass.blueLight,
     borderRadius: 3,
   },
   fantasyCategoryRow: {
@@ -1144,21 +1144,21 @@ const styles = StyleSheet.create({
   fantasyCatValue: {
     fontSize: 16,
     fontWeight: '800',
-    color: theme.text,
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+    color: rinkGlass.textPrimary,
+    fontFamily: rinkGlass.fonts.mono,
     fontVariant: ['tabular-nums'] as any,
   },
   fantasyCatLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     textTransform: 'uppercase',
     marginTop: 2,
   },
   fantasyOpponent: {
     fontSize: 12,
     fontWeight: '600',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     textAlign: 'center',
     marginTop: 4,
   },
