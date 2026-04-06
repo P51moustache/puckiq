@@ -13,9 +13,10 @@ import CompactGameRow from '../../components/CompactGameRow';
 import StandingsWidget from '../../components/StandingsWidget';
 import InsightFeed from '../../components/InsightFeed';
 import { ThemedView } from '../../components/ThemedView';
+import DashboardContainer from '../../components/dashboard/DashboardContainer';
 import { Skeleton } from '../../components/ui/SkeletonLoader';
 import { SettingsButton } from '../../components/SettingsButton';
-import { makeStyles, theme } from '../../constants/theme';
+import { makeStyles, theme, rinkGlass } from '../../constants/theme';
 import Toast from '../../components/Toast';
 import InfoTooltip from '../../components/InfoTooltip';
 import { useTonightData } from '../../hooks/useTonightData';
@@ -173,7 +174,7 @@ export default function TonightScreen() {
 
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView style={[styles.container, { backgroundColor: rinkGlass.ice }]}>
       <ScrollView
         style={{ alignSelf: 'stretch', width: '100%' }}
         contentContainerStyle={[styles.scrollContainer, { paddingBottom: 100 }]}
@@ -260,139 +261,10 @@ export default function TonightScreen() {
         )}
 
 
-        {/* STAT OF THE NIGHT — bold single-stat visual break */}
-        {statOfTheNight && (
-          <View style={{ marginTop: 24 }}>
-            <StatOfTheNight
-              stat={statOfTheNight}
-              onShare={handleShareStat}
-              onInfoPress={glossary.showTerm}
-            />
-          </View>
-        )}
-
-        {/* UPCOMING GAMES — featured full cards (first 2) */}
-        {featuredGames.length > 0 && (
-          <View style={{ marginTop: 24, width: '100%' }}>
-            <View style={{ paddingHorizontal: 16, marginBottom: 12 }}>
-              <Text style={{
-                fontSize: 13,
-                fontWeight: '800',
-                color: theme.accent,
-                letterSpacing: 1.5,
-                textTransform: 'uppercase',
-              }}>
-                Upcoming Games
-              </Text>
-              <View style={{
-                width: 32,
-                height: 2,
-                backgroundColor: theme.accent,
-                borderRadius: 1,
-                marginTop: 4,
-                opacity: 0.6,
-              }} />
-            </View>
-            <View style={{ paddingHorizontal: 16, gap: 12 }}>
-              {featuredGames.map((game: any, idx: number) => {
-                const pred = predictionsMap.get(String(game.id)) ?? { homeWinProb: 50, awayWinProb: 50 };
-                const h2hKey = `${game.awayTeam?.abbrev}-${game.homeTeam?.abbrev}`;
-                const h2h = h2hMap.get(h2hKey) ?? null;
-                const gameInsight = data.getInsightForGame(game);
-
-                return (
-                  <AllGamesCard
-                    key={String(game.id)}
-                    game={game}
-                    prediction={pred}
-                    h2hRecord={h2h}
-                    insight={gameInsight}
-                    index={idx}
-                    onPress={() => handleOpenDeepDive(game)}
-                    onShare={() => handleShareGame(game)}
-                    onInfoPress={glossary.showTerm}
-                    awayForm={formMap.get(game.awayTeam?.abbrev) ?? null}
-                    homeForm={formMap.get(game.homeTeam?.abbrev) ?? null}
-                    restAdvantage={{
-                      home: restMap.get(game.homeTeam?.abbrev) ?? 50,
-                      away: restMap.get(game.awayTeam?.abbrev) ?? 50,
-                    }}
-                  />
-                );
-              })}
-            </View>
-          </View>
-        )}
-
-        {/* SPOTLIGHT — hot players + edge stats in one scroll */}
-        {gameCount > 0 && (
-          <View style={{ marginTop: 24 }}>
-            <Spotlight
-              playerStatsMap={playerStatsMap}
-              games={todaysGames?.games ?? []}
-              skaterLanding={edgeSkaterLanding}
-              teamLanding={edgeTeamLanding}
-            />
-          </View>
-        )}
-
-        {/* MORE GAMES — compact rows for remaining games */}
-        {compactGames.length > 0 && (
-          <View style={{ marginTop: 24, paddingHorizontal: 16 }}>
-            <View style={{ marginBottom: 12 }}>
-              <Text style={{
-                fontSize: 13,
-                fontWeight: '800',
-                color: theme.accent,
-                letterSpacing: 1.5,
-                textTransform: 'uppercase',
-              }}>
-                {hasGamesToday ? 'Also Today' : 'More Games'}
-              </Text>
-              <View style={{
-                width: 32,
-                height: 2,
-                backgroundColor: theme.accent,
-                borderRadius: 1,
-                marginTop: 4,
-                opacity: 0.6,
-              }} />
-            </View>
-            {compactGames.map((game: any, idx: number) => {
-              const pred = predictionsMap.get(String(game.id)) ?? { homeWinProb: 50, awayWinProb: 50 };
-              return (
-                <CompactGameRow
-                  key={String(game.id)}
-                  game={game}
-                  prediction={pred}
-                  onPress={() => handleOpenDeepDive(game)}
-                  index={idx}
-                />
-              );
-            })}
-          </View>
-        )}
-
-        {/* TONIGHT'S INTEL — insight cards */}
-        {data.insights.length > 0 && (
-          <View style={{ marginTop: 24 }}>
-            <InsightFeed
-              insights={data.insights}
-              onShareInsight={handleShareInsight}
-              headerLabel={hasGamesToday ? "TODAY'S INTEL" : 'UPCOMING INTEL'}
-            />
-          </View>
-        )}
-
-        {/* DIVISION STANDINGS — compact table */}
-        {currentStandings && (
-          <View style={{ marginTop: 24 }}>
-            <StandingsWidget
-              standings={currentStandings}
-              selectedTeam={selectedTeam}
-            />
-          </View>
-        )}
+        {/* DASHBOARD COMMAND CENTER — modular fantasy widgets */}
+        <View style={{ marginTop: 16 }}>
+          <DashboardContainer />
+        </View>
 
         {/* EMPTY STATE — PuckIQ branding + no games today */}
         {!isLoading && gameCount === 0 && (

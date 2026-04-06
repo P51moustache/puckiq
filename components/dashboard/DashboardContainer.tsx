@@ -4,8 +4,67 @@ import { Ionicons } from '@expo/vector-icons';
 import { rinkGlass } from '../../constants/theme';
 import { MODULE_META, ModuleConfig, ModuleId } from '../../types/dashboard';
 import { loadDashboardPrefs, saveDashboardPrefs, toggleModule } from '../../services/dashboardModules';
+import StartSitModule from './StartSitModule';
+import { TrendingModule } from './TrendingModule';
+import AlertsModule from './AlertsModule';
+import WaiverWireModule from './WaiverWireModule';
+import MatchupEdgeModule from './MatchupEdgeModule';
+import DailyInsightModule from './DailyInsightModule';
 
 const ACCENT_COLORS = rinkGlass.moduleAccents as Record<ModuleId, string>;
+
+/* ── Mock data for visual preview (replaced by real data later) ── */
+const MOCK_START_SIT = [
+  { id: 1, name: 'Connor McDavid', team: 'EDM', opponent: 'CGY', projectedPoints: 4.2, recommendation: 'START' as const },
+  { id: 2, name: 'Leon Draisaitl', team: 'EDM', opponent: 'CGY', projectedPoints: 3.8, recommendation: 'SIT' as const },
+  { id: 3, name: 'Nick Suzuki', team: 'MTL', opponent: 'TOR', projectedPoints: 3.1, recommendation: 'START' as const },
+];
+
+const MOCK_TRENDING = [
+  { id: 1, name: 'Macklin Celebrini', team: 'SJS', flameCount: 5, recentPoints: [2, 4, 3, 5, 4, 6, 3, 5, 7, 4], trend: 'up' as const },
+  { id: 2, name: 'Jakub Dobes', team: 'MTL', flameCount: 4, recentPoints: [1, 2, 3, 2, 4, 3, 5, 4, 3, 5], trend: 'up' as const },
+];
+
+const MOCK_ALERTS = [
+  { id: '1', type: 'goalie' as const, playerName: 'Jakub Dobes', team: 'MTL', message: 'Confirmed starter tonight vs TOR', timestamp: 'Just now', isRosterPlayer: true },
+  { id: '2', type: 'injury' as const, playerName: 'Auston Matthews', team: 'TOR', message: 'Upper-body, game-time decision', timestamp: '1h ago', isRosterPlayer: false },
+];
+
+const MOCK_WAIVER = [
+  { id: 1, name: 'Marco Rossi', team: 'MIN', position: 'C', valueScore: 4.2, ownershipPct: 12, projectedPoints: 3.5, currentPlayerName: 'J.T. Miller', currentPlayerPoints: 2.1 },
+  { id: 2, name: 'Shane Wright', team: 'SEA', position: 'C', valueScore: 3.1, ownershipPct: 8, projectedPoints: 2.8 },
+];
+
+const MOCK_MATCHUPS = [
+  { id: 1, playerName: 'Nathan MacKinnon', team: 'COL', opponent: 'STL', edgeRating: 9, projectedPoints: 4.5, reasons: ['STL allows 4th-most goals to centers', 'PP1 usage at 22+ min'] },
+  { id: 2, playerName: 'David Pastrnak', team: 'BOS', opponent: 'DET', edgeRating: 7, projectedPoints: 3.9, reasons: ['DET bottom-5 PK', 'Pastrnak on 5-game point streak'] },
+];
+
+const MOCK_INSIGHT = {
+  headline: 'Suzuki has quietly outscored McDavid over the last 10 games',
+  context: 'Nick Suzuki has 14 points in his last 10, compared to McDavid\'s 11. His PP1 time has increased to 4:30/game.',
+  sentiment: 'surprising' as const,
+  dataPoint: '14 pts vs 11 pts (last 10 GP)',
+};
+
+function renderModule(moduleId: ModuleId) {
+  switch (moduleId) {
+    case 'startSit':
+      return <StartSitModule players={MOCK_START_SIT} />;
+    case 'trending':
+      return <TrendingModule players={MOCK_TRENDING} />;
+    case 'alerts':
+      return <AlertsModule alerts={MOCK_ALERTS} />;
+    case 'waiverWire':
+      return <WaiverWireModule players={MOCK_WAIVER} />;
+    case 'matchupEdge':
+      return <MatchupEdgeModule matchups={MOCK_MATCHUPS} />;
+    case 'dailyInsight':
+      return <DailyInsightModule insight={MOCK_INSIGHT} />;
+    default:
+      return null;
+  }
+}
 
 export default function DashboardContainer() {
   const [modules, setModules] = useState<ModuleConfig[]>([]);
@@ -86,23 +145,11 @@ export default function DashboardContainer() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {enabledModules.map((mod) => {
-            const meta = MODULE_META[mod.id];
-            const accent = ACCENT_COLORS[mod.id];
-            return (
-              <View
-                key={mod.id}
-                testID={`module-card-${mod.id}`}
-                style={[styles.card, { borderLeftColor: accent, borderLeftWidth: 3 }]}
-              >
-                <View style={styles.cardHeader}>
-                  <Ionicons name={meta.icon as any} size={18} color={accent} />
-                  <Text style={styles.cardTitle}>{meta.title}</Text>
-                </View>
-                <Text style={styles.cardPlaceholder}>{meta.description}</Text>
-              </View>
-            );
-          })}
+          {enabledModules.map((mod) => (
+            <View key={mod.id} testID={`module-card-${mod.id}`}>
+              {renderModule(mod.id)}
+            </View>
+          ))}
         </ScrollView>
       )}
     </View>
