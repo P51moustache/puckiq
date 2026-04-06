@@ -16,6 +16,8 @@ jest.mock('react-native', () => {
       return React.createElement('FlatList', props, header, ...items);
     },
     Switch: (props: any) => React.createElement('Switch', props),
+    Modal: ({ children, visible, ...props }: any) =>
+      visible ? React.createElement('Modal', props, children) : null,
     TouchableOpacity: ({ children, ...props }: any) =>
       React.createElement('TouchableOpacity', props, children),
     Pressable: ({ children, ...props }: any) =>
@@ -67,9 +69,22 @@ import { render, waitFor, fireEvent } from '@testing-library/react-native';
 import DashboardContainer from '../DashboardContainer';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+const SAVED_PREFS = JSON.stringify({
+  modules: [
+    { id: 'startSit', enabled: true, order: 0 },
+    { id: 'trending', enabled: true, order: 1 },
+    { id: 'alerts', enabled: true, order: 2 },
+    { id: 'waiverWire', enabled: true, order: 3 },
+    { id: 'matchupEdge', enabled: true, order: 4 },
+    { id: 'dailyInsight', enabled: true, order: 5 },
+  ],
+  lastCustomized: '2026-04-05',
+});
+
 describe('DashboardContainer', () => {
   beforeEach(() => {
-    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+    // Simulate existing user (not first launch) so ModulePicker doesn't show
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(SAVED_PREFS);
     (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
   });
 
