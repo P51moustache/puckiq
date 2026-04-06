@@ -17,7 +17,7 @@ import { supabase, logConnectionInfo } from './supabase-client.mjs';
 import { fetchWithRetry, sleep, endpoints } from './nhl-api.mjs';
 
 const BATCH_SIZE = 100;
-const DELAY_BETWEEN_REQUESTS_MS = 500;
+const DELAY_BETWEEN_REQUESTS_MS = 250;
 const isIncremental = process.argv.includes('--incremental');
 
 /**

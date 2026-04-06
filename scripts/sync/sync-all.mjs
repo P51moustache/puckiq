@@ -45,8 +45,9 @@ const modules = [
   // Player trends: game logs daily, advanced stats weekly (Corsi, Fenwick, PDO)
   { name: 'player-trends', script: 'sync-player-trends.mjs', args: [...(isWeekly ? ['--weekly'] : []), ...seasonArgs] },
 
-  // Player career: incremental daily (recently-active players only, ~40-80 API calls)
-  { name: 'player-career-incremental', script: 'sync-player-career.mjs', args: ['--incremental'] },
+  // Player career: incremental daily (recently-active players — can be 400-600 if busy schedule)
+  // Non-fatal: its timeout shouldn't kill the entire sync
+  { name: 'player-career-incremental', script: 'sync-player-career.mjs', args: ['--incremental'], nonFatal: true },
 
   // Player career data: full refresh weekly (all ~900 players)
   ...(isWeekly || isFullSync ? [{ name: 'player-career', script: 'sync-player-career.mjs', args: [] }] : []),
@@ -69,18 +70,21 @@ for (const mod of modules) {
   const start = Date.now();
 
   try {
+    // Player-career gets 10 min (fetches 400-600 players); others get 5 min daily / 15 min weekly
+    const isCareerModule = mod.name.startsWith('player-career');
+    const timeoutMs = isCareerModule ? 10 * 60 * 1000 : (isWeekly ? 15 : 5) * 60 * 1000;
     execSync(`node "${scriptPath}" ${args}`, {
       stdio: 'inherit',
       env: process.env,
-      timeout: (isWeekly ? 15 : 5) * 60 * 1000, // 15 min for weekly, 5 min for daily
+      timeout: timeoutMs,
     });
     const elapsed = ((Date.now() - start) / 1000).toFixed(1);
-    results.push({ name: mod.name, status: 'OK', elapsed });
+    results.push({ name: mod.name, status: 'OK', elapsed, nonFatal: !!mod.nonFatal });
     console.log(`--- ${mod.name}: OK (${elapsed}s) ---\n`);
   } catch (err) {
     const elapsed = ((Date.now() - start) / 1000).toFixed(1);
-    results.push({ name: mod.name, status: 'FAILED', elapsed });
-    console.error(`--- ${mod.name}: FAILED (${elapsed}s) ---\n`);
+    results.push({ name: mod.name, status: 'FAILED', elapsed, nonFatal: !!mod.nonFatal });
+    console.error(`--- ${mod.name}: FAILED (${elapsed}s)${mod.nonFatal ? ' (non-fatal, continuing)' : ''} ---\n`);
   }
 }
 
@@ -91,10 +95,13 @@ for (const r of results) {
 }
 
 const failed = results.filter(r => r.status === 'FAILED');
+const fatalFailed = failed.filter(f => !f.nonFatal);
 console.log(`\nCompleted: ${new Date().toISOString()}`);
 console.log(`Result: ${results.length - failed.length}/${results.length} modules succeeded`);
 
 if (failed.length > 0) {
-  console.error(`Failed modules: ${failed.map(f => f.name).join(', ')}`);
+  console.error(`Failed modules: ${failed.map(f => f.name + (f.nonFatal ? ' (non-fatal)' : '')).join(', ')}`);
+}
+if (fatalFailed.length > 0) {
   process.exit(1);
 }
