@@ -113,7 +113,7 @@ export default function PaywallModal({
       onRequestClose={onClose}
     >
       <LinearGradient
-        colors={['#0c1b3a', '#071023', '#030810']}
+        colors={['#0a0e1a', '#141829']}
         style={styles.fullScreen}
       >
         {/* Close button */}
@@ -125,7 +125,7 @@ export default function PaywallModal({
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
           <View style={styles.closeCircle}>
-            <Ionicons name="close" size={20} color={theme.text} />
+            <Ionicons name="close" size={20} color="#f0f4ff" />
           </View>
         </TouchableOpacity>
 
@@ -138,7 +138,7 @@ export default function PaywallModal({
           <Animated.View entering={FadeInUp.duration(600).delay(100)} style={styles.headerSection}>
             <View style={styles.proIconContainer}>
               <LinearGradient
-                colors={['#3b82f6', '#1e40af', '#1e3a8a']}
+                colors={['#4cc9f0', '#141829']}
                 style={styles.proIconGradient}
               >
                 <Ionicons name="diamond" size={28} color="#fff" />
@@ -158,7 +158,7 @@ export default function PaywallModal({
             {FEATURES.map((feat, idx) => (
               <View key={feat.title} style={styles.featureCard}>
                 <View style={styles.featureIconWrap}>
-                  <Ionicons name={feat.icon} size={20} color={theme.accent} />
+                  <Ionicons name={feat.icon} size={20} color="#4cc9f0" />
                 </View>
                 <View style={styles.featureTextWrap}>
                   <Text style={styles.featureTitle}>{feat.title}</Text>
@@ -218,7 +218,7 @@ export default function PaywallModal({
               style={styles.ctaTouchable}
             >
               <LinearGradient
-                colors={['#60a5fa', '#3b82f6', '#1e40af']}
+                colors={['#4cc9f0', '#f72585']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.ctaGradient}
@@ -257,7 +257,7 @@ export default function PaywallModal({
               disabled={isLoading}
             >
               {restoring ? (
-                <ActivityIndicator color={theme.subtext} size="small" />
+                <ActivityIndicator color="#8b95b0" size="small" />
               ) : (
                 <Text style={styles.restoreText}>Restore Purchases</Text>
               )}
@@ -283,9 +283,9 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -320,12 +320,12 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 24,
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    backgroundColor: 'rgba(76, 201, 240, 0.15)',
   },
   proTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: theme.accent,
+    color: '#4cc9f0',
     textTransform: 'uppercase',
     letterSpacing: 2,
     marginBottom: 8,
@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
   },
   subheadline: {
     fontSize: 15,
-    color: theme.subtext,
+    color: '#8b95b0',
     textAlign: 'center',
     lineHeight: 22,
     paddingHorizontal: 8,
@@ -356,10 +356,10 @@ const styles = StyleSheet.create({
   featureCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(25, 46, 94, 0.5)',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(96, 165, 250, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     padding: 14,
     gap: 14,
   },
@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: 'rgba(96, 165, 250, 0.12)',
+    backgroundColor: 'rgba(76, 201, 240, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -377,12 +377,12 @@ const styles = StyleSheet.create({
   featureTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: theme.text,
+    color: '#f0f4ff',
     marginBottom: 2,
   },
   featureSubtitle: {
     fontSize: 12,
-    color: theme.subtext,
+    color: '#8b95b0',
     fontWeight: '400',
   },
 
@@ -394,7 +394,7 @@ const styles = StyleSheet.create({
   pricingLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: theme.subtext,
+    color: '#8b95b0',
     textTransform: 'uppercase',
     letterSpacing: 1,
     textAlign: 'center',
@@ -406,30 +406,30 @@ const styles = StyleSheet.create({
   },
   pricingCard: {
     flex: 1,
-    backgroundColor: 'rgba(25, 46, 94, 0.5)',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: 16,
     borderWidth: 1.5,
-    borderColor: 'rgba(96, 165, 250, 0.15)',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     padding: 18,
     alignItems: 'center',
   },
   pricingCardAnnual: {
-    borderColor: 'rgba(59, 130, 246, 0.5)',
-    shadowColor: '#3b82f6',
+    borderColor: '#06d6a0',
+    shadowColor: '#06d6a0',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
     elevation: 8,
   },
   pricingCardSelected: {
-    borderColor: '#60a5fa',
-    backgroundColor: 'rgba(59, 130, 246, 0.12)',
+    borderColor: '#4cc9f0',
+    backgroundColor: 'rgba(76, 201, 240, 0.12)',
   },
   saveBadge: {
     position: 'absolute',
     top: -10,
     right: -1,
-    backgroundColor: '#10b981',
+    backgroundColor: '#06d6a0',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
@@ -445,7 +445,7 @@ const styles = StyleSheet.create({
   planName: {
     fontSize: 12,
     fontWeight: '600',
-    color: theme.subtext,
+    color: '#8b95b0',
     textTransform: 'uppercase',
     letterSpacing: 1,
     marginBottom: 6,
@@ -454,11 +454,12 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '800',
     color: '#fff',
+    fontFamily: 'Display-Bold',
   },
   planMonthly: {
     fontSize: 11,
     fontWeight: '500',
-    color: theme.accent,
+    color: '#4cc9f0',
     marginTop: 6,
     opacity: 0.9,
   },
@@ -472,7 +473,7 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#3b82f6',
+    shadowColor: '#f72585',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.4,
     shadowRadius: 16,
@@ -495,7 +496,7 @@ const styles = StyleSheet.create({
     opacity: 0,
   },
   trialSubtext: {
-    color: theme.subtext,
+    color: '#8b95b0',
     fontSize: 12,
     fontWeight: '500',
     marginTop: 12,
@@ -506,7 +507,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   restoreText: {
-    color: theme.subtext,
+    color: '#8b95b0',
     fontSize: 13,
     textDecorationLine: 'underline',
   },

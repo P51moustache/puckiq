@@ -26,17 +26,17 @@ import {
 
 type PrefKey = keyof FantasyNotificationPreferences;
 
-/* ── Design Tokens ─────────────────────────────────────── */
+/* ── Design Tokens (Rink Glass) ────────────────────────── */
 const DT = {
-  bg: '#071023',
-  card: '#192e5eff',
-  cardBorder: '#2a4080',
-  text: '#e6eef8',
-  subtext: '#98a6bf',
-  accent: '#60a5fa',
-  glow: '#3b82f6',
-  gradientDark: '#1e3a8a',
-  gradientLight: '#2563eb',
+  bg: '#0a0e1a',
+  card: 'rgba(255, 255, 255, 0.06)',
+  cardBorder: 'rgba(255, 255, 255, 0.10)',
+  text: '#f0f4ff',
+  subtext: '#8b95b0',
+  accent: '#4cc9f0',
+  glow: '#4cc9f0',
+  gradientDark: '#141829',
+  gradientLight: '#4cc9f0',
   proBadge: '#f59e0b',
 } as const;
 
@@ -76,7 +76,7 @@ function StatCard({ value, label, delay }: { value: string; label: string; delay
   return (
     <Animated.View entering={FadeInUp.delay(delay).duration(500)} style={s.statCardOuter}>
       <LinearGradient
-        colors={[DT.gradientDark, DT.card]}
+        colors={['#4cc9f0', '#f72585']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={s.statCard}
@@ -502,6 +502,7 @@ const s = StyleSheet.create({
     fontWeight: '800',
     color: DT.text,
     letterSpacing: -0.5,
+    fontFamily: 'Display-Bold',
   },
   statLabel: {
     fontSize: 11,
