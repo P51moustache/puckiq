@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import Animated, { FadeInUp } from 'react-native-reanimated';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import Animated, { FadeInUp, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { rinkGlass } from '../../constants/theme';
+import { rinkGlass, theme } from '../../constants/theme';
 
 export interface MatchupEdge {
   id: number;
@@ -39,53 +39,64 @@ function getCardBackground(rating: number): string {
 
 function MatchupCard({ matchup, index }: { matchup: MatchupEdge; index: number }) {
   const [expanded, setExpanded] = useState(false);
+  const pressed = useSharedValue(1);
+
+  const pressAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pressed.value }],
+  }));
 
   return (
-    <Animated.View entering={FadeInUp.delay(index * 80).duration(400)}>
-      <TouchableOpacity
-        testID={`matchup-card-${matchup.id}`}
+    <Animated.View
+      entering={FadeInUp.delay(index * 80).springify().damping(theme.animation.spring.damping).stiffness(theme.animation.spring.stiffness)}
+    >
+      <Pressable
         onPress={() => setExpanded(!expanded)}
-        activeOpacity={0.7}
-        style={[styles.card, { backgroundColor: getCardBackground(matchup.edgeRating) }]}
+        onPressIn={() => { pressed.value = withTiming(rinkGlass.pressScale, { duration: 100 }); }}
+        onPressOut={() => { pressed.value = withTiming(1, { duration: 100 }); }}
       >
-        {/* Main row */}
-        <View style={styles.cardRow}>
-          {/* Left: player info */}
-          <View style={styles.playerInfo}>
-            <Text style={styles.playerName}>{matchup.playerName}</Text>
-            <Text style={styles.teamLabel}>{matchup.team}</Text>
-          </View>
-
-          {/* Center: opponent */}
-          <View style={styles.opponentInfo}>
-            <Text style={styles.opponentText}>vs {matchup.opponent}</Text>
-          </View>
-
-          {/* Right: edge badge + projected */}
-          <View style={styles.ratingInfo}>
-            <View
-              testID={`edge-badge-${matchup.id}`}
-              style={[styles.edgeBadge, { backgroundColor: getEdgeBadgeColor(matchup.edgeRating) }]}
-            >
-              <Text style={styles.edgeRatingText}>{matchup.edgeRating}</Text>
+        <Animated.View
+          testID={`matchup-card-${matchup.id}`}
+          style={[styles.card, { backgroundColor: getCardBackground(matchup.edgeRating) }, pressAnimStyle]}
+        >
+          {/* Main row */}
+          <View style={styles.cardRow}>
+            {/* Left: player info */}
+            <View style={styles.playerInfo}>
+              <Text style={styles.playerName}>{matchup.playerName}</Text>
+              <Text style={styles.teamLabel}>{matchup.team}</Text>
             </View>
-            <Text style={styles.projectedPoints}>{matchup.projectedPoints}</Text>
-            <Text style={styles.projLabel}>proj pts</Text>
-          </View>
-        </View>
 
-        {/* Expanded reasons */}
-        {expanded && (
-          <View style={styles.reasonsContainer}>
-            {matchup.reasons.map((reason, i) => (
-              <View key={i} style={styles.reasonRow}>
-                <Text style={styles.bulletDot}>{'\u2022'}</Text>
-                <Text style={styles.reasonText}>{reason}</Text>
+            {/* Center: opponent */}
+            <View style={styles.opponentInfo}>
+              <Text style={styles.opponentText}>vs {matchup.opponent}</Text>
+            </View>
+
+            {/* Right: edge badge + projected */}
+            <View style={styles.ratingInfo}>
+              <View
+                testID={`edge-badge-${matchup.id}`}
+                style={[styles.edgeBadge, { backgroundColor: getEdgeBadgeColor(matchup.edgeRating) }]}
+              >
+                <Text style={styles.edgeRatingText}>{matchup.edgeRating}</Text>
               </View>
-            ))}
+              <Text style={styles.projectedPoints}>{matchup.projectedPoints}</Text>
+              <Text style={styles.projLabel}>proj pts</Text>
+            </View>
           </View>
-        )}
-      </TouchableOpacity>
+
+          {/* Expanded reasons */}
+          {expanded && (
+            <View style={styles.reasonsContainer}>
+              {matchup.reasons.map((reason, i) => (
+                <View key={i} style={styles.reasonRow}>
+                  <Text style={styles.bulletDot}>{'\u2022'}</Text>
+                  <Text style={styles.reasonText}>{reason}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </Animated.View>
+      </Pressable>
     </Animated.View>
   );
 }

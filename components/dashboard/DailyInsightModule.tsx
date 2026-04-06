@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import Animated, { FadeInUp } from 'react-native-reanimated';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import Animated, { FadeInUp, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { rinkGlass } from '../../constants/theme';
+import { rinkGlass, theme } from '../../constants/theme';
 
 export interface DailyInsight {
   headline: string;
@@ -31,6 +31,11 @@ const SENTIMENT_CONFIG = {
 
 export default function DailyInsightModule({ insight }: { insight: DailyInsight | null }) {
   const [expanded, setExpanded] = useState(false);
+  const pressed = useSharedValue(1);
+
+  const pressAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pressed.value }],
+  }));
 
   if (!insight) {
     return (
@@ -50,28 +55,32 @@ export default function DailyInsightModule({ insight }: { insight: DailyInsight 
   const config = SENTIMENT_CONFIG[insight.sentiment];
 
   return (
-    <Animated.View entering={FadeInUp.delay(100).duration(400)} style={styles.container}>
+    <Animated.View
+      entering={FadeInUp.delay(100).springify().damping(theme.animation.spring.damping).stiffness(theme.animation.spring.stiffness)}
+      style={styles.container}
+    >
       <View style={styles.header}>
         <View style={[styles.accentStripe, { backgroundColor: rinkGlass.moduleAccents.dailyInsight }]} />
         <Text style={styles.title}>Daily Insight</Text>
       </View>
 
-      <TouchableOpacity
+      <Pressable
         testID="insight-tap"
-        activeOpacity={0.8}
         onPress={() => setExpanded(!expanded)}
+        onPressIn={() => { pressed.value = withTiming(rinkGlass.pressScale, { duration: 100 }); }}
+        onPressOut={() => { pressed.value = withTiming(1, { duration: 100 }); }}
       >
-        <View
+        <Animated.View
           testID="insight-card"
-          style={[styles.card, { backgroundColor: config.background }]}
+          style={[styles.card, { backgroundColor: config.background }, pressAnimStyle]}
         >
           {/* Left accent stripe */}
           <View style={[styles.leftStripe, { backgroundColor: config.stripe }]} />
 
           {/* Share button */}
-          <TouchableOpacity testID="share-button" style={styles.shareButton} activeOpacity={0.6}>
+          <Pressable testID="share-button" style={styles.shareButton}>
             <Ionicons name="share-outline" size={20} color={rinkGlass.textSecondary} />
-          </TouchableOpacity>
+          </Pressable>
 
           {/* Sentiment icon */}
           <View style={styles.iconRow}>
@@ -92,8 +101,8 @@ export default function DailyInsightModule({ insight }: { insight: DailyInsight 
               )}
             </View>
           )}
-        </View>
-      </TouchableOpacity>
+        </Animated.View>
+      </Pressable>
     </Animated.View>
   );
 }

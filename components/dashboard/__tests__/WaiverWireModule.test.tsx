@@ -3,6 +3,8 @@ jest.mock('react-native', () => {
   return {
     View: ({ children, ...props }: any) => React.createElement('View', props, children),
     Text: ({ children, ...props }: any) => React.createElement('Text', props, children),
+    Pressable: ({ children, onPress, onPressIn, onPressOut, ...props }: any) =>
+      React.createElement('Pressable', { ...props, onPress, onPressIn, onPressOut }, children),
     TouchableOpacity: ({ children, onPress, ...props }: any) =>
       React.createElement('TouchableOpacity', { ...props, onPress }, children),
     StyleSheet: {
@@ -18,6 +20,15 @@ jest.mock('react-native', () => {
   };
 });
 
+// Chainable animation builder mock
+const makeAnimBuilder = () => {
+  const builder: any = {};
+  for (const m of ['delay', 'duration', 'springify', 'damping', 'stiffness', 'mass', 'withCallback', 'withInitialValues']) {
+    builder[m] = () => builder;
+  }
+  return builder;
+};
+
 jest.mock('react-native-reanimated', () => {
   const React = require('react');
   return {
@@ -30,7 +41,7 @@ jest.mock('react-native-reanimated', () => {
     useAnimatedStyle: (fn: () => any) => fn(),
     useSharedValue: (val: any) => ({ value: val }),
     withTiming: (val: any) => val,
-    FadeInUp: { delay: () => ({ duration: () => ({}) }) },
+    FadeInUp: makeAnimBuilder(),
   };
 });
 
