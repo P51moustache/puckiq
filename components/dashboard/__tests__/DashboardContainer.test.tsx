@@ -4,9 +4,22 @@ jest.mock('react-native', () => {
     View: ({ children, ...props }: any) => React.createElement('View', props, children),
     Text: ({ children, ...props }: any) => React.createElement('Text', props, children),
     ScrollView: ({ children, ...props }: any) => React.createElement('ScrollView', props, children),
+    FlatList: ({ data, renderItem, keyExtractor, ListHeaderComponent, ...props }: any) => {
+      const header = ListHeaderComponent
+        ? typeof ListHeaderComponent === 'function'
+          ? React.createElement(ListHeaderComponent)
+          : ListHeaderComponent
+        : null;
+      const items = (data || []).map((item: any, index: number) =>
+        React.createElement(React.Fragment, { key: keyExtractor ? keyExtractor(item, index) : index }, renderItem({ item, index }))
+      );
+      return React.createElement('FlatList', props, header, ...items);
+    },
     Switch: (props: any) => React.createElement('Switch', props),
     TouchableOpacity: ({ children, ...props }: any) =>
       React.createElement('TouchableOpacity', props, children),
+    Pressable: ({ children, ...props }: any) =>
+      React.createElement('Pressable', props, typeof children === 'function' ? children({ pressed: false }) : children),
     StyleSheet: {
       create: (s: any) => s,
       flatten: (style: any) => {
@@ -24,6 +37,28 @@ jest.mock('@expo/vector-icons', () => {
   const React = require('react');
   return {
     Ionicons: (props: any) => React.createElement('Ionicons', props),
+  };
+});
+
+jest.mock('react-native-reanimated', () => {
+  const React = require('react');
+  const View = ({ children, ...props }: any) => React.createElement('View', props, children);
+  return {
+    __esModule: true,
+    default: {
+      View,
+      Text: ({ children, ...props }: any) => React.createElement('Text', props, children),
+      createAnimatedComponent: (comp: any) => comp,
+    },
+    FadeInUp: { delay: () => ({ duration: () => ({}) }) },
+    FadeIn: { delay: () => ({ duration: () => ({}) }) },
+    FadeInDown: { delay: () => ({ duration: () => ({}) }) },
+    useAnimatedStyle: (fn: any) => fn(),
+    useSharedValue: (val: any) => ({ value: val }),
+    withTiming: (val: any) => val,
+    withSpring: (val: any) => val,
+    withDelay: (_: any, val: any) => val,
+    Layout: {},
   };
 });
 
