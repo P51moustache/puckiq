@@ -11,7 +11,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
-import { theme } from '../constants/theme';
+import { rinkGlass } from '../constants/theme';
 import { useAuthContext } from './auth/AuthProvider';
 import { useSubscription } from './SubscriptionProvider';
 import AccuracyTracker from './AccuracyTracker';
@@ -26,31 +26,18 @@ import {
 
 type PrefKey = keyof FantasyNotificationPreferences;
 
-/* ── Design Tokens (Rink Glass) ────────────────────────── */
-const DT = {
-  bg: '#0a0e1a',
-  card: 'rgba(255, 255, 255, 0.06)',
-  cardBorder: 'rgba(255, 255, 255, 0.10)',
-  text: '#f0f4ff',
-  subtext: '#8b95b0',
-  accent: '#4cc9f0',
-  glow: '#4cc9f0',
-  gradientDark: '#141829',
-  gradientLight: '#4cc9f0',
-  proBadge: '#f59e0b',
-} as const;
-
 const NOTIFICATION_TOGGLES: {
   key: PrefKey;
   label: string;
   testID: string;
   icon: keyof typeof Ionicons.glyphMap;
+  color: string;
 }[] = [
-  { key: 'morningBrief', label: 'Morning Brief', testID: 'toggle-morning-brief', icon: 'newspaper-outline' },
-  { key: 'goalieConfirmed', label: 'Goalie Confirmed', testID: 'toggle-goalie-confirmed', icon: 'shield-checkmark-outline' },
-  { key: 'injuryAlerts', label: 'Injury Alerts', testID: 'toggle-injury-alerts', icon: 'alert-circle-outline' },
-  { key: 'gameReminder', label: 'Game Reminders', testID: 'toggle-game-reminders', icon: 'time-outline' },
-  { key: 'waiverAlerts', label: 'Waiver Alerts', testID: 'toggle-waiver-alerts', icon: 'trending-up-outline' },
+  { key: 'morningBrief', label: 'Morning Brief', testID: 'toggle-morning-brief', icon: 'newspaper-outline', color: rinkGlass.moduleAccents.dailyInsight },
+  { key: 'goalieConfirmed', label: 'Goalie Confirmed', testID: 'toggle-goalie-confirmed', icon: 'shield-checkmark-outline', color: rinkGlass.faceoffDot },
+  { key: 'injuryAlerts', label: 'Injury Alerts', testID: 'toggle-injury-alerts', icon: 'alert-circle-outline', color: rinkGlass.redLine },
+  { key: 'gameReminder', label: 'Game Reminders', testID: 'toggle-game-reminders', icon: 'time-outline', color: rinkGlass.blueLight },
+  { key: 'waiverAlerts', label: 'Waiver Alerts', testID: 'toggle-waiver-alerts', icon: 'trending-up-outline', color: rinkGlass.moduleAccents.waiverWire },
 ];
 
 /* ── Section Header ────────────────────────────────────── */
@@ -58,11 +45,11 @@ function SectionHeader({ icon, title }: { icon: keyof typeof Ionicons.glyphMap; 
   return (
     <View style={s.sectionHeader}>
       <View style={s.sectionHeaderLeft}>
-        <Ionicons name={icon} size={18} color={DT.accent} />
+        <Ionicons name={icon} size={18} color={rinkGlass.blueLight} />
         <Text style={s.sectionTitle}>{title}</Text>
       </View>
       <LinearGradient
-        colors={[DT.accent, 'transparent']}
+        colors={[rinkGlass.blueLight, 'transparent']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={s.sectionLine}
@@ -76,7 +63,7 @@ function StatCard({ value, label, delay }: { value: string; label: string; delay
   return (
     <Animated.View entering={FadeInUp.delay(delay).duration(500)} style={s.statCardOuter}>
       <LinearGradient
-        colors={['#4cc9f0', '#f72585']}
+        colors={[rinkGlass.blueLight, rinkGlass.goalLight]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={s.statCard}
@@ -158,14 +145,14 @@ export default function HubScreen() {
           <View style={s.profileRow}>
             {/* Avatar */}
             <LinearGradient
-              colors={[DT.gradientLight, DT.gradientDark]}
+              colors={[rinkGlass.blueLight, rinkGlass.boards]}
               style={s.avatarRing}
             >
               <View style={s.avatarInner}>
                 {user ? (
                   <Text style={s.avatarText}>{userInitial}</Text>
                 ) : (
-                  <Ionicons name="person-outline" size={28} color={DT.subtext} />
+                  <Ionicons name="person-outline" size={28} color={rinkGlass.textSecondary} />
                 )}
               </View>
             </LinearGradient>
@@ -204,7 +191,7 @@ export default function HubScreen() {
                 onPress={signInWithApple}
                 testID="sign-in-apple"
               >
-                <Ionicons name="logo-apple" size={20} color={DT.text} style={s.authIcon} />
+                <Ionicons name="logo-apple" size={20} color={rinkGlass.textPrimary} style={s.authIcon} />
                 <Text style={s.authButtonText}>Sign in with Apple</Text>
               </Pressable>
               <Pressable
@@ -212,14 +199,14 @@ export default function HubScreen() {
                 onPress={signInWithGoogle}
                 testID="sign-in-google"
               >
-                <Ionicons name="logo-google" size={18} color={DT.text} style={s.authIcon} />
+                <Ionicons name="logo-google" size={18} color={rinkGlass.textPrimary} style={s.authIcon} />
                 <Text style={s.authButtonText}>Sign in with Google</Text>
               </Pressable>
               <Pressable
                 style={[s.authButton, s.emailAuthButton]}
                 testID="sign-in-email"
               >
-                <Ionicons name="mail-outline" size={18} color={DT.text} style={s.authIcon} />
+                <Ionicons name="mail-outline" size={18} color={rinkGlass.textPrimary} style={s.authIcon} />
                 <Text style={s.authButtonText}>Sign in with Email</Text>
               </Pressable>
             </View>
@@ -239,14 +226,14 @@ export default function HubScreen() {
           {isPremium ? (
             <View style={s.card}>
               <View style={s.proActiveRow}>
-                <Ionicons name="checkmark-circle" size={22} color={DT.proBadge} />
+                <Ionicons name="checkmark-circle" size={22} color={rinkGlass.powerPlay} />
                 <Text style={s.proActiveText}>PuckIQ Pro</Text>
               </View>
             </View>
           ) : (
             <Pressable testID="upgrade-button" style={s.upgradeOuter}>
               <LinearGradient
-                colors={[DT.gradientDark, DT.gradientLight]}
+                colors={[rinkGlass.boards, rinkGlass.blueLight]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={s.upgradeCard}
@@ -288,7 +275,7 @@ export default function HubScreen() {
         <View style={s.section}>
           <SectionHeader icon="notifications-outline" title="Notifications" />
           <View style={s.card}>
-            {NOTIFICATION_TOGGLES.map(({ key, label, testID, icon }, idx) => (
+            {NOTIFICATION_TOGGLES.map(({ key, label, testID, icon, color }, idx) => (
               <View
                 style={[s.toggleRow, idx < NOTIFICATION_TOGGLES.length - 1 && s.toggleRowBorder]}
                 key={key}
@@ -297,7 +284,7 @@ export default function HubScreen() {
                   <Ionicons
                     name={icon}
                     size={18}
-                    color={canToggle ? DT.accent : DT.subtext}
+                    color={canToggle ? color : rinkGlass.textSecondary}
                     style={s.toggleIcon}
                   />
                   <View style={s.toggleLabelRow}>
@@ -306,7 +293,7 @@ export default function HubScreen() {
                     </Text>
                     {!canToggle && (
                       <View style={s.proLockRow}>
-                        <Ionicons name="lock-closed" size={10} color={DT.subtext} />
+                        <Ionicons name="lock-closed" size={10} color={rinkGlass.textSecondary} />
                         <Text style={s.proLabel} testID={`${testID}-pro-label`}>
                           Pro feature
                         </Text>
@@ -317,8 +304,8 @@ export default function HubScreen() {
                 <Switch
                   value={notificationPrefs[key]}
                   onValueChange={() => togglePref(key)}
-                  trackColor={{ false: '#1a2744', true: DT.glow }}
-                  thumbColor={notificationPrefs[key] ? DT.accent : DT.subtext}
+                  trackColor={{ false: '#1a2744', true: rinkGlass.blueLight }}
+                  thumbColor={notificationPrefs[key] ? rinkGlass.blueLight : rinkGlass.textSecondary}
                   disabled={!canToggle}
                   testID={testID}
                 />
@@ -341,7 +328,7 @@ export default function HubScreen() {
           </View>
           <Pressable style={s.supportLink} testID="support-link">
             <Text style={s.supportLinkText}>Support</Text>
-            <Ionicons name="open-outline" size={12} color={DT.accent} style={{ marginLeft: 4 }} />
+            <Ionicons name="open-outline" size={12} color={rinkGlass.blueLight} style={{ marginLeft: 4 }} />
           </Pressable>
         </View>
 
@@ -355,7 +342,7 @@ export default function HubScreen() {
 const s = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: DT.bg,
+    backgroundColor: rinkGlass.ice,
     paddingTop: Platform.OS === 'ios' ? 60 : 30,
   },
   scroll: {
@@ -373,9 +360,10 @@ const s = StyleSheet.create({
   screenTitle: {
     fontSize: 32,
     fontWeight: '800',
-    color: DT.text,
+    color: rinkGlass.textPrimary,
     letterSpacing: -0.5,
     marginBottom: 16,
+    fontFamily: rinkGlass.fonts.display,
   },
   profileRow: {
     flexDirection: 'row',
@@ -393,14 +381,14 @@ const s = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: DT.bg,
+    backgroundColor: rinkGlass.ice,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
     fontSize: 22,
     fontWeight: '700',
-    color: DT.accent,
+    color: rinkGlass.blueLight,
   },
   identityCol: {
     flex: 1,
@@ -413,7 +401,7 @@ const s = StyleSheet.create({
   },
   emailText: {
     fontSize: 15,
-    color: DT.text,
+    color: rinkGlass.textPrimary,
     fontWeight: '500',
     flexShrink: 1,
   },
@@ -432,12 +420,12 @@ const s = StyleSheet.create({
   tierBadgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: DT.accent,
+    color: rinkGlass.blueLight,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   tierBadgeTextPro: {
-    color: DT.proBadge,
+    color: rinkGlass.powerPlay,
   },
   signOutButton: {
     alignSelf: 'flex-start',
@@ -448,7 +436,7 @@ const s = StyleSheet.create({
     fontSize: 13,
   },
   signInPrompt: {
-    color: DT.subtext,
+    color: rinkGlass.textSecondary,
     fontSize: 14,
   },
 
@@ -461,9 +449,9 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: DT.card,
+    backgroundColor: rinkGlass.glass,
     borderWidth: 1,
-    borderColor: DT.cardBorder,
+    borderColor: rinkGlass.glassBorder,
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 12,
@@ -476,7 +464,7 @@ const s = StyleSheet.create({
     marginRight: 10,
   },
   authButtonText: {
-    color: DT.text,
+    color: rinkGlass.textPrimary,
     fontWeight: '600',
     fontSize: 15,
   },
@@ -494,20 +482,20 @@ const s = StyleSheet.create({
     borderRadius: 12,
     padding: 14,
     borderWidth: 1,
-    borderColor: DT.cardBorder,
+    borderColor: rinkGlass.glassBorder,
     alignItems: 'center',
   },
   statValue: {
     fontSize: 24,
     fontWeight: '800',
-    color: DT.text,
+    color: rinkGlass.textPrimary,
     letterSpacing: -0.5,
-    fontFamily: 'Display-Bold',
+    fontFamily: rinkGlass.fonts.display,
   },
   statLabel: {
     fontSize: 11,
     fontWeight: '500',
-    color: DT.subtext,
+    color: rinkGlass.textSecondary,
     marginTop: 2,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -529,8 +517,9 @@ const s = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: DT.text,
+    color: rinkGlass.textPrimary,
     letterSpacing: 0.2,
+    fontFamily: rinkGlass.fonts.display,
   },
   sectionLine: {
     height: 1,
@@ -539,10 +528,10 @@ const s = StyleSheet.create({
 
   /* Card */
   card: {
-    backgroundColor: DT.card,
+    backgroundColor: rinkGlass.glass,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: DT.cardBorder,
+    borderColor: rinkGlass.glassBorder,
     padding: 16,
   },
 
@@ -555,7 +544,7 @@ const s = StyleSheet.create({
   },
   planLabel: {
     fontSize: 13,
-    color: DT.subtext,
+    color: rinkGlass.textSecondary,
   },
   freeBadge: {
     backgroundColor: 'rgba(96, 165, 250, 0.12)',
@@ -564,7 +553,7 @@ const s = StyleSheet.create({
     borderRadius: 8,
   },
   freeBadgeText: {
-    color: DT.accent,
+    color: rinkGlass.blueLight,
     fontWeight: '600',
     fontSize: 12,
   },
@@ -572,7 +561,7 @@ const s = StyleSheet.create({
     borderRadius: 14,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: DT.accent,
+    borderColor: rinkGlass.blueLight,
   },
   upgradeCard: {
     padding: 18,
@@ -600,7 +589,7 @@ const s = StyleSheet.create({
     gap: 10,
   },
   proActiveText: {
-    color: DT.proBadge,
+    color: rinkGlass.powerPlay,
     fontWeight: '700',
     fontSize: 16,
   },
@@ -629,7 +618,7 @@ const s = StyleSheet.create({
   },
   toggleLabel: {
     fontSize: 14,
-    color: DT.text,
+    color: rinkGlass.textPrimary,
     fontWeight: '500',
   },
   toggleLabelDisabled: {
@@ -643,7 +632,7 @@ const s = StyleSheet.create({
   },
   proLabel: {
     fontSize: 11,
-    color: DT.subtext,
+    color: rinkGlass.textSecondary,
   },
 
   /* About */
@@ -663,11 +652,11 @@ const s = StyleSheet.create({
   },
   aboutLabel: {
     fontSize: 13,
-    color: DT.subtext,
+    color: rinkGlass.textSecondary,
   },
   aboutValue: {
     fontSize: 13,
-    color: DT.text,
+    color: rinkGlass.textPrimary,
     fontWeight: '500',
   },
   supportLink: {
@@ -675,7 +664,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   supportLinkText: {
-    color: DT.accent,
+    color: rinkGlass.blueLight,
     fontWeight: '600',
     fontSize: 13,
   },
