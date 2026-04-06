@@ -16,7 +16,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { theme } from '../constants/theme';
+import { rinkGlass } from '../constants/theme';
 import { supabase } from '../lib/supabase';
 import { saveRoster, updateRoster } from '../services/fantasyRoster';
 import type { FantasyPlayer, FantasyRoster, ScoringFormat } from '../types/fantasy';
@@ -142,7 +142,7 @@ export default function RosterBuilder({
           {item.current_team_abbrev} {'\u2022'} {item.position_code}
         </Text>
         {alreadyAdded && (
-          <Ionicons name="checkmark-circle" size={18} color="#10b981" />
+          <Ionicons name="checkmark-circle" size={18} color={rinkGlass.faceoffDot} />
         )}
       </TouchableOpacity>
     );
@@ -209,11 +209,11 @@ export default function RosterBuilder({
 
         {/* Search */}
         <View style={styles.searchContainer}>
-          <Ionicons name="search" size={18} color={theme.subtext} style={styles.searchIcon} />
+          <Ionicons name="search" size={18} color={rinkGlass.textMuted} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search players by name..."
-            placeholderTextColor={theme.subtext}
+            placeholderTextColor={rinkGlass.textMuted}
             value={searchQuery}
             onChangeText={handleSearch}
             testID="roster-search-input"
@@ -232,7 +232,7 @@ export default function RosterBuilder({
                 testID={`chip-${player.playerId}`}
               >
                 <Text style={styles.chipText}>{player.playerName}</Text>
-                <Ionicons name="close-circle" size={14} color={theme.subtext} />
+                <Ionicons name="close-circle" size={14} color={rinkGlass.textSecondary} />
               </TouchableOpacity>
             ))}
           </View>
@@ -240,7 +240,7 @@ export default function RosterBuilder({
 
         {/* Search Results */}
         {searching ? (
-          <ActivityIndicator color={theme.accent} style={styles.loader} />
+          <ActivityIndicator color={rinkGlass.blueLight} style={styles.loader} />
         ) : (
           <FlatList
             data={searchResults}
@@ -263,7 +263,7 @@ export default function RosterBuilder({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.background,
+    backgroundColor: rinkGlass.ice,
   },
   header: {
     flexDirection: 'row',
@@ -273,21 +273,22 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
+    borderBottomColor: rinkGlass.glassBorder,
   },
   cancelText: {
     fontSize: 16,
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
   },
   title: {
     fontSize: 17,
     fontWeight: '600',
-    color: theme.text,
+    fontFamily: rinkGlass.fonts.display,
+    color: rinkGlass.textPrimary,
   },
   saveText: {
     fontSize: 16,
     fontWeight: '600',
-    color: theme.accent,
+    color: rinkGlass.blueLight,
   },
   saveTextDisabled: {
     opacity: 0.4,
@@ -301,16 +302,19 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 10,
     borderRadius: 8,
-    backgroundColor: theme.card,
+    backgroundColor: rinkGlass.glass,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: rinkGlass.glassBorder,
   },
   formatActive: {
-    backgroundColor: theme.accent,
+    backgroundColor: rinkGlass.blueLight,
+    borderColor: rinkGlass.blueLight,
   },
   formatText: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
   },
   formatTextActive: {
     color: '#fff',
@@ -318,11 +322,13 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.card,
+    backgroundColor: rinkGlass.boards,
     borderRadius: 10,
     marginHorizontal: 16,
     paddingHorizontal: 12,
     marginBottom: 8,
+    borderWidth: 1,
+    borderColor: rinkGlass.glassBorder,
   },
   searchIcon: {
     marginRight: 8,
@@ -331,7 +337,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 44,
     fontSize: 15,
-    color: theme.text,
+    color: rinkGlass.textPrimary,
   },
   chipsContainer: {
     flexDirection: 'row',
@@ -343,7 +349,7 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.factbox,
+    backgroundColor: rinkGlass.zamboni,
     borderRadius: 16,
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -351,7 +357,7 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontSize: 13,
-    color: theme.text,
+    color: rinkGlass.textPrimary,
   },
   resultsList: {
     flex: 1,
@@ -362,7 +368,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
+    borderBottomColor: rinkGlass.glassBorder,
   },
   resultRowDisabled: {
     opacity: 0.5,
@@ -371,11 +377,11 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontWeight: '500',
-    color: theme.text,
+    color: rinkGlass.textPrimary,
   },
   resultMeta: {
     fontSize: 13,
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     marginRight: 8,
   },
   loader: {
@@ -383,7 +389,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 14,
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     textAlign: 'center',
     marginTop: 24,
   },

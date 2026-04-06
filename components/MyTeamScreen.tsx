@@ -16,10 +16,9 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { theme } from '../constants/theme';
+import { rinkGlass } from '../constants/theme';
 import PremiumGate from './PremiumGate';
 import StartSitCard from './StartSitCard';
 import WeeklyOutlook from './WeeklyOutlook';
@@ -107,7 +106,7 @@ export default function MyTeamScreen() {
   if (isLoading) {
     return (
       <View style={styles.centered} testID="my-team-loading">
-        <ActivityIndicator size="large" color="#60a5fa" />
+        <ActivityIndicator size="large" color={rinkGlass.blueLight} />
       </View>
     );
   }
@@ -125,7 +124,7 @@ export default function MyTeamScreen() {
             {/* Glowing icon */}
             <View style={styles.emptyIconWrapper}>
               <View style={styles.emptyIconGlow} />
-              <Ionicons name="trophy-outline" size={56} color="#60a5fa" />
+              <Ionicons name="trophy-outline" size={56} color={rinkGlass.blueLight} />
             </View>
 
             <Text style={styles.emptyTitle}>Build Your Roster</Text>
@@ -139,15 +138,10 @@ export default function MyTeamScreen() {
               activeOpacity={0.85}
               testID="setup-roster-button"
             >
-              <LinearGradient
-                colors={['#60a5fa', '#3b82f6']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.ctaButton}
-              >
+              <View style={styles.ctaButton}>
                 <Ionicons name="add-circle" size={20} color="#fff" />
                 <Text style={styles.ctaText}>Add Players</Text>
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
 
             {/* Preview teaser cards */}
@@ -156,8 +150,8 @@ export default function MyTeamScreen() {
                 entering={FadeInDown.delay(200).duration(400)}
                 style={styles.previewCard}
               >
-                <View style={[styles.previewBadge, { backgroundColor: 'rgba(16, 185, 129, 0.2)' }]}>
-                  <Text style={[styles.previewBadgeText, { color: '#10b981' }]}>START</Text>
+                <View style={[styles.previewBadge, { backgroundColor: `${rinkGlass.faceoffDot}33` }]}>
+                  <Text style={[styles.previewBadgeText, { color: rinkGlass.faceoffDot }]}>START</Text>
                 </View>
                 <Text style={styles.previewPlayerName}>C. McDavid</Text>
                 <Text style={styles.previewPoints}>4.2 pts</Text>
@@ -167,8 +161,8 @@ export default function MyTeamScreen() {
                 entering={FadeInDown.delay(300).duration(400)}
                 style={styles.previewCard}
               >
-                <View style={[styles.previewBadge, { backgroundColor: 'rgba(96, 165, 250, 0.2)' }]}>
-                  <Text style={[styles.previewBadgeText, { color: '#60a5fa' }]}>PROJ</Text>
+                <View style={[styles.previewBadge, { backgroundColor: `${rinkGlass.blueLight}33` }]}>
+                  <Text style={[styles.previewBadgeText, { color: rinkGlass.blueLight }]}>PROJ</Text>
                 </View>
                 <Text style={styles.previewPlayerName}>N. MacKinnon</Text>
                 <Text style={styles.previewPoints}>3.8 pts</Text>
@@ -178,8 +172,8 @@ export default function MyTeamScreen() {
                 entering={FadeInDown.delay(400).duration(400)}
                 style={styles.previewCard}
               >
-                <View style={[styles.previewBadge, { backgroundColor: 'rgba(245, 158, 11, 0.2)' }]}>
-                  <Text style={[styles.previewBadgeText, { color: '#f59e0b' }]}>WAIVER</Text>
+                <View style={[styles.previewBadge, { backgroundColor: `${rinkGlass.powerPlay}33` }]}>
+                  <Text style={[styles.previewBadgeText, { color: rinkGlass.powerPlay }]}>WAIVER</Text>
                 </View>
                 <Text style={styles.previewPlayerName}>M. Boldy</Text>
                 <Text style={styles.previewPoints}>2.6 pts</Text>
@@ -195,8 +189,8 @@ export default function MyTeamScreen() {
               <RefreshControl
                 refreshing={false}
                 onRefresh={onRefresh}
-                tintColor="#60a5fa"
-                colors={['#60a5fa']}
+                tintColor={rinkGlass.blueLight}
+                colors={[rinkGlass.blueLight]}
               />
             }
             testID="my-team-roster"
@@ -212,16 +206,11 @@ export default function MyTeamScreen() {
                   <View style={styles.weekBadge}>
                     <Text style={styles.weekBadgeText}>Week {weekNumber}</Text>
                   </View>
-                  <LinearGradient
-                    colors={['#60a5fa', '#3b82f6']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.formatBadge}
-                  >
+                  <View style={styles.formatBadge}>
                     <Text style={styles.formatBadgeText}>
                       {formatScoringBadge(roster?.scoringFormat)}
                     </Text>
-                  </LinearGradient>
+                  </View>
                 </View>
               </View>
               <TouchableOpacity
@@ -229,7 +218,7 @@ export default function MyTeamScreen() {
                 style={styles.editButton}
                 testID="edit-roster-button"
               >
-                <Ionicons name="pencil" size={16} color="#60a5fa" />
+                <Ionicons name="pencil" size={16} color={rinkGlass.blueLight} />
               </TouchableOpacity>
             </Animated.View>
 
@@ -251,7 +240,7 @@ export default function MyTeamScreen() {
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
                   <Text style={styles.sectionTitle}>BENCH</Text>
-                  <View style={[styles.sectionUnderline, { backgroundColor: '#98a6bf' }]} />
+                  <View style={[styles.sectionUnderline, { backgroundColor: rinkGlass.textSecondary }]} />
                 </View>
                 {bench.map((p, idx) => (
                   <StartSitCard key={p.playerId} projection={p} index={idx} />
@@ -265,7 +254,7 @@ export default function MyTeamScreen() {
                 entering={FadeIn.duration(300)}
                 style={styles.noProjections}
               >
-                <Ionicons name="time-outline" size={28} color="#98a6bf" />
+                <Ionicons name="time-outline" size={28} color={rinkGlass.textSecondary} />
                 <Text style={styles.noProjectionsText}>
                   No projections available for today. Check back when games are scheduled.
                 </Text>
@@ -295,11 +284,11 @@ export default function MyTeamScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#071023',
+    backgroundColor: rinkGlass.ice,
   },
   centered: {
     flex: 1,
-    backgroundColor: '#071023',
+    backgroundColor: rinkGlass.ice,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -322,17 +311,18 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: 'rgba(96, 165, 250, 0.15)',
+    backgroundColor: rinkGlass.cardGlow,
   },
   emptyTitle: {
     fontSize: 26,
     fontWeight: '800',
-    color: '#e6eef8',
+    fontFamily: rinkGlass.fonts.display,
+    color: rinkGlass.textPrimary,
     marginBottom: 8,
   },
   emptyDescription: {
     fontSize: 15,
-    color: '#98a6bf',
+    color: rinkGlass.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 28,
@@ -341,11 +331,12 @@ const styles = StyleSheet.create({
   ctaButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: rinkGlass.blueLight,
     paddingVertical: 16,
     paddingHorizontal: 32,
     borderRadius: 14,
     gap: 10,
-    shadowColor: '#3b82f6',
+    shadowColor: rinkGlass.blueLight,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 12,
@@ -365,12 +356,12 @@ const styles = StyleSheet.create({
   },
   previewCard: {
     flex: 1,
-    backgroundColor: 'rgba(25, 46, 94, 0.6)',
+    backgroundColor: rinkGlass.glass,
     borderRadius: 12,
     padding: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(42, 64, 128, 0.5)',
+    borderColor: rinkGlass.glassBorder,
   },
   previewBadge: {
     borderRadius: 4,
@@ -386,14 +377,15 @@ const styles = StyleSheet.create({
   previewPlayerName: {
     fontSize: 12,
     fontWeight: '600',
-    color: 'rgba(230, 238, 248, 0.5)',
+    color: rinkGlass.textMuted,
     marginBottom: 4,
     textAlign: 'center',
   },
   previewPoints: {
     fontSize: 14,
     fontWeight: '800',
-    color: 'rgba(96, 165, 250, 0.5)',
+    fontFamily: rinkGlass.fonts.display,
+    color: rinkGlass.textSecondary,
   },
   // ── Scroll & Header ──────────────────────────────────────
   scroll: {
@@ -413,7 +405,8 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#e6eef8',
+    fontFamily: rinkGlass.fonts.display,
+    color: rinkGlass.textPrimary,
     marginBottom: 8,
   },
   badgeRow: {
@@ -422,7 +415,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   weekBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: rinkGlass.glass,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -430,12 +423,13 @@ const styles = StyleSheet.create({
   weekBadgeText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#98a6bf',
+    color: rinkGlass.textSecondary,
   },
   formatBadge: {
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 4,
+    backgroundColor: rinkGlass.blueLight,
   },
   formatBadgeText: {
     fontSize: 12,
@@ -446,7 +440,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: 'rgba(96, 165, 250, 0.12)',
+    backgroundColor: `${rinkGlass.blueLight}1F`,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -460,7 +454,8 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#98a6bf',
+    fontFamily: rinkGlass.fonts.display,
+    color: rinkGlass.textSecondary,
     letterSpacing: 1.5,
     marginBottom: 6,
   },
@@ -468,21 +463,21 @@ const styles = StyleSheet.create({
     height: 2,
     width: 32,
     borderRadius: 1,
-    backgroundColor: '#60a5fa',
+    backgroundColor: rinkGlass.blueLight,
   },
   noProjections: {
-    backgroundColor: '#192e5e',
-    borderRadius: 14,
+    backgroundColor: rinkGlass.glass,
+    borderRadius: 12,
     padding: 28,
     alignItems: 'center',
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#2a4080',
+    borderColor: rinkGlass.glassBorder,
     gap: 10,
   },
   noProjectionsText: {
     fontSize: 14,
-    color: '#98a6bf',
+    color: rinkGlass.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
   },
