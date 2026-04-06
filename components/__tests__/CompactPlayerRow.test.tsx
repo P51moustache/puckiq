@@ -1,7 +1,7 @@
 /**
  * Tests for CompactPlayerRow component
  * Verifies rendering of ranks #6-10: rank, small headshot, last name only,
- * team abbrev, trend pill, and stat value.
+ * team abbrev, trend pill or flame badges, and stat value.
  */
 
 // Mock react-native (string components)
@@ -9,6 +9,7 @@ jest.mock('react-native', () => ({
   View: 'View',
   Text: 'Text',
   TouchableOpacity: 'TouchableOpacity',
+  Pressable: 'Pressable',
   Platform: { select: (opts: any) => opts.ios },
   StyleSheet: { create: (styles: any) => styles },
 }));
@@ -162,10 +163,34 @@ describe('CompactPlayerRow', () => {
       const texts = collectTexts(result);
       expect(texts).toContain('EDM');
     });
+
+    it('renders season points', () => {
+      const result = CompactPlayerRow({
+        player: makePlayer({ seasonPoints: 85 }),
+        rank: 6,
+        statCategory: 'points',
+        onPress: mockOnPress,
+      });
+      const texts = collectTexts(result);
+      expect(texts).toContain('85');
+    });
+
+    it('renders goals and assists breakdown', () => {
+      const result = CompactPlayerRow({
+        player: makePlayer({ seasonGoals: 35, seasonAssists: 50 }),
+        rank: 6,
+        statCategory: 'points',
+        onPress: mockOnPress,
+      });
+      const texts = collectTexts(result);
+      const joined = texts.join('');
+      expect(joined).toContain('35G');
+      expect(joined).toContain('50A');
+    });
   });
 
-  describe('trend pill', () => {
-    it('renders trend label text HOT', () => {
+  describe('flame badges and trend pills', () => {
+    it('renders flame emojis for HOT trend (5 flames)', () => {
       const result = CompactPlayerRow({
         player: makePlayer({ trendLabel: 'HOT' }),
         rank: 6,
@@ -173,10 +198,25 @@ describe('CompactPlayerRow', () => {
         onPress: mockOnPress,
       });
       const texts = collectTexts(result);
-      expect(texts).toContain('HOT');
+      const flameText = texts.find(t => t.includes('\uD83D\uDD25'));
+      expect(flameText).toBeTruthy();
+      expect(flameText!.split('\uD83D\uDD25').length - 1).toBe(5);
     });
 
-    it('renders COLD trend label', () => {
+    it('renders flame emojis for WARM trend (4 flames)', () => {
+      const result = CompactPlayerRow({
+        player: makePlayer({ trendLabel: 'WARM' }),
+        rank: 6,
+        statCategory: 'goals',
+        onPress: mockOnPress,
+      });
+      const texts = collectTexts(result);
+      const flameText = texts.find(t => t.includes('\uD83D\uDD25'));
+      expect(flameText).toBeTruthy();
+      expect(flameText!.split('\uD83D\uDD25').length - 1).toBe(4);
+    });
+
+    it('renders COLD trend label as text pill', () => {
       const result = CompactPlayerRow({
         player: makePlayer({ trendLabel: 'COLD' }),
         rank: 6,
@@ -185,9 +225,23 @@ describe('CompactPlayerRow', () => {
       });
       const texts = collectTexts(result);
       expect(texts).toContain('COLD');
+      // No flame emojis
+      const flameText = texts.find(t => t.includes('\uD83D\uDD25'));
+      expect(flameText).toBeFalsy();
     });
 
-    it('renders STEADY trend label', () => {
+    it('renders COOL trend label as text pill', () => {
+      const result = CompactPlayerRow({
+        player: makePlayer({ trendLabel: 'COOL' }),
+        rank: 6,
+        statCategory: 'goals',
+        onPress: mockOnPress,
+      });
+      const texts = collectTexts(result);
+      expect(texts).toContain('COOL');
+    });
+
+    it('renders nothing for STEADY trend (no pill, no flames)', () => {
       const result = CompactPlayerRow({
         player: makePlayer({ trendLabel: 'STEADY' }),
         rank: 6,
@@ -195,22 +249,9 @@ describe('CompactPlayerRow', () => {
         onPress: mockOnPress,
       });
       const texts = collectTexts(result);
-      expect(texts).toContain('STEADY');
-    });
-
-    it('applies trend color to pill background', () => {
-      const result = CompactPlayerRow({
-        player: makePlayer({ trendLabel: 'HOT' }),
-        rank: 6,
-        statCategory: 'goals',
-        onPress: mockOnPress,
-      });
-      const views = findByType(result, 'View');
-      const pill = views.find(
-        (v: any) => v?.props?.style && Array.isArray(v.props.style) &&
-          v.props.style.some((s: any) => s?.backgroundColor === '#ef444422'),
-      );
-      expect(pill).toBeTruthy();
+      expect(texts).not.toContain('STEADY');
+      const flameText = texts.find(t => t.includes('\uD83D\uDD25'));
+      expect(flameText).toBeFalsy();
     });
 
     it('applies COLD trend color to pill background', () => {
@@ -223,66 +264,9 @@ describe('CompactPlayerRow', () => {
       const views = findByType(result, 'View');
       const pill = views.find(
         (v: any) => v?.props?.style && Array.isArray(v.props.style) &&
-          v.props.style.some((s: any) => s?.backgroundColor === '#6366f122'),
+          v.props.style.some((s: any) => typeof s?.backgroundColor === 'string' && s.backgroundColor.endsWith('22')),
       );
       expect(pill).toBeTruthy();
-    });
-  });
-
-  describe('stat values by category', () => {
-    it('shows goals with 2 decimal places', () => {
-      const result = CompactPlayerRow({
-        player: makePlayer({ avgGoals5g: 0.8 }),
-        rank: 6,
-        statCategory: 'goals',
-        onPress: mockOnPress,
-      });
-      const texts = collectTexts(result);
-      expect(texts).toContain('0.80');
-    });
-
-    it('shows assists with 2 decimal places', () => {
-      const result = CompactPlayerRow({
-        player: makePlayer({ avgAssists5g: 1.2 }),
-        rank: 6,
-        statCategory: 'assists',
-        onPress: mockOnPress,
-      });
-      const texts = collectTexts(result);
-      expect(texts).toContain('1.20');
-    });
-
-    it('shows points with 2 decimal places', () => {
-      const result = CompactPlayerRow({
-        player: makePlayer({ avgPoints5g: 2.0 }),
-        rank: 6,
-        statCategory: 'points',
-        onPress: mockOnPress,
-      });
-      const texts = collectTexts(result);
-      expect(texts).toContain('2.00');
-    });
-
-    it('shows shots with 1 decimal place', () => {
-      const result = CompactPlayerRow({
-        player: makePlayer({ avgShots5g: 4.0 }),
-        rank: 6,
-        statCategory: 'shots',
-        onPress: mockOnPress,
-      });
-      const texts = collectTexts(result);
-      expect(texts).toContain('4.0');
-    });
-
-    it('shows 0 for unknown stat category', () => {
-      const result = CompactPlayerRow({
-        player: makePlayer(),
-        rank: 6,
-        statCategory: 'unknown' as StatCategory,
-        onPress: mockOnPress,
-      });
-      const texts = collectTexts(result);
-      expect(texts).toContain('0');
     });
   });
 

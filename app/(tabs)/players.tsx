@@ -497,12 +497,16 @@ export default function PlayersScreen() {
                                 </Text>
                               </View>
                             )}
-                            {item.pointStreak >= 3 && (
+                            {(item.trendLabel === 'HOT' || item.trendLabel === 'WARM') ? (
+                              <Text style={styles.spotlightFlames}>
+                                {item.trendLabel === 'HOT' ? '\uD83D\uDD25\uD83D\uDD25\uD83D\uDD25\uD83D\uDD25\uD83D\uDD25' : '\uD83D\uDD25\uD83D\uDD25\uD83D\uDD25\uD83D\uDD25'}
+                              </Text>
+                            ) : item.pointStreak >= 3 ? (
                               <View style={styles.spotlightStreakRow}>
                                 <Ionicons name="flame" size={10} color="#f97316" />
                                 <Text style={styles.spotlightStreak}>{item.pointStreak}g point streak</Text>
                               </View>
-                            )}
+                            ) : null}
                           </View>
                         </Pressable>
                       </View>
@@ -563,6 +567,7 @@ export default function PlayersScreen() {
                     player={player}
                     rank={i + 2}
                     hitRate={hitRates.get(player.playerId)}
+                    leaderTrend={leaderTrends.get(player.playerId)}
                     statCategory={statCategory}
                     onPress={handlePlayerTap}
                   />
@@ -797,6 +802,11 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '700',
     color: theme.semantic.positive,
+  },
+  spotlightFlames: {
+    fontSize: 10,
+    marginTop: 3,
+    textAlign: 'center',
   },
   spotlightStreakRow: {
     flexDirection: 'row',

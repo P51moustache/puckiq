@@ -6,16 +6,16 @@
 import React, { useCallback, useMemo } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
-import { theme } from '../constants/theme';
+import { rinkGlass } from '../constants/theme';
 import { getTeamColors } from '../constants/teamColors';
 import type { TrendingPlayer, StatCategory } from '../services/playerTrends';
 
 const TREND_COLORS: Record<string, string> = {
-  HOT: '#ef4444',
-  WARM: '#f97316',
-  STEADY: '#60a5fa',
+  HOT: rinkGlass.goalLight,
+  WARM: rinkGlass.powerPlay,
+  STEADY: rinkGlass.blueLight,
   COOL: '#38bdf8',
-  COLD: '#6366f1',
+  COLD: rinkGlass.blueLight,
 };
 
 interface CompactPlayerRowProps {
@@ -33,7 +33,7 @@ export default React.memo(function CompactPlayerRow({
 }: CompactPlayerRowProps) {
   const handlePress = useCallback(() => onPress(player.playerId), [onPress, player.playerId]);
   const teamColors = useMemo(() => getTeamColors(player.teamAbbrev), [player.teamAbbrev]);
-  const trendColor = TREND_COLORS[player.trendLabel] || theme.accent;
+  const trendColor = TREND_COLORS[player.trendLabel] || rinkGlass.blueLight;
 
   // Always points-focused
   const goalsAssists = `${player.seasonGoals}G · ${player.seasonAssists}A`;
@@ -58,11 +58,15 @@ export default React.memo(function CompactPlayerRow({
       <Text style={styles.teamAbbrev}>{player.teamAbbrev}</Text>
       <Text style={styles.goalsAssists}>{goalsAssists}</Text>
 
-      {player.trendLabel !== 'STEADY' && (
+      {player.trendLabel === 'HOT' ? (
+        <Text style={styles.flamesBadge}>{'\uD83D\uDD25\uD83D\uDD25\uD83D\uDD25\uD83D\uDD25\uD83D\uDD25'}</Text>
+      ) : player.trendLabel === 'WARM' ? (
+        <Text style={styles.flamesBadge}>{'\uD83D\uDD25\uD83D\uDD25\uD83D\uDD25\uD83D\uDD25'}</Text>
+      ) : player.trendLabel !== 'STEADY' ? (
         <View style={[styles.trendPill, { backgroundColor: trendColor + '22' }]}>
           <Text style={[styles.trendText, { color: trendColor }]}>{player.trendLabel}</Text>
         </View>
-      )}
+      ) : null}
 
       <Text style={styles.statValue}>{player.seasonPoints}</Text>
     </Pressable>
@@ -76,45 +80,50 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.04)',
+    borderBottomColor: rinkGlass.glassBorder,
   },
   rowPressed: {
-    transform: [{ scale: 0.97 }],
+    transform: [{ scale: rinkGlass.pressScale }],
     opacity: 0.9,
   },
   rankNumber: {
     fontSize: 13,
     fontWeight: '700',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     width: 20,
     textAlign: 'center',
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+    fontFamily: rinkGlass.fonts.mono,
   },
   headshot: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: theme.subtle,
+    backgroundColor: rinkGlass.boards,
     marginLeft: 6,
   },
   playerName: {
     fontSize: 13,
     fontWeight: '600',
-    color: theme.text,
+    color: rinkGlass.textPrimary,
     flex: 1,
     marginLeft: 8,
   },
   teamAbbrev: {
     fontSize: 11,
     fontWeight: '600',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     marginRight: 6,
   },
   goalsAssists: {
     fontSize: 10,
     fontWeight: '600',
-    color: theme.accent,
+    color: rinkGlass.blueLight,
     letterSpacing: 0.3,
+    marginRight: 8,
+    fontFamily: rinkGlass.fonts.mono,
+  },
+  flamesBadge: {
+    fontSize: 9,
     marginRight: 8,
   },
   trendPill: {
@@ -131,8 +140,8 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 14,
     fontWeight: '800',
-    color: theme.text,
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+    color: rinkGlass.textPrimary,
+    fontFamily: rinkGlass.fonts.mono,
     fontVariant: ['tabular-nums'] as any,
     minWidth: 40,
     textAlign: 'right',
