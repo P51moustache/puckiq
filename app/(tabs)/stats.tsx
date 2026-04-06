@@ -214,6 +214,8 @@ function EdgeContent() {
   return (
     <ScrollView style={localStyles.factorsContainer} testID="edge-content">
       {/* Season Leaders */}
+      {skaterLanding && (skaterLanding.hardestShot || skaterLanding.maxSkatingSpeed) && (
+      <>
       <View style={{ paddingHorizontal: 0, marginBottom: 12 }}>
         <Text style={localStyles.tooltipsSectionTitle}>Season Leaders</Text>
         <View style={{ width: 32, height: 2, backgroundColor: rinkGlass.blueLight, borderRadius: 1, marginTop: 4, opacity: 0.6 }} />
@@ -246,6 +248,8 @@ function EdgeContent() {
           </View>
         )}
       </View>
+      </>
+      )}
 
       {/* Last Game Night */}
       {byTheNumbers && (
@@ -325,8 +329,12 @@ function EdgeContent() {
       )}
 
       {!skaterLanding && !teamLanding && !byTheNumbers && (
-        <View style={{ alignItems: 'center', paddingTop: 40 }}>
-          <Text style={{ color: rinkGlass.textSecondary, fontSize: 14 }}>Edge data unavailable</Text>
+        <View style={{ alignItems: 'center', paddingTop: 60, gap: 12 }}>
+          <Ionicons name="analytics-outline" size={36} color={rinkGlass.textMuted} />
+          <Text style={{ color: rinkGlass.textSecondary, fontSize: 15, fontWeight: '600' }}>Edge Data Coming Soon</Text>
+          <Text style={{ color: rinkGlass.textMuted, fontSize: 13, textAlign: 'center', paddingHorizontal: 40, lineHeight: 18 }}>
+            NHL Edge tracking stats like hardest shots, fastest skaters, and speed bursts will appear here during the season.
+          </Text>
         </View>
       )}
 

@@ -110,7 +110,14 @@ export default function PlayersScreen() {
   const loadTrendingData = useCallback(async () => {
     try {
       // Step 1: Leaders first (most visible, queries skater_trend_summary VIEW)
-      const leaders = await getLeagueLeaders(statCategory, 10);
+      const rawLeaders = await getLeagueLeaders(statCategory, 10);
+      // Deduplicate: keep first (highest-stat) occurrence per player
+      const seenIds = new Set<number>();
+      const leaders = rawLeaders.filter(p => {
+        if (seenIds.has(p.playerId)) return false;
+        seenIds.add(p.playerId);
+        return true;
+      });
       setLeagueLeaders(leaders);
 
       // Step 2: Trending + goalies (sequential to avoid VIEW query overload)
