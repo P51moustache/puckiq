@@ -46,6 +46,22 @@ function getAlertIcon(type: AlertType): keyof typeof Ionicons.glyphMap {
 const SWIPE_THRESHOLD = 100;
 const HINT_THRESHOLD = 40;
 
+function formatRelativeTime(timestamp: string): string {
+  const now = Date.now();
+  const then = new Date(timestamp).getTime();
+  if (isNaN(then)) return timestamp; // fallback for non-ISO strings
+  const diffMs = now - then;
+  const diffMin = Math.floor(diffMs / 60000);
+  const diffHr = Math.floor(diffMs / 3600000);
+  const diffDay = Math.floor(diffMs / 86400000);
+
+  if (diffMin < 1) return 'Just now';
+  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffHr < 24) return `${diffHr}h ago`;
+  if (diffDay < 7) return `${diffDay}d ago`;
+  return new Date(timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
 interface SwipeableAlertCardProps {
   alert: FantasyAlert;
   index: number;
@@ -204,7 +220,7 @@ function SwipeableAlertCard({
                 <Text style={styles.teamAbbrev}>{alert.team}</Text>
               </View>
               <Text style={styles.message}>{alert.message}</Text>
-              <Text style={styles.timestamp}>{alert.timestamp}</Text>
+              <Text style={styles.timestamp}>{formatRelativeTime(alert.timestamp)}</Text>
             </View>
 
             {/* Saved overlay */}

@@ -277,9 +277,9 @@ function generateFallbackData() {
   ];
 
   const alerts: FantasyAlert[] = [
-    { id: 'tip-trending', type: 'goalie', playerName: 'Trending Watch', team: '', message: 'Kaprizov on a 5-game point streak — add to watchlist?', timestamp: now, isRosterPlayer: false },
+    { id: 'tip-trending', type: 'goalie', playerName: 'Trending Watch', team: 'MIN', message: 'Kaprizov on a 5-game point streak — add to watchlist?', timestamp: now, isRosterPlayer: false },
     { id: 'tip-roster', type: 'lineup', playerName: 'Roster Setup', team: '', message: 'Build your roster for personalized start/sit alerts', timestamp: now, isRosterPlayer: false },
-    { id: 'tip-waiver', type: 'injury', playerName: 'Waiver Wire', team: '', message: 'Check the waiver module for under-owned sleepers', timestamp: now, isRosterPlayer: false },
+    { id: 'tip-waiver', type: 'lineup', playerName: 'Waiver Wire', team: '', message: 'Under-owned sleepers available — check the waiver module', timestamp: now, isRosterPlayer: false },
   ];
 
   const waiverPlayers: WaiverPlayer[] = [

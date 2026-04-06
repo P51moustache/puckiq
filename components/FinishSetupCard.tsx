@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { theme } from '../constants/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { rinkGlass } from '../constants/theme';
 
 const STORAGE_KEYS = {
   ONBOARDING_COMPLETE: 'puckiq_onboarding_complete',
@@ -57,7 +58,12 @@ export default function FinishSetupCard({ onSetUpNow }: FinishSetupCardProps) {
   return (
     <View style={styles.container} testID="finish-setup-card">
       <View style={styles.content}>
-        <Text style={styles.title}>Finish Your Setup</Text>
+        <View style={styles.titleRow}>
+          <View style={styles.iconCircle}>
+            <Ionicons name="construct-outline" size={16} color={rinkGlass.blueLight} />
+          </View>
+          <Text style={styles.title}>Finish Your Setup</Text>
+        </View>
         <Text style={styles.description}>
           Set up your roster for personalized recommendations
         </Text>
@@ -85,45 +91,62 @@ const styles = StyleSheet.create({
   container: {
     marginHorizontal: 16,
     marginBottom: 16,
-    backgroundColor: theme.card,
+    backgroundColor: rinkGlass.glass,
     borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: theme.accent,
-    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: rinkGlass.glassBorder,
+    borderLeftWidth: 3,
+    borderLeftColor: rinkGlass.blueLight,
   },
   content: {
     padding: 16,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 6,
+  },
+  iconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(76, 201, 240, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   title: {
     fontSize: 16,
     fontWeight: '700',
-    color: theme.text,
-    marginBottom: 4,
+    color: rinkGlass.textPrimary,
+    fontFamily: rinkGlass.fonts.display,
   },
   description: {
     fontSize: 13,
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     lineHeight: 18,
-    marginBottom: 12,
+    marginBottom: 14,
+    marginLeft: 38,
   },
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
+    marginLeft: 38,
   },
   setupButton: {
-    backgroundColor: theme.accent,
+    backgroundColor: rinkGlass.blueLight,
     paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     borderRadius: 10,
   },
   setupButtonText: {
-    color: '#fff',
+    color: rinkGlass.ice,
     fontWeight: '700',
     fontSize: 13,
   },
   dismissText: {
-    color: theme.subtext,
+    color: rinkGlass.textMuted,
     fontSize: 13,
   },
 });

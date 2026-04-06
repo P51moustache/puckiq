@@ -23,6 +23,7 @@ import Animated, {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { rinkGlass, theme } from '../../constants/theme';
+import { getTeamColors } from '../../constants/teamColors';
 
 interface StartSitPlayer {
   id: number;
@@ -236,9 +237,11 @@ function PlayerCard({
             </View>
           )}
 
-          {/* Player icon placeholder */}
-          <View style={styles.iconContainer}>
-            <Ionicons name="person" size={28} color={rinkGlass.textSecondary} />
+          {/* Team-colored player initials */}
+          <View style={[styles.iconContainer, { backgroundColor: getTeamColors(player.team).primary }]}>
+            <Text style={styles.initialText}>
+              {player.name.includes('.') ? player.name.split('. ')[1]?.[0] ?? player.name[0] : player.name[0]}
+            </Text>
           </View>
 
           {/* Player info */}
@@ -420,6 +423,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
+  },
+  initialText: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#fff',
+    fontFamily: rinkGlass.fonts.display,
   },
   playerName: {
     fontFamily: rinkGlass.fonts.display,
