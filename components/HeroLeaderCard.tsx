@@ -8,7 +8,7 @@ import React, { useCallback, useMemo } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { theme } from '../constants/theme';
+import { rinkGlass } from '../constants/theme';
 import { getTeamColors } from '../constants/teamColors';
 import type { TrendingPlayer, StatCategory, LeaderTrend } from '../services/playerTrends';
 
@@ -133,7 +133,7 @@ export default React.memo(function HeroLeaderCard({
 
         {projectionText && (
           <View style={styles.paceBadge}>
-            <Ionicons name="trending-up" size={12} color={theme.accent} />
+            <Ionicons name="trending-up" size={12} color={rinkGlass.blueLight} />
             <Text style={styles.paceText}>{projectionText}</Text>
           </View>
         )}
@@ -152,8 +152,8 @@ export default React.memo(function HeroLeaderCard({
           <Text style={styles.formLabel}>RECENT 5 GAMES</Text>
           <Text style={[
             styles.formValue,
-            recentIsUp && { color: theme.semantic.positive },
-            recentIsDown && { color: theme.semantic.negative },
+            recentIsUp && { color: rinkGlass.faceoffDot },
+            recentIsDown && { color: rinkGlass.redLine },
           ]}>
             {recentAvg.toFixed(2)}
           </Text>
@@ -174,8 +174,8 @@ export default React.memo(function HeroLeaderCard({
             <Text style={styles.shootingLabel}>SHOOTING %</Text>
             <Text style={[
               styles.shootingValue,
-              shootingPctRecent > shootingPctSeason && { color: theme.semantic.positive },
-              shootingPctRecent < shootingPctSeason * 0.85 && { color: theme.semantic.negative },
+              shootingPctRecent > shootingPctSeason && { color: rinkGlass.faceoffDot },
+              shootingPctRecent < shootingPctSeason * 0.85 && { color: rinkGlass.redLine },
             ]}>
               {shootingPctRecent.toFixed(1)}%
             </Text>
@@ -189,8 +189,8 @@ export default React.memo(function HeroLeaderCard({
               {
                 width: `${shootingBarWidth * 100}%`,
                 backgroundColor: shootingPctRecent > shootingPctSeason
-                  ? theme.semantic.positive
-                  : theme.accent,
+                  ? rinkGlass.faceoffDot
+                  : rinkGlass.blueLight,
               },
             ]} />
           </View>
@@ -209,12 +209,12 @@ export default React.memo(function HeroLeaderCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: theme.card,
+    backgroundColor: rinkGlass.glass,
     borderRadius: 14,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: rinkGlass.glassBorder,
   },
   cardPressed: {
     transform: [{ scale: 0.97 }],
@@ -230,13 +230,13 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     width: 32,
     textAlign: 'center',
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+    fontFamily: rinkGlass.fonts.mono,
   },
   headshot: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: theme.subtle,
+    backgroundColor: rinkGlass.boards,
     marginLeft: 8,
     borderWidth: 2,
   },
@@ -247,13 +247,13 @@ const styles = StyleSheet.create({
   playerName: {
     fontSize: 18,
     fontWeight: '700',
-    color: theme.text,
+    color: rinkGlass.textPrimary,
     marginBottom: 2,
   },
   playerMeta: {
     fontSize: 13,
     fontWeight: '600',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
   },
 
   // Big stat row
@@ -272,26 +272,26 @@ const styles = StyleSheet.create({
   bigStatNumber: {
     fontSize: 36,
     fontWeight: '900',
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+    fontFamily: rinkGlass.fonts.mono,
     fontVariant: ['tabular-nums'] as any,
   },
   bigStatLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     letterSpacing: 0.5,
   },
   gamesPlayedLabel: {
     fontSize: 10,
     fontWeight: '600',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     marginTop: 1,
   },
   paceBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: theme.accent + '18',
+    backgroundColor: rinkGlass.blueLight + '18',
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
   paceText: {
     fontSize: 10,
     fontWeight: '700',
-    color: theme.accent,
+    color: rinkGlass.blueLight,
   },
   streakBadge: {
     flexDirection: 'row',
@@ -320,7 +320,7 @@ const styles = StyleSheet.create({
   formRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: rinkGlass.glassHighlight,
     borderRadius: 10,
     padding: 10,
     marginBottom: 10,
@@ -333,21 +333,21 @@ const styles = StyleSheet.create({
   formLabel: {
     fontSize: 9,
     fontWeight: '700',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     letterSpacing: 0.8,
     marginBottom: 3,
   },
   formValue: {
     fontSize: 17,
     fontWeight: '800',
-    color: theme.text,
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+    color: rinkGlass.textPrimary,
+    fontFamily: rinkGlass.fonts.mono,
     fontVariant: ['tabular-nums'] as any,
   },
   formSubLabel: {
     fontSize: 8,
     fontWeight: '600',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     marginTop: 1,
   },
   formDivider: {
@@ -369,19 +369,19 @@ const styles = StyleSheet.create({
   shootingLabel: {
     fontSize: 9,
     fontWeight: '700',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     letterSpacing: 0.8,
   },
   shootingValue: {
     fontSize: 13,
     fontWeight: '800',
-    color: theme.text,
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+    color: rinkGlass.textPrimary,
+    fontFamily: rinkGlass.fonts.mono,
   },
   shootingSeasonRef: {
     fontSize: 10,
     fontWeight: '600',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
   },
   shootingBarBg: {
     height: 4,
@@ -403,7 +403,7 @@ const styles = StyleSheet.create({
   seasonLineText: {
     fontSize: 11,
     fontWeight: '600',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     textAlign: 'center',
     letterSpacing: 0.3,
   },

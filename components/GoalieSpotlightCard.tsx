@@ -6,16 +6,16 @@
 import React, { useCallback, useMemo } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
-import { theme } from '../constants/theme';
+import { rinkGlass } from '../constants/theme';
 import { getTeamColors } from '../constants/teamColors';
 import type { TrendingGoalie } from '../services/playerTrends';
 
 const TREND_COLORS: Record<string, string> = {
-  HOT: '#ef4444',
-  WARM: '#f97316',
-  STEADY: '#60a5fa',
+  HOT: rinkGlass.goalLight,
+  WARM: rinkGlass.powerPlay,
+  STEADY: rinkGlass.blueLight,
   COOL: '#38bdf8',
-  COLD: '#6366f1',
+  COLD: rinkGlass.blueLight,
 };
 
 interface GoalieSpotlightCardProps {
@@ -28,7 +28,7 @@ export default React.memo(function GoalieSpotlightCard({
   onPress,
 }: GoalieSpotlightCardProps) {
   const teamColors = useMemo(() => getTeamColors(goalie.teamAbbrev), [goalie.teamAbbrev]);
-  const trendColor = TREND_COLORS[goalie.trendLabel] || theme.accent;
+  const trendColor = TREND_COLORS[goalie.trendLabel] || rinkGlass.blueLight;
   const handlePress = useCallback(() => onPress(goalie.playerId), [onPress, goalie.playerId]);
 
   // Compare recent vs season save percentage
@@ -96,15 +96,15 @@ export default React.memo(function GoalieSpotlightCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: theme.card,
+    backgroundColor: rinkGlass.glass,
     borderRadius: 14,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: rinkGlass.glassBorder,
   },
   cardPressed: {
-    transform: [{ scale: 0.97 }],
+    transform: [{ scale: rinkGlass.pressScale }],
     opacity: 0.9,
   },
   headerRow: {
@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: theme.subtle,
+    backgroundColor: rinkGlass.boards,
   },
   nameContainer: {
     flex: 1,
@@ -125,13 +125,13 @@ const styles = StyleSheet.create({
   playerName: {
     fontSize: 16,
     fontWeight: '700',
-    color: theme.text,
+    color: rinkGlass.textPrimary,
     marginBottom: 2,
   },
   playerMeta: {
     fontSize: 12,
     fontWeight: '600',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
   },
   trendBadge: {
     borderWidth: 2,
@@ -155,21 +155,21 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 10,
     fontWeight: '600',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     letterSpacing: 0.5,
     marginBottom: 3,
   },
   statValue: {
     fontSize: 15,
     fontWeight: '800',
-    color: theme.text,
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+    color: rinkGlass.textPrimary,
+    fontFamily: rinkGlass.fonts.mono,
     fontVariant: ['tabular-nums'] as any,
   },
   statValueGreen: {
-    color: theme.semantic.positive,
+    color: rinkGlass.faceoffDot,
   },
   statValueRed: {
-    color: '#ef4444',
+    color: rinkGlass.redLine,
   },
 });

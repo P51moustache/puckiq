@@ -1,7 +1,7 @@
 import React from 'react';
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { theme } from '../constants/theme';
+import { rinkGlass } from '../constants/theme';
 import type { PlayerProjection } from '../types/fantasy';
 
 // ---------------------------------------------------------------------------
@@ -18,10 +18,10 @@ interface FantasyProjectionRowProps {
 // ---------------------------------------------------------------------------
 
 const REC_COLORS: Record<string, { bg: string; text: string }> = {
-  START: { bg: 'rgba(34, 197, 94, 0.15)', text: '#22c55e' },
-  UPSIDE: { bg: 'rgba(59, 130, 246, 0.15)', text: '#3b82f6' },
-  FLEX: { bg: 'rgba(251, 191, 36, 0.15)', text: '#fbbf24' },
-  SIT: { bg: 'rgba(239, 68, 68, 0.15)', text: '#ef4444' },
+  START: { bg: rinkGlass.faceoffDot + '26', text: rinkGlass.faceoffDot },
+  UPSIDE: { bg: rinkGlass.blueLight + '26', text: rinkGlass.blueLight },
+  FLEX: { bg: rinkGlass.powerPlay + '26', text: rinkGlass.powerPlay },
+  SIT: { bg: rinkGlass.redLine + '26', text: rinkGlass.redLine },
 };
 
 // ---------------------------------------------------------------------------
@@ -75,7 +75,7 @@ export default function FantasyProjectionRow({ projection, onPress }: FantasyPro
         <Text style={styles.pointsLabel}>FPts</Text>
       </View>
 
-      <Ionicons name="chevron-forward" size={14} color={theme.subtext} />
+      <Ionicons name="chevron-forward" size={14} color={rinkGlass.textSecondary} />
     </TouchableOpacity>
   );
 }
@@ -88,12 +88,12 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.card,
+    backgroundColor: rinkGlass.glass,
     borderRadius: 12,
     padding: 12,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: rinkGlass.glassBorder,
   },
   info: {
     flex: 1,
@@ -108,11 +108,11 @@ const styles = StyleSheet.create({
   playerName: {
     fontSize: 14,
     fontWeight: '700',
-    color: theme.text,
+    color: rinkGlass.textPrimary,
     flexShrink: 1,
   },
   positionBadge: {
-    backgroundColor: theme.accent + '22',
+    backgroundColor: rinkGlass.blueLight + '22',
     borderRadius: 4,
     paddingHorizontal: 6,
     paddingVertical: 1,
@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
   positionText: {
     fontSize: 10,
     fontWeight: '800',
-    color: theme.accent,
+    color: rinkGlass.blueLight,
     letterSpacing: 0.5,
   },
   metaRow: {
@@ -132,12 +132,12 @@ const styles = StyleSheet.create({
   teamText: {
     fontSize: 12,
     fontWeight: '600',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
   },
   opponentText: {
     fontSize: 12,
     fontWeight: '600',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
   },
   recBadge: {
     borderRadius: 4,
@@ -152,7 +152,8 @@ const styles = StyleSheet.create({
   rangeText: {
     fontSize: 11,
     fontWeight: '500',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
+    fontFamily: rinkGlass.fonts.mono,
   },
   pointsContainer: {
     alignItems: 'center',
@@ -161,14 +162,14 @@ const styles = StyleSheet.create({
   pointsValue: {
     fontSize: 20,
     fontWeight: '900',
-    color: theme.accent,
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+    color: rinkGlass.blueLight,
+    fontFamily: rinkGlass.fonts.mono,
     fontVariant: ['tabular-nums'] as any,
   },
   pointsLabel: {
     fontSize: 9,
     fontWeight: '700',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },

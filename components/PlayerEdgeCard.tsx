@@ -7,7 +7,7 @@
 import React, { useCallback, useMemo } from 'react';
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Image } from 'expo-image';
-import { theme } from '../constants/theme';
+import { rinkGlass } from '../constants/theme';
 import { getTeamColors } from '../constants/teamColors';
 import type { TrendingPlayer, HitRateResult, StatCategory, L10GameStat } from '../services/playerTrends';
 
@@ -16,11 +16,11 @@ import type { TrendingPlayer, HitRateResult, StatCategory, L10GameStat } from '.
 // ---------------------------------------------------------------------------
 
 const TREND_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  HOT: { bg: '#ef444422', text: '#ef4444', border: '#ef444466' },
-  WARM: { bg: '#f9731622', text: '#f97316', border: '#f9731666' },
-  STEADY: { bg: '#60a5fa22', text: '#60a5fa', border: '#60a5fa66' },
+  HOT: { bg: rinkGlass.goalLight + '22', text: rinkGlass.goalLight, border: rinkGlass.goalLight + '66' },
+  WARM: { bg: rinkGlass.powerPlay + '22', text: rinkGlass.powerPlay, border: rinkGlass.powerPlay + '66' },
+  STEADY: { bg: rinkGlass.blueLight + '22', text: rinkGlass.blueLight, border: rinkGlass.blueLight + '66' },
   COOL: { bg: '#38bdf822', text: '#38bdf8', border: '#38bdf866' },
-  COLD: { bg: '#6366f122', text: '#6366f1', border: '#6366f166' },
+  COLD: { bg: rinkGlass.blueLight + '22', text: rinkGlass.blueLight, border: rinkGlass.blueLight + '66' },
 };
 
 const STAT_LABELS: Record<StatCategory, string> = {
@@ -92,7 +92,7 @@ export default React.memo(function PlayerEdgeCard({
 
   return (
     <TouchableOpacity
-      style={[styles.card, { borderLeftColor: teamColors?.primary || theme.colors.primary, borderLeftWidth: 3 }]}
+      style={[styles.card, { borderLeftColor: teamColors?.primary || rinkGlass.blueLight, borderLeftWidth: 3 }]}
       onPress={handlePress}
       activeOpacity={0.7}
       testID={`edge-card-${player.playerId}`}
@@ -127,7 +127,7 @@ export default React.memo(function PlayerEdgeCard({
                   styles.bar,
                   {
                     height: Math.max(3, bar.heightPct * 22),
-                    backgroundColor: bar.exceeded ? theme.semantic.positive : 'rgba(255, 255, 255, 0.12)',
+                    backgroundColor: bar.exceeded ? rinkGlass.faceoffDot : 'rgba(255, 255, 255, 0.12)',
                   },
                 ]}
               />
@@ -161,7 +161,7 @@ export default React.memo(function PlayerEdgeCard({
                   key={i}
                   style={[
                     styles.hitDot,
-                    { backgroundColor: i < hitDisplay.hit ? theme.semantic.positive : 'rgba(255,255,255,0.12)' },
+                    { backgroundColor: i < hitDisplay.hit ? rinkGlass.faceoffDot : 'rgba(255,255,255,0.12)' },
                   ]}
                 />
               ))}
@@ -220,14 +220,14 @@ function getSeasonAvg(player: TrendingPlayer, stat: StatCategory): number {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: theme.colors.surface,
+    backgroundColor: rinkGlass.glass,
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 12,
     paddingLeft: 14,
     marginBottom: 6,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.04)',
+    borderColor: rinkGlass.glassBorder,
   },
   // Row 1: main content
   mainRow: {
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: theme.colors.elevated,
+    backgroundColor: rinkGlass.boards,
   },
   nameCol: {
     flex: 1,
@@ -248,12 +248,12 @@ const styles = StyleSheet.create({
   playerName: {
     fontSize: 14,
     fontWeight: '700',
-    color: theme.colors.textPrimary,
+    color: rinkGlass.textPrimary,
   },
   playerMeta: {
     fontSize: 11,
     fontWeight: '500',
-    color: theme.colors.textSecondary,
+    color: rinkGlass.textSecondary,
     marginTop: 1,
   },
   // L10 bars
@@ -277,14 +277,14 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 18,
     fontWeight: '800',
-    color: theme.colors.textPrimary,
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+    color: rinkGlass.textPrimary,
+    fontFamily: rinkGlass.fonts.mono,
     fontVariant: ['tabular-nums'] as any,
   },
   statLabel: {
     fontSize: 9,
     fontWeight: '700',
-    color: theme.colors.textSecondary,
+    color: rinkGlass.textSecondary,
     letterSpacing: 0.5,
     marginTop: -1,
   },
@@ -327,16 +327,16 @@ const styles = StyleSheet.create({
   hitText: {
     fontSize: 11,
     fontWeight: '700',
-    color: theme.colors.textSecondary,
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+    color: rinkGlass.textSecondary,
+    fontFamily: rinkGlass.fonts.mono,
   },
   hitTextGood: {
-    color: theme.semantic.positive,
+    color: rinkGlass.faceoffDot,
   },
   avgText: {
     fontSize: 11,
     fontWeight: '500',
-    color: theme.colors.textSecondary,
+    color: rinkGlass.textSecondary,
   },
   streakText: {
     fontSize: 11,
@@ -344,7 +344,7 @@ const styles = StyleSheet.create({
     color: '#f97316',
   },
   overBadge: {
-    backgroundColor: theme.semantic.positive + '22',
+    backgroundColor: rinkGlass.faceoffDot + '22',
     borderRadius: 3,
     paddingHorizontal: 4,
     paddingVertical: 1,
@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
   overText: {
     fontSize: 9,
     fontWeight: '800',
-    color: theme.semantic.positive,
+    color: rinkGlass.faceoffDot,
     letterSpacing: 0.5,
   },
 });
