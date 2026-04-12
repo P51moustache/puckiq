@@ -376,8 +376,10 @@ def _predict_player_props(
     except Exception:
         pass
 
-    # Compute features
+    # Compute features and deduplicate (same player can appear twice if data has overlaps)
     features_df = compute_player_features(player_game_df, season_stats_df, standings_df)
+    if "game_id" in features_df.columns and "player_id" in features_df.columns:
+        features_df = features_df.drop_duplicates(subset=["game_id", "player_id"], keep="last")
 
     feature_names = get_model_features(ModelType.PLAYER_PROPS)
     available = [f for f in feature_names if f in features_df.columns]
