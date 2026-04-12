@@ -60,6 +60,16 @@ jest.mock('./lib/firebase', () => ({
   },
 }));
 
+// Mock @expo/vector-icons
+jest.mock('@expo/vector-icons', () => ({
+  Ionicons: 'Ionicons',
+}));
+
+// Mock expo-linear-gradient
+jest.mock('expo-linear-gradient', () => ({
+  LinearGradient: 'LinearGradient',
+}));
+
 // Mock expo-haptics
 jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn(() => Promise.resolve()),
@@ -74,6 +84,35 @@ jest.mock('expo-notifications', () => ({
   getAllScheduledNotificationsAsync: jest.fn(() => Promise.resolve([])),
   setNotificationHandler: jest.fn(),
 }));
+
+// Mock react-native-chart-kit
+jest.mock('react-native-chart-kit', () => ({
+  LineChart: 'LineChart',
+  BarChart: 'BarChart',
+}));
+
+// Mock react-native-view-shot
+jest.mock('react-native-view-shot', () => ({
+  captureRef: jest.fn(() => Promise.resolve('/tmp/capture.png')),
+}), { virtual: true });
+
+// Mock react-native-purchases
+jest.mock('react-native-purchases', () => ({
+  default: {
+    configure: jest.fn(),
+    getOfferings: jest.fn(() => Promise.resolve({ current: null })),
+    getCustomerInfo: jest.fn(() => Promise.resolve({ entitlements: { active: {} } })),
+    purchasePackage: jest.fn(),
+    restorePurchases: jest.fn(() => Promise.resolve({ entitlements: { active: {} } })),
+  },
+}), { virtual: true });
+
+// Mock react-native-google-mobile-ads
+jest.mock('react-native-google-mobile-ads', () => ({
+  BannerAd: 'BannerAd',
+  BannerAdSize: { ANCHORED_ADAPTIVE_BANNER: 'ANCHORED_ADAPTIVE_BANNER' },
+  TestIds: { BANNER: 'ca-app-pub-3940256099942544/6300978111' },
+}), { virtual: true });
 
 // Silence console.logs in tests
 global.console = {

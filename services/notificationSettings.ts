@@ -88,3 +88,71 @@ export async function updateGameStartSettings(
   }
   await saveNotificationSettings(settings);
 }
+
+// Fantasy notification preferences
+export interface FantasyNotificationPreferences {
+  morningBrief: boolean;      // 9am daily lineup brief
+  goalieConfirmed: boolean;   // When goalie starters announced
+  injuryAlerts: boolean;      // Roster player injury updates
+  gameReminder: boolean;      // 30min before puck drop
+  waiverAlerts: boolean;      // Morning after big performances
+}
+
+export const DEFAULT_FANTASY_PREFS: FantasyNotificationPreferences = {
+  morningBrief: true,
+  goalieConfirmed: true,
+  injuryAlerts: true,
+  gameReminder: false,
+  waiverAlerts: false,
+};
+
+// Save fantasy notification preferences to Supabase
+export async function saveFantasyNotificationPrefs(
+  userId: string,
+  prefs: FantasyNotificationPreferences
+): Promise<void> {
+  try {
+    const { supabase } = await import('../lib/supabase');
+    const { error } = await supabase
+      .from('notification_preferences')
+      .upsert(
+        {
+          user_id: userId,
+          fantasy_prefs: prefs,
+        },
+        { onConflict: 'user_id' }
+      );
+
+    if (error) {
+      console.error('[Fantasy Prefs] Error saving to Supabase:', error.message);
+      throw error;
+    }
+  } catch (error) {
+    console.error('[Fantasy Prefs] Error saving preferences:', error);
+    throw error;
+  }
+}
+
+// Load fantasy notification preferences from Supabase
+export async function loadFantasyNotificationPrefs(
+  userId: string
+): Promise<FantasyNotificationPreferences> {
+  try {
+    const { supabase } = await import('../lib/supabase');
+    const { data, error } = await supabase
+      .from('notification_preferences')
+      .select('fantasy_prefs')
+      .eq('user_id', userId)
+      .single();
+
+    if (error || !data?.fantasy_prefs) {
+      return { ...DEFAULT_FANTASY_PREFS };
+    }
+
+    // Merge with defaults in case new prefs were added
+    return { ...DEFAULT_FANTASY_PREFS, ...data.fantasy_prefs };
+  } catch (error) {
+    console.error('[Fantasy Prefs] Error loading preferences:', error);
+    return { ...DEFAULT_FANTASY_PREFS };
+  }
+}

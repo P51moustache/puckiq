@@ -11,9 +11,12 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { IconSymbol } from './ui/IconSymbol';
-import { theme } from '../constants/theme';
+import { rinkGlass } from '../constants/theme';
 import { getTeamColors } from '../constants/teamColors';
+import { getWaiverWireRecommendations } from '../services/fantasyProjections';
+import type { PlayerProjection } from '../types/fantasy';
 import {
   getPlayerDetail,
   type PlayerDetail,
@@ -51,11 +54,13 @@ export default function PlayerDetailModal({
   const [detail, setDetail] = useState<PlayerDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fantasyProjection, setFantasyProjection] = useState<PlayerProjection | null>(null);
 
   useEffect(() => {
     if (!visible || !playerId) {
       setDetail(null);
       setError(null);
+      setFantasyProjection(null);
       return;
     }
 
@@ -78,7 +83,22 @@ export default function PlayerDetailModal({
         if (mounted) setLoading(false);
       }
     }
+
+    async function loadFantasy() {
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        const all = await getWaiverWireRecommendations([], 'yahoo', today, 100);
+        const match = all.find((p) => p.playerId === playerId);
+        if (mounted && match) {
+          setFantasyProjection(match);
+        }
+      } catch {
+        // Non-critical
+      }
+    }
+
     load();
+    loadFantasy();
     return () => { mounted = false; };
   }, [visible, playerId]);
 
@@ -110,13 +130,13 @@ export default function PlayerDetailModal({
             style={styles.closeButton}
             testID="player-detail-close"
           >
-            <IconSymbol name="xmark.circle.fill" size={28} color={theme.subtext} />
+            <IconSymbol name="xmark.circle.fill" size={28} color={rinkGlass.textSecondary} />
           </TouchableOpacity>
         </View>
 
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={theme.accent} />
+            <ActivityIndicator size="large" color={rinkGlass.blueLight} />
             <Text style={styles.loadingText}>Loading player data...</Text>
           </View>
         ) : error ? (
@@ -142,8 +162,8 @@ export default function PlayerDetailModal({
                 <Text style={styles.heroName}>{detail.bio.fullName}</Text>
                 <View style={styles.heroMeta}>
                   {detail.bio.sweaterNumber !== undefined && (
-                    <View style={[styles.heroBadge, { borderColor: teamColors?.primary || theme.accent }]}>
-                      <Text style={[styles.heroBadgeText, { color: teamColors?.primary || theme.accent }]}>
+                    <View style={[styles.heroBadge, { borderColor: teamColors?.primary || rinkGlass.blueLight }]}>
+                      <Text style={[styles.heroBadgeText, { color: teamColors?.primary || rinkGlass.blueLight }]}>
                         #{detail.bio.sweaterNumber}
                       </Text>
                     </View>
@@ -213,6 +233,9 @@ export default function PlayerDetailModal({
 
             {/* Edge IQ */}
             {detail.edgeStats && renderEdgeSection(detail.edgeStats)}
+
+            {/* Fantasy Projection */}
+            {renderFantasySection(fantasyProjection)}
 
             {/* Career */}
             {detail.career ? (
@@ -438,7 +461,7 @@ function renderSkaterTrendsSection(trends: SkaterTrends, teamColor?: string) {
 }
 
 function renderHotColdSection(hc: HotColdData) {
-  const color = TREND_COLORS[hc.trendLabel] || theme.accent;
+  const color = TREND_COLORS[hc.trendLabel] || rinkGlass.blueLight;
   return (
     <View style={styles.section}>
       <Text style={styles.sectionLabel}>TREND</Text>
@@ -613,6 +636,110 @@ function renderGoalieTrends(trends: GoalieTrends) {
 }
 
 // ---------------------------------------------------------------------------
+// Render helpers — Fantasy Projection
+// ---------------------------------------------------------------------------
+
+const REC_COLORS: Record<string, { bg: string; text: string }> = {
+  START: { bg: 'rgba(34, 197, 94, 0.15)', text: '#22c55e' },
+  UPSIDE: { bg: 'rgba(59, 130, 246, 0.15)', text: '#3b82f6' },
+  FLEX: { bg: 'rgba(251, 191, 36, 0.15)', text: '#fbbf24' },
+  SIT: { bg: 'rgba(239, 68, 68, 0.15)', text: '#ef4444' },
+};
+
+function renderFantasySection(projection: PlayerProjection | null) {
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionLabel}>FANTASY</Text>
+      {projection ? (
+        <View style={styles.trendCard}>
+          {/* Projected points + recommendation */}
+          <View style={styles.fantasyTopRow}>
+            <View style={styles.fantasyPointsBox}>
+              <Text style={styles.trendBigValue}>{projection.fantasyPoints.toFixed(1)}</Text>
+              <Text style={styles.trendCardLabel}>Projected FPts</Text>
+            </View>
+            <View style={styles.fantasyRecBox}>
+              {(() => {
+                const rc = REC_COLORS[projection.recommendation] || REC_COLORS.FLEX;
+                return (
+                  <View style={[styles.fantasyRecBadge, { backgroundColor: rc.bg, borderColor: rc.text }]}>
+                    <Text style={[styles.fantasyRecText, { color: rc.text }]}>
+                      {projection.recommendation}
+                    </Text>
+                  </View>
+                );
+              })()}
+              {projection.reason ? (
+                <Text style={styles.fantasyReasonText} numberOfLines={2}>{projection.reason}</Text>
+              ) : null}
+            </View>
+          </View>
+
+          {/* Floor / Ceiling bar */}
+          <View style={styles.fantasyBarContainer}>
+            <View style={styles.fantasyBarLabels}>
+              <Text style={styles.fantasyBarLabel}>Floor: {projection.floor.toFixed(1)}</Text>
+              <Text style={styles.fantasyBarLabel}>Ceil: {projection.ceiling.toFixed(1)}</Text>
+            </View>
+            <View style={styles.fantasyBarTrack}>
+              <View
+                style={[
+                  styles.fantasyBarFill,
+                  {
+                    left: '0%',
+                    width: projection.ceiling > 0
+                      ? `${Math.min(100, (projection.fantasyPoints / projection.ceiling) * 100)}%`
+                      : '50%',
+                  },
+                ]}
+              />
+            </View>
+          </View>
+
+          {/* Category breakdown */}
+          <View style={styles.fantasyCategoryRow}>
+            <View style={styles.fantasyCat}>
+              <Text style={styles.fantasyCatValue}>{projection.predGoals.toFixed(1)}</Text>
+              <Text style={styles.fantasyCatLabel}>G</Text>
+            </View>
+            <View style={styles.fantasyCat}>
+              <Text style={styles.fantasyCatValue}>{projection.predAssists.toFixed(1)}</Text>
+              <Text style={styles.fantasyCatLabel}>A</Text>
+            </View>
+            <View style={styles.fantasyCat}>
+              <Text style={styles.fantasyCatValue}>{projection.predSog.toFixed(1)}</Text>
+              <Text style={styles.fantasyCatLabel}>SOG</Text>
+            </View>
+            <View style={styles.fantasyCat}>
+              <Text style={styles.fantasyCatValue}>{projection.predHits.toFixed(1)}</Text>
+              <Text style={styles.fantasyCatLabel}>Hits</Text>
+            </View>
+            <View style={styles.fantasyCat}>
+              <Text style={styles.fantasyCatValue}>{projection.predBlocks.toFixed(1)}</Text>
+              <Text style={styles.fantasyCatLabel}>Blk</Text>
+            </View>
+          </View>
+
+          {/* Opponent */}
+          {projection.opponentAbbrev && (
+            <Text style={styles.fantasyOpponent}>
+              {projection.isHome ? 'vs' : '@'} {projection.opponentAbbrev}
+            </Text>
+          )}
+        </View>
+      ) : (
+        <View style={styles.trendCard}>
+          <View style={styles.fantasyEmptyContainer}>
+            <Ionicons name="calendar-outline" size={24} color={rinkGlass.textSecondary} />
+            <Text style={styles.emptyText}>No projection available — player may not be playing today</Text>
+          </View>
+        </View>
+      )}
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Formatters
 // ---------------------------------------------------------------------------
 
@@ -662,7 +789,7 @@ function formatCareerKey(key: string): string {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.background,
+    backgroundColor: rinkGlass.ice,
   },
   accentBar: {
     height: 4,
@@ -686,7 +813,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 14,
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
   },
   errorText: {
     fontSize: 14,
@@ -711,9 +838,9 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: theme.subtle,
+    backgroundColor: rinkGlass.boards,
     borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: rinkGlass.glassBorder,
   },
   heroInfo: {
     flex: 1,
@@ -721,7 +848,7 @@ const styles = StyleSheet.create({
   heroName: {
     fontSize: 22,
     fontWeight: '800',
-    color: theme.text,
+    color: rinkGlass.textPrimary,
     marginBottom: 6,
   },
   heroMeta: {
@@ -743,7 +870,7 @@ const styles = StyleSheet.create({
   heroTeamPos: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
   },
 
   // Sections
@@ -753,7 +880,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 13,
     fontWeight: '800',
-    color: theme.accent,
+    color: rinkGlass.blueLight,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
     marginBottom: 10,
@@ -763,12 +890,12 @@ const styles = StyleSheet.create({
   bioGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    backgroundColor: theme.card,
+    backgroundColor: rinkGlass.glass,
     borderRadius: 12,
     padding: 12,
     gap: 0,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: rinkGlass.glassBorder,
   },
   bioItem: {
     width: '50%',
@@ -778,7 +905,7 @@ const styles = StyleSheet.create({
   bioLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 2,
@@ -786,18 +913,18 @@ const styles = StyleSheet.create({
   bioValue: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.text,
+    color: rinkGlass.textPrimary,
   },
 
   // Stat grid
   statGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    backgroundColor: theme.card,
+    backgroundColor: rinkGlass.glass,
     borderRadius: 12,
     padding: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: rinkGlass.glassBorder,
   },
   statCell: {
     width: '20%',
@@ -807,28 +934,28 @@ const styles = StyleSheet.create({
   statCellLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     marginBottom: 4,
     textTransform: 'uppercase',
   },
   statCellValue: {
     fontSize: 16,
     fontWeight: '800',
-    color: theme.text,
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+    color: rinkGlass.textPrimary,
+    fontFamily: rinkGlass.fonts.mono,
     fontVariant: ['tabular-nums'] as any,
   },
   statCellHighlight: {
-    color: theme.accent,
+    color: rinkGlass.blueLight,
   },
 
   // Games table
   gamesTable: {
-    backgroundColor: theme.card,
+    backgroundColor: rinkGlass.glass,
     borderRadius: 12,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: rinkGlass.glassBorder,
   },
   gamesHeaderRow: {
     flexDirection: 'row',
@@ -842,7 +969,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 11,
     fontWeight: '700',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     textAlign: 'center',
     textTransform: 'uppercase',
   },
@@ -858,39 +985,39 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     fontWeight: '600',
-    color: theme.text,
+    color: rinkGlass.textPrimary,
     textAlign: 'center',
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+    fontFamily: rinkGlass.fonts.mono,
     fontVariant: ['tabular-nums'] as any,
   },
 
   emptyText: {
     fontSize: 13,
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     textAlign: 'center',
     paddingVertical: 16,
   },
 
   // Trend cards
   trendCard: {
-    backgroundColor: theme.card,
+    backgroundColor: rinkGlass.glass,
     borderRadius: 12,
     padding: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: rinkGlass.glassBorder,
   },
   trendBigValue: {
     fontSize: 28,
     fontWeight: '800',
-    color: theme.accent,
+    color: rinkGlass.blueLight,
     textAlign: 'center',
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+    fontFamily: rinkGlass.fonts.mono,
     fontVariant: ['tabular-nums'] as any,
   },
   trendCardLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     textAlign: 'center',
     marginTop: 4,
   },
@@ -914,7 +1041,7 @@ const styles = StyleSheet.create({
   trendStreakText: {
     fontSize: 13,
     fontWeight: '600',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
   },
   trendCompareRow: {
     flexDirection: 'row',
@@ -928,21 +1055,116 @@ const styles = StyleSheet.create({
   trendCompareLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     textTransform: 'uppercase',
     marginBottom: 4,
   },
   trendCompareRecent: {
     fontSize: 16,
     fontWeight: '800',
-    color: theme.text,
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+    color: rinkGlass.textPrimary,
+    fontFamily: rinkGlass.fonts.mono,
     fontVariant: ['tabular-nums'] as any,
   },
   trendCompareSeason: {
     fontSize: 11,
     fontWeight: '600',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     marginTop: 2,
+  },
+
+  // Fantasy section
+  fantasyTopRow: {
+    flexDirection: 'row',
+    marginBottom: 14,
+    gap: 14,
+  },
+  fantasyPointsBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 80,
+  },
+  fantasyRecBox: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: 6,
+  },
+  fantasyRecBadge: {
+    alignSelf: 'flex-start',
+    borderWidth: 1.5,
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  fantasyRecText: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  fantasyReasonText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: rinkGlass.textSecondary,
+  },
+  fantasyBarContainer: {
+    marginBottom: 14,
+  },
+  fantasyBarLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  fantasyBarLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: rinkGlass.textSecondary,
+  },
+  fantasyBarTrack: {
+    height: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 3,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  fantasyBarFill: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    backgroundColor: rinkGlass.blueLight,
+    borderRadius: 3,
+  },
+  fantasyCategoryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 10,
+  },
+  fantasyCat: {
+    alignItems: 'center',
+  },
+  fantasyCatValue: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: rinkGlass.textPrimary,
+    fontFamily: rinkGlass.fonts.mono,
+    fontVariant: ['tabular-nums'] as any,
+  },
+  fantasyCatLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: rinkGlass.textSecondary,
+    textTransform: 'uppercase',
+    marginTop: 2,
+  },
+  fantasyOpponent: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: rinkGlass.textSecondary,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  fantasyEmptyContainer: {
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
   },
 });

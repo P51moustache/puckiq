@@ -368,3 +368,63 @@ async function saveGameNotifications(notifications: Record<string, string>): Pro
     console.error('[Game Notification] Error saving notifications:', error);
   }
 }
+
+// Register push token for a user and save to Supabase
+export async function registerPushToken(userId: string): Promise<string | null> {
+  try {
+    // Request permissions first
+    const hasPermission = await requestNotificationPermissions();
+    if (!hasPermission) {
+      console.log('[Push Token] Permission not granted');
+      return null;
+    }
+
+    // Get the Expo push token
+    const tokenData = await Notifications.getExpoPushTokenAsync();
+    const token = tokenData.data;
+
+    // Save to Supabase push_tokens table
+    const { supabase } = await import('../lib/supabase');
+    const { error } = await supabase
+      .from('push_tokens')
+      .upsert(
+        {
+          user_id: userId,
+          token,
+          platform: Platform.OS,
+        },
+        { onConflict: 'user_id' }
+      );
+
+    if (error) {
+      console.error('[Push Token] Error saving token to Supabase:', error.message);
+      return null;
+    }
+
+    console.log('[Push Token] Registered successfully');
+    return token;
+  } catch (error) {
+    console.error('[Push Token] Error registering:', error);
+    return null;
+  }
+}
+
+// Unregister push token for a user
+export async function unregisterPushToken(userId: string): Promise<void> {
+  try {
+    const { supabase } = await import('../lib/supabase');
+    const { error } = await supabase
+      .from('push_tokens')
+      .delete()
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('[Push Token] Error removing token from Supabase:', error.message);
+      return;
+    }
+
+    console.log('[Push Token] Unregistered successfully');
+  } catch (error) {
+    console.error('[Push Token] Error unregistering:', error);
+  }
+}

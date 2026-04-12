@@ -494,6 +494,58 @@ export const pickTheme = {
   },
 };
 
+// Rink Glass Design System — "looking through arena glass during a night game"
+export const rinkGlass = {
+  // Backgrounds
+  ice: '#0a0e1a',
+  glass: 'rgba(255, 255, 255, 0.06)',
+  boards: '#141829',
+  zamboni: '#1c2038',
+
+  // Accent colors
+  blueLight: '#4cc9f0',
+  goalLight: '#f72585',
+  powerPlay: '#ffd60a',
+  faceoffDot: '#06d6a0',
+  redLine: '#e63946',
+
+  // Text colors
+  textPrimary: '#f0f4ff',
+  textSecondary: '#8b95b0',
+  textMuted: '#525c75',
+
+  // Glass card tokens
+  glassBorder: 'rgba(255, 255, 255, 0.10)',
+  glassHighlight: 'rgba(255, 255, 255, 0.04)',
+  cardGlow: 'rgba(76, 201, 240, 0.15)',
+
+  // Module accent map
+  moduleAccents: {
+    startSit: '#06d6a0',     // faceoffDot
+    trending: '#f72585',     // goalLight
+    alerts: '#ffd60a',       // powerPlay
+    waiverWire: '#4cc9f0',   // blueLight
+    matchupEdge: '#a78bfa',
+    dailyInsight: '#f97316',
+  },
+
+  // Card press animation values
+  pressScale: 0.98,
+  pressShadow: {
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowColor: '#000',
+  },
+
+  // Font tokens
+  fonts: {
+    display: 'Display-Bold',  // Oswald Bold — condensed, sporty headlines
+    body: selectFont({ ios: 'System', android: 'Roboto', default: 'System' }),
+    mono: selectFont({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+  },
+};
+
 // Backwards compatibility alias (deprecated - use pickTheme instead)
 // Maps old property names to new ones for existing components
 export const insiderTheme = {

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useCallback } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import Animated, {
   FadeIn,
@@ -17,6 +17,8 @@ import { getTeamLogoUrl } from '../utils/teamLogo';
 import { getHeroPhoto } from '../utils/heroPhoto';
 import { ConfidenceBadge } from './ConfidenceBadge';
 import { SettingsButton } from './SettingsButton';
+import ShareablePickCard from './ShareablePickCard';
+import { captureAndShareCard, formatShareText } from '../services/shareCards';
 import { useHaptics } from '../hooks/useHaptics';
 import type { H2HRecord } from '../types/gameResults';
 import type { NHLGameSummary, SituationalFactors } from '../types/predictions';
@@ -135,6 +137,24 @@ export default function HeroBanner({
     transform: [{ scale: scale.value }],
   }));
   const { press } = useHaptics();
+  const shareCardRef = useRef<View>(null);
+
+  const awayName = game.awayTeam?.name ?? game.awayTeam?.abbrev ?? 'Away';
+  const homeName = game.homeTeam?.name ?? game.homeTeam?.abbrev ?? 'Home';
+
+  const handleShare = useCallback(async () => {
+    const shareText = formatShareText(
+      { awayAbbrev: game.awayTeam?.abbrev ?? '???', homeAbbrev: game.homeTeam?.abbrev ?? '???', awayName, homeName },
+      prediction,
+      confidenceScore,
+    );
+    if (shareCardRef.current) {
+      await captureAndShareCard(shareCardRef, shareText);
+    } else {
+      // Fallback to parent onShare (text-based)
+      onShare();
+    }
+  }, [game, prediction, confidenceScore, awayName, homeName, onShare]);
 
   // Daily-rotating hero photo from shared utility
   const heroImage = useMemo(() => getHeroPhoto(), []);
@@ -324,10 +344,27 @@ export default function HeroBanner({
               </View>
             ))}
           </View>
-          <Pressable onPress={onShare} hitSlop={8} style={styles.shareIcon}>
+          <Pressable onPress={handleShare} hitSlop={8} style={styles.shareIcon}>
             <Ionicons name="share-outline" size={16} color="rgba(255,255,255,0.45)" />
           </Pressable>
         </Animated.View>
+
+        {/* Hidden card for image capture (off-screen) */}
+        <View
+          ref={shareCardRef}
+          style={styles.hiddenShareCard}
+          collapsable={false}
+        >
+          <ShareablePickCard
+            awayAbbrev={game.awayTeam?.abbrev ?? '???'}
+            homeAbbrev={game.homeTeam?.abbrev ?? '???'}
+            awayName={awayName}
+            homeName={homeName}
+            awayWinProb={prediction.awayWinProb}
+            homeWinProb={prediction.homeWinProb}
+            confidenceScore={confidenceScore}
+          />
+        </View>
       </Animated.View>
     </Pressable>
   );
@@ -508,5 +545,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 16,
     bottom: 0,
+  },
+  hiddenShareCard: {
+    position: 'absolute',
+    top: -9999,
+    left: -9999,
+    opacity: 0,
   },
 });
