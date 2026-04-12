@@ -154,6 +154,7 @@ ML_PREDICTIONS_TABLE = "ml_predictions"
 ML_SCORES_TABLE = "ml_prediction_scores"
 ML_MODEL_METADATA_TABLE = "ml_model_metadata"
 ML_MODEL_EVALUATIONS_TABLE = "ml_model_evaluations"
+ML_PLAYER_PROJECTIONS_TABLE = "ml_player_projections"
 
 # Source tables (read-only)
 GAMES_TABLE = "games"

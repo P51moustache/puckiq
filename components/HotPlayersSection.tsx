@@ -1,6 +1,6 @@
 import { View, Text, FlatList, StyleSheet } from 'react-native';
 import Animated, { FadeInRight } from 'react-native-reanimated';
-import { theme } from '../constants/theme';
+import { rinkGlass } from '../constants/theme';
 import { getTeamColors, getAccessibleTextColor } from '../constants/teamColors';
 import type { TeamPlayerStats, PlayerStatLine } from '../types/gameResults';
 
@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
   header: {
     fontSize: 13,
     fontWeight: '800',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     letterSpacing: 1,
     marginBottom: 10,
     paddingHorizontal: 16,
@@ -139,11 +139,11 @@ const styles = StyleSheet.create({
   card: {
     width: 160,
     height: 150,
-    backgroundColor: theme.card,
+    backgroundColor: rinkGlass.glass,
     borderRadius: 14,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(96, 165, 250, 0.08)',
+    borderColor: rinkGlass.glassBorder,
   },
   topAccent: {
     height: 3,
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
   playerName: {
     fontSize: 14,
     fontWeight: '700',
-    color: theme.text,
+    color: rinkGlass.textPrimary,
   },
   teamAbbrev: {
     fontSize: 11,
@@ -166,18 +166,20 @@ const styles = StyleSheet.create({
   pointsLarge: {
     fontSize: 18,
     fontWeight: '800',
-    color: theme.text,
+    color: rinkGlass.textPrimary,
+    fontFamily: rinkGlass.fonts.mono,
   },
   statLine: {
     fontSize: 11,
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     fontWeight: '500',
+    fontFamily: rinkGlass.fonts.mono,
   },
   hotBadge: {
     position: 'absolute',
     top: 8,
     right: 8,
-    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    backgroundColor: rinkGlass.goalLight + '33',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -185,12 +187,13 @@ const styles = StyleSheet.create({
   hotText: {
     fontSize: 9,
     fontWeight: '800',
-    color: '#ef4444',
+    color: rinkGlass.goalLight,
     letterSpacing: 0.5,
   },
   shotSpeed: {
     fontSize: 10,
     fontWeight: '600',
-    color: theme.accent,
+    color: rinkGlass.blueLight,
+    fontFamily: rinkGlass.fonts.mono,
   },
 });

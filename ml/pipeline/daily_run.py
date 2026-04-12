@@ -49,11 +49,14 @@ import pandas as pd
 from ml.features.compute import FeatureCache, compute_all_features, compute_player_features
 from ml.features.registry import get_model_features, load_feature_registry
 from ml.io.model_storage import ModelStorage
+from ml.fantasy.projections import project_fantasy_points
+from ml.fantasy.scoring import SCORING_FORMATS
 from ml.io.supabase_client import (
     check_data_freshness,
     create_supabase_client,
     read_games,
     read_player_season_stats,
+    write_fantasy_projections,
     write_predictions,
 )
 from ml.models.player_props import PlayerPropsModel
@@ -119,7 +122,9 @@ def _run() -> None:
             logger.info("Injected gw_home_win_prob for spread/totals (%d values)", len(gw_probs))
         _predict_spreads(storage, features_df, todays_games, today, client, data_quality)
         _predict_totals(storage, features_df, todays_games, today, client, data_quality)
-        _predict_player_props(storage, todays_games, today, client, data_quality)
+        player_pred_rows = _predict_player_props(storage, todays_games, today, client, data_quality)
+        if player_pred_rows:
+            _predict_fantasy_points(player_pred_rows, today, client, data_quality)
 
     # 8. Score yesterday's predictions (now that those games are final)
     scored = score_yesterdays_predictions(client)
@@ -306,7 +311,7 @@ def _predict_player_props(
     today: str,
     client,
     data_quality: str,
-) -> None:
+) -> list[dict] | None:
     """Run player props model for tonight's skaters."""
     try:
         model = storage.load_model(ModelType.PLAYER_PROPS.value)
@@ -391,15 +396,29 @@ def _predict_player_props(
     # Predict
     preds = model.predict(X)
 
+    # Build a lookup for player metadata from season stats
+    player_meta: dict[int, dict] = {}
+    for _, ps in season_stats_df.iterrows():
+        pid = ps["player_id"]
+        if pid not in player_meta:
+            player_meta[pid] = {
+                "team_abbrev": ps.get("team_abbrev", ""),
+                "position": ps.get("position", ""),
+            }
+
     # Build per-player prediction rows (one row per player, with player_id column)
     predictions = []
     for i, (_, row) in enumerate(features_df.iterrows()):
+        pid = int(row.get("player_id", 0))
+        meta = player_meta.get(pid, {})
         predictions.append({
             "game_id": int(row.get("game_id", 0)),
             "model_type": ModelType.PLAYER_PROPS.value,
             "model_version": model_version,
             "game_date": today,
-            "player_id": int(row.get("player_id", 0)),
+            "player_id": pid,
+            "team_abbrev": meta.get("team_abbrev", row.get("team_abbrev", "")),
+            "position": meta.get("position", ""),
             "player_predictions": {
                 "expected_goals": float(preds["goals"][i]),
                 "expected_assists": float(preds["assists"][i]),
@@ -416,6 +435,98 @@ def _predict_player_props(
         write_predictions(client, batch)
 
     logger.info("Wrote %d player prop predictions", len(predictions))
+    return predictions
+
+
+def _predict_fantasy_points(
+    player_pred_rows: list[dict],
+    game_date: str,
+    client,
+    data_quality: str,
+) -> list[dict]:
+    """Convert player prop predictions into fantasy point projections for each scoring format.
+
+    Takes the player prediction rows (output from _predict_player_props), runs them
+    through the fantasy projection layer for each format (yahoo, espn), and writes
+    the results to the ml_player_projections table.
+
+    Args:
+        player_pred_rows: List of dicts from _predict_player_props, each containing
+            game_id, player_id, team_abbrev, position, model_version, player_predictions, etc.
+        game_date: Today's date string (YYYY-MM-DD).
+        client: Supabase client for writing projections.
+        data_quality: "fresh" or "stale" depending on data sync status.
+
+    Returns:
+        List of projection dicts written to Supabase.
+    """
+    if not player_pred_rows:
+        return []
+
+    # Build a DataFrame with the columns that project_fantasy_points expects:
+    # player_id, position, and pred_* stat columns
+    proj_rows = []
+    for row in player_pred_rows:
+        pp = row.get("player_predictions", {})
+        proj_rows.append({
+            "player_id": row["player_id"],
+            "game_id": row["game_id"],
+            "team_abbrev": row.get("team_abbrev", ""),
+            "position": row.get("position", "C"),  # Default to center if unknown
+            "model_version": row.get("model_version", "unknown"),
+            "pred_goals": pp.get("expected_goals", 0.0),
+            "pred_assists": pp.get("expected_assists", 0.0),
+            "pred_sog": 0.0,   # Not predicted by player_props model yet
+            "pred_hits": 0.0,
+            "pred_blocks": 0.0,
+        })
+
+    pred_df = pd.DataFrame(proj_rows)
+
+    # Run projections for each scoring format, processing per-game to keep game_id association
+    all_projections: list[dict] = []
+    game_ids = pred_df["game_id"].unique()
+
+    for game_id in game_ids:
+        game_players = pred_df[pred_df["game_id"] == game_id].copy()
+
+        for format_name in SCORING_FORMATS:
+            fantasy_df = project_fantasy_points(game_players, format_name)
+
+            # fantasy_df rows align with game_players rows by index position
+            for idx, (_, frow) in enumerate(fantasy_df.iterrows()):
+                source = game_players.iloc[idx]
+
+                all_projections.append({
+                    "game_id": int(game_id),
+                    "player_id": int(frow["player_id"]),
+                    "player_name": "",  # Not available from player_props; enrich downstream
+                    "team_abbrev": str(source.get("team_abbrev", "")),
+                    "position": str(source.get("position", "")),
+                    "format": format_name,
+                    "fantasy_points": float(frow["fantasy_points"]),
+                    "floor": float(frow["floor"]),
+                    "ceiling": float(frow["ceiling"]),
+                    "pred_goals": float(source.get("pred_goals", 0.0)),
+                    "pred_assists": float(source.get("pred_assists", 0.0)),
+                    "pred_points": float(source.get("pred_goals", 0.0) + source.get("pred_assists", 0.0)),
+                    "pred_sog": float(source.get("pred_sog", 0.0)),
+                    "pred_hits": float(source.get("pred_hits", 0.0)),
+                    "pred_blocks": float(source.get("pred_blocks", 0.0)),
+                    "game_date": game_date,
+                    "model_version": str(source.get("model_version", "unknown")),
+                    "data_quality": data_quality,
+                    "predicted_at": datetime.now(timezone.utc).isoformat(),
+                })
+
+    # Write in batches
+    BATCH_SIZE = 100
+    for i in range(0, len(all_projections), BATCH_SIZE):
+        batch = all_projections[i:i + BATCH_SIZE]
+        write_fantasy_projections(client, batch)
+
+    logger.info("Wrote %d fantasy projections across %d formats", len(all_projections), len(SCORING_FORMATS))
+    return all_projections
 
 
 def _ping_healthcheck() -> None:

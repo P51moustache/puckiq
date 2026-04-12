@@ -1,7 +1,7 @@
 /**
  * Tests for ElevatedPlayerRow component
- * Verifies rendering of ranks #2-5: headshot, name, trend arrow,
- * L5 mini dots from hit rate, stat value with unit label, and onPress.
+ * Verifies rendering of ranks #2-5: headshot, name, trend/flames,
+ * sparkline, watch button, stat value, and onPress.
  */
 
 // Mock react-native (string components)
@@ -9,6 +9,7 @@ jest.mock('react-native', () => ({
   View: 'View',
   Text: 'Text',
   TouchableOpacity: 'TouchableOpacity',
+  Pressable: 'Pressable',
   Platform: { select: (opts: any) => opts.ios },
   StyleSheet: { create: (styles: any) => styles },
 }));
@@ -19,14 +20,30 @@ jest.mock('expo-image', () => ({ Image: 'Image' }));
 // Mock @expo/vector-icons
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }));
 
+// Mock Sparkline
+jest.mock('../Sparkline', () => ({
+  Sparkline: 'Sparkline',
+}));
+
+// Mock AsyncStorage
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  __esModule: true,
+  default: {
+    getItem: jest.fn().mockResolvedValue(null),
+    setItem: jest.fn().mockResolvedValue(undefined),
+  },
+}));
+
 import React from 'react';
 
 // Override React hooks to work outside render cycle
 (React as any).useCallback = (fn: any) => fn;
 (React as any).useMemo = (fn: any) => fn();
+(React as any).useState = (init: any) => [init, jest.fn()];
+(React as any).useEffect = (_fn: any) => {};
 
 import ElevatedPlayerRowMemo from '../ElevatedPlayerRow';
-import type { TrendingPlayer, HitRateResult, StatCategory } from '../../services/playerTrends';
+import type { TrendingPlayer, HitRateResult, LeaderTrend, StatCategory } from '../../services/playerTrends';
 
 const ElevatedPlayerRow = (ElevatedPlayerRowMemo as any).type || ElevatedPlayerRowMemo;
 
@@ -68,19 +85,19 @@ function makePlayer(overrides: Partial<TrendingPlayer> = {}): TrendingPlayer {
   };
 }
 
-function makeHitRate(overrides: Partial<HitRateResult> = {}): HitRateResult {
+function makeTrend(overrides: Partial<LeaderTrend> = {}): LeaderTrend {
   return {
-    hit: 7,
-    total: 10,
-    rate: 0.7,
-    games: [
-      { gameId: 1, value: 1, exceeded: true, gameDate: '2026-01-05' },
-      { gameId: 2, value: 0, exceeded: false, gameDate: '2026-01-04' },
-      { gameId: 3, value: 1, exceeded: true, gameDate: '2026-01-03' },
-      { gameId: 4, value: 1, exceeded: true, gameDate: '2026-01-02' },
-      { gameId: 5, value: 0, exceeded: false, gameDate: '2026-01-01' },
-      { gameId: 6, value: 1, exceeded: true, gameDate: '2025-12-31' },
-    ],
+    playerId: 29,
+    trendLabel: 'HOT',
+    hotColdScore: 7.5,
+    pointStreak: 3,
+    recentPpg: 1.6,
+    seasonPpg: 1.3,
+    projectedGoals82: 44,
+    projectedAssists82: 63,
+    projectedPoints82: 107,
+    goalsPerGame: 0.54,
+    pointsPerGame: 1.31,
     ...overrides,
   };
 }
@@ -175,59 +192,75 @@ describe('ElevatedPlayerRow', () => {
       expect(joined).toContain('LW');
       expect(joined).toContain('BOS');
     });
+
+    it('renders season points', () => {
+      const result = ElevatedPlayerRow({
+        player: makePlayer({ seasonPoints: 68 }),
+        rank: 2,
+        statCategory: 'points',
+        onPress: mockOnPress,
+      });
+      const texts = collectTexts(result);
+      expect(texts).toContain('68');
+    });
+
+    it('renders games played', () => {
+      const result = ElevatedPlayerRow({
+        player: makePlayer({ gamesPlayed: 52 }),
+        rank: 2,
+        statCategory: 'points',
+        onPress: mockOnPress,
+      });
+      const texts = collectTexts(result);
+      expect(texts.join('')).toContain('52 GP');
+    });
   });
 
-  describe('trend arrow icon', () => {
-    it('renders up arrow for HOT trend', () => {
+  describe('flame badges and trend arrows', () => {
+    it('renders flame badge for HOT trend (5 flames)', () => {
       const result = ElevatedPlayerRow({
         player: makePlayer({ trendLabel: 'HOT' }),
         rank: 2,
         statCategory: 'goals',
         onPress: mockOnPress,
       });
-      const icons = findByType(result, 'Ionicons');
-      expect(icons.length).toBeGreaterThan(0);
-      expect(icons[0].props.name).toBe('arrow-up');
-      expect(icons[0].props.color).toBe('#ef4444');
+      const texts = collectTexts(result);
+      const flameText = texts.find(t => t.includes('\uD83D\uDD25'));
+      expect(flameText).toBeTruthy();
+      // HOT = 5 flames
+      expect(flameText!.split('\uD83D\uDD25').length - 1).toBe(5);
     });
 
-    it('renders up arrow for WARM trend', () => {
+    it('renders flame badge for WARM trend (4 flames)', () => {
       const result = ElevatedPlayerRow({
         player: makePlayer({ trendLabel: 'WARM' }),
         rank: 2,
         statCategory: 'goals',
         onPress: mockOnPress,
       });
-      const icons = findByType(result, 'Ionicons');
-      expect(icons[0].props.name).toBe('arrow-up');
-      expect(icons[0].props.color).toBe('#f97316');
+      const texts = collectTexts(result);
+      const flameText = texts.find(t => t.includes('\uD83D\uDD25'));
+      expect(flameText).toBeTruthy();
+      // WARM = 4 flames
+      expect(flameText!.split('\uD83D\uDD25').length - 1).toBe(4);
     });
 
-    it('renders remove icon for STEADY trend', () => {
-      const result = ElevatedPlayerRow({
-        player: makePlayer({ trendLabel: 'STEADY' }),
-        rank: 2,
-        statCategory: 'goals',
-        onPress: mockOnPress,
-      });
-      const icons = findByType(result, 'Ionicons');
-      expect(icons[0].props.name).toBe('remove');
-      expect(icons[0].props.color).toBe('#60a5fa');
-    });
-
-    it('renders down arrow for COOL trend', () => {
+    it('renders trend arrow icon for COOL trend (no flames)', () => {
       const result = ElevatedPlayerRow({
         player: makePlayer({ trendLabel: 'COOL' }),
         rank: 2,
         statCategory: 'goals',
         onPress: mockOnPress,
       });
+      const texts = collectTexts(result);
+      const flameText = texts.find(t => t.includes('\uD83D\uDD25'));
+      expect(flameText).toBeFalsy();
       const icons = findByType(result, 'Ionicons');
-      expect(icons[0].props.name).toBe('arrow-down');
-      expect(icons[0].props.color).toBe('#38bdf8');
+      const arrowIcon = icons.find((i: any) => i.props.name === 'arrow-down');
+      expect(arrowIcon).toBeTruthy();
     });
 
-    it('renders down arrow for COLD trend', () => {
+    it('renders trend arrow for COLD trend', () => {
       const result = ElevatedPlayerRow({
         player: makePlayer({ trendLabel: 'COLD' }),
         rank: 2,
@@ -235,142 +268,102 @@ describe('ElevatedPlayerRow', () => {
         onPress: mockOnPress,
       });
       const icons = findByType(result, 'Ionicons');
-      expect(icons[0].props.name).toBe('arrow-down');
-      expect(icons[0].props.color).toBe('#6366f1');
+      const arrowIcon = icons.find((i: any) => i.props.name === 'arrow-down');
+      expect(arrowIcon).toBeTruthy();
+    });
+
+    it('renders no flames and no trend arrow for STEADY trend', () => {
+      const result = ElevatedPlayerRow({
+        player: makePlayer({ trendLabel: 'STEADY' }),
+        rank: 2,
+        statCategory: 'goals',
+        onPress: mockOnPress,
+      });
+      const texts = collectTexts(result);
+      const flameText = texts.find(t => t.includes('\uD83D\uDD25'));
+      expect(flameText).toBeFalsy();
+      const icons = findByType(result, 'Ionicons');
+      const trendArrows = icons.filter(
+        (i: any) => i.props.name === 'arrow-up' || i.props.name === 'arrow-down'
+      );
+      expect(trendArrows.length).toBe(0);
     });
   });
 
-  describe('stat values by category', () => {
-    it('shows goals per game with GPG unit', () => {
+  describe('sparkline', () => {
+    it('renders a Sparkline component', () => {
       const result = ElevatedPlayerRow({
-        player: makePlayer({ avgGoals5g: 0.6 }),
+        player: makePlayer(),
         rank: 2,
         statCategory: 'goals',
         onPress: mockOnPress,
       });
-      const texts = collectTexts(result);
-      expect(texts).toContain('0.60');
-      expect(texts).toContain('GPG');
+      const sparklines = findByType(result, 'Sparkline');
+      expect(sparklines.length).toBe(1);
     });
 
-    it('shows assists per game with APG unit', () => {
+    it('passes width=50 and height=18 to Sparkline', () => {
       const result = ElevatedPlayerRow({
-        player: makePlayer({ avgAssists5g: 1.0 }),
+        player: makePlayer(),
         rank: 2,
-        statCategory: 'assists',
+        statCategory: 'goals',
         onPress: mockOnPress,
       });
-      const texts = collectTexts(result);
-      expect(texts).toContain('1.00');
-      expect(texts).toContain('APG');
+      const sparklines = findByType(result, 'Sparkline');
+      expect(sparklines[0].props.width).toBe(50);
+      expect(sparklines[0].props.height).toBe(18);
     });
 
-    it('shows points per game with PPG unit', () => {
+    it('passes 5-element data array to Sparkline', () => {
       const result = ElevatedPlayerRow({
-        player: makePlayer({ avgPoints5g: 1.6 }),
+        player: makePlayer(),
         rank: 2,
-        statCategory: 'points',
+        statCategory: 'goals',
         onPress: mockOnPress,
       });
-      const texts = collectTexts(result);
-      expect(texts).toContain('1.60');
-      expect(texts).toContain('PPG');
+      const sparklines = findByType(result, 'Sparkline');
+      expect(sparklines[0].props.data).toHaveLength(5);
     });
 
-    it('shows shots per game with SPG unit', () => {
+    it('uses leaderTrend data for sparkline when provided', () => {
+      const trend = makeTrend({ seasonPpg: 1.3, recentPpg: 1.6, hotColdScore: 7.5 });
       const result = ElevatedPlayerRow({
-        player: makePlayer({ avgShots5g: 3.8 }),
+        player: makePlayer(),
         rank: 2,
-        statCategory: 'shots',
+        leaderTrend: trend,
+        statCategory: 'goals',
         onPress: mockOnPress,
       });
-      const texts = collectTexts(result);
-      expect(texts).toContain('3.8');
-      expect(texts).toContain('SPG');
+      const sparklines = findByType(result, 'Sparkline');
+      // First value should be seasonPpg
+      expect(sparklines[0].props.data[0]).toBe(1.3);
     });
   });
 
-  describe('L5 mini dots', () => {
-    it('renders 5 dots from hit rate games (slices first 5, reverses)', () => {
+  describe('watch button', () => {
+    it('renders an eye-outline icon button', () => {
       const result = ElevatedPlayerRow({
         player: makePlayer(),
         rank: 2,
-        hitRate: makeHitRate(),
         statCategory: 'goals',
         onPress: mockOnPress,
       });
-      // Find View elements with backgroundColor (the dot Views)
-      const views = findByType(result, 'View');
-      const dots = views.filter(
-        (v: any) => v?.props?.style && Array.isArray(v.props.style) &&
-          v.props.style.some((s: any) =>
-            s?.backgroundColor === '#22c55e' || s?.backgroundColor === 'rgba(255, 255, 255, 0.15)',
-          ),
-      );
-      expect(dots.length).toBe(5);
+      const icons = findByType(result, 'Ionicons');
+      const eyeIcon = icons.find((i: any) => i.props.name === 'eye-outline');
+      expect(eyeIcon).toBeTruthy();
+      expect(eyeIcon.props.size).toBe(16);
     });
 
-    it('does not render dots when hitRate is undefined', () => {
+    it('renders watch button with correct testID', () => {
       const result = ElevatedPlayerRow({
-        player: makePlayer(),
+        player: makePlayer({ playerId: 29 }),
         rank: 2,
         statCategory: 'goals',
         onPress: mockOnPress,
       });
-      const views = findByType(result, 'View');
-      const dots = views.filter(
-        (v: any) => v?.props?.style && Array.isArray(v.props.style) &&
-          v.props.style.some((s: any) =>
-            s?.backgroundColor === '#22c55e' || s?.backgroundColor === 'rgba(255, 255, 255, 0.15)',
-          ),
-      );
-      expect(dots.length).toBe(0);
-    });
-
-    it('does not render dots when hitRate has empty games', () => {
-      const result = ElevatedPlayerRow({
-        player: makePlayer(),
-        rank: 2,
-        hitRate: makeHitRate({ games: [] }),
-        statCategory: 'goals',
-        onPress: mockOnPress,
-      });
-      const views = findByType(result, 'View');
-      const dots = views.filter(
-        (v: any) => v?.props?.style && Array.isArray(v.props.style) &&
-          v.props.style.some((s: any) =>
-            s?.backgroundColor === '#22c55e' || s?.backgroundColor === 'rgba(255, 255, 255, 0.15)',
-          ),
-      );
-      expect(dots.length).toBe(0);
-    });
-
-    it('uses green for exceeded and dim for not', () => {
-      const hitRate = makeHitRate({
-        games: [
-          { gameId: 1, value: 1, exceeded: true, gameDate: '2026-01-03' },
-          { gameId: 2, value: 0, exceeded: false, gameDate: '2026-01-02' },
-          { gameId: 3, value: 1, exceeded: true, gameDate: '2026-01-01' },
-        ],
-      });
-      const result = ElevatedPlayerRow({
-        player: makePlayer(),
-        rank: 2,
-        hitRate,
-        statCategory: 'goals',
-        onPress: mockOnPress,
-      });
-      const views = findByType(result, 'View');
-      const greenDots = views.filter(
-        (v: any) => v?.props?.style && Array.isArray(v.props.style) &&
-          v.props.style.some((s: any) => s?.backgroundColor === '#22c55e'),
-      );
-      const dimDots = views.filter(
-        (v: any) => v?.props?.style && Array.isArray(v.props.style) &&
-          v.props.style.some((s: any) => s?.backgroundColor === 'rgba(255, 255, 255, 0.15)'),
-      );
-      expect(greenDots.length).toBe(2);
-      expect(dimDots.length).toBe(1);
+      const touchables = findByType(result, 'TouchableOpacity');
+      const watchBtn = touchables.find((t: any) => t.props.testID === 'watch-btn-29');
+      expect(watchBtn).toBeTruthy();
     });
   });
 

@@ -17,14 +17,18 @@ import { getTeamColors } from '../../constants/teamColors';
 import { Ionicons } from '@expo/vector-icons';
 import CompactPlayerRow from '../../components/CompactPlayerRow';
 import ElevatedPlayerRow from '../../components/ElevatedPlayerRow';
+import FantasyProjectionRow from '../../components/FantasyProjectionRow';
 import GoalieSpotlightCard from '../../components/GoalieSpotlightCard';
 import HeroLeaderCard from '../../components/HeroLeaderCard';
 import PlayerDetailModal from '../../components/PlayerDetailModal';
 import PlayerProjectionCard from '../../components/PlayerProjectionCard';
+import PremiumGate from '../../components/PremiumGate';
 import { Skeleton } from '../../components/ui/SkeletonLoader';
 import { ThemedView } from '../../components/ThemedView';
-import { theme } from '../../constants/theme';
+import { theme, rinkGlass } from '../../constants/theme';
 import { useAnalytics } from '../../hooks/useAnalytics';
+import { getWaiverWireRecommendations } from '../../services/fantasyProjections';
+import type { PlayerProjection as FantasyPlayerProjection } from '../../types/fantasy';
 import {
   searchPlayers,
   type PlayerSearchResult,
@@ -76,6 +80,9 @@ export default function PlayersScreen() {
   // State — hit rates (loaded per-player)
   const [hitRates, setHitRates] = useState<Map<number, HitRateResult>>(new Map());
 
+  // State — fantasy projections (tonight's projections section)
+  const [fantasyProjections, setFantasyProjections] = useState<FantasyPlayerProjection[]>([]);
+
   // State — search
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<PlayerSearchResult[]>([]);
@@ -103,7 +110,14 @@ export default function PlayersScreen() {
   const loadTrendingData = useCallback(async () => {
     try {
       // Step 1: Leaders first (most visible, queries skater_trend_summary VIEW)
-      const leaders = await getLeagueLeaders(statCategory, 10);
+      const rawLeaders = await getLeagueLeaders(statCategory, 10);
+      // Deduplicate: keep first (highest-stat) occurrence per player
+      const seenIds = new Set<number>();
+      const leaders = rawLeaders.filter(p => {
+        if (seenIds.has(p.playerId)) return false;
+        seenIds.add(p.playerId);
+        return true;
+      });
       setLeagueLeaders(leaders);
 
       // Step 2: Trending + goalies (sequential to avoid VIEW query overload)
@@ -119,6 +133,16 @@ export default function PlayersScreen() {
       // Step 3: Projections (calls getPlayersPlayingTonight which also hits the VIEW)
       const tonight = await getPlayerProjections(15);
       setProjections(tonight);
+
+      // Step 3.5: Fantasy projections (tonight's top projected players)
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        const fantasyData = await getWaiverWireRecommendations([], 'yahoo', today, 10);
+        setFantasyProjections(fantasyData);
+      } catch {
+        // Non-critical — don't block the rest of the page
+        setFantasyProjections([]);
+      }
 
       // Step 4: Supplementary data (hit rates, L10 stats, leader trends)
       const allPlayerIds = [
@@ -239,7 +263,7 @@ export default function PlayersScreen() {
           {item.teamAbbrev} / {item.position}{item.sweaterNumber ? ` / #${item.sweaterNumber}` : ''}
         </Text>
       </View>
-      <Ionicons name="chevron-forward" size={16} color={theme.subtext} />
+      <Ionicons name="chevron-forward" size={16} color={rinkGlass.textSecondary} />
     </TouchableOpacity>
   ), [handlePlayerTap]);
 
@@ -267,11 +291,11 @@ export default function PlayersScreen() {
 
         <View style={styles.searchContainerActive}>
           <View style={styles.searchBarRow}>
-            <Ionicons name="search" size={18} color={theme.subtext} style={styles.searchIcon} />
+            <Ionicons name="search" size={18} color={rinkGlass.textSecondary} style={styles.searchIcon} />
             <TextInput
               style={styles.searchInput}
               placeholder="Search players..."
-              placeholderTextColor={theme.subtext}
+              placeholderTextColor={rinkGlass.textMuted}
               value={searchQuery}
               onChangeText={handleSearchChange}
               returnKeyType="search"
@@ -281,14 +305,14 @@ export default function PlayersScreen() {
               testID="player-search-input-active"
             />
             <TouchableOpacity onPress={clearSearch} testID="search-clear-button" style={styles.clearButton}>
-              <Ionicons name="close-circle" size={20} color={theme.subtext} />
+              <Ionicons name="close-circle" size={20} color={rinkGlass.textSecondary} />
             </TouchableOpacity>
           </View>
         </View>
 
         {searchLoading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={theme.accent} />
+            <ActivityIndicator size="large" color={rinkGlass.blueLight} />
           </View>
         ) : (
           <FlatList
@@ -339,7 +363,7 @@ export default function PlayersScreen() {
             onPress={() => setIsSearchActive(true)}
             testID="search-toggle"
           >
-            <Ionicons name="search" size={22} color={theme.subtext} />
+            <Ionicons name="search" size={22} color={rinkGlass.textSecondary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -352,7 +376,7 @@ export default function PlayersScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor={theme.accent}
+            tintColor={rinkGlass.blueLight}
           />
         }
       >
@@ -480,12 +504,16 @@ export default function PlayersScreen() {
                                 </Text>
                               </View>
                             )}
-                            {item.pointStreak >= 3 && (
+                            {(item.trendLabel === 'HOT' || item.trendLabel === 'WARM') ? (
+                              <Text style={styles.spotlightFlames}>
+                                {item.trendLabel === 'HOT' ? '\uD83D\uDD25\uD83D\uDD25\uD83D\uDD25\uD83D\uDD25\uD83D\uDD25' : '\uD83D\uDD25\uD83D\uDD25\uD83D\uDD25\uD83D\uDD25'}
+                              </Text>
+                            ) : item.pointStreak >= 3 ? (
                               <View style={styles.spotlightStreakRow}>
                                 <Ionicons name="flame" size={10} color="#f97316" />
                                 <Text style={styles.spotlightStreak}>{item.pointStreak}g point streak</Text>
                               </View>
-                            )}
+                            ) : null}
                           </View>
                         </Pressable>
                       </View>
@@ -510,6 +538,24 @@ export default function PlayersScreen() {
               </View>
             )}
 
+            {/* TONIGHT'S PROJECTIONS — fantasy points (premium gated) */}
+            {fantasyProjections.length > 0 && (
+              <View style={styles.section}>
+                {renderSectionHeader("TONIGHT'S PROJECTIONS")}
+                <PremiumGate feature="Fantasy Projections">
+                  <View>
+                    {fantasyProjections.slice(0, 10).map((proj) => (
+                      <FantasyProjectionRow
+                        key={proj.playerId}
+                        projection={proj}
+                        onPress={handlePlayerTap}
+                      />
+                    ))}
+                  </View>
+                </PremiumGate>
+              </View>
+            )}
+
             {/* LEAGUE LEADERS -- tiered layout, sorted by actual stats */}
             {leagueLeaders.length > 0 && (
               <View style={styles.section}>
@@ -528,6 +574,7 @@ export default function PlayersScreen() {
                     player={player}
                     rank={i + 2}
                     hitRate={hitRates.get(player.playerId)}
+                    leaderTrend={leaderTrends.get(player.playerId)}
                     statCategory={statCategory}
                     onPress={handlePlayerTap}
                   />
@@ -583,7 +630,7 @@ export default function PlayersScreen() {
             {/* Empty state */}
             {leagueLeaders.length === 0 && trendingUp.length === 0 && projections.length === 0 && (
               <View style={styles.emptyContainer}>
-                <Ionicons name="trending-up" size={48} color={theme.subtext} />
+                <Ionicons name="trending-up" size={48} color={rinkGlass.textSecondary} />
                 <Text style={styles.emptyTitle}>No Trend Data Available</Text>
                 <Text style={styles.emptyText}>
                   Player trend data requires at least 10 games played.
@@ -614,7 +661,7 @@ export default function PlayersScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.background,
+    backgroundColor: rinkGlass.ice,
   },
   header: {
     paddingTop: Platform.OS === 'ios' ? 60 : 30,
@@ -629,7 +676,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: theme.text,
+    color: rinkGlass.textPrimary,
   },
   searchButton: {
     padding: 8,
@@ -656,14 +703,14 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 13,
     fontWeight: '800',
-    color: theme.accent,
+    color: rinkGlass.blueLight,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
   },
   accentBar: {
     width: 32,
     height: 2,
-    backgroundColor: theme.accent,
+    backgroundColor: rinkGlass.blueLight,
     borderRadius: 1,
     marginTop: 4,
     opacity: 0.6,
@@ -672,7 +719,7 @@ const styles = StyleSheet.create({
   spotlightSubtitle: {
     fontSize: 11,
     fontWeight: '600',
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     marginBottom: 8,
   },
   spotlightList: {
@@ -682,11 +729,11 @@ const styles = StyleSheet.create({
   spotlightCard: {
     width: 140,
     height: 210,
-    backgroundColor: theme.card,
+    backgroundColor: rinkGlass.glass,
     borderRadius: 14,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: rinkGlass.glassBorder,
   },
   spotlightInner: {
     flex: 1,
@@ -702,7 +749,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: theme.subtle,
+    backgroundColor: rinkGlass.boards,
     borderWidth: 2,
   },
   spotlightRank: {
@@ -724,7 +771,7 @@ const styles = StyleSheet.create({
   spotlightName: {
     fontSize: 13,
     fontWeight: '700',
-    color: theme.text,
+    color: rinkGlass.textPrimary,
     textAlign: 'center',
     marginBottom: 2,
   },
@@ -737,14 +784,14 @@ const styles = StyleSheet.create({
   spotlightBigStat: {
     fontSize: 28,
     fontWeight: '900',
-    color: theme.text,
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+    color: rinkGlass.textPrimary,
+    fontFamily: rinkGlass.fonts.display,
     fontVariant: ['tabular-nums'] as any,
   },
   spotlightStatLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: theme.subtext,
+    color: rinkGlass.textMuted,
     letterSpacing: 0.8,
     marginBottom: 4,
   },
@@ -763,6 +810,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: theme.semantic.positive,
   },
+  spotlightFlames: {
+    fontSize: 10,
+    marginTop: 3,
+    textAlign: 'center',
+  },
   spotlightStreakRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -776,12 +828,12 @@ const styles = StyleSheet.create({
   },
   // Compact rows container
   compactContainer: {
-    backgroundColor: theme.card,
+    backgroundColor: rinkGlass.glass,
     borderRadius: 10,
     marginTop: 6,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.04)',
+    borderColor: rinkGlass.glassBorder,
   },
   // Search (active mode)
   searchContainerActive: {
@@ -791,10 +843,10 @@ const styles = StyleSheet.create({
   searchBarRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.card,
+    backgroundColor: rinkGlass.glass,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: rinkGlass.glassBorder,
     paddingHorizontal: 12,
   },
   searchIcon: {
@@ -804,7 +856,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 10,
     fontSize: 14,
-    color: theme.text,
+    color: rinkGlass.textPrimary,
   },
   clearButton: {
     padding: 4,
@@ -814,18 +866,18 @@ const styles = StyleSheet.create({
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.card,
+    backgroundColor: rinkGlass.glass,
     borderRadius: 12,
     padding: 12,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: rinkGlass.glassBorder,
   },
   searchHeadshot: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: theme.subtle,
+    backgroundColor: rinkGlass.boards,
     marginRight: 10,
   },
   searchInfo: {
@@ -834,12 +886,12 @@ const styles = StyleSheet.create({
   searchName: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.text,
+    color: rinkGlass.textPrimary,
     marginBottom: 2,
   },
   searchMeta: {
     fontSize: 12,
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
   },
   // Loading / Empty
   loadingContainer: {
@@ -849,7 +901,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 14,
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
   },
   // Skeleton loading
   skeletonContainer: {
@@ -865,39 +917,39 @@ const styles = StyleSheet.create({
   skeletonSpotlightCard: {
     width: 140,
     height: 210,
-    backgroundColor: theme.card,
+    backgroundColor: rinkGlass.glass,
     borderRadius: 14,
     padding: 12,
     justifyContent: 'flex-start',
     paddingTop: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: rinkGlass.glassBorder,
   },
   skeletonProjectionCard: {
-    backgroundColor: theme.card,
+    backgroundColor: rinkGlass.glass,
     borderRadius: 12,
     padding: 14,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: rinkGlass.glassBorder,
   },
   skeletonHeroCard: {
-    backgroundColor: theme.card,
+    backgroundColor: rinkGlass.glass,
     borderRadius: 14,
     padding: 16,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: rinkGlass.glassBorder,
   },
   skeletonRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.card,
+    backgroundColor: rinkGlass.glass,
     borderRadius: 10,
     padding: 12,
     marginBottom: 6,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.04)',
+    borderColor: rinkGlass.glassBorder,
   },
   emptyContainer: {
     paddingVertical: 40,
@@ -907,11 +959,11 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: theme.text,
+    color: rinkGlass.textPrimary,
   },
   emptyText: {
     fontSize: 14,
-    color: theme.subtext,
+    color: rinkGlass.textSecondary,
     textAlign: 'center',
     paddingHorizontal: 24,
   },
