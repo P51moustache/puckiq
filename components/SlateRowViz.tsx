@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
     overflow: 'hidden',
-    marginTop: 10,
+    marginTop: 8,
     backgroundColor: rinkGlass.glassBorder,
     position: 'relative',
   },
@@ -182,11 +182,11 @@ const styles = StyleSheet.create({
   // Factor mini-bar
   factorBlock: {
     width: '100%',
-    marginTop: 10,
-    paddingTop: 8,
+    marginTop: 8,
+    paddingTop: 6,
     borderTopWidth: 1,
     borderTopColor: rinkGlass.glassBorder,
-    gap: 6,
+    gap: 4,
   },
   factorLabelRow: {
     flexDirection: 'row',
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
   },
   factorLabel: {
-    fontSize: 9,
+    fontSize: 10,
     color: rinkGlass.textMuted,
     fontWeight: '700',
     letterSpacing: 1,
@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
   },
   factorValues: {
     fontFamily: rinkGlass.fonts.mono,
-    fontSize: 11,
+    fontSize: 12,
     color: rinkGlass.textSecondary,
   },
   factorValue: {

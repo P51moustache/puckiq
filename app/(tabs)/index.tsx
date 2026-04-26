@@ -60,11 +60,11 @@ export default function TonightScreen() {
         }
       >
         {/* Page header — name + date in stat-sheet voice */}
-        <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 }}>
-          <Text style={{ fontSize: 26, fontWeight: '700', color: rinkGlass.textPrimary, fontFamily: 'Display-Bold', letterSpacing: 1 }}>
+        <View style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 10 }}>
+          <Text style={{ fontSize: 24, fontWeight: '700', color: rinkGlass.textPrimary, fontFamily: 'Display-Bold', letterSpacing: 0.5 }}>
             PuckIQ
           </Text>
-          <Text style={{ fontSize: 11, color: rinkGlass.textSecondary, marginTop: 4, letterSpacing: 1.5 }}>
+          <Text style={{ fontSize: 10, color: rinkGlass.textSecondary, marginTop: 2, letterSpacing: 1.5 }}>
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }).toUpperCase()}
             <Text style={{ color: rinkGlass.textMuted }}>  ·  LEAGUE BRIEFING</Text>
           </Text>
