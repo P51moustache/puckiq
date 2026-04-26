@@ -238,6 +238,9 @@ function SlateSection({
         <Text style={styles.headerHint}>Model · Lines · Tags</Text>
         <View style={styles.headerUnderline} />
       </View>
+      <Text style={styles.sectionExplainer}>
+        Each row: model's win probability for the favored team, predicted spread (SPR) and total goals (O/U). Hold for top model factors.
+      </Text>
       <View style={styles.list}>
         {games.map((g) => {
           const home = g.homeTeam?.abbrev ?? '';
@@ -415,7 +418,6 @@ function SlateSection({
               front={front}
               back={back}
               onTap={() => onPressGame(g.id)}
-              minHeight={260}
             />
           );
         })}
@@ -498,6 +500,9 @@ function MismatchSection({
         <Text style={styles.headerHint}>Tonight's biggest gaps</Text>
         <View style={styles.headerUnderline} />
       </View>
+      <Text style={styles.sectionExplainer}>
+        Top 3 games where one team's offense (GF/GP) overwhelms the opponent's defense (OPP GA/GP). GAP is the combined edge.
+      </Text>
       <View style={styles.list}>
         {mismatches.map((m) => (
           <Pressable
@@ -597,9 +602,12 @@ function WatchlistSection({
         <View style={styles.headerLeft}>
           <Text style={styles.headerLabel}>WATCHLIST</Text>
         </View>
-        <Text style={styles.headerHint}>W% vs goal differential</Text>
+        <Text style={styles.headerHint}>Luck delta</Text>
         <View style={styles.headerUnderline} />
       </View>
+      <Text style={styles.sectionExplainer}>
+        Teams whose record outpaces (OVER) or trails (UNDER) what their goal differential predicts. Big deltas tend to regress.
+      </Text>
       <View style={styles.list}>
         {watchlist.map((w) => {
           const overperforming = w.luck > 0;
@@ -756,6 +764,9 @@ function YesterdaySection({ onPressGame }: { onPressGame: (gameId: number) => vo
         )}
         <View style={styles.headerUnderline} />
       </View>
+      <Text style={styles.sectionExplainer}>
+        Last night's results. ✓ = model picked the winner. UPSET = the model's pick was the underdog and lost.
+      </Text>
       {topUpset && (
         <View style={styles.upsetCallout}>
           <Text style={styles.upsetLabel}>UPSET OF THE NIGHT</Text>
@@ -1312,7 +1323,15 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   section: {
-    gap: 6,
+    gap: 8,
+  },
+  sectionExplainer: {
+    fontSize: 11,
+    lineHeight: 15,
+    color: rinkGlass.textMuted,
+    paddingHorizontal: 2,
+    marginTop: -2,
+    marginBottom: 2,
   },
   headerRow: {
     flexDirection: 'row',
@@ -1577,13 +1596,14 @@ const styles = StyleSheet.create({
     fontFamily: rinkGlass.fonts.display,
     fontSize: 30,
     color: rinkGlass.textPrimary,
-    lineHeight: 32,
+    lineHeight: 38,
     letterSpacing: -0.5,
   },
   slateProbPercent: {
     fontFamily: rinkGlass.fonts.display,
     fontSize: 16,
     color: rinkGlass.textSecondary,
+    lineHeight: 22,
     marginLeft: 1,
   },
   slateProbLabel: {
