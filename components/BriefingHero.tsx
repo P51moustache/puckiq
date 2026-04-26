@@ -35,6 +35,8 @@ import { rinkGlass } from '../constants/theme';
 import { getTeamLogoUrl } from '../utils/teamLogo';
 import { getTeamColors } from '../constants/teamColors';
 import type { MLPrediction } from '../services/mlPredictions';
+import AnimatedNumber from './AnimatedNumber';
+import AnimatedProbBar from './AnimatedProbBar';
 
 interface Game {
   id: number;
@@ -187,57 +189,74 @@ function GameHero({ pick }: { pick: Extract<HeroPick, { kind: 'game' }> }) {
     ? new Date(pick.game.startTimeUTC).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
     : '';
   const favoredColors = getTeamColors(pick.favored);
-  const probPct = Math.round(pick.favoredProb * 100);
+  const probPct = pick.favoredProb * 100;
   const conf = pick.prediction.confidence ?? 'medium';
   const spread = pick.prediction.predicted_spread;
   const total = pick.prediction.predicted_total;
 
   return (
     <>
-      {/* Subtle team-color tint behind the card */}
+      {/* Two-stop team-color gradient — heavier on the favored side */}
       <LinearGradient
-        colors={[`${favoredColors?.primary ?? rinkGlass.blueLight}26`, 'transparent']}
+        colors={[`${favoredColors?.primary ?? rinkGlass.blueLight}3A`, 'transparent']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
+      {/* Soft radial-ish second gradient bottom-right for depth */}
+      <LinearGradient
+        colors={['transparent', `${favoredColors?.primary ?? rinkGlass.blueLight}1A`]}
+        start={{ x: 0.2, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+
       <View style={styles.headerRow}>
         <View style={styles.eyebrowDot} />
         <Text style={styles.eyebrowLabel}>TOP PICK · TONIGHT</Text>
         <Text style={styles.eyebrowMeta}>{time}</Text>
       </View>
 
-      <View style={styles.matchupRow}>
-        <View style={styles.teamCol}>
-          <ExpoImage source={{ uri: getTeamLogoUrl(away) }} style={styles.heroLogo} contentFit="contain" />
-          <Text style={[styles.teamAbbrev, pick.favored === away && styles.teamAbbrevFavored]}>{away}</Text>
+      {/* Big probability moment — number is the page's lead visual */}
+      <View style={styles.heroProbBlock}>
+        <View style={styles.heroProbNumberRow}>
+          <AnimatedNumber
+            value={probPct}
+            format={(n) => Math.round(n).toString()}
+            duration={1100}
+            style={styles.heroProbValue}
+          />
+          <Text style={styles.heroProbPercent}>%</Text>
         </View>
-        <Text style={styles.matchupAt}>@</Text>
-        <View style={styles.teamCol}>
-          <ExpoImage source={{ uri: getTeamLogoUrl(home) }} style={styles.heroLogo} contentFit="contain" />
-          <Text style={[styles.teamAbbrev, pick.favored === home && styles.teamAbbrevFavored]}>{home}</Text>
-        </View>
+        <Text style={styles.heroProbCaption}>
+          {pick.favored} <Text style={styles.confDot}> · </Text>
+          <Text style={styles.confLabel}>{conf.toUpperCase()} CONFIDENCE</Text>
+        </Text>
+      </View>
 
-        <View style={styles.probColumn}>
-          <Text style={styles.probValue}>{probPct}%</Text>
-          <Text style={styles.probSubline}>
-            {pick.favored} <Text style={styles.confDot}>·</Text> {conf.toUpperCase()}
-          </Text>
+      {/* Bigger logos + abbrevs */}
+      <View style={styles.matchupBigRow}>
+        <View style={styles.teamColBig}>
+          <ExpoImage source={{ uri: getTeamLogoUrl(away) }} style={styles.heroLogoBig} contentFit="contain" />
+          <Text style={[styles.teamAbbrevBig, pick.favored === away && styles.teamAbbrevFavored]}>{away}</Text>
+        </View>
+        <View style={styles.matchupAtBigCol}>
+          <Text style={styles.matchupAtBig}>@</Text>
+        </View>
+        <View style={styles.teamColBig}>
+          <ExpoImage source={{ uri: getTeamLogoUrl(home) }} style={styles.heroLogoBig} contentFit="contain" />
+          <Text style={[styles.teamAbbrevBig, pick.favored === home && styles.teamAbbrevFavored]}>{home}</Text>
         </View>
       </View>
 
-      {/* Probability bar */}
-      <View style={styles.probBar}>
-        <View
-          style={[
-            styles.probBarFill,
-            {
-              width: `${probPct}%`,
-              backgroundColor: favoredColors?.primary ?? rinkGlass.blueLight,
-            },
-          ]}
-        />
-      </View>
+      {/* Animated chunky probability bar */}
+      <AnimatedProbBar
+        value={pick.favoredProb}
+        color={favoredColors?.primary ?? rinkGlass.blueLight}
+        height={10}
+        delay={250}
+        duration={950}
+      />
 
       <View style={styles.linesRow}>
         {spread != null && (
@@ -471,24 +490,81 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
     letterSpacing: 0.5,
   },
-  // Game hero
-  matchupRow: {
+  // Game hero — big-number-first composition
+  heroProbBlock: {
+    paddingTop: 4,
+    paddingBottom: 6,
+  },
+  heroProbNumberRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 2,
+  },
+  heroProbValue: {
+    fontFamily: rinkGlass.fonts.display,
+    fontSize: 88,
+    color: rinkGlass.textPrimary,
+    lineHeight: 96,
+    letterSpacing: -2,
+    minWidth: 130,
+  },
+  heroProbPercent: {
+    fontFamily: rinkGlass.fonts.display,
+    fontSize: 40,
+    color: rinkGlass.textSecondary,
+    lineHeight: 44,
+    letterSpacing: -1,
+    marginLeft: 2,
+  },
+  heroProbCaption: {
+    fontSize: 11,
+    color: rinkGlass.textPrimary,
+    fontFamily: rinkGlass.fonts.mono,
+    fontWeight: '700',
+    marginTop: 4,
+    letterSpacing: 1,
+  },
+  confDot: {
+    color: rinkGlass.textMuted,
+  },
+  confLabel: {
+    color: rinkGlass.blueLight,
+  },
+  matchupBigRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingVertical: 4,
+    justifyContent: 'space-between',
+    gap: 16,
+    paddingVertical: 8,
   },
-  teamCol: {
+  teamColBig: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 8,
   },
-  heroLogo: {
-    width: 44,
-    height: 44,
+  matchupAtBigCol: {
+    paddingHorizontal: 4,
+  },
+  matchupAtBig: {
+    fontSize: 14,
+    color: rinkGlass.textMuted,
+    fontFamily: rinkGlass.fonts.mono,
+  },
+  heroLogoBig: {
+    width: 38,
+    height: 38,
   },
   heroLogoLarge: {
     width: 54,
     height: 54,
+  },
+  teamAbbrevBig: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: rinkGlass.textSecondary,
+    fontFamily: rinkGlass.fonts.mono,
+    letterSpacing: 0.5,
   },
   teamAbbrev: {
     fontSize: 12,
@@ -499,44 +575,6 @@ const styles = StyleSheet.create({
   },
   teamAbbrevFavored: {
     color: rinkGlass.textPrimary,
-  },
-  matchupAt: {
-    fontSize: 14,
-    color: rinkGlass.textMuted,
-    marginHorizontal: 4,
-  },
-  probColumn: {
-    flex: 1,
-    alignItems: 'flex-end',
-  },
-  probValue: {
-    fontFamily: rinkGlass.fonts.display,
-    fontSize: 40,
-    color: rinkGlass.textPrimary,
-    lineHeight: 42,
-    letterSpacing: -0.5,
-  },
-  probSubline: {
-    fontSize: 10,
-    color: rinkGlass.textSecondary,
-    fontFamily: rinkGlass.fonts.mono,
-    fontWeight: '700',
-    marginTop: 2,
-    letterSpacing: 0.5,
-  },
-  confDot: {
-    color: rinkGlass.textMuted,
-  },
-  probBar: {
-    height: 4,
-    backgroundColor: rinkGlass.glassBorder,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  probBarFill: {
-    height: '100%',
-    backgroundColor: rinkGlass.blueLight,
-    borderRadius: 2,
   },
   linesRow: {
     flexDirection: 'row',
