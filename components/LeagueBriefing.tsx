@@ -30,6 +30,10 @@ import { supabase } from '../lib/supabase';
 import { getMLPredictions, type MLPrediction } from '../services/mlPredictions';
 import { getLeagueLeaders, type SkaterLeader } from '../services/playerLeaders';
 import BriefingHero from './BriefingHero';
+import AnimatedNumber from './AnimatedNumber';
+import { DualTeamSplitBar, FormSquares, FactorMiniBar } from './SlateRowViz';
+import HeatStrip from './HeatStrip';
+import FlippableRow from './FlippableRow';
 import type { H2HRecord } from '../types/gameResults';
 import type { MomentumData, ClutchRating, EdgeTeamLanding } from '../types/edgeStats';
 import type { TeamFormData } from '../types/teamForm';
@@ -198,6 +202,7 @@ function SlateSection({
   predictionsMap,
   restMap,
   formMap,
+  standings,
   onPressGame,
 }: {
   games: Game[];
@@ -205,8 +210,20 @@ function SlateSection({
   predictionsMap?: Map<string, { homeWinProb: number; awayWinProb: number }>;
   restMap?: Map<string, number>;
   formMap?: Map<string, TeamFormData>;
+  standings: any[];
   onPressGame: (gameId: number) => void;
 }) {
+  // Build a quick standings lookup so we can show GF/GP-style factor bars.
+  const byAbbrev = useMemo(() => {
+    const map: Record<string, any> = {};
+    if (Array.isArray(standings)) {
+      for (const s of standings) {
+        const ab = typeof s.teamAbbrev === 'string' ? s.teamAbbrev : s.teamAbbrev?.default;
+        if (ab) map[ab] = s;
+      }
+    }
+    return map;
+  }, [standings]);
   if (!games?.length) {
     return null;
   }
@@ -239,21 +256,42 @@ function SlateSection({
           const awayB2B = restMap ? (restMap.get(away) ?? 99) === 0 : false;
           const homeB2B = restMap ? (restMap.get(home) ?? 99) === 0 : false;
 
-          return (
-            <Pressable
-              key={g.id}
-              onPress={() => onPressGame(g.id)}
-              style={({ pressed }) => [styles.slateRow, pressed && styles.rowPressed]}
-            >
+          // Compute a "GOAL PACE" factor row for the bar:
+          // favored team's GF/GP vs underdog team's allowance — the simplest
+          // single-stat that tells the story.
+          const homeStanding = byAbbrev[home];
+          const awayStanding = byAbbrev[away];
+          let factorBlock: { label: string; favVal: number; undVal: number; favAb: string; undAb: string } | null = null;
+          if (homeStanding && awayStanding && winner) {
+            const hgp = (homeStanding.gamesPlayed ?? 1) || 1;
+            const agp = (awayStanding.gamesPlayed ?? 1) || 1;
+            const homeGF = (homeStanding.goalFor ?? 0) / hgp;
+            const awayGF = (awayStanding.goalFor ?? 0) / agp;
+            factorBlock = {
+              label: 'GF / GAME',
+              favVal: winner === home ? homeGF : awayGF,
+              undVal: winner === home ? awayGF : homeGF,
+              favAb: winner,
+              undAb: winner === home ? away : home,
+            };
+          }
+          const homeForm = formMap?.get(home);
+          const awayForm = formMap?.get(away);
+          const factors = mlPred?.top_factors?.slice(0, 3) ?? [];
+
+          const front = (
+            <View style={styles.slateRow}>
               <View style={styles.slateMatchup}>
                 <ExpoImage source={{ uri: getTeamLogoUrl(away) }} style={styles.slateLogo} contentFit="contain" />
                 <View style={styles.slateAbbrevCol}>
                   <Text style={styles.slateAbbrev}>{away}</Text>
+                  {awayForm?.streak ? <Text style={styles.streakTiny}>{awayForm.streak}</Text> : null}
                   {awayB2B && <Text style={styles.b2bTag}>B2B</Text>}
                 </View>
                 <Text style={styles.slateAt}>@</Text>
                 <View style={styles.slateAbbrevCol}>
                   <Text style={styles.slateAbbrev}>{home}</Text>
+                  {homeForm?.streak ? <Text style={styles.streakTiny}>{homeForm.streak}</Text> : null}
                   {homeB2B && <Text style={styles.b2bTag}>B2B</Text>}
                 </View>
                 <ExpoImage source={{ uri: getTeamLogoUrl(home) }} style={styles.slateLogo} contentFit="contain" />
@@ -261,16 +299,41 @@ function SlateSection({
               <View style={styles.slateRight}>
                 {homeProb !== null && homeProb !== undefined ? (
                   <View style={styles.slateProbBlock}>
-                    <Text style={styles.slateProbValue}>
-                      {Math.round((winner === home ? homeProb : 1 - homeProb) * 100)}%
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+                      <AnimatedNumber
+                        value={Math.round((winner === home ? homeProb : 1 - homeProb) * 100)}
+                        style={styles.slateProbValue}
+                      />
+                      <Text style={styles.slateProbPercent}>%</Text>
+                    </View>
                     <Text style={styles.slateProbLabel}>{winner ?? home}</Text>
                   </View>
                 ) : (
                   <Text style={styles.slateTime}>{formatGameTime(g.startTimeUTC)}</Text>
                 )}
               </View>
-              {(spread != null || total != null || anomaly || topFactor) && (
+
+              {/* Dual-team gradient split bar with model-probability tick */}
+              {homeProb !== null && homeProb !== undefined && (
+                <DualTeamSplitBar awayAbbrev={away} homeAbbrev={home} homeProb={homeProb} delay={150} />
+              )}
+
+              {/* Form squares row — L10 for both teams, side by side */}
+              {(homeForm?.results?.length || awayForm?.results?.length) && (
+                <View style={styles.formsRow}>
+                  <View style={styles.formCell}>
+                    <Text style={styles.formLabel}>{away} L10</Text>
+                    <FormSquares results={awayForm?.results} />
+                  </View>
+                  <View style={styles.formCell}>
+                    <Text style={styles.formLabelRight}>L10 {home}</Text>
+                    <FormSquares results={homeForm?.results} />
+                  </View>
+                </View>
+              )}
+
+              {/* Lines + tags row */}
+              {(spread != null || total != null || anomaly) && (
                 <View style={styles.slateMeta}>
                   {spread != null && (
                     <Text style={styles.slateMetaText}>
@@ -289,12 +352,71 @@ function SlateSection({
                   )}
                 </View>
               )}
-              {topFactor && (
-                <Text style={styles.factorLine} numberOfLines={1}>
-                  {topFactor.feature.replace(/_/g, ' ').toUpperCase()}: {typeof topFactor.value === 'number' ? topFactor.value.toFixed(2) : topFactor.value}
-                </Text>
+
+              {/* Factor mini-bar */}
+              {factorBlock && (
+                <FactorMiniBar
+                  label={factorBlock.label}
+                  favoredValue={factorBlock.favVal}
+                  underdogValue={factorBlock.undVal}
+                  favoredAbbrev={factorBlock.favAb}
+                  underdogAbbrev={factorBlock.undAb}
+                />
               )}
-            </Pressable>
+              <Text style={styles.flipHint}>HOLD TO REVEAL FACTORS</Text>
+            </View>
+          );
+
+          const back = (
+            <View style={[styles.slateRow, styles.slateRowBack]}>
+              <View style={styles.backHeaderRow}>
+                <Text style={styles.backTitle}>{away} @ {home}</Text>
+                <Text style={styles.backTitleMeta}>MODEL FACTORS</Text>
+              </View>
+              {factors.length > 0 ? (
+                <View style={styles.factorList}>
+                  {factors.map((f, idx) => {
+                    const importance = Math.min(1, Math.abs(f.impact ?? 0));
+                    return (
+                      <View key={idx} style={styles.factorListRow}>
+                        <Text style={styles.factorListLabel} numberOfLines={1}>
+                          {String(f.feature).replace(/_/g, ' ').toUpperCase()}
+                        </Text>
+                        <View style={styles.factorListBarTrack}>
+                          <View
+                            style={[
+                              styles.factorListBarFill,
+                              { width: `${importance * 100}%` },
+                            ]}
+                          />
+                        </View>
+                        <Text style={styles.factorListValue}>
+                          {typeof f.value === 'number' ? f.value.toFixed(2) : String(f.value)}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              ) : (
+                <Text style={styles.backNoData}>NO FACTOR DATA</Text>
+              )}
+              <View style={styles.backFooterRow}>
+                <Text style={styles.backFooter}>
+                  CONFIDENCE <Text style={styles.backFooterValue}>{(conf ?? 'medium').toUpperCase()}</Text>
+                </Text>
+                <Text style={styles.backFooterTap}>TAP TO FLIP BACK</Text>
+              </View>
+            </View>
+          );
+
+          return (
+            <FlippableRow
+              key={g.id}
+              front={front}
+              back={back}
+              onTap={() => onPressGame(g.id)}
+              minHeight={260}
+            />
           );
         })}
       </View>
@@ -1128,6 +1250,16 @@ export default function LeagueBriefing({
         formMap={formMap}
       />
 
+      {/* Heat strip — every game tonight as a colored bar (signature moment) */}
+      {hasSlate && (
+        <HeatStrip
+          games={games}
+          predictions={predictions}
+          predictionsMap={predictionsMap}
+          onPressGame={onPressGame}
+        />
+      )}
+
       <HeaderStrip lastFetchTime={lastFetchTime} onRefresh={handleRefresh} refreshing={refreshing} />
 
       {liveGames.length > 0 && <LiveRibbon games={liveGames} onPress={onPressGame} />}
@@ -1140,6 +1272,7 @@ export default function LeagueBriefing({
             predictionsMap={predictionsMap}
             restMap={restMap}
             formMap={formMap}
+            standings={standings}
             onPressGame={onPressGame}
           />
           <MismatchSection
@@ -1336,17 +1469,157 @@ const styles = StyleSheet.create({
   slateProbBlock: {
     alignItems: 'flex-end',
   },
+  slateRowBack: {
+    backgroundColor: rinkGlass.zamboni,
+  },
+  flipHint: {
+    fontSize: 9,
+    color: rinkGlass.textMuted,
+    fontFamily: rinkGlass.fonts.mono,
+    letterSpacing: 1.5,
+    marginTop: 10,
+    width: '100%',
+    textAlign: 'right',
+  },
+  backHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    width: '100%',
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: rinkGlass.glassBorder,
+  },
+  backTitle: {
+    fontFamily: rinkGlass.fonts.display,
+    fontSize: 18,
+    color: rinkGlass.textPrimary,
+    letterSpacing: 0.5,
+  },
+  backTitleMeta: {
+    fontSize: 10,
+    color: rinkGlass.blueLight,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+  },
+  factorList: {
+    width: '100%',
+    paddingTop: 10,
+    gap: 10,
+  },
+  factorListRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  factorListLabel: {
+    flex: 1.4,
+    fontSize: 10,
+    color: rinkGlass.textSecondary,
+    fontFamily: rinkGlass.fonts.mono,
+    letterSpacing: 0.5,
+    fontWeight: '700',
+  },
+  factorListBarTrack: {
+    flex: 2,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: rinkGlass.glassBorder,
+    overflow: 'hidden',
+  },
+  factorListBarFill: {
+    height: '100%',
+    backgroundColor: rinkGlass.blueLight,
+    borderRadius: 3,
+  },
+  factorListValue: {
+    width: 50,
+    fontSize: 12,
+    color: rinkGlass.textPrimary,
+    fontFamily: rinkGlass.fonts.mono,
+    fontWeight: '700',
+    textAlign: 'right',
+  },
+  backNoData: {
+    paddingTop: 14,
+    fontSize: 12,
+    color: rinkGlass.textMuted,
+    letterSpacing: 1.5,
+    textAlign: 'center',
+    fontFamily: rinkGlass.fonts.mono,
+  },
+  backFooterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    width: '100%',
+    marginTop: 'auto',
+    paddingTop: 12,
+  },
+  backFooter: {
+    fontSize: 9,
+    color: rinkGlass.textMuted,
+    letterSpacing: 1.5,
+    fontFamily: rinkGlass.fonts.mono,
+  },
+  backFooterValue: {
+    color: rinkGlass.blueLight,
+    fontWeight: '800',
+  },
+  backFooterTap: {
+    fontSize: 9,
+    color: rinkGlass.blueLight,
+    letterSpacing: 1.5,
+    fontWeight: '800',
+  },
   slateProbValue: {
     fontFamily: rinkGlass.fonts.display,
-    fontSize: 22,
+    fontSize: 30,
     color: rinkGlass.textPrimary,
-    lineHeight: 24,
+    lineHeight: 32,
+    letterSpacing: -0.5,
+  },
+  slateProbPercent: {
+    fontFamily: rinkGlass.fonts.display,
+    fontSize: 16,
+    color: rinkGlass.textSecondary,
+    marginLeft: 1,
   },
   slateProbLabel: {
     fontSize: 10,
     color: rinkGlass.textMuted,
     letterSpacing: 1,
     marginTop: 2,
+  },
+  streakTiny: {
+    fontSize: 8,
+    fontWeight: '800',
+    color: rinkGlass.textSecondary,
+    letterSpacing: 0.5,
+    fontFamily: rinkGlass.fonts.mono,
+    marginTop: 1,
+  },
+  formsRow: {
+    flexDirection: 'row',
+    width: '100%',
+    marginTop: 10,
+    justifyContent: 'space-between',
+  },
+  formCell: {
+    gap: 4,
+  },
+  formLabel: {
+    fontSize: 8,
+    color: rinkGlass.textMuted,
+    letterSpacing: 1,
+    fontFamily: rinkGlass.fonts.mono,
+  },
+  formLabelRight: {
+    fontSize: 8,
+    color: rinkGlass.textMuted,
+    letterSpacing: 1,
+    textAlign: 'right',
+    fontFamily: rinkGlass.fonts.mono,
   },
   slatePreviewProb: {
     fontFamily: rinkGlass.fonts.display,
