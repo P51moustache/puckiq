@@ -90,9 +90,10 @@ def _run() -> None:
     is_fresh = check_data_freshness(client)
     data_quality = "fresh" if is_fresh else "stale"
 
-    # 3. Get today's future (unplayed) games
+    # 3. Get today's future (unplayed) games — include playoffs (game_type=3)
+    #    so the daily slate isn't empty after the regular season ends.
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    games_df = read_games(client, CURRENT_SEASON, game_state="FUT")
+    games_df = read_games(client, CURRENT_SEASON, game_state="FUT", game_types=[2, 3])
     todays_games = games_df[games_df["game_date"] == today] if not games_df.empty else games_df
 
     if todays_games.empty:
@@ -406,20 +407,23 @@ def _predict_player_props(
                 "position": ps.get("position", ""),
             }
 
-    # Build per-player prediction rows (one row per player, with player_id column)
+    # Build per-player prediction rows (one row per player, with player_id column).
+    # `position` and `team_abbrev` are not columns on ml_predictions — keep
+    # them inside the player_predictions JSONB blob with the predicted stats.
     predictions = []
     for i, (_, row) in enumerate(features_df.iterrows()):
         pid = int(row.get("player_id", 0))
         meta = player_meta.get(pid, {})
+        team_abbrev = meta.get("team_abbrev") or row.get("team_abbrev") or ""
         predictions.append({
             "game_id": int(row.get("game_id", 0)),
             "model_type": ModelType.PLAYER_PROPS.value,
             "model_version": model_version,
             "game_date": today,
             "player_id": pid,
-            "team_abbrev": meta.get("team_abbrev", row.get("team_abbrev", "")),
-            "position": meta.get("position", ""),
             "player_predictions": {
+                "team_abbrev": team_abbrev,
+                "position": meta.get("position", ""),
                 "expected_goals": float(preds["goals"][i]),
                 "expected_assists": float(preds["assists"][i]),
                 "expected_points": float(preds["points"][i]),

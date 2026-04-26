@@ -49,8 +49,10 @@ function TrendingCard({
   onWatch?: (id: number) => void;
 }) {
   const rotation = useSharedValue(0);
-  const flames = '🔥'.repeat(player.flameCount);
   const totalPoints = +player.recentPoints.reduce((a, b) => a + b, 0).toFixed(1);
+  const last3Avg = player.recentPoints.length > 0
+    ? +(totalPoints / player.recentPoints.length).toFixed(1)
+    : 0;
 
   const handleFlip = () => {
     rotation.value = withTiming(rotation.value === 0 ? 180 : 0, {
@@ -100,16 +102,17 @@ function TrendingCard({
 
           <Text style={styles.teamLabel}>{player.team}</Text>
 
-          <Text testID={`flames-${player.id}`} style={styles.flames}>
-            {flames}
-          </Text>
+          <View testID={`flames-${player.id}`} style={styles.heatRow}>
+            <Text style={styles.heatValue}>{totalPoints}</Text>
+            <Text style={styles.heatLabel}>L{player.recentPoints.length} PTS</Text>
+          </View>
 
           <View style={styles.sparklineRow}>
             <Sparkline
               data={player.recentPoints}
-              width={80}
-              height={20}
-              color={rinkGlass.goalLight}
+              width={132}
+              height={22}
+              color={rinkGlass.blueLight}
             />
           </View>
         </Animated.View>
@@ -118,15 +121,18 @@ function TrendingCard({
           testID={`back-${player.id}`}
           style={[styles.cardBack, backStyle]}
         >
-          <Text style={styles.backHeader}>Why trending</Text>
-
           <Text style={styles.backPlayerName}>{player.name}</Text>
+          <Text style={styles.teamLabel}>{player.team}</Text>
 
-          <Text testID={`back-stats-${player.id}`} style={styles.backStats}>
-            Last {player.recentPoints.length} games: {totalPoints} pts
-          </Text>
+          <View testID={`back-stats-${player.id}`} style={styles.backStatBlock}>
+            <Text style={styles.backStatValue}>{totalPoints}</Text>
+            <Text style={styles.backStatLabel}>Total · L{player.recentPoints.length}</Text>
+          </View>
 
-          <Text style={styles.backFlames}>{flames}</Text>
+          <View style={styles.backStatBlock}>
+            <Text style={styles.backStatValue}>{last3Avg}</Text>
+            <Text style={styles.backStatLabel}>Avg / GP</Text>
+          </View>
 
           <TouchableOpacity
             testID={`watch-${player.id}`}
@@ -196,7 +202,7 @@ const styles = StyleSheet.create({
   accentStripe: {
     width: 4,
     height: 20,
-    backgroundColor: rinkGlass.goalLight,
+    backgroundColor: rinkGlass.blueLight,
     borderRadius: 2,
     marginRight: 8,
   },
@@ -255,34 +261,50 @@ const styles = StyleSheet.create({
     color: rinkGlass.textSecondary,
     marginTop: 2,
   },
-  flames: {
-    fontSize: 12,
-    marginTop: 6,
-  },
-  sparklineRow: {
+  heatRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 6,
     marginTop: 8,
   },
-  backHeader: {
+  heatValue: {
     fontFamily: rinkGlass.fonts.display,
-    fontSize: 11,
-    color: rinkGlass.goalLight,
-    textTransform: 'uppercase',
+    fontSize: 22,
+    color: rinkGlass.textPrimary,
+    letterSpacing: 0.5,
+  },
+  heatLabel: {
+    fontSize: 10,
+    color: rinkGlass.textSecondary,
     letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  sparklineRow: {
+    marginTop: 4,
   },
   backPlayerName: {
     fontFamily: rinkGlass.fonts.display,
-    fontSize: 13,
+    fontSize: 14,
     color: rinkGlass.textPrimary,
   },
-  backStats: {
-    fontSize: 12,
+  backStatBlock: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 6,
+  },
+  backStatValue: {
+    fontFamily: rinkGlass.fonts.display,
+    fontSize: 18,
     color: rinkGlass.textPrimary,
   },
-  backFlames: {
-    fontSize: 12,
+  backStatLabel: {
+    fontSize: 10,
+    color: rinkGlass.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   watchButton: {
-    backgroundColor: rinkGlass.goalLight,
+    backgroundColor: rinkGlass.blueLight,
     borderRadius: 6,
     paddingVertical: 6,
     alignItems: 'center',

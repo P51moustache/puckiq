@@ -110,10 +110,10 @@ export default function Leaderboard() {
         </View>
       )}
 
-      {/* Empty State */}
+      {/* Empty State — stat-only, no exclamation marketing */}
       {!loading && entries.length === 0 && (
         <View style={styles.emptyContainer} testID="leaderboard-empty">
-          <Text style={styles.emptyText}>Be the first on the leaderboard!</Text>
+          <Text style={styles.emptyText}>NO RESULTS YET</Text>
         </View>
       )}
 
@@ -142,7 +142,7 @@ export default function Leaderboard() {
                 </View>
                 <View style={styles.statsContainer}>
                   <Text style={styles.accuracyText}>{formatAccuracy(entry.accuracy)}</Text>
-                  {entry.streak >= 5 && <Text style={styles.streakText}>{'🔥'}{entry.streak}</Text>}
+                  {entry.streak >= 5 && <Text style={styles.streakText}>W{entry.streak}</Text>}
                   <Text style={styles.picksText}>{entry.totalPicks} picks</Text>
                 </View>
               </View>

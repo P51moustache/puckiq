@@ -10,9 +10,11 @@ import hashlib
 import json
 import logging
 import tempfile
+import time
 from pathlib import Path
 from typing import Any
 
+import httpx
 import joblib
 from supabase import Client
 
@@ -94,7 +96,27 @@ class ModelStorage:
         storage_path = f"{model_type}/{active}.joblib"
         expected_checksum = manifest.get("checksum", "")
 
-        file_bytes = self.client.storage.from_(self.bucket).download(storage_path)
+        # Supabase Storage downloads can hang on the underlying HTTP/2 stream.
+        # Default httpx timeout is too aggressive for ~10 MB artifacts on
+        # ephemeral CI runners. Retry up to 3 times with exponential backoff.
+        last_err: Exception | None = None
+        file_bytes: bytes | None = None
+        for attempt in range(3):
+            try:
+                file_bytes = self.client.storage.from_(self.bucket).download(storage_path)
+                break
+            except (httpx.ReadTimeout, httpx.ConnectTimeout, httpx.RemoteProtocolError) as err:
+                last_err = err
+                wait = 2 ** attempt
+                logger.warning(
+                    "Model download timed out (attempt %d/3) for %s — retry in %ds",
+                    attempt + 1, storage_path, wait,
+                )
+                time.sleep(wait)
+        if file_bytes is None:
+            raise RuntimeError(
+                f"Failed to download {storage_path} after 3 retries: {last_err}"
+            )
 
         actual_checksum = hashlib.sha256(file_bytes).hexdigest()
         if expected_checksum and actual_checksum != expected_checksum:

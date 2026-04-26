@@ -59,63 +59,40 @@ export default function PremiumGate({ children, feature, onUpgrade }: PremiumGat
 
   return (
     <View style={styles.wrapper} testID="premium-gate">
-      {/* Dimmed content preview */}
+      {/* Dimmed content preview — let the underlying layout breathe through */}
       <View style={styles.contentDimmed} pointerEvents="none">
         {children}
       </View>
 
-      {/* Glass overlay */}
+      {/* Lighter scrim — the underlying screen stays visible. The card itself has weight; the scrim doesn't need to. */}
       <LinearGradient
-        colors={['rgba(10, 14, 26, 0.55)', 'rgba(10, 14, 26, 0.92)', 'rgba(10, 14, 26, 0.98)']}
+        colors={['rgba(10, 14, 26, 0.20)', 'rgba(10, 14, 26, 0.50)', 'rgba(10, 14, 26, 0.78)']}
         locations={[0, 0.5, 1]}
         style={styles.gradientOverlay}
         testID="premium-gate-overlay"
       >
-        {/* Glass card */}
+        {/* Stat-Sheet card: tighter, calmer, no pulsing glow ring */}
         <Animated.View entering={FadeInUp.duration(500)} style={styles.glassCard}>
-          {/* Pulsing glow ring */}
-          <View style={styles.lockContainer}>
-            <Animated.View style={[styles.glowRing, pulseStyle]} />
-            <Animated.View style={[styles.glowRingOuter, pulseStyle]} />
-            <View style={styles.lockCircle}>
-              <Ionicons name="lock-closed" size={24} color="#fff" />
-            </View>
+          <View style={styles.lockBadge}>
+            <Ionicons name="lock-closed" size={16} color="#0a0e1a" />
+            <Text style={styles.lockBadgeText}>PRO</Text>
           </View>
 
-          {/* Headline */}
-          <Text style={styles.headline}>Unlock Your Edge</Text>
-          <Text style={styles.featureText}>{feature}</Text>
+          {/* Headline — the feature name leads, no marketing copy */}
+          <Text style={styles.headline}>{feature}</Text>
+          <Text style={styles.subhead}>Pro unlocks lineup, projections, and waiver intel.</Text>
 
-          {/* Benefits */}
-          <View style={styles.benefitsContainer}>
-            {PRO_BENEFITS.map((benefit) => (
-              <View key={benefit.text} style={styles.benefitRow}>
-                <View style={[styles.benefitIconWrap, { backgroundColor: `${benefit.color}1F` }]}>
-                  <Ionicons name={benefit.icon} size={16} color={benefit.color} />
-                </View>
-                <Text style={styles.benefitText}>{benefit.text}</Text>
-              </View>
-            ))}
-          </View>
-
-          {/* CTA Button */}
+          {/* CTA Button — single solid cyan, no rainbow gradient */}
           <TouchableOpacity
             onPress={onUpgrade}
             testID="premium-gate-upgrade"
-            activeOpacity={0.8}
-            style={styles.ctaTouchable}
+            activeOpacity={0.85}
+            style={styles.ctaButton}
           >
-            <LinearGradient
-              colors={['#4cc9f0', '#f72585']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.ctaGradient}
-            >
-              <Text style={styles.ctaText}>Unlock with PuckIQ Pro</Text>
-            </LinearGradient>
+            <Text style={styles.ctaText}>Start 7-day trial</Text>
           </TouchableOpacity>
 
-          <Text style={styles.trialSubtext}>7 days free, then $6.99/mo</Text>
+          <Text style={styles.trialSubtext}>$6.99 / mo after trial · cancel anytime</Text>
         </Animated.View>
       </LinearGradient>
     </View>
@@ -129,7 +106,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   contentDimmed: {
-    opacity: 0.35,
+    opacity: 0.55,
   },
   gradientOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -138,117 +115,67 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   glassCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: 20,
+    backgroundColor: '#141829',
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
-    padding: 28,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    paddingVertical: 22,
+    paddingHorizontal: 24,
     alignItems: 'center',
     width: '100%',
     maxWidth: 340,
-    shadowColor: '#4cc9f0',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 24,
-    elevation: 10,
   },
-  lockContainer: {
-    width: 64,
-    height: 64,
+  lockBadge: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
+    gap: 4,
+    backgroundColor: '#4cc9f0',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    marginBottom: 12,
   },
-  glowRing: {
-    position: 'absolute',
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 2,
-    borderColor: '#4cc9f0',
-    backgroundColor: 'transparent',
-  },
-  glowRingOuter: {
-    position: 'absolute',
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 1,
-    borderColor: 'rgba(76, 201, 240, 0.3)',
-    backgroundColor: 'transparent',
-  },
-  lockCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(76, 201, 240, 0.3)',
-    alignItems: 'center',
-    justifyContent: 'center',
+  lockBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#0a0e1a',
+    letterSpacing: 1.5,
   },
   headline: {
     fontSize: 22,
-    fontWeight: '800',
-    color: '#fff',
+    fontWeight: '700',
+    color: '#f0f4ff',
     textAlign: 'center',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
     marginBottom: 4,
     fontFamily: 'Display-Bold',
   },
-  featureText: {
-    fontSize: 14,
-    fontWeight: '500',
+  subhead: {
+    fontSize: 13,
+    fontWeight: '400',
     color: '#8b95b0',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 18,
+    lineHeight: 18,
   },
-  benefitsContainer: {
+  ctaButton: {
     width: '100%',
-    marginBottom: 20,
-    gap: 10,
-  },
-  benefitRow: {
-    flexDirection: 'row',
+    borderRadius: 10,
+    backgroundColor: '#4cc9f0',
+    paddingVertical: 12,
     alignItems: 'center',
-    gap: 10,
-  },
-  benefitIconWrap: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  benefitText: {
-    color: '#f0f4ff',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  ctaTouchable: {
-    width: '100%',
-    borderRadius: 14,
-    overflow: 'hidden',
-    shadowColor: '#f72585',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  ctaGradient: {
-    paddingVertical: 14,
-    alignItems: 'center',
-    borderRadius: 14,
   },
   ctaText: {
-    color: '#fff',
+    color: '#0a0e1a',
     fontWeight: '700',
-    fontSize: 15,
+    fontSize: 14,
     letterSpacing: 0.3,
   },
   trialSubtext: {
-    color: '#8b95b0',
-    fontSize: 12,
+    color: '#525c75',
+    fontSize: 11,
     fontWeight: '500',
     marginTop: 10,
-    opacity: 0.8,
+    letterSpacing: 0.3,
   },
 });

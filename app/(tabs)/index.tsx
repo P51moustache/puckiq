@@ -1,12 +1,8 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useCallback } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import FinishSetupCard from '../../components/FinishSetupCard';
 import LiveNowBar from '../../components/LiveNowBar';
-import EmptyNightCard from '../../components/EmptyNightCard';
+import LeagueBriefing from '../../components/LeagueBriefing';
 import { ThemedView } from '../../components/ThemedView';
-import DashboardContainer from '../../components/dashboard/DashboardContainer';
-import { SettingsButton } from '../../components/SettingsButton';
 import { makeStyles, rinkGlass, theme } from '../../constants/theme';
 import Toast from '../../components/Toast';
 import { useTonightData } from '../../hooks/useTonightData';
@@ -14,7 +10,6 @@ import { useTonightData } from '../../hooks/useTonightData';
 export default function TonightScreen() {
   const styles = makeStyles();
 
-  // All data, state, and logic from the hook
   const {
     isLoading,
     refreshing,
@@ -23,18 +18,18 @@ export default function TonightScreen() {
     gameCount,
     toastMessage,
     currentStandings,
+    hasGamesToday,
+    isShowingUpcoming,
+    gamesByDate,
+    predictionsMap,
+    h2hMap,
+    momentumMap,
+    formMap,
+    restMap,
+    edgeTeamLanding,
+    lastFetchTime,
   } = useTonightData();
 
-  // Favorite team from AsyncStorage
-  const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
-
-  useEffect(() => {
-    AsyncStorage.getItem('selectedTeam').then(team => {
-      if (team) setSelectedTeam(team);
-    });
-  }, []);
-
-  // No-op game press handler (deep dive modal removed for now)
   const handleGamePress = useCallback(() => {}, []);
 
   return (
@@ -53,27 +48,17 @@ export default function TonightScreen() {
           />
         }
       >
-        {/* Compact header */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 }}>
-          <View>
-            <Text style={{ fontSize: 24, fontWeight: '700', color: rinkGlass.textPrimary, fontFamily: 'Display-Bold', letterSpacing: 1 }}>
-              PuckIQ
-            </Text>
-            <Text style={{ fontSize: 12, color: rinkGlass.textSecondary, marginTop: 2 }}>
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
-            </Text>
-          </View>
-          <SettingsButton />
+        {/* Page header — name + date in stat-sheet voice */}
+        <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 }}>
+          <Text style={{ fontSize: 26, fontWeight: '700', color: rinkGlass.textPrimary, fontFamily: 'Display-Bold', letterSpacing: 1 }}>
+            PuckIQ
+          </Text>
+          <Text style={{ fontSize: 11, color: rinkGlass.textSecondary, marginTop: 4, letterSpacing: 1.5 }}>
+            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }).toUpperCase()}
+            <Text style={{ color: rinkGlass.textMuted }}>  ·  LEAGUE BRIEFING</Text>
+          </Text>
         </View>
 
-        {/* LOADING STATE */}
-        {isLoading && (
-          <View style={{ paddingVertical: 40, alignItems: 'center' }}>
-            <ActivityIndicator size="large" color={theme.accent} />
-          </View>
-        )}
-
-        {/* LIVE NOW BAR — compact ticker for live games */}
         {gameCount > 0 && (
           <LiveNowBar
             games={todaysGames?.games ?? []}
@@ -81,24 +66,24 @@ export default function TonightScreen() {
           />
         )}
 
-        {/* DASHBOARD COMMAND CENTER — modular fantasy widgets (primary content) */}
-        <View style={{ marginTop: 4 }}>
-          <DashboardContainer />
-        </View>
-
-        {/* FINISH SETUP NUDGE — below dashboard, less prominent */}
-        <FinishSetupCard onSetUpNow={() => {}} />
-
-        {/* EMPTY STATE — no games today */}
-        {!isLoading && gameCount === 0 && (
-          <EmptyNightCard
-            selectedTeam={selectedTeam}
-            standings={currentStandings}
-          />
-        )}
+        <LeagueBriefing
+          todaysGames={todaysGames}
+          currentStandings={currentStandings}
+          isLoading={isLoading}
+          hasGamesToday={hasGamesToday}
+          isShowingUpcoming={isShowingUpcoming}
+          gamesByDate={gamesByDate}
+          predictionsMap={predictionsMap}
+          h2hMap={h2hMap}
+          momentumMap={momentumMap}
+          formMap={formMap}
+          restMap={restMap}
+          edgeTeamLanding={edgeTeamLanding}
+          lastFetchTime={lastFetchTime}
+          onRefresh={onRefresh}
+        />
       </ScrollView>
 
-      {/* Toast Notification */}
       <Toast message={toastMessage} />
     </ThemedView>
   );

@@ -27,12 +27,7 @@ const GlowDot = () => (
   }} />
 );
 
-/** Placeholder alert count — will be wired to real data later */
-const PLACEHOLDER_ALERT_COUNT = 3;
-
 export default function TabLayout() {
-  const alertCount = PLACEHOLDER_ALERT_COUNT;
-
   return (
     <Tabs
       screenOptions={{
@@ -57,7 +52,9 @@ export default function TabLayout() {
           },
         }),
       }}>
-      {/* 5-tab layout: Today, My Team, Players, Explore, Hub */}
+      {/* 4-tab layout: Today, Players, Compare, Hub.
+          MyTeam is hidden — fantasy product is paused; the route stays so
+          deep links don't 404 if anyone has them bookmarked. */}
       <Tabs.Screen
         name="index"
         options={{
@@ -65,27 +62,6 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <View style={{ alignItems: 'center' }}>
               <IconSymbol size={24} name="hockey.puck.fill" color={color} />
-              {focused && <GlowDot />}
-            </View>
-          ),
-          tabBarBadge: alertCount > 0 ? alertCount : undefined,
-          tabBarBadgeStyle: {
-            backgroundColor: rinkGlass.goalLight,
-            fontSize: 10,
-            fontWeight: '700',
-            minWidth: 16,
-            height: 16,
-            lineHeight: 16,
-          },
-        }}
-      />
-      <Tabs.Screen
-        name="myteam"
-        options={{
-          title: 'My Team',
-          tabBarIcon: ({ color, focused }) => (
-            <View style={{ alignItems: 'center' }}>
-              <IconSymbol size={24} name="person.2.fill" color={color} />
               {focused && <GlowDot />}
             </View>
           ),
@@ -106,7 +82,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="stats"
         options={{
-          title: 'Explore',
+          title: 'Compare',
           tabBarIcon: ({ color, focused }) => (
             <View style={{ alignItems: 'center' }}>
               <IconSymbol size={24} name="chart.bar.fill" color={color} />
@@ -118,7 +94,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="hub"
         options={{
-          title: 'Hub',
+          title: 'Settings',
           tabBarIcon: ({ color, focused }) => (
             <View style={{ alignItems: 'center' }}>
               <IconSymbol size={24} name="person.crop.circle.fill" color={color} />
@@ -127,7 +103,8 @@ export default function TabLayout() {
           ),
         }}
       />
-      {/* Hidden screens - loaded by stats.tsx via lazy import, not in tab bar */}
+      {/* Hidden screens — reachable via deep link or lazy import, not in tab bar */}
+      <Tabs.Screen name="myteam" options={{ href: null }} />
       <Tabs.Screen name="models" options={{ href: null }} />
       <Tabs.Screen name="teams" options={{ href: null }} />
     </Tabs>

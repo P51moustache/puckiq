@@ -1,7 +1,9 @@
 import React from 'react';
 import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { theme } from '../constants/theme';
+import { theme, rinkGlass } from '../constants/theme';
+import { getTeamLogoUrl } from '../utils/teamLogo';
 
 const screenWidth = Dimensions.get('window').width;
 const cardWidth = (screenWidth - 52) / 2; // 40px horizontal padding + 12px gap = 52px
@@ -43,9 +45,14 @@ export default function TeamCard({
 
       {/* Content Container */}
       <View style={styles.contentContainer}>
-        {/* Team Logo */}
+        {/* Team Logo — real NHL CDN logo, abbreviation as a11y label */}
         <View style={styles.logoContainer}>
-          <Text style={styles.logoText}>{teamAbbrev}</Text>
+          <Image
+            source={{ uri: getTeamLogoUrl(teamAbbrev) }}
+            style={styles.logoImage}
+            contentFit="contain"
+            accessibilityLabel={teamAbbrev}
+          />
         </View>
 
         {/* Team Name */}
@@ -105,20 +112,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   logoContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: theme.factbox,
+    width: 56,
+    height: 56,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
-    borderWidth: 2,
-    borderColor: theme.accent + '44',
   },
-  logoText: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: theme.accent,
+  logoImage: {
+    width: 56,
+    height: 56,
   },
   teamName: {
     fontSize: 13,
