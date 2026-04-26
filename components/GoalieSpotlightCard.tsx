@@ -44,7 +44,7 @@ export default React.memo(function GoalieSpotlightCard({
 
   return (
     <Pressable
-      style={({ pressed }) => [styles.card, { borderLeftColor: teamColors.primary, borderLeftWidth: 4 }, pressed && styles.cardPressed]}
+      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
       onPress={handlePress}
       testID={`goalie-spotlight-${goalie.playerId}`}
     >
@@ -61,9 +61,11 @@ export default React.memo(function GoalieSpotlightCard({
           <Text style={styles.playerName} numberOfLines={1}>{goalie.playerName}</Text>
           <Text style={styles.playerMeta}>G · {goalie.teamAbbrev}</Text>
         </View>
-        <View style={[styles.trendBadge, { backgroundColor: trendColor + '22', borderColor: trendColor }]}>
-          <Text style={[styles.trendBadgeText, { color: trendColor }]}>{goalie.trendLabel}</Text>
-        </View>
+        {goalie.trendLabel !== 'STEADY' && (
+          <View style={[styles.trendBadge, { borderColor: trendColor }]}>
+            <Text style={[styles.trendBadgeText, { color: trendColor }]}>{goalie.trendLabel}</Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.statsRow}>
@@ -96,10 +98,10 @@ export default React.memo(function GoalieSpotlightCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: rinkGlass.glass,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
+    backgroundColor: rinkGlass.boards,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 6,
     borderWidth: 1,
     borderColor: rinkGlass.glassBorder,
   },
@@ -134,16 +136,17 @@ const styles = StyleSheet.create({
     color: rinkGlass.textSecondary,
   },
   trendBadge: {
-    borderWidth: 2,
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    borderWidth: 1,
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
     marginLeft: 8,
+    backgroundColor: 'transparent',
   },
   trendBadgeText: {
-    fontSize: 11,
+    fontSize: 9,
     fontWeight: '800',
-    letterSpacing: 0.8,
+    letterSpacing: 1,
   },
   statsRow: {
     flexDirection: 'row',
