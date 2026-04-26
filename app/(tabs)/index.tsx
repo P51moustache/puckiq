@@ -18,6 +18,16 @@ export default function TonightScreen() {
     gameCount,
     toastMessage,
     currentStandings,
+    hasGamesToday,
+    isShowingUpcoming,
+    gamesByDate,
+    predictionsMap,
+    h2hMap,
+    momentumMap,
+    formMap,
+    restMap,
+    edgeTeamLanding,
+    lastFetchTime,
   } = useTonightData();
 
   const handleGamePress = useCallback(() => {}, []);
@@ -49,12 +59,6 @@ export default function TonightScreen() {
           </Text>
         </View>
 
-        {isLoading && (
-          <View style={{ paddingVertical: 40, alignItems: 'center' }}>
-            <ActivityIndicator size="large" color={theme.accent} />
-          </View>
-        )}
-
         {gameCount > 0 && (
           <LiveNowBar
             games={todaysGames?.games ?? []}
@@ -66,6 +70,17 @@ export default function TonightScreen() {
           todaysGames={todaysGames}
           currentStandings={currentStandings}
           isLoading={isLoading}
+          hasGamesToday={hasGamesToday}
+          isShowingUpcoming={isShowingUpcoming}
+          gamesByDate={gamesByDate}
+          predictionsMap={predictionsMap}
+          h2hMap={h2hMap}
+          momentumMap={momentumMap}
+          formMap={formMap}
+          restMap={restMap}
+          edgeTeamLanding={edgeTeamLanding}
+          lastFetchTime={lastFetchTime}
+          onRefresh={onRefresh}
         />
       </ScrollView>
 
