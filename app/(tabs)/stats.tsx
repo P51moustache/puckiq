@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { rinkGlass } from '../../constants/theme';
 import { ThemedView } from '../../components/ThemedView';
+import PageHeader from '../../components/PageHeader';
 import { FactorLeaderboard } from '../../components/FactorLeaderboard';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import { getTeamComparisonData, calculateCategoryWinners } from '../../services/teamComparison';
@@ -431,10 +432,7 @@ export default function ExploreScreen() {
 
   return (
     <ThemedView style={localStyles.container} testID="explore-tab">
-      <View style={localStyles.header}>
-        <Text style={localStyles.title}>Compare</Text>
-        <Text style={localStyles.subtitle}>Pit any two teams head-to-head</Text>
-      </View>
+      <PageHeader title="Compare" subtitle="Teams · Edge · Factors · Models" />
 
       <View style={localStyles.segmentControl}>
         {SEGMENTS.map((segment) => {
@@ -471,7 +469,7 @@ const localStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: rinkGlass.ice,
-    paddingTop: 0,
+    paddingTop: Platform.OS === 'ios' ? 56 : 26,
   },
   header: {
     paddingTop: Platform.OS === 'ios' ? 60 : 30,

@@ -4,6 +4,7 @@ import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native
 import LiveNowBar from '../../components/LiveNowBar';
 import LeagueBriefing from '../../components/LeagueBriefing';
 import FloatingTodayBar from '../../components/FloatingTodayBar';
+import PageHeader from '../../components/PageHeader';
 import { ThemedView } from '../../components/ThemedView';
 import { makeStyles, rinkGlass, theme } from '../../constants/theme';
 import Toast from '../../components/Toast';
@@ -59,16 +60,10 @@ export default function TonightScreen() {
           />
         }
       >
-        {/* Page header — name + date in stat-sheet voice */}
-        <View style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 10 }}>
-          <Text style={{ fontSize: 24, fontWeight: '700', color: rinkGlass.textPrimary, fontFamily: 'Display-Bold', letterSpacing: 0.5 }}>
-            PuckIQ
-          </Text>
-          <Text style={{ fontSize: 10, color: rinkGlass.textSecondary, marginTop: 2, letterSpacing: 1.5 }}>
-            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }).toUpperCase()}
-            <Text style={{ color: rinkGlass.textMuted }}>  ·  LEAGUE BRIEFING</Text>
-          </Text>
-        </View>
+        <PageHeader
+          title="PuckIQ"
+          subtitle={`${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })} · League Briefing`}
+        />
 
         {gameCount > 0 && (
           <LiveNowBar
