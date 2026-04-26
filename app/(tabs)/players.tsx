@@ -65,8 +65,12 @@ const SEARCH_ROW_HEIGHT = 64;
 export default function PlayersScreen() {
   const analytics = useAnalytics('PlayersTab');
 
-  // Stat category is fixed to points (no selector)
-  const statCategory = DEFAULT_STAT_CATEGORY;
+  // Stat category — chip switcher
+  const [statCategory, setStatCategory] = useState<StatCategory>(DEFAULT_STAT_CATEGORY);
+  const handleCategoryChange = useCallback((next: StatCategory) => {
+    setStatCategory(next);
+    analytics.trackCustomEvent('players_category_changed', { category: next });
+  }, [analytics]);
 
   // State — trending players & league leaders
   const [leagueLeaders, setLeagueLeaders] = useState<TrendingPlayer[]>([]);
@@ -354,17 +358,42 @@ export default function PlayersScreen() {
     <ThemedView style={styles.container} testID="players-tab">
       <PageHeader
         title="Players"
-        subtitle="Leaders · Trends · Goalies"
-        right={
-          <TouchableOpacity
-            onPress={() => setIsSearchActive(true)}
-            testID="search-toggle"
-            hitSlop={8}
-          >
-            <Ionicons name="search" size={20} color={rinkGlass.textSecondary} />
-          </TouchableOpacity>
-        }
+        subtitle={`Leaders · Trends · Goalies · ${statCategory.toUpperCase()}`}
       />
+
+      {/* Always-visible compact search bar */}
+      <Pressable
+        onPress={() => setIsSearchActive(true)}
+        style={styles.searchBarStatic}
+        testID="search-toggle"
+      >
+        <Ionicons name="search" size={14} color={rinkGlass.textMuted} style={{ marginRight: 8 }} />
+        <Text style={styles.searchBarStaticText}>Search any player...</Text>
+      </Pressable>
+
+      {/* Category chip switcher */}
+      <View style={styles.categoryChipsRow}>
+        {([
+          { key: 'points' as StatCategory, label: 'PTS' },
+          { key: 'goals' as StatCategory, label: 'G' },
+          { key: 'assists' as StatCategory, label: 'A' },
+          { key: 'shots' as StatCategory, label: 'SOG' },
+        ]).map((cat) => {
+          const active = statCategory === cat.key;
+          return (
+            <TouchableOpacity
+              key={cat.key}
+              onPress={() => handleCategoryChange(cat.key)}
+              style={[styles.categoryChip, active && styles.categoryChipActive]}
+              testID={`category-chip-${cat.key}`}
+            >
+              <Text style={[styles.categoryChipText, active && styles.categoryChipTextActive]}>
+                {cat.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
 
       <ScrollView
         style={styles.scrollView}
@@ -450,10 +479,12 @@ export default function PlayersScreen() {
         ) : (
           <>
             {/* SPOTLIGHT — players outperforming their season averages */}
-            {trendingUp.length >= 3 && (
+            {trendingUp.length > 0 && (
               <View>
                 {renderSectionHeader('SPOTLIGHT')}
-                <Text style={styles.spotlightSubtitle}>Outperforming their season averages</Text>
+                <Text style={styles.sectionExplainer}>
+                  Players whose recent 5-game pace is well above their season average. Tap a card for details.
+                </Text>
                 <FlatList
                   horizontal
                   data={trendingUp.slice(0, 8)}
@@ -502,14 +533,13 @@ export default function PlayersScreen() {
                                 </Text>
                               </View>
                             )}
-                            {(item.trendLabel === 'HOT' || item.trendLabel === 'WARM') ? (
-                              <Text style={styles.spotlightFlames}>
-                                {item.trendLabel === 'HOT' ? '\uD83D\uDD25\uD83D\uDD25\uD83D\uDD25\uD83D\uDD25\uD83D\uDD25' : '\uD83D\uDD25\uD83D\uDD25\uD83D\uDD25\uD83D\uDD25'}
-                              </Text>
+                            {item.trendLabel === 'HOT' || item.trendLabel === 'WARM' ? (
+                              <View style={[styles.spotlightTrendPill, { borderColor: item.trendLabel === 'HOT' ? rinkGlass.goalLight : rinkGlass.powerPlay }]}>
+                                <Text style={[styles.spotlightTrendText, { color: item.trendLabel === 'HOT' ? rinkGlass.goalLight : rinkGlass.powerPlay }]}>{item.trendLabel}</Text>
+                              </View>
                             ) : item.pointStreak >= 3 ? (
-                              <View style={styles.spotlightStreakRow}>
-                                <Ionicons name="flame" size={10} color="#f97316" />
-                                <Text style={styles.spotlightStreak}>{item.pointStreak}g point streak</Text>
+                              <View style={styles.spotlightTrendPill}>
+                                <Text style={styles.spotlightStreak}>W{item.pointStreak} STREAK</Text>
                               </View>
                             ) : null}
                           </View>
@@ -558,6 +588,9 @@ export default function PlayersScreen() {
             {leagueLeaders.length > 0 && (
               <View style={styles.section}>
                 {renderSectionHeader('LEAGUE LEADERS')}
+                <Text style={styles.sectionExplainer}>
+                  Top 10 in {statCategory.toUpperCase()} this season. Tap any player for the full stat line.
+                </Text>
                 {/* Hero card: #1 player */}
                 <HeroLeaderCard
                   player={leagueLeaders[0]}
@@ -596,14 +629,20 @@ export default function PlayersScreen() {
 
             {/* TRENDING HOT section removed — SPOTLIGHT above covers these players */}
 
-            {/* GOALIE SPOTLIGHT — always show when goalies available */}
+            {/* GOALIE WALL — top 3 trending goalies */}
             {trendingGoalies.length > 0 && (
               <View style={styles.section}>
-                {renderSectionHeader('GOALIE SPOTLIGHT')}
-                <GoalieSpotlightCard
-                  goalie={trendingGoalies[0]}
-                  onPress={handlePlayerTap}
-                />
+                {renderSectionHeader('GOALIE WALL')}
+                <Text style={styles.sectionExplainer}>
+                  Top 3 goalies by recent save percentage. SV% L5 = save % over their last 5 starts.
+                </Text>
+                {trendingGoalies.slice(0, 3).map((g, idx) => (
+                  <GoalieSpotlightCard
+                    key={g.playerId ?? idx}
+                    goalie={g}
+                    onPress={handlePlayerTap}
+                  />
+                ))}
               </View>
             )}
 
@@ -833,6 +872,79 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: rinkGlass.glassBorder,
+  },
+  // Search bar always-visible
+  searchBarStatic: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginBottom: 10,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: rinkGlass.glassBorder,
+    backgroundColor: rinkGlass.boards,
+  },
+  searchBarStaticText: {
+    fontSize: 13,
+    color: rinkGlass.textMuted,
+  },
+  // Category chips
+  categoryChipsRow: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  categoryChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: rinkGlass.glassBorder,
+    backgroundColor: 'transparent',
+    flex: 1,
+    alignItems: 'center',
+  },
+  categoryChipActive: {
+    backgroundColor: 'rgba(76, 201, 240, 0.10)',
+    borderColor: rinkGlass.blueLight,
+  },
+  categoryChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: rinkGlass.textMuted,
+    letterSpacing: 1,
+    fontFamily: rinkGlass.fonts.mono,
+  },
+  categoryChipTextActive: {
+    color: rinkGlass.blueLight,
+  },
+  // Section explainer (matches Today)
+  sectionExplainer: {
+    fontSize: 11,
+    lineHeight: 15,
+    color: rinkGlass.textMuted,
+    paddingHorizontal: 16,
+    marginTop: -2,
+    marginBottom: 4,
+  },
+  // Spotlight trend pill (replaces fire emojis)
+  spotlightTrendPill: {
+    marginTop: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: rinkGlass.glassBorder,
+    backgroundColor: 'transparent',
+  },
+  spotlightTrendText: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 1,
+    fontFamily: rinkGlass.fonts.mono,
   },
   // Search (active mode)
   searchContainerActive: {
