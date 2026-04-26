@@ -90,9 +90,10 @@ def _run() -> None:
     is_fresh = check_data_freshness(client)
     data_quality = "fresh" if is_fresh else "stale"
 
-    # 3. Get today's future (unplayed) games
+    # 3. Get today's future (unplayed) games — include playoffs (game_type=3)
+    #    so the daily slate isn't empty after the regular season ends.
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    games_df = read_games(client, CURRENT_SEASON, game_state="FUT")
+    games_df = read_games(client, CURRENT_SEASON, game_state="FUT", game_types=[2, 3])
     todays_games = games_df[games_df["game_date"] == today] if not games_df.empty else games_df
 
     if todays_games.empty:
