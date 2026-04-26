@@ -232,6 +232,9 @@ function GameHero({ pick }: { pick: Extract<HeroPick, { kind: 'game' }> }) {
           {pick.favored} <Text style={styles.confDot}> · </Text>
           <Text style={styles.confLabel}>{conf.toUpperCase()} CONFIDENCE</Text>
         </Text>
+        <Text style={styles.heroExplainer}>
+          Model's probability that {pick.favored} wins tonight.
+        </Text>
       </View>
 
       {/* Bigger logos + abbrevs */}
@@ -492,8 +495,8 @@ const styles = StyleSheet.create({
   },
   // Game hero — big-number-first composition
   heroProbBlock: {
-    paddingTop: 2,
-    paddingBottom: 2,
+    paddingTop: 6,
+    paddingBottom: 4,
   },
   heroProbNumberRow: {
     flexDirection: 'row',
@@ -504,14 +507,14 @@ const styles = StyleSheet.create({
     fontFamily: rinkGlass.fonts.display,
     fontSize: 88,
     color: rinkGlass.textPrimary,
-    lineHeight: 88,
+    lineHeight: 102,
     letterSpacing: -3,
   },
   heroProbPercent: {
     fontFamily: rinkGlass.fonts.display,
     fontSize: 32,
     color: rinkGlass.textSecondary,
-    lineHeight: 40,
+    lineHeight: 44,
     letterSpacing: -1,
     marginLeft: -2,
   },
@@ -520,8 +523,14 @@ const styles = StyleSheet.create({
     color: rinkGlass.textPrimary,
     fontFamily: rinkGlass.fonts.mono,
     fontWeight: '700',
-    marginTop: 2,
+    marginTop: 4,
     letterSpacing: 1,
+  },
+  heroExplainer: {
+    fontSize: 11,
+    color: rinkGlass.textMuted,
+    marginTop: 6,
+    lineHeight: 15,
   },
   confDot: {
     color: rinkGlass.textMuted,
