@@ -432,8 +432,8 @@ export default function ExploreScreen() {
   return (
     <ThemedView style={localStyles.container} testID="explore-tab">
       <View style={localStyles.header}>
-        <Text style={localStyles.title}>Explore</Text>
-        <Text style={localStyles.subtitle}>Teams, analytics, and models</Text>
+        <Text style={localStyles.title}>Compare</Text>
+        <Text style={localStyles.subtitle}>Pit any two teams head-to-head</Text>
       </View>
 
       <View style={localStyles.segmentControl}>
