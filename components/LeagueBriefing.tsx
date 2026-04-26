@@ -1309,16 +1309,16 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 16,
     paddingBottom: 24,
-    gap: 22,
+    gap: 16,
   },
   section: {
-    gap: 8,
+    gap: 6,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'space-between',
-    paddingBottom: 6,
+    paddingBottom: 4,
     position: 'relative',
   },
   headerLeft: {
@@ -1352,7 +1352,7 @@ const styles = StyleSheet.create({
     borderRadius: 1,
   },
   list: {
-    gap: 8,
+    gap: 6,
   },
   // Status strip
   statusStrip: {
@@ -1417,7 +1417,7 @@ const styles = StyleSheet.create({
   slateRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 10,
     paddingHorizontal: 12,
     backgroundColor: rinkGlass.boards,
     borderRadius: 10,
@@ -1477,9 +1477,10 @@ const styles = StyleSheet.create({
     color: rinkGlass.textMuted,
     fontFamily: rinkGlass.fonts.mono,
     letterSpacing: 1.5,
-    marginTop: 10,
+    marginTop: 6,
     width: '100%',
     textAlign: 'right',
+    opacity: 0.6,
   },
   backHeaderRow: {
     flexDirection: 'row',
@@ -1602,20 +1603,20 @@ const styles = StyleSheet.create({
   formsRow: {
     flexDirection: 'row',
     width: '100%',
-    marginTop: 10,
+    marginTop: 8,
     justifyContent: 'space-between',
   },
   formCell: {
-    gap: 4,
+    gap: 3,
   },
   formLabel: {
-    fontSize: 8,
+    fontSize: 9,
     color: rinkGlass.textMuted,
     letterSpacing: 1,
     fontFamily: rinkGlass.fonts.mono,
   },
   formLabelRight: {
-    fontSize: 8,
+    fontSize: 9,
     color: rinkGlass.textMuted,
     letterSpacing: 1,
     textAlign: 'right',
@@ -1634,10 +1635,10 @@ const styles = StyleSheet.create({
   slateMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
     width: '100%',
-    paddingTop: 8,
-    marginTop: 8,
+    paddingTop: 6,
+    marginTop: 6,
     borderTopWidth: 1,
     borderTopColor: rinkGlass.glassBorder,
   },

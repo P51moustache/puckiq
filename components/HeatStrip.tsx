@@ -120,14 +120,14 @@ export default function HeatStrip({ games, predictions, predictionsMap, onPressG
 const styles = StyleSheet.create({
   wrapper: {
     paddingHorizontal: 16,
-    paddingBottom: 14,
-    paddingTop: 4,
+    paddingBottom: 4,
+    paddingTop: 0,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   eyebrowDot: {
     width: 5,
@@ -144,19 +144,19 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
     paddingRight: 8,
   },
   cell: {
-    minWidth: 88,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
+    minWidth: 80,
+    paddingVertical: 6,
+    paddingHorizontal: 9,
     backgroundColor: rinkGlass.boards,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: rinkGlass.glassBorder,
     alignItems: 'flex-start',
-    gap: 4,
+    gap: 3,
   },
   cellPressed: {
     opacity: 0.7,
@@ -168,8 +168,8 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   cellLogo: {
-    width: 16,
-    height: 16,
+    width: 14,
+    height: 14,
   },
   cellAt: {
     fontSize: 10,
@@ -177,13 +177,14 @@ const styles = StyleSheet.create({
     fontFamily: rinkGlass.fonts.mono,
   },
   bar: {
-    height: 4,
-    borderRadius: 2,
+    height: 3,
+    borderRadius: 1.5,
   },
   cellMeta: {
-    fontSize: 9,
-    color: rinkGlass.textMuted,
+    fontSize: 10,
+    color: rinkGlass.textSecondary,
     fontFamily: rinkGlass.fonts.mono,
     letterSpacing: 0.5,
+    fontWeight: '700',
   },
 });
