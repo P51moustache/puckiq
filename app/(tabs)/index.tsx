@@ -6,7 +6,6 @@ import LiveNowBar from '../../components/LiveNowBar';
 import EmptyNightCard from '../../components/EmptyNightCard';
 import { ThemedView } from '../../components/ThemedView';
 import DashboardContainer from '../../components/dashboard/DashboardContainer';
-import { SettingsButton } from '../../components/SettingsButton';
 import { makeStyles, rinkGlass, theme } from '../../constants/theme';
 import Toast from '../../components/Toast';
 import { useTonightData } from '../../hooks/useTonightData';
@@ -53,17 +52,16 @@ export default function TonightScreen() {
           />
         }
       >
-        {/* Compact header */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 }}>
-          <View>
-            <Text style={{ fontSize: 24, fontWeight: '700', color: rinkGlass.textPrimary, fontFamily: 'Display-Bold', letterSpacing: 1 }}>
-              PuckIQ
-            </Text>
-            <Text style={{ fontSize: 12, color: rinkGlass.textSecondary, marginTop: 2 }}>
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
-            </Text>
-          </View>
-          <SettingsButton />
+        {/* Compact header — single source of truth for the page title.
+            DashboardContainer renders its own customize-modules gear; we keep this
+            header settings-free to avoid the duplicate-gear collision. */}
+        <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 }}>
+          <Text style={{ fontSize: 26, fontWeight: '700', color: rinkGlass.textPrimary, fontFamily: 'Display-Bold', letterSpacing: 1 }}>
+            PuckIQ
+          </Text>
+          <Text style={{ fontSize: 12, color: rinkGlass.textSecondary, marginTop: 2, letterSpacing: 0.5 }}>
+            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }).toUpperCase()}
+          </Text>
         </View>
 
         {/* LOADING STATE */}

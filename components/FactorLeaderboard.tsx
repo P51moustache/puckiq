@@ -25,11 +25,11 @@ export function FactorLeaderboard({
           <Text style={styles.title}>Factor Leaderboard</Text>
           <Text style={styles.season}>{season}</Text>
         </View>
-        <Text style={styles.subtitle}>
-          Which factors actually predict winners?
+        <Text style={{ fontSize: 12, color: theme.subtext, textAlign: 'center', paddingTop: 32, paddingBottom: 8, letterSpacing: 1, fontWeight: '700' }}>
+          NO PICK HISTORY
         </Text>
-        <Text style={{ fontSize: 13, color: theme.subtext, fontStyle: 'italic', textAlign: 'center', paddingVertical: 24 }}>
-          Factor accuracy tracking coming soon. Make picks to build data!
+        <Text style={{ fontSize: 11, color: theme.subtext, textAlign: 'center', paddingBottom: 32, opacity: 0.7 }}>
+          Corsi · Fenwick · xG · PDO · SV%
         </Text>
       </View>
     );

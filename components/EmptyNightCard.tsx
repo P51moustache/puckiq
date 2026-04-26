@@ -59,10 +59,30 @@ export default function EmptyNightCard({ selectedTeam, standings, nextGame }: Em
     const teamName = typeof teamStanding.teamName === 'object'
       ? teamStanding.teamName?.default ?? selectedTeam
       : selectedTeam;
-    const divPos = teamStanding.divisionSequence ?? 0;
     const division = teamStanding.divisionName ?? '';
     const points = teamStanding.points ?? 0;
     const record = `${teamStanding.wins ?? 0}-${teamStanding.losses ?? 0}-${teamStanding.otLosses ?? 0}`;
+
+    // divisionSequence is often missing/null in the API payload — compute it locally
+    // from the standings array rather than rendering the broken "0th" fallback.
+    const apiDivPos = teamStanding.divisionSequence ?? 0;
+    const computedDivPos = apiDivPos > 0
+      ? apiDivPos
+      : (() => {
+          if (!standingsEntries || !division) return 0;
+          const inDivision = standingsEntries
+            .filter(e => e.divisionName === division)
+            .sort((a, b) => (b.points ?? 0) - (a.points ?? 0) || (b.wins ?? 0) - (a.wins ?? 0));
+          const idx = inDivision.findIndex(e => {
+            const abbrev = typeof e.teamAbbrev === 'string' ? e.teamAbbrev : e.teamAbbrev?.default;
+            return abbrev === selectedTeam;
+          });
+          return idx >= 0 ? idx + 1 : 0;
+        })();
+
+    const standingLine = computedDivPos > 0 && division
+      ? `${getOrdinal(computedDivPos)} in ${division} · ${record} · ${points} PTS`
+      : `${record} · ${points} PTS`;
 
     return (
       <Animated.View entering={FadeInUp.duration(400)} style={styles.card}>
@@ -76,7 +96,7 @@ export default function EmptyNightCard({ selectedTeam, standings, nextGame }: Em
           <View style={{ flex: 1 }}>
             <Text style={styles.teamName}>{teamName}</Text>
             <Text style={[styles.standingText, teamColors && { color: teamColors.primary }]}>
-              {getOrdinal(divPos)} in {division} | {points} pts ({record})
+              {standingLine}
             </Text>
           </View>
         </View>
@@ -105,7 +125,7 @@ export default function EmptyNightCard({ selectedTeam, standings, nextGame }: Em
   return (
     <Animated.View entering={FadeInUp.duration(400)} style={styles.card}>
       <Text style={styles.title}>No Games Today</Text>
-      <Text style={styles.subtitle}>Next games coming soon.</Text>
+      <Text style={styles.subtitle}>Schedule resumes shortly.</Text>
       {funStat && (
         <Text style={styles.funStat}>{funStat}</Text>
       )}

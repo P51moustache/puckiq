@@ -9,6 +9,7 @@ import {
   Modal,
   Platform,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { rinkGlass } from '../../constants/theme';
 import { ThemedView } from '../../components/ThemedView';
 import { FactorLeaderboard } from '../../components/FactorLeaderboard';
@@ -290,8 +291,8 @@ function EdgeContent() {
         </>
       )}
 
-      {/* Team Edge Rankings */}
-      {teamLanding && (
+      {/* Team Edge Rankings — only render when there's actual data inside */}
+      {teamLanding && (teamLanding.shotAttemptsOver90 || teamLanding.burstsOver22) && (
         <>
           <View style={{ paddingHorizontal: 0, marginBottom: 12 }}>
             <Text style={localStyles.tooltipsSectionTitle}>Team Edge Rankings</Text>
@@ -328,12 +329,17 @@ function EdgeContent() {
         </>
       )}
 
-      {!skaterLanding && !teamLanding && !byTheNumbers && (
-        <View style={{ alignItems: 'center', paddingTop: 60, gap: 12 }}>
-          <Ionicons name="analytics-outline" size={36} color={rinkGlass.textMuted} />
-          <Text style={{ color: rinkGlass.textSecondary, fontSize: 15, fontWeight: '600' }}>Edge Data Coming Soon</Text>
-          <Text style={{ color: rinkGlass.textMuted, fontSize: 13, textAlign: 'center', paddingHorizontal: 40, lineHeight: 18 }}>
-            NHL Edge tracking stats like hardest shots, fastest skaters, and speed bursts will appear here during the season.
+      {/* Empty state when nothing has data — explicit, stat-flavored, no prose */}
+      {!(skaterLanding?.hardestShot || skaterLanding?.maxSkatingSpeed) &&
+        !(teamLanding?.shotAttemptsOver90 || teamLanding?.burstsOver22) &&
+        !byTheNumbers && (
+        <View style={{ alignItems: 'center', paddingTop: 60, gap: 8 }}>
+          <Ionicons name="analytics-outline" size={32} color={rinkGlass.textMuted} />
+          <Text style={{ color: rinkGlass.textSecondary, fontSize: 14, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' }}>
+            No Edge Data
+          </Text>
+          <Text style={{ color: rinkGlass.textMuted, fontSize: 12, textAlign: 'center', paddingHorizontal: 40, lineHeight: 16 }}>
+            Hardest shots · fastest skaters · speed bursts
           </Text>
         </View>
       )}

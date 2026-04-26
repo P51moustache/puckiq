@@ -115,7 +115,7 @@ export default function ShareablePickCard({
       {/* Optional fantasy context */}
       {fantasyContext ? (
         <View style={styles.fantasyRow}>
-          <Text style={styles.fantasyIcon}>⚡</Text>
+          <Text style={styles.fantasyIcon}>FP</Text>
           <Text style={styles.fantasyText}>{fantasyContext}</Text>
         </View>
       ) : null}

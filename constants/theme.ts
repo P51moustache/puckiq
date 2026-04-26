@@ -8,39 +8,35 @@ const selectFont = (options: { ios: string; android: string; default: string }):
   }
 };
 
-// Dark Mode Hockey Theme
+// Stat Sheet Theme — single dark surface, cyan accent, semantic green/red/amber
+// Legacy `theme.*` keys preserved for backwards compatibility, but their VALUES
+// now align with the rinkGlass palette so the whole app reads as one surface.
 export const theme = {
-  // Original colors that work with your dark mode app
-  background: '#071023',
-  card: '#192e5eff',
-  factbox: '#334e8dff',
-  text: '#e6eef8',
-  subtext: '#98a6bf',
-  accent: '#60a5fa',
-  subtle: '#071a36',
-  modalBorder: '#081726',
-  modalBg: '#192e5eff',
-  pressed: '#0e223f',
-  
-  // Professional additions while keeping your working colors
+  background: '#0a0e1a',      // → rinkGlass.ice
+  card: '#141829',            // → rinkGlass.boards (was navy #192e5e — caused the blue panels in Explore)
+  factbox: '#1c2038',         // → rinkGlass.zamboni (was bright navy #334e8d — caused saturated blue stat boxes)
+  text: '#f0f4ff',            // → rinkGlass.textPrimary
+  subtext: '#8b95b0',         // → rinkGlass.textSecondary
+  accent: '#4cc9f0',          // → rinkGlass.blueLight (was #60a5fa)
+  subtle: '#0f1424',          // (was #071a36)
+  modalBorder: 'rgba(255,255,255,0.10)', // (was #081726)
+  modalBg: '#141829',         // → rinkGlass.boards
+  pressed: '#1c2038',         // → rinkGlass.zamboni
+
   colors: {
-    // Your existing colors but organized
-    primary: '#60a5fa', // Your accent color
-    primaryDark: '#334e8dff',
-    secondary: '#334e8dff', // Your factbox color
-    
-    // Backgrounds
-    background: '#071023',
-    surface: '#192e5eff', // Your card color
-    elevated: '#334e8dff', // Your factbox color
-    
-    // Text
-    textPrimary: '#e6eef8', // Your text color
-    textSecondary: '#98a6bf', // Your subtext color
-    
-    // Interactive
-    hover: '#0e223f',
-    border: '#081726',
+    primary: '#4cc9f0',
+    primaryDark: '#1c2038',
+    secondary: '#1c2038',
+
+    background: '#0a0e1a',
+    surface: '#141829',
+    elevated: '#1c2038',
+
+    textPrimary: '#f0f4ff',
+    textSecondary: '#8b95b0',
+
+    hover: '#1c2038',
+    border: 'rgba(255,255,255,0.10)',
   },
   
   // Typography scale for professional consistency
@@ -521,12 +517,16 @@ export const rinkGlass = {
 
   // Module accent map
   moduleAccents: {
-    startSit: '#06d6a0',     // faceoffDot
-    trending: '#f72585',     // goalLight
-    alerts: '#ffd60a',       // powerPlay
-    waiverWire: '#4cc9f0',   // blueLight
-    matchupEdge: '#a78bfa',
-    dailyInsight: '#f97316',
+    // Stat Sheet vision: a single cyan underline for every module header so
+    // sections feel like part of the same publication. Semantic colors stay
+    // reserved for data direction (green positive, red negative, amber warn) —
+    // not for section decoration.
+    startSit: '#4cc9f0',
+    trending: '#4cc9f0',
+    alerts: '#4cc9f0',
+    waiverWire: '#4cc9f0',
+    matchupEdge: '#4cc9f0',
+    dailyInsight: '#4cc9f0',
   },
 
   // Card press animation values
