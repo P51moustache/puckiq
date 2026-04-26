@@ -26,11 +26,13 @@ interface FlippableRowProps {
   front: React.ReactNode;
   back: React.ReactNode;
   onTap?: () => void;
-  /** Match this to the rendered row height so the back face sizes correctly. */
+  /** Reserved minimum height for the back face. Defaults to 0 so the
+      container is sized by the front content; back is absolute and will
+      stretch to match. */
   minHeight?: number;
 }
 
-export default function FlippableRow({ front, back, onTap, minHeight = 220 }: FlippableRowProps) {
+export default function FlippableRow({ front, back, onTap, minHeight = 0 }: FlippableRowProps) {
   const rotation = useSharedValue(0);
   const [isFlipped, setIsFlipped] = useState(false);
 
