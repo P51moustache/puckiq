@@ -29,6 +29,7 @@ import { getTeamLogoUrl } from '../utils/teamLogo';
 import { supabase } from '../lib/supabase';
 import { getMLPredictions, type MLPrediction } from '../services/mlPredictions';
 import { getLeagueLeaders, type SkaterLeader } from '../services/playerLeaders';
+import BriefingHero from './BriefingHero';
 import type { H2HRecord } from '../types/gameResults';
 import type { MomentumData, ClutchRating, EdgeTeamLanding } from '../types/edgeStats';
 import type { TeamFormData } from '../types/teamForm';
@@ -941,6 +942,7 @@ export default function LeagueBriefing({
 }: LeagueBriefingProps) {
   const router = useRouter();
   const [predictions, setPredictions] = useState<Record<number, MLPrediction>>({});
+  const [yesterdaySummary, setYesterdaySummary] = useState<YesterdaySummary | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const games = todaysGames?.games ?? [];
@@ -964,6 +966,91 @@ export default function LeagueBriefing({
       cancelled = true;
     };
   }, [games.length]);
+
+  // Lift yesterday fetch up so BriefingHero can pick the biggest upset.
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const yesterday = getYesterdayString();
+        const { data: gms } = await supabase
+          .from('games')
+          .select('id, home_team_abbrev, away_team_abbrev, home_score, away_score, game_state, period_type')
+          .eq('game_date', yesterday)
+          .in('game_state', ['OFF', 'FINAL']);
+        if (cancelled || !gms?.length) {
+          setYesterdaySummary({ games: [], modelWins: 0, modelLosses: 0, totalScored: 0 });
+          return;
+        }
+        const preds = await getMLPredictions(yesterday);
+        let modelWins = 0;
+        let modelLosses = 0;
+        let totalScored = 0;
+        const enriched: YesterdayGame[] = gms.map((g: any) => {
+          const homeProb = preds[g.id]?.home_win_prob ?? null;
+          const predictedWinner = preds[g.id]?.predicted_winner ?? null;
+          const homeWon = (g.home_score ?? 0) > (g.away_score ?? 0);
+          const winner = homeWon ? g.home_team_abbrev : g.away_team_abbrev;
+          let modelHit: boolean | null = null;
+          if (predictedWinner) {
+            modelHit = predictedWinner === winner;
+            if (modelHit) modelWins++;
+            else modelLosses++;
+          }
+          const isUpset =
+            homeProb !== null && ((homeWon && homeProb < 0.4) || (!homeWon && homeProb > 0.6));
+          totalScored += (g.home_score ?? 0) + (g.away_score ?? 0);
+          return {
+            id: g.id,
+            homeAbbrev: g.home_team_abbrev,
+            awayAbbrev: g.away_team_abbrev,
+            homeScore: g.home_score ?? 0,
+            awayScore: g.away_score ?? 0,
+            homeWinProb: homeProb,
+            predictedWinner,
+            isUpset,
+            isOvertime: g.period_type === 'OT' || g.period_type === 'SO',
+            modelHit,
+          };
+        });
+        enriched.sort((a, b) => {
+          if (a.isUpset !== b.isUpset) return a.isUpset ? -1 : 1;
+          if (a.isOvertime !== b.isOvertime) return a.isOvertime ? -1 : 1;
+          return 0;
+        });
+        if (!cancelled) setYesterdaySummary({ games: enriched, modelWins, modelLosses, totalScored });
+      } catch {
+        if (!cancelled) setYesterdaySummary({ games: [], modelWins: 0, modelLosses: 0, totalScored: 0 });
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const heroUpsets = useMemo(() => {
+    if (!yesterdaySummary?.games?.length) return [] as Array<{
+      id: number;
+      homeAbbrev: string;
+      awayAbbrev: string;
+      homeScore: number;
+      awayScore: number;
+      homeWinProb: number;
+      predictedWinner: string;
+    }>;
+    return yesterdaySummary.games
+      .filter((g) => g.isUpset && g.homeWinProb !== null && g.predictedWinner)
+      .map((g) => ({
+        id: g.id,
+        homeAbbrev: g.homeAbbrev,
+        awayAbbrev: g.awayAbbrev,
+        homeScore: g.homeScore,
+        awayScore: g.awayScore,
+        homeWinProb: g.homeWinProb!,
+        predictedWinner: g.predictedWinner!,
+      }));
+  }, [yesterdaySummary]);
 
   // Auto-refresh predictions on a tick when there's a live game.
   useEffect(() => {
@@ -1032,6 +1119,15 @@ export default function LeagueBriefing({
 
   return (
     <Animated.View entering={FadeIn.duration(220)} style={styles.container}>
+      {/* Hero card — the lead story of the day */}
+      <BriefingHero
+        games={games}
+        predictions={predictions}
+        standings={standings}
+        yesterdayUpsets={heroUpsets}
+        formMap={formMap}
+      />
+
       <HeaderStrip lastFetchTime={lastFetchTime} onRefresh={handleRefresh} refreshing={refreshing} />
 
       {liveGames.length > 0 && <LiveRibbon games={liveGames} onPress={onPressGame} />}
