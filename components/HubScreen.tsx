@@ -14,9 +14,7 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { rinkGlass } from '../constants/theme';
 import { useAuthContext } from './auth/AuthProvider';
 import { useSubscription } from './SubscriptionProvider';
-import AccuracyTracker from './AccuracyTracker';
-import Leaderboard from './Leaderboard';
-import ReferralCard from './ReferralCard';
+import PageHeader from './PageHeader';
 import {
   FantasyNotificationPreferences,
   DEFAULT_FANTASY_PREFS,
@@ -128,145 +126,13 @@ export default function HubScreen() {
 
   return (
     <View style={s.container}>
+      <PageHeader title="Settings" subtitle="Notifications · Account · About" />
       <ScrollView
         style={s.scroll}
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Header Area ─────────────────────────────── */}
-        <Animated.View entering={FadeInUp.duration(400)} style={s.headerArea}>
-          <Text style={s.screenTitle}>Hub</Text>
-
-          <View style={s.profileRow}>
-            {/* Avatar */}
-            <LinearGradient
-              colors={[rinkGlass.blueLight, rinkGlass.boards]}
-              style={s.avatarRing}
-            >
-              <View style={s.avatarInner}>
-                {user ? (
-                  <Text style={s.avatarText}>{userInitial}</Text>
-                ) : (
-                  <Ionicons name="person-outline" size={28} color={rinkGlass.textSecondary} />
-                )}
-              </View>
-            </LinearGradient>
-
-            {/* Identity */}
-            <View style={s.identityCol}>
-              {user ? (
-                <>
-                  <View style={s.emailRow}>
-                    <Text style={s.emailText} numberOfLines={1}>{user.email}</Text>
-                    <View style={[s.tierBadge, isPremium && s.tierBadgePro]}>
-                      <Text style={[s.tierBadgeText, isPremium && s.tierBadgeTextPro]}>
-                        {isPremium ? 'Pro' : 'Free'}
-                      </Text>
-                    </View>
-                  </View>
-                  <Pressable
-                    style={s.signOutButton}
-                    onPress={signOut}
-                    testID="sign-out-button"
-                  >
-                    <Text style={s.signOutText}>Sign Out</Text>
-                  </Pressable>
-                </>
-              ) : (
-                <Text style={s.signInPrompt}>Sign in to sync your data</Text>
-              )}
-            </View>
-          </View>
-
-          {/* Auth Buttons (signed out) */}
-          {!user && (
-            <View style={s.authButtons}>
-              <Pressable
-                style={s.authButton}
-                onPress={signInWithApple}
-                testID="sign-in-apple"
-              >
-                <Ionicons name="logo-apple" size={20} color={rinkGlass.textPrimary} style={s.authIcon} />
-                <Text style={s.authButtonText}>Sign in with Apple</Text>
-              </Pressable>
-              <Pressable
-                style={s.authButton}
-                onPress={signInWithGoogle}
-                testID="sign-in-google"
-              >
-                <Ionicons name="logo-google" size={18} color={rinkGlass.textPrimary} style={s.authIcon} />
-                <Text style={s.authButtonText}>Sign in with Google</Text>
-              </Pressable>
-              <Pressable
-                style={[s.authButton, s.emailAuthButton]}
-                testID="sign-in-email"
-              >
-                <Ionicons name="mail-outline" size={18} color={rinkGlass.textPrimary} style={s.authIcon} />
-                <Text style={s.authButtonText}>Sign in with Email</Text>
-              </Pressable>
-            </View>
-          )}
-        </Animated.View>
-
-        {/* ── Stats Summary Row ───────────────────────── */}
-        <View style={s.statsRow}>
-          <StatCard value="--" label="Total Picks" delay={100} />
-          <StatCard value="--" label="Accuracy" delay={200} />
-          <StatCard value="--" label="Streak" delay={300} />
-        </View>
-
-        {/* ── Subscription ────────────────────────────── */}
-        <View style={s.section}>
-          <SectionHeader icon="diamond-outline" title="Subscription" />
-          {isPremium ? (
-            <View style={s.card}>
-              <View style={s.proActiveRow}>
-                <Ionicons name="checkmark-circle" size={22} color={rinkGlass.powerPlay} />
-                <Text style={s.proActiveText}>PuckIQ Pro</Text>
-              </View>
-            </View>
-          ) : (
-            <Pressable testID="upgrade-button" style={s.upgradeOuter}>
-              <LinearGradient
-                colors={[rinkGlass.boards, rinkGlass.blueLight]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={s.upgradeCard}
-              >
-                <View style={s.upgradeBadgeRow}>
-                  <View style={s.subscriptionRow}>
-                    <Text style={s.planLabel}>Current Plan</Text>
-                    <View style={s.freeBadge}>
-                      <Text style={s.freeBadgeText}>Free Plan</Text>
-                    </View>
-                  </View>
-                </View>
-                <View style={s.upgradeCtaRow}>
-                  <Ionicons name="flash" size={18} color="#fff" />
-                  <Text style={s.upgradeButtonText}>Upgrade to Pro</Text>
-                  <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.6)" />
-                </View>
-                <Text style={s.upgradeSubtext}>
-                  Unlock notifications, advanced analytics, and more
-                </Text>
-              </LinearGradient>
-            </Pressable>
-          )}
-        </View>
-
-        {/* ── Accuracy Tracker ────────────────────────── */}
-        <View style={s.section}>
-          <SectionHeader icon="analytics-outline" title="Accuracy" />
-          <AccuracyTracker />
-        </View>
-
-        {/* ── Leaderboard ─────────────────────────────── */}
-        <View style={s.section}>
-          <SectionHeader icon="trophy-outline" title="Leaderboard" />
-          <Leaderboard />
-        </View>
-
-        {/* ── Notifications ───────────────────────────── */}
+        {/* ── Notifications (the actual settings) ───────── */}
         <View style={s.section}>
           <SectionHeader icon="notifications-outline" title="Notifications" />
           <View style={s.card}>
@@ -282,19 +148,9 @@ export default function HubScreen() {
                     color={canToggle ? color : rinkGlass.textSecondary}
                     style={s.toggleIcon}
                   />
-                  <View style={s.toggleLabelRow}>
-                    <Text style={[s.toggleLabel, !canToggle && s.toggleLabelDisabled]}>
-                      {label}
-                    </Text>
-                    {!canToggle && (
-                      <View style={s.proLockRow}>
-                        <Ionicons name="lock-closed" size={10} color={rinkGlass.textSecondary} />
-                        <Text style={s.proLabel} testID={`${testID}-pro-label`}>
-                          Pro feature
-                        </Text>
-                      </View>
-                    )}
-                  </View>
+                  <Text style={[s.toggleLabel, !canToggle && s.toggleLabelDisabled]}>
+                    {label}
+                  </Text>
                 </View>
                 <Switch
                   value={notificationPrefs[key]}
@@ -306,19 +162,57 @@ export default function HubScreen() {
                 />
               </View>
             ))}
+            {!user && (
+              <Text style={s.toggleHelper}>Sign in below to enable notifications.</Text>
+            )}
           </View>
         </View>
 
-        {/* ── Referral ────────────────────────────────── */}
+        {/* ── Account ───────────────────────────────────── */}
         <View style={s.section}>
-          <SectionHeader icon="gift-outline" title="Refer a Friend" />
-          <ReferralCard />
+          <SectionHeader icon="person-outline" title="Account" />
+          <View style={s.card}>
+            {user ? (
+              <View style={s.accountRow}>
+                <View style={s.accountInfo}>
+                  <Text style={s.emailText} numberOfLines={1}>{user.email}</Text>
+                  <Text style={s.accountStatus}>SIGNED IN</Text>
+                </View>
+                <Pressable
+                  style={s.signOutButton}
+                  onPress={signOut}
+                  testID="sign-out-button"
+                >
+                  <Text style={s.signOutText}>Sign out</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <View style={s.authButtons}>
+                <Pressable
+                  style={s.authButton}
+                  onPress={signInWithApple}
+                  testID="sign-in-apple"
+                >
+                  <Ionicons name="logo-apple" size={18} color={rinkGlass.textPrimary} style={s.authIcon} />
+                  <Text style={s.authButtonText}>Continue with Apple</Text>
+                </Pressable>
+                <Pressable
+                  style={s.authButton}
+                  onPress={signInWithGoogle}
+                  testID="sign-in-google"
+                >
+                  <Ionicons name="logo-google" size={16} color={rinkGlass.textPrimary} style={s.authIcon} />
+                  <Text style={s.authButtonText}>Continue with Google</Text>
+                </Pressable>
+              </View>
+            )}
+          </View>
         </View>
 
         {/* ── About ───────────────────────────────────── */}
         <View style={s.aboutRow}>
           <View style={s.aboutLeft}>
-            <Text style={s.aboutLabel}>Version</Text>
+            <Text style={s.aboutLabel}>VERSION</Text>
             <Text style={s.aboutValue}>3.0.0</Text>
           </View>
           <Pressable style={s.supportLink} testID="support-link">
@@ -338,7 +232,7 @@ const s = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: rinkGlass.ice,
-    paddingTop: Platform.OS === 'ios' ? 60 : 30,
+    paddingTop: Platform.OS === 'ios' ? 56 : 26,
   },
   scroll: {
     flex: 1,
@@ -423,12 +317,17 @@ const s = StyleSheet.create({
     color: rinkGlass.powerPlay,
   },
   signOutButton: {
-    alignSelf: 'flex-start',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: rinkGlass.glassBorder,
   },
   signOutText: {
-    color: '#ef4444',
-    fontWeight: '600',
-    fontSize: 13,
+    color: rinkGlass.textSecondary,
+    fontWeight: '700',
+    fontSize: 11,
+    letterSpacing: 0.5,
   },
   signInPrompt: {
     color: rinkGlass.textSecondary,
@@ -437,19 +336,41 @@ const s = StyleSheet.create({
 
   /* Auth Buttons */
   authButtons: {
-    gap: 10,
-    marginTop: 16,
+    gap: 8,
   },
   authButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: rinkGlass.glass,
+    backgroundColor: rinkGlass.zamboni,
     borderWidth: 1,
     borderColor: rinkGlass.glassBorder,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+  },
+  accountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+  },
+  accountInfo: {
+    flex: 1,
+  },
+  accountStatus: {
+    fontSize: 9,
+    letterSpacing: 1.5,
+    color: rinkGlass.faceoffDot,
+    marginTop: 2,
+    fontFamily: rinkGlass.fonts.mono,
+    fontWeight: '700',
+  },
+  toggleHelper: {
+    fontSize: 11,
+    color: rinkGlass.textMuted,
+    paddingHorizontal: 4,
+    paddingTop: 8,
   },
   emailAuthButton: {
     borderColor: 'rgba(42, 64, 128, 0.5)',

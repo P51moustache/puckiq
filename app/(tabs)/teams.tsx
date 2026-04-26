@@ -16,7 +16,7 @@ import TeamCard from '../../components/TeamCard';
 import TeamModal from '../../components/TeamModal';
 import TeamStatusBadges from '../../components/TeamStatusBadges';
 import { ThemedView } from '../../components/ThemedView';
-import { makeStyles, theme } from '../../constants/theme';
+import { makeStyles, theme, rinkGlass } from '../../constants/theme';
 // TODO: Connect to Supabase for real advanced team stats
 import {
   getFavoriteTeams,
@@ -1196,103 +1196,56 @@ export default function TeamsScreen({ embedded = false }: TeamsScreenProps) {
 
   const content = (
     <>
-      {/* Filters */}
+      {/* Filters — single horizontal chip row, eyebrow-styled */}
       <View style={localStyles.filterSection}>
-        {/* Conference Filter */}
-        <View style={localStyles.filterRow}>
-          <Text style={localStyles.filterLabel}>Conference:</Text>
-          <View style={localStyles.filterButtonsRow}>
-            {(['All', 'East', 'West'] as const).map((conf) => (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={localStyles.filterStrip}
+        >
+          {/* Conference */}
+          {(['All', 'East', 'West'] as const).map((conf) => (
+            <TouchableOpacity
+              key={`conf-${conf}`}
+              style={[
+                localStyles.chip,
+                conferenceFilter === conf && localStyles.chipActive,
+              ]}
+              onPress={() => setConferenceFilter(conf)}
+            >
+              <Text style={[localStyles.chipText, conferenceFilter === conf && localStyles.chipTextActive]}>
+                {conf === 'All' ? 'ALL' : conf.toUpperCase()}
+              </Text>
+            </TouchableOpacity>
+          ))}
+          <View style={localStyles.chipDivider} />
+          {/* Division */}
+          {(['Atlantic', 'Metropolitan', 'Central', 'Pacific'] as const).map((div) => {
+            const label = div === 'Metropolitan' ? 'METRO' : div.toUpperCase();
+            const active = divisionFilter === div;
+            return (
               <TouchableOpacity
-                key={conf}
-                style={[
-                  localStyles.filterButton,
-                  conferenceFilter === conf && localStyles.filterButtonActive,
-                ]}
-                onPress={() => setConferenceFilter(conf)}
+                key={`div-${div}`}
+                style={[localStyles.chip, active && localStyles.chipActive]}
+                onPress={() => setDivisionFilter(active ? 'All' : div)}
               >
-                <Text
-                  style={[
-                    localStyles.filterButtonText,
-                    conferenceFilter === conf && localStyles.filterButtonTextActive,
-                  ]}
-                >
-                  {conf}
+                <Text style={[localStyles.chipText, active && localStyles.chipTextActive]}>
+                  {label}
                 </Text>
               </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Division Filter */}
-        <View style={localStyles.filterRow}>
-          <Text style={localStyles.filterLabel}>Division:</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={localStyles.filterScrollView}
-            contentContainerStyle={{ gap: 6 }}
+            );
+          })}
+          <View style={localStyles.chipDivider} />
+          {/* Favorites toggle */}
+          <TouchableOpacity
+            style={[localStyles.chip, favoritesOnlyFilter && localStyles.chipActive]}
+            onPress={() => setFavoritesOnlyFilter(!favoritesOnlyFilter)}
           >
-            {(['All', 'Atlantic', 'Metropolitan', 'Central', 'Pacific'] as const).map((div) => (
-              <TouchableOpacity
-                key={div}
-                style={[
-                  localStyles.filterButton,
-                  divisionFilter === div && localStyles.filterButtonActive,
-                ]}
-                onPress={() => setDivisionFilter(div)}
-              >
-                <Text
-                  style={[
-                    localStyles.filterButtonText,
-                    divisionFilter === div && localStyles.filterButtonTextActive,
-                  ]}
-                >
-                  {div === 'Metropolitan' ? 'Metro' : div}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* Favorites Toggle */}
-        <View style={localStyles.filterRow}>
-          <Text style={localStyles.filterLabel}>Show:</Text>
-          <View style={localStyles.filterButtonsRow}>
-            <TouchableOpacity
-              style={[
-                localStyles.filterButton,
-                !favoritesOnlyFilter && localStyles.filterButtonActive,
-              ]}
-              onPress={() => setFavoritesOnlyFilter(false)}
-            >
-              <Text
-                style={[
-                  localStyles.filterButtonText,
-                  !favoritesOnlyFilter && localStyles.filterButtonTextActive,
-                ]}
-              >
-                All Teams
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                localStyles.filterButton,
-                favoritesOnlyFilter && localStyles.filterButtonActive,
-              ]}
-              onPress={() => setFavoritesOnlyFilter(true)}
-            >
-              <Text
-                style={[
-                  localStyles.filterButtonText,
-                  favoritesOnlyFilter && localStyles.filterButtonTextActive,
-                ]}
-              >
-                Favorites
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+            <Text style={[localStyles.chipText, favoritesOnlyFilter && localStyles.chipTextActive]}>
+              ★ FAVORITES
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
       </View>
 
       {/* Teams Grid */}
@@ -1374,56 +1327,42 @@ const localStyles = StyleSheet.create({
     padding: 40,
   },
   filterSection: {
-    backgroundColor: theme.card,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: theme.subtle,
-    marginBottom: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    gap: 12,
+    paddingTop: 4,
+    paddingBottom: 12,
     width: '100%',
   },
-  filterRow: {
+  filterStrip: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: '100%',
-  },
-  filterLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: theme.subtext,
-    width: 90,
-    flexShrink: 0,
-  },
-  filterButtonsRow: {
-    flexDirection: 'row',
+    paddingHorizontal: 16,
     gap: 6,
-    flexShrink: 0,
   },
-  filterScrollView: {
-    flexGrow: 1,
-    flexShrink: 1,
-  },
-  filterButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: theme.factbox,
+  chip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: theme.subtle,
+    borderColor: rinkGlass.glassBorder,
   },
-  filterButtonActive: {
-    backgroundColor: theme.accent + '22',
-    borderColor: theme.accent,
+  chipActive: {
+    backgroundColor: 'rgba(76, 201, 240, 0.10)',
+    borderColor: rinkGlass.blueLight,
   },
-  filterButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: theme.subtext,
-  },
-  filterButtonTextActive: {
-    color: theme.accent,
+  chipText: {
+    fontSize: 10,
     fontWeight: '700',
+    color: rinkGlass.textMuted,
+    letterSpacing: 1,
+    fontFamily: rinkGlass.fonts.mono,
+  },
+  chipTextActive: {
+    color: rinkGlass.blueLight,
+  },
+  chipDivider: {
+    width: 1,
+    height: 16,
+    backgroundColor: rinkGlass.glassBorder,
+    marginHorizontal: 4,
   },
 });

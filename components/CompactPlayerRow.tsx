@@ -44,7 +44,7 @@ export default React.memo(function CompactPlayerRow({
       onPress={handlePress}
       testID={`compact-row-${player.playerId}`}
     >
-      <Text style={[styles.rankNumber, { color: teamColors.primary }]}>{rank}</Text>
+      <Text style={styles.rankNumber}>{rank}</Text>
 
       <Image
         source={{ uri: player.headshotUrl }}
@@ -58,15 +58,11 @@ export default React.memo(function CompactPlayerRow({
       <Text style={styles.teamAbbrev}>{player.teamAbbrev}</Text>
       <Text style={styles.goalsAssists}>{goalsAssists}</Text>
 
-      {player.trendLabel === 'HOT' ? (
-        <Text style={styles.flamesBadge}>{'\uD83D\uDD25\uD83D\uDD25\uD83D\uDD25\uD83D\uDD25\uD83D\uDD25'}</Text>
-      ) : player.trendLabel === 'WARM' ? (
-        <Text style={styles.flamesBadge}>{'\uD83D\uDD25\uD83D\uDD25\uD83D\uDD25\uD83D\uDD25'}</Text>
-      ) : player.trendLabel !== 'STEADY' ? (
-        <View style={[styles.trendPill, { backgroundColor: trendColor + '22' }]}>
+      {player.trendLabel !== 'STEADY' && (
+        <View style={[styles.trendPill, { borderColor: trendColor }]}>
           <Text style={[styles.trendText, { color: trendColor }]}>{player.trendLabel}</Text>
         </View>
-      ) : null}
+      )}
 
       <Text style={styles.statValue}>{player.seasonPoints}</Text>
     </Pressable>
@@ -131,11 +127,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
     paddingVertical: 1,
     marginRight: 8,
+    borderWidth: 1,
+    backgroundColor: 'transparent',
   },
   trendText: {
     fontSize: 9,
     fontWeight: '800',
-    letterSpacing: 0.5,
+    letterSpacing: 1,
   },
   statValue: {
     fontSize: 14,

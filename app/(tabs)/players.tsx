@@ -17,6 +17,7 @@ import { getTeamColors } from '../../constants/teamColors';
 import { Ionicons } from '@expo/vector-icons';
 import CompactPlayerRow from '../../components/CompactPlayerRow';
 import ElevatedPlayerRow from '../../components/ElevatedPlayerRow';
+import PageHeader from '../../components/PageHeader';
 import FantasyProjectionRow from '../../components/FantasyProjectionRow';
 import GoalieSpotlightCard from '../../components/GoalieSpotlightCard';
 import HeroLeaderCard from '../../components/HeroLeaderCard';
@@ -285,9 +286,7 @@ export default function PlayersScreen() {
   if (isSearchActive) {
     return (
       <ThemedView style={styles.container} testID="players-tab">
-        <View style={styles.header}>
-          <Text style={styles.title}>Players</Text>
-        </View>
+        <PageHeader title="Players" subtitle="Search · Leaders · Trends" />
 
         <View style={styles.searchContainerActive}>
           <View style={styles.searchBarRow}>
@@ -353,20 +352,19 @@ export default function PlayersScreen() {
 
   return (
     <ThemedView style={styles.container} testID="players-tab">
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <View>
-            <Text style={styles.title}>Players</Text>
-          </View>
+      <PageHeader
+        title="Players"
+        subtitle="Leaders · Trends · Goalies"
+        right={
           <TouchableOpacity
-            style={styles.searchButton}
             onPress={() => setIsSearchActive(true)}
             testID="search-toggle"
+            hitSlop={8}
           >
-            <Ionicons name="search" size={22} color={rinkGlass.textSecondary} />
+            <Ionicons name="search" size={20} color={rinkGlass.textSecondary} />
           </TouchableOpacity>
-        </View>
-      </View>
+        }
+      />
 
       <ScrollView
         style={styles.scrollView}
@@ -662,6 +660,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: rinkGlass.ice,
+    paddingTop: Platform.OS === 'ios' ? 56 : 26,
   },
   header: {
     paddingTop: Platform.OS === 'ios' ? 60 : 30,
