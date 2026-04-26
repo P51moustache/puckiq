@@ -407,7 +407,9 @@ def _predict_player_props(
                 "position": ps.get("position", ""),
             }
 
-    # Build per-player prediction rows (one row per player, with player_id column)
+    # Build per-player prediction rows (one row per player, with player_id column).
+    # `position` is not a column on ml_predictions — keep it inside the
+    # player_predictions JSONB blob alongside the predicted stats.
     predictions = []
     for i, (_, row) in enumerate(features_df.iterrows()):
         pid = int(row.get("player_id", 0))
@@ -419,8 +421,8 @@ def _predict_player_props(
             "game_date": today,
             "player_id": pid,
             "team_abbrev": meta.get("team_abbrev", row.get("team_abbrev", "")),
-            "position": meta.get("position", ""),
             "player_predictions": {
+                "position": meta.get("position", ""),
                 "expected_goals": float(preds["goals"][i]),
                 "expected_assists": float(preds["assists"][i]),
                 "expected_points": float(preds["points"][i]),
