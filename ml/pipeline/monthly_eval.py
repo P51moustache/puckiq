@@ -81,7 +81,9 @@ def _run() -> None:
 
     # Pre-compute baselines once (shared across model evaluations, only used by game_winner).
     # We do this outside the loop to avoid re-computing features for each model type.
-    games_df = read_games(client, CURRENT_SEASON, game_state=["OFF", "FINAL"])
+    # Include playoffs (game_type=3) so monthly eval covers the games we
+    # actually scored predictions on via daily_run.
+    games_df = read_games(client, CURRENT_SEASON, game_state=["OFF", "FINAL"], game_types=[2, 3])
     baseline_results: dict[str, Any] = {}
     if not games_df.empty:
         games_df = games_df.sort_values("game_date").reset_index(drop=True)

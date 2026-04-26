@@ -81,7 +81,7 @@ export async function getH2HRecord(
       .from('games')
       .select('*')
       .eq('season', targetSeason)
-      .eq('game_type', 2)
+      .in('game_type', [2, 3])
       .in('game_state', ['FINAL', 'OFF'])
       .or(
         `and(home_team_abbrev.eq.${teamA},away_team_abbrev.eq.${teamB}),and(home_team_abbrev.eq.${teamB},away_team_abbrev.eq.${teamA})`,
@@ -156,7 +156,7 @@ export async function getH2HForGames(
       .from('games')
       .select('*')
       .eq('season', season)
-      .eq('game_type', 2)
+      .in('game_type', [2, 3])
       .in('game_state', ['FINAL', 'OFF'])
       .or(orConditions)
       .order('game_date', { ascending: true });
@@ -246,7 +246,7 @@ export async function fetchGameResults(): Promise<GameResult[]> {
       .from('games')
       .select('*')
       .eq('season', getCurrentSeason())
-      .eq('game_type', 2)
+      .in('game_type', [2, 3])
       .order('game_date', { ascending: false })
       .limit(500);
 

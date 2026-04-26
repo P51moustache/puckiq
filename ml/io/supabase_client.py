@@ -99,6 +99,7 @@ def read_games(
     client: Client,
     season: int,
     game_state: str | list[str] | None = None,
+    game_types: list[int] | None = None,
 ) -> pd.DataFrame:
     """
     Read games from the games table.
@@ -107,19 +108,25 @@ def read_games(
         season: Season integer (e.g. 20252026).
         game_state: Optional filter — single state string (e.g. "OFF"),
             list of states (e.g. ["OFF", "FINAL"]), or None for all.
+        game_types: Optional list of NHL game_type values. Defaults to [2]
+            (regular season only) for backward compatibility with training.
+            Pass [2, 3] to include playoffs (used by daily prediction +
+            monthly scoring). Other valid values: 1 (preseason), 9 (4NFF).
 
     Returns:
         DataFrame of game rows.
     """
+    types = game_types if game_types is not None else [2]
     # Paginate to handle >1000 games per season (NHL has ~1312 regular season games)
     all_rows: list[dict[str, Any]] = []
     page_size = 1000
     offset = 0
     while True:
         query = client.table(GAMES_TABLE).select("*").eq("season", season)
-        # Only regular season games (game_type=2). Excludes preseason (1),
-        # playoffs (3), and international events like 4 Nations Face-Off (9).
-        query = query.eq("game_type", 2)
+        if len(types) == 1:
+            query = query.eq("game_type", types[0])
+        else:
+            query = query.in_("game_type", types)
         if isinstance(game_state, list):
             query = query.in_("game_state", game_state)
         elif game_state:

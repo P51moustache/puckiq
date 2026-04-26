@@ -204,7 +204,7 @@ export function useTonightData(): TonightData {
 
       try {
         const [gamesResult, standingsResult] = await Promise.allSettled([
-          supabase.from('games').select('*').eq('game_type', 2).gte('game_date', todayStr).lte('game_date', tomorrowDateStr).order('start_time_utc', { ascending: true }),
+          supabase.from('games').select('*').in('game_type', [2, 3]).gte('game_date', todayStr).lte('game_date', tomorrowDateStr).order('start_time_utc', { ascending: true }),
           supabase.from('standings').select('*').order('snapshot_date', { ascending: false }).limit(32),
         ]);
 
@@ -294,7 +294,7 @@ export function useTonightData(): TonightData {
           const nextDateResult = await supabase
             .from('games')
             .select('game_date')
-            .eq('game_type', 2)
+            .in('game_type', [2, 3])
             .gte('game_date', todayStr)
             .order('game_date', { ascending: true })
             .limit(1);
@@ -310,7 +310,7 @@ export function useTonightData(): TonightData {
             const upcomingResult = await supabase
               .from('games')
               .select('*')
-              .eq('game_type', 2)
+              .in('game_type', [2, 3])
               .gte('game_date', firstDate)
               .lte('game_date', secondDate)
               .order('start_time_utc', { ascending: true });

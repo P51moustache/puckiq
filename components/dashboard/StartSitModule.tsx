@@ -21,9 +21,11 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
+import { Image as ExpoImage } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { rinkGlass, theme } from '../../constants/theme';
 import { getTeamColors } from '../../constants/teamColors';
+import { getTeamLogoUrl } from '../../utils/teamLogo';
 
 interface StartSitPlayer {
   id: number;
@@ -237,11 +239,14 @@ function PlayerCard({
             </View>
           )}
 
-          {/* Team-colored player initials */}
-          <View style={[styles.iconContainer, { backgroundColor: getTeamColors(player.team).primary }]}>
-            <Text style={styles.initialText}>
-              {player.name.includes('.') ? player.name.split('. ')[1]?.[0] ?? player.name[0] : player.name[0]}
-            </Text>
+          {/* Team logo (real NHL CDN, no more letter circles) */}
+          <View style={styles.iconContainer}>
+            <ExpoImage
+              source={{ uri: getTeamLogoUrl(player.team) }}
+              style={styles.iconImage}
+              contentFit="contain"
+              accessibilityLabel={player.team}
+            />
           </View>
 
           {/* Player info */}
@@ -253,10 +258,10 @@ function PlayerCard({
           <Text style={styles.projectedPoints}>{player.projectedPoints}</Text>
           <Text style={styles.projLabel}>proj pts</Text>
 
-          {/* Disagreement reason */}
+          {/* Stat-only model split readout (replaces "Tough goalie matchup — model is split" prose) */}
           {player.hasDisagreement && (
             <Text style={styles.disagreementText}>
-              {player.disagreementReason}
+              MODEL SPLIT
             </Text>
           )}
 
@@ -418,17 +423,13 @@ const styles = StyleSheet.create({
   iconContainer: {
     width: 48,
     height: 48,
-    borderRadius: 24,
-    backgroundColor: rinkGlass.glassHighlight,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
   },
-  initialText: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#fff',
-    fontFamily: rinkGlass.fonts.display,
+  iconImage: {
+    width: 48,
+    height: 48,
   },
   playerName: {
     fontFamily: rinkGlass.fonts.display,
@@ -462,9 +463,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   disagreementText: {
-    fontSize: 11,
+    fontSize: 10,
     color: rinkGlass.powerPlay,
-    fontStyle: 'italic' as const,
+    fontWeight: '700' as const,
+    letterSpacing: 1,
     marginTop: 4,
     textAlign: 'center' as const,
     marginBottom: 4,
