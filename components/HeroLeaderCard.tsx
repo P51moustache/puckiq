@@ -40,8 +40,8 @@ export default React.memo(function HeroLeaderCard({
     }
   }, [player, statCategory]);
 
-  // 82-game projection
-  const projectionText = useMemo(() => {
+  // 82-game projection — pure stat readout, no narrative pill
+  const projectionValue = useMemo(() => {
     const projected82 = statCategory === 'goals'
       ? (player.projectedGoals82 || leaderTrend?.projectedGoals82)
       : statCategory === 'points'
@@ -50,7 +50,7 @@ export default React.memo(function HeroLeaderCard({
           ? leaderTrend?.projectedAssists82
           : null;
     if (!projected82 || projected82 <= 0) return null;
-    return `On pace for ${Math.round(projected82)}`;
+    return Math.round(projected82);
   }, [player, leaderTrend, statCategory]);
 
   // Per-game averages
@@ -91,20 +91,16 @@ export default React.memo(function HeroLeaderCard({
 
   return (
     <Pressable
-      style={({ pressed }) => [
-        styles.card,
-        { borderLeftColor: teamColors.primary, borderLeftWidth: 4 },
-        pressed && styles.cardPressed,
-      ]}
+      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
       onPress={handlePress}
       testID={`hero-card-${player.playerId}`}
     >
       {/* Header: rank + player info */}
       <View style={styles.headerRow}>
-        <Text style={[styles.rankNumber, { color: teamColors.primary }]}>1</Text>
+        <Text style={styles.rankNumber}>1</Text>
         <Image
           source={{ uri: player.headshotUrl }}
-          style={[styles.headshot, { borderColor: teamColors.primary + '44' }]}
+          style={styles.headshot}
           contentFit="cover"
           cachePolicy="memory-disk"
           recyclingKey={`hero-${player.playerId}`}
@@ -122,26 +118,24 @@ export default React.memo(function HeroLeaderCard({
       {/* Big season stat + projection */}
       <View style={styles.bigStatRow}>
         <View style={styles.bigStatContainer}>
-          <Text style={[styles.bigStatNumber, { color: teamColors.primary }]}>
-            {seasonTotal}
-          </Text>
+          <Text style={styles.bigStatNumber}>{seasonTotal}</Text>
           <View>
             <Text style={styles.bigStatLabel}>POINTS</Text>
-            <Text style={styles.gamesPlayedLabel}>{player.gamesPlayed} games</Text>
+            <Text style={styles.gamesPlayedLabel}>{player.gamesPlayed} GP</Text>
           </View>
         </View>
 
-        {projectionText && (
-          <View style={styles.paceBadge}>
-            <Ionicons name="trending-up" size={12} color={rinkGlass.blueLight} />
-            <Text style={styles.paceText}>{projectionText}</Text>
+        {projectionValue != null && (
+          <View style={styles.paceBlock}>
+            <Text style={styles.paceValue}>{projectionValue}</Text>
+            <Text style={styles.paceLabel}>82-GP PACE</Text>
           </View>
         )}
 
         {player.pointStreak >= 3 && (
-          <View style={styles.streakBadge}>
-            <Ionicons name="flame" size={12} color="#f97316" />
-            <Text style={styles.streakText}>{player.pointStreak}g point streak</Text>
+          <View style={styles.streakBlock}>
+            <Text style={styles.streakValue}>{player.pointStreak}</Text>
+            <Text style={styles.streakLabel}>GAME STREAK</Text>
           </View>
         )}
       </View>
@@ -167,7 +161,7 @@ export default React.memo(function HeroLeaderCard({
         </View>
       </View>
 
-      {/* Shooting % visual bar */}
+      {/* Shooting % visual bar — cyan only; semantics live in the value color */}
       {hasShootingData && (
         <View style={styles.shootingContainer}>
           <View style={styles.shootingHeader}>
@@ -180,7 +174,7 @@ export default React.memo(function HeroLeaderCard({
               {shootingPctRecent.toFixed(1)}%
             </Text>
             <Text style={styles.shootingSeasonRef}>
-              Season {shootingPctSeason.toFixed(1)}%
+              SEASON {shootingPctSeason.toFixed(1)}%
             </Text>
           </View>
           <View style={styles.shootingBarBg}>
@@ -188,9 +182,7 @@ export default React.memo(function HeroLeaderCard({
               styles.shootingBarFill,
               {
                 width: `${shootingBarWidth * 100}%`,
-                backgroundColor: shootingPctRecent > shootingPctSeason
-                  ? rinkGlass.faceoffDot
-                  : rinkGlass.blueLight,
+                backgroundColor: rinkGlass.blueLight,
               },
             ]} />
           </View>
@@ -209,10 +201,10 @@ export default React.memo(function HeroLeaderCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: rinkGlass.glass,
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 12,
+    backgroundColor: rinkGlass.boards,
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: rinkGlass.glassBorder,
   },
@@ -226,19 +218,21 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   rankNumber: {
-    fontSize: 28,
-    fontWeight: '900',
-    width: 32,
+    fontSize: 24,
+    fontWeight: '700',
+    width: 28,
     textAlign: 'center',
-    fontFamily: rinkGlass.fonts.mono,
+    color: rinkGlass.blueLight,
+    fontFamily: rinkGlass.fonts.display,
   },
   headshot: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: rinkGlass.boards,
-    marginLeft: 8,
-    borderWidth: 2,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: rinkGlass.zamboni,
+    marginLeft: 6,
+    borderWidth: 1,
+    borderColor: rinkGlass.glassBorder,
   },
   nameContainer: {
     flex: 1,
@@ -259,61 +253,70 @@ const styles = StyleSheet.create({
   // Big stat row
   bigStatRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 12,
-    paddingLeft: 40,
+    alignItems: 'baseline',
+    gap: 16,
+    marginBottom: 10,
+    paddingLeft: 34,
   },
   bigStatContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'baseline',
     gap: 8,
   },
   bigStatNumber: {
-    fontSize: 36,
-    fontWeight: '900',
-    fontFamily: rinkGlass.fonts.mono,
-    fontVariant: ['tabular-nums'] as any,
+    fontSize: 44,
+    fontWeight: '700',
+    color: rinkGlass.textPrimary,
+    fontFamily: rinkGlass.fonts.display,
+    letterSpacing: -1.5,
   },
   bigStatLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     color: rinkGlass.textSecondary,
-    letterSpacing: 0.5,
+    letterSpacing: 1.5,
   },
   gamesPlayedLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: rinkGlass.textSecondary,
+    fontSize: 9,
+    fontWeight: '700',
+    color: rinkGlass.textMuted,
     marginTop: 1,
+    letterSpacing: 1,
+    fontFamily: rinkGlass.fonts.mono,
   },
-  paceBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: rinkGlass.blueLight + '18',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+  paceBlock: {
+    alignItems: 'flex-start',
   },
-  paceText: {
-    fontSize: 10,
+  paceValue: {
+    fontSize: 22,
     fontWeight: '700',
     color: rinkGlass.blueLight,
+    fontFamily: rinkGlass.fonts.display,
+    letterSpacing: -0.5,
   },
-  streakBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: '#f9731618',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  streakText: {
-    fontSize: 10,
+  paceLabel: {
+    fontSize: 9,
     fontWeight: '700',
-    color: '#f97316',
+    color: rinkGlass.textMuted,
+    letterSpacing: 1.5,
+    fontFamily: rinkGlass.fonts.mono,
+  },
+  streakBlock: {
+    alignItems: 'flex-start',
+  },
+  streakValue: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: rinkGlass.powerPlay,
+    fontFamily: rinkGlass.fonts.display,
+    letterSpacing: -0.5,
+  },
+  streakLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: rinkGlass.textMuted,
+    letterSpacing: 1.5,
+    fontFamily: rinkGlass.fonts.mono,
   },
 
   // Form comparison
