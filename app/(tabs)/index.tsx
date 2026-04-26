@@ -1,7 +1,9 @@
 import React, { useCallback } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, Text, View } from 'react-native';
+import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 import LiveNowBar from '../../components/LiveNowBar';
 import LeagueBriefing from '../../components/LeagueBriefing';
+import FloatingTodayBar from '../../components/FloatingTodayBar';
 import { ThemedView } from '../../components/ThemedView';
 import { makeStyles, rinkGlass, theme } from '../../constants/theme';
 import Toast from '../../components/Toast';
@@ -32,13 +34,22 @@ export default function TonightScreen() {
 
   const handleGamePress = useCallback(() => {}, []);
 
+  const scrollY = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler({
+    onScroll: (e) => {
+      scrollY.value = e.contentOffset.y;
+    },
+  });
+
   return (
     <ThemedView style={[styles.container, { backgroundColor: rinkGlass.ice }]}>
-      <ScrollView
+      <Animated.ScrollView
         style={{ alignSelf: 'stretch', width: '100%' }}
         contentContainerStyle={[styles.scrollContainer, { paddingBottom: 100 }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        scrollEventThrottle={16}
+        onScroll={onScroll}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -82,7 +93,15 @@ export default function TonightScreen() {
           lastFetchTime={lastFetchTime}
           onRefresh={onRefresh}
         />
-      </ScrollView>
+      </Animated.ScrollView>
+
+      {/* Floating top bar — appears after the hero scrolls out of view */}
+      <FloatingTodayBar
+        scrollY={scrollY}
+        threshold={320}
+        gameCount={gameCount}
+        onRefresh={onRefresh}
+      />
 
       <Toast message={toastMessage} />
     </ThemedView>
