@@ -14,15 +14,30 @@ import {
 import { supabase } from '../lib/supabase';
 
 /**
+ * Current NHL season encoded as start-end years (e.g. 20252026).
+ * Derived from today's date — Aug→Dec uses next-year suffix; Jan→Jul uses
+ * current calendar year as the END year. Matches scripts/sync naming.
+ */
+function currentSeasonId(): number {
+  const now = new Date();
+  const y = now.getUTCFullYear();
+  const m = now.getUTCMonth(); // 0-indexed
+  // NHL season starts in October; treat July (month 6) onward as the "next" season starting.
+  if (m >= 6) return Number(`${y}${y + 1}`);
+  return Number(`${y - 1}${y}`);
+}
+
+/**
  * Fetch comprehensive team statistics for comparison
  */
 export async function getTeamComparisonData(
   teamAbbrev: string,
   standingsData?: any
 ): Promise<TeamComparisonStats> {
-  // --- Supabase-first: try standings + team_stat_categories + skater_season_stats ---
+  // --- Supabase-first: standings + team summary + skater + goalie aggregates ---
   try {
-    const [standingsRes, summaryRes, skatersRes] = await Promise.all([
+    const season = currentSeasonId();
+    const [standingsRes, summaryRes, skatersRes, goaliesRes] = await Promise.all([
       supabase
         .from('standings')
         .select('*')
@@ -34,10 +49,18 @@ export async function getTeamComparisonData(
         .eq('team_abbrev', teamAbbrev)
         .eq('stat_category', 'summary')
         .limit(1),
+      // Filter by current season — without this we'd sum every historical
+      // row a player had on that team and inflate PIM by 5x or more.
       supabase
         .from('skater_season_stats')
-        .select('*')
-        .eq('team_abbrev', teamAbbrev),
+        .select('power_play_goals, pim, games_played')
+        .eq('team_abbrev', teamAbbrev)
+        .eq('season', season),
+      supabase
+        .from('goalie_season_stats')
+        .select('shutouts, pim')
+        .eq('team_abbrev', teamAbbrev)
+        .eq('season', season),
     ]);
 
     if (!standingsRes.error && standingsRes.data && standingsRes.data.length > 0) {
@@ -51,13 +74,27 @@ export async function getTeamComparisonData(
           teamSummary = summaryRes.data[0].data;
         }
 
-        // Build club stats from skater_season_stats for power play goals aggregation
+        // Aggregate skater and goalie season totals
         let clubStats: any = null;
         if (!skatersRes.error && skatersRes.data && skatersRes.data.length > 0) {
+          let totalPpGoals = 0;
+          let totalSkaterPim = 0;
+          for (const s of skatersRes.data as any[]) {
+            totalPpGoals += s.power_play_goals || 0;
+            totalSkaterPim += s.pim || 0;
+          }
+          let totalGoaliePim = 0;
+          let totalShutouts = 0;
+          if (!goaliesRes.error && goaliesRes.data) {
+            for (const g of goaliesRes.data as any[]) {
+              totalGoaliePim += g.pim || 0;
+              totalShutouts += g.shutouts || 0;
+            }
+          }
           clubStats = {
-            skaters: skatersRes.data.map((s: any) => ({
-              powerPlayGoals: s.power_play_goals || 0,
-            })),
+            powerPlayGoals: totalPpGoals,
+            penaltyMinutes: totalSkaterPim + totalGoaliePim,
+            shutouts: totalShutouts,
           };
         }
 
@@ -111,14 +148,10 @@ function buildTeamStats(
   const points = standingData?.points || 0;
   const pointsPct = points / (gamesPlayed * 2);
 
-  // Aggregate player stats for power play goals
-  let totalPowerPlayGoals = 0;
-
-  if (clubStats?.skaters) {
-    clubStats.skaters.forEach((player: any) => {
-      totalPowerPlayGoals += player.powerPlayGoals || 0;
-    });
-  }
+  // Aggregated club stats (computed by the caller from skater + goalie season tables)
+  const totalPowerPlayGoals = clubStats?.powerPlayGoals ?? 0;
+  const totalPenaltyMinutes = clubStats?.penaltyMinutes ?? 0;
+  const totalShutouts = clubStats?.shutouts ?? 0;
 
   // Use REAL team-level stats from team summary API (not estimates!)
   const shotsPerGame = teamSummary?.shotsForPerGame || 0;
@@ -213,7 +246,7 @@ function buildTeamStats(
     savePctRank: teamRankings.savePctRank,
     goalsAgainstAverage: goalsAgainstPerGame,
     goalsAgainstAverageRank: teamRankings.goalsAgainstPerGameRank,
-    shutouts: 0, // Not easily aggregated
+    shutouts: totalShutouts,
     shutoutsRank: undefined,
     qualityStarts: 0, // Not available
     qualityStartsRank: undefined,
@@ -223,11 +256,13 @@ function buildTeamStats(
     reboundControlRank: undefined,
   };
 
-  // Discipline stats - not available from standings API
+  // Discipline stats — sum of skater + goalie penalty minutes from season tables.
+  // Penalties/game derived from PIM with the standard 2-min minor assumption
+  // (rough but consistent across all teams, so the comparison is still fair).
   const discipline: DisciplineStats = {
-    penaltiesPerGame: 0,
+    penaltiesPerGame: gamesPlayed > 0 ? totalPenaltyMinutes / 2 / gamesPlayed : 0,
     penaltiesPerGameRank: undefined,
-    penaltyMinutes: 0,
+    penaltyMinutes: totalPenaltyMinutes,
     penaltyMinutesRank: undefined,
     minorPenalties: 0,
     minorPenaltiesRank: undefined,
