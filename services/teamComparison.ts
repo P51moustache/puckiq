@@ -309,8 +309,9 @@ function calculateAllRankings(allTeamsStandings: any[], teamAbbrev: string, club
     return teamIndex >= 0 ? teamIndex + 1 : undefined;
   };
 
-  // Only return rankings we can actually calculate from standings data
-  // TODO: Connect to Supabase for real per-stat rankings
+  // Rankings limited to goals-for/against because callers only fetch one team's
+  // team_stat_categories row. To rank shots/save%/PP%/PK%, fetch all 32 teams'
+  // 'summary' rows and pass them through here.
   return {
     goalsPerGameRank: getRank('goalsPerGame', true),
     goalsAgainstPerGameRank: getRank('goalsAgainstPerGame', false),
