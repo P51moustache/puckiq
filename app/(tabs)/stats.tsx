@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { rinkGlass } from '../../constants/theme';
 import { ThemedView } from '../../components/ThemedView';
 import PageHeader from '../../components/PageHeader';
+import TeamHeadToHead from '../../components/TeamHeadToHead';
 import { FactorLeaderboard } from '../../components/FactorLeaderboard';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import { getTeamComparisonData, calculateCategoryWinners } from '../../services/teamComparison';
@@ -24,12 +25,11 @@ import SpeedGauge from '../../components/SpeedGauge';
 const TeamsContent = lazy(() => import('./teams'));
 const ModelsContent = lazy(() => import('./models'));
 
-type Segment = 'teams' | 'edge' | 'factors' | 'models';
+type Segment = 'h2h' | 'teams' | 'models';
 
 const SEGMENTS: { key: Segment; label: string; testID: string }[] = [
-  { key: 'teams', label: 'Teams', testID: 'stats-segment-teams' },
-  { key: 'edge', label: 'Edge', testID: 'stats-segment-edge' },
-  { key: 'factors', label: 'Factors', testID: 'stats-segment-factors' },
+  { key: 'h2h', label: 'Head-to-Head', testID: 'stats-segment-h2h' },
+  { key: 'teams', label: 'All Teams', testID: 'stats-segment-teams' },
   { key: 'models', label: 'Models', testID: 'stats-segment-models' },
 ];
 
@@ -393,7 +393,7 @@ function FactorsContent() {
 }
 
 export default function ExploreScreen() {
-  const [activeSegment, setActiveSegment] = useState<Segment>('teams');
+  const [activeSegment, setActiveSegment] = useState<Segment>('h2h');
   const analytics = useAnalytics('Explore');
 
   const handleSegmentChange = (segment: Segment) => {
@@ -409,16 +409,14 @@ export default function ExploreScreen() {
 
   const renderContent = () => {
     switch (activeSegment) {
+      case 'h2h':
+        return <TeamHeadToHead />;
       case 'teams':
         return (
           <Suspense fallback={renderLoadingFallback()}>
             <TeamsContent embedded />
           </Suspense>
         );
-      case 'edge':
-        return <EdgeContent />;
-      case 'factors':
-        return <FactorsContent />;
       case 'models':
         return (
           <Suspense fallback={renderLoadingFallback()}>
@@ -432,7 +430,7 @@ export default function ExploreScreen() {
 
   return (
     <ThemedView style={localStyles.container} testID="explore-tab">
-      <PageHeader title="Compare" subtitle="Teams · Edge · Factors · Models" />
+      <PageHeader title="Compare" subtitle="Pin two teams · Browse · Models" />
 
       <View style={localStyles.segmentControl}>
         {SEGMENTS.map((segment) => {
