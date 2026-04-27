@@ -35,8 +35,13 @@ interface StatRow {
   awayValue: number;
 }
 
+/** True if a metric has real data on this team. NaN, null, undefined, or 0 are treated as missing. */
+function hasReal(v: number | null | undefined): boolean {
+  return typeof v === 'number' && Number.isFinite(v) && v > 0;
+}
+
 function buildStatRows(home: TeamComparisonStats, away: TeamComparisonStats): { section: string; rows: StatRow[] }[] {
-  return [
+  const allSections: { section: string; rows: StatRow[] }[] = [
     {
       section: 'OFFENSE',
       rows: [
@@ -82,6 +87,14 @@ function buildStatRows(home: TeamComparisonStats, away: TeamComparisonStats): { 
       ],
     },
   ];
+
+  // Drop any row where neither team has real data, then drop empty sections.
+  return allSections
+    .map((sec) => ({
+      ...sec,
+      rows: sec.rows.filter((r) => hasReal(r.homeValue) || hasReal(r.awayValue)),
+    }))
+    .filter((sec) => sec.rows.length > 0);
 }
 
 function StatBar({ value, max, color, alignRight }: { value: number; max: number; color: string; alignRight?: boolean }) {
