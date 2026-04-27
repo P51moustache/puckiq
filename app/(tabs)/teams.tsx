@@ -326,8 +326,6 @@ export default function TeamsScreen({ embedded = false }: TeamsScreenProps) {
     }
   }
 
-  // TODO: Connect to Supabase for real advanced team stats
-
   // Memoize tabs array to prevent unnecessary re-renders
   const modalTabs = useMemo(() => [
     { id: 'overview', label: 'Overview' },
@@ -948,8 +946,6 @@ export default function TeamsScreen({ embedded = false }: TeamsScreenProps) {
           </View>
         </View>
 
-        {/* TODO: Connect to Supabase for real advanced analytics */}
-
       </View>
     );
   };
@@ -1279,9 +1275,6 @@ export default function TeamsScreen({ embedded = false }: TeamsScreenProps) {
           tabs={modalTabs}
           renderTabContent={renderTabContent}
           initialTab="overview"
-          onTabChange={(_tabId) => {
-            // TODO: Connect to Supabase for real advanced stats
-          }}
         />
       )}
     </>
