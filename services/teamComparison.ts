@@ -82,22 +82,26 @@ export async function getTeamComparisonData(
           teamSummary = summaryRes.data[0].data;
         }
 
-        // Authoritative penalty stats (real penalty count + real PIM/GP)
-        // come from team_stat_categories.penalties. If the row hasn't synced
-        // yet, leave them null and the UI will hide the affected row.
+        // Authoritative penalty stats from NHL /team/penalties endpoint.
+        // Keys per the API response:
+        //   penalties      — total penalty count this season
+        //   penaltyMinutes — total PIM this season
+        //   gamesPlayed    — denominator for per-game rates
+        // (No timesShortHanded here — that's on /team/penaltykill, which
+        // counts opponent PP opportunities, slightly different concept.)
         let realPenaltyCountPerGame: number | null = null;
-        let realPenaltyMinutesPerGame: number | null = null;
+        let realPenaltyMinutesTotal: number | null = null;
         if (!penaltiesRes.error && penaltiesRes.data && penaltiesRes.data.length > 0) {
           const pData = (penaltiesRes.data[0] as any).data ?? {};
-          // NHL /team/penalties returns timesShortHanded + penaltyMinutesPerGame.
-          // The exact key may vary by API version; check both common spellings.
-          const tsh = pData.timesShortHanded ?? pData.timesShorthanded;
+          const count = pData.penalties;
           const gp = pData.gamesPlayed;
-          if (typeof tsh === 'number' && typeof gp === 'number' && gp > 0) {
-            realPenaltyCountPerGame = tsh / gp;
+          const pim = pData.penaltyMinutes;
+          if (typeof count === 'number' && typeof gp === 'number' && gp > 0) {
+            realPenaltyCountPerGame = count / gp;
           }
-          const pmpg = pData.penaltyMinutesPerGame;
-          if (typeof pmpg === 'number') realPenaltyMinutesPerGame = pmpg;
+          if (typeof pim === 'number' && pim > 0) {
+            realPenaltyMinutesTotal = pim;
+          }
         }
 
         // Aggregate skater + goalie season totals (used for PP goals and
@@ -123,7 +127,7 @@ export async function getTeamComparisonData(
             penaltyMinutes: totalSkaterPim + totalGoaliePim,
             shutouts: totalShutouts,
             realPenaltyCountPerGame,
-            realPenaltyMinutesPerGame,
+            realPenaltyMinutesTotal,
           };
         }
 
@@ -182,10 +186,10 @@ function buildTeamStats(
   const totalPenaltyMinutes = clubStats?.penaltyMinutes ?? 0;
   const totalShutouts = clubStats?.shutouts ?? 0;
 
-  // Authoritative real penalty count/PIM-per-game from NHL API.
+  // Authoritative real penalty count + PIM season total from NHL API.
   // Null when team_stat_categories.penalties hasn't synced yet — caller will hide the row.
   const realPenaltyCountPerGame: number | null = clubStats?.realPenaltyCountPerGame ?? null;
-  const realPenaltyMinutesPerGame: number | null = clubStats?.realPenaltyMinutesPerGame ?? null;
+  const realPenaltyMinutesTotal: number | null = clubStats?.realPenaltyMinutesTotal ?? null;
 
   // Use REAL team-level stats from team summary API (not estimates!)
   const shotsPerGame = teamSummary?.shotsForPerGame || 0;
@@ -293,9 +297,7 @@ function buildTeamStats(
   // Discipline stats — prefer authoritative NHL penalties endpoint when synced,
   // else NaN so the UI hides the row instead of showing a fake derivation.
   const penaltiesPerGame = realPenaltyCountPerGame ?? NaN;
-  const penaltyMinutesValue = realPenaltyMinutesPerGame != null
-    ? realPenaltyMinutesPerGame * gamesPlayed
-    : NaN;
+  const penaltyMinutesValue = realPenaltyMinutesTotal ?? NaN;
   const discipline: DisciplineStats = {
     penaltiesPerGame,
     penaltiesPerGameRank: undefined,
