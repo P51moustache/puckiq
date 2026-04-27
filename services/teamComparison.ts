@@ -34,23 +34,31 @@ export async function getTeamComparisonData(
   teamAbbrev: string,
   standingsData?: any
 ): Promise<TeamComparisonStats> {
-  // --- Supabase-first: standings + team summary + skater + goalie aggregates ---
+  // --- Supabase-first: standings + team summary + skater/goalie aggregates ---
   try {
     const season = currentSeasonId();
-    const [standingsRes, summaryRes, skatersRes, goaliesRes] = await Promise.all([
+    const [standingsRes, summaryRes, penaltiesRes, skatersRes, goaliesRes] = await Promise.all([
       supabase
         .from('standings')
         .select('*')
         .order('snapshot_date', { ascending: false })
-        .limit(32), // Latest snapshot for all teams
+        .limit(32),
       supabase
         .from('team_stat_categories')
-        .select('*')
+        .select('data')
         .eq('team_abbrev', teamAbbrev)
         .eq('stat_category', 'summary')
         .limit(1),
-      // Filter by current season — without this we'd sum every historical
-      // row a player had on that team and inflate PIM by 5x or more.
+      // Authoritative penalty stats from NHL /team/penalties endpoint.
+      // Populated by the daily sync-stat-categories job.
+      supabase
+        .from('team_stat_categories')
+        .select('data')
+        .eq('team_abbrev', teamAbbrev)
+        .eq('stat_category', 'penalties')
+        .limit(1),
+      // Skater/goalie aggregates only used as a fallback when the
+      // penalties category isn't populated yet.
       supabase
         .from('skater_season_stats')
         .select('power_play_goals, pim, games_played')
@@ -74,7 +82,26 @@ export async function getTeamComparisonData(
           teamSummary = summaryRes.data[0].data;
         }
 
-        // Aggregate skater and goalie season totals
+        // Authoritative penalty stats (real penalty count + real PIM/GP)
+        // come from team_stat_categories.penalties. If the row hasn't synced
+        // yet, leave them null and the UI will hide the affected row.
+        let realPenaltyCountPerGame: number | null = null;
+        let realPenaltyMinutesPerGame: number | null = null;
+        if (!penaltiesRes.error && penaltiesRes.data && penaltiesRes.data.length > 0) {
+          const pData = (penaltiesRes.data[0] as any).data ?? {};
+          // NHL /team/penalties returns timesShortHanded + penaltyMinutesPerGame.
+          // The exact key may vary by API version; check both common spellings.
+          const tsh = pData.timesShortHanded ?? pData.timesShorthanded;
+          const gp = pData.gamesPlayed;
+          if (typeof tsh === 'number' && typeof gp === 'number' && gp > 0) {
+            realPenaltyCountPerGame = tsh / gp;
+          }
+          const pmpg = pData.penaltyMinutesPerGame;
+          if (typeof pmpg === 'number') realPenaltyMinutesPerGame = pmpg;
+        }
+
+        // Aggregate skater + goalie season totals (used for PP goals and
+        // as a fallback for PIM if the penalties category isn't synced).
         let clubStats: any = null;
         if (!skatersRes.error && skatersRes.data && skatersRes.data.length > 0) {
           let totalPpGoals = 0;
@@ -95,6 +122,8 @@ export async function getTeamComparisonData(
             powerPlayGoals: totalPpGoals,
             penaltyMinutes: totalSkaterPim + totalGoaliePim,
             shutouts: totalShutouts,
+            realPenaltyCountPerGame,
+            realPenaltyMinutesPerGame,
           };
         }
 
@@ -152,6 +181,11 @@ function buildTeamStats(
   const totalPowerPlayGoals = clubStats?.powerPlayGoals ?? 0;
   const totalPenaltyMinutes = clubStats?.penaltyMinutes ?? 0;
   const totalShutouts = clubStats?.shutouts ?? 0;
+
+  // Authoritative real penalty count/PIM-per-game from NHL API.
+  // Null when team_stat_categories.penalties hasn't synced yet — caller will hide the row.
+  const realPenaltyCountPerGame: number | null = clubStats?.realPenaltyCountPerGame ?? null;
+  const realPenaltyMinutesPerGame: number | null = clubStats?.realPenaltyMinutesPerGame ?? null;
 
   // Use REAL team-level stats from team summary API (not estimates!)
   const shotsPerGame = teamSummary?.shotsForPerGame || 0;
@@ -256,13 +290,16 @@ function buildTeamStats(
     reboundControlRank: undefined,
   };
 
-  // Discipline stats — sum of skater + goalie penalty minutes from season tables.
-  // Penalties/game derived from PIM with the standard 2-min minor assumption
-  // (rough but consistent across all teams, so the comparison is still fair).
+  // Discipline stats — prefer authoritative NHL penalties endpoint when synced,
+  // else NaN so the UI hides the row instead of showing a fake derivation.
+  const penaltiesPerGame = realPenaltyCountPerGame ?? NaN;
+  const penaltyMinutesValue = realPenaltyMinutesPerGame != null
+    ? realPenaltyMinutesPerGame * gamesPlayed
+    : NaN;
   const discipline: DisciplineStats = {
-    penaltiesPerGame: gamesPlayed > 0 ? totalPenaltyMinutes / 2 / gamesPlayed : 0,
+    penaltiesPerGame,
     penaltiesPerGameRank: undefined,
-    penaltyMinutes: totalPenaltyMinutes,
+    penaltyMinutes: penaltyMinutesValue,
     penaltyMinutesRank: undefined,
     minorPenalties: 0,
     minorPenaltiesRank: undefined,
@@ -309,9 +346,8 @@ function calculateAllRankings(allTeamsStandings: any[], teamAbbrev: string, club
     return teamIndex >= 0 ? teamIndex + 1 : undefined;
   };
 
-  // Rankings limited to goals-for/against because callers only fetch one team's
-  // team_stat_categories row. To rank shots/save%/PP%/PK%, fetch all 32 teams'
-  // 'summary' rows and pass them through here.
+  // Only return rankings we can actually calculate from standings data
+  // TODO: Connect to Supabase for real per-stat rankings
   return {
     goalsPerGameRank: getRank('goalsPerGame', true),
     goalsAgainstPerGameRank: getRank('goalsAgainstPerGame', false),

@@ -14,7 +14,9 @@ import { supabase, logConnectionInfo } from './supabase-client.mjs';
 import { fetchWithRetry, sleep, getCurrentSeason, parseSeasonArg } from './nhl-api.mjs';
 
 const STATS_API = 'https://api.nhle.com/stats/rest/en';
-const CATEGORIES = ['powerplay', 'penaltykill', 'summary'];
+// `penalties` gives us authoritative timesShorthanded (real penalty count) +
+// penaltyMinutesPerGame, replacing the rough skater+goalie PIM aggregation.
+const CATEGORIES = ['powerplay', 'penaltykill', 'summary', 'penalties'];
 const DELAY_MS = 1500;
 
 // Parse season from args or use current
