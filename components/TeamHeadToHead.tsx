@@ -59,8 +59,6 @@ function buildStatRows(home: TeamComparisonStats, away: TeamComparisonStats): { 
           homeValue: home.defense.shotsAgainstPerGame, awayValue: away.defense.shotsAgainstPerGame },
         { label: 'PK %', category: 'defense', format: 'percentage', decimals: 1,
           homeValue: home.defense.penaltyKillPct, awayValue: away.defense.penaltyKillPct },
-        { label: 'Hits / Season', category: 'defense', format: 'number',
-          homeValue: home.defense.hits, awayValue: away.defense.hits },
       ],
     },
     {
