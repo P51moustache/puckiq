@@ -435,7 +435,7 @@ async function fetchSkaterRows(): Promise<SkaterTrendRow[]> {
       if (error) console.warn('[INSIGHT FINDER] skater query error:', error.message);
       return [];
     }
-    return data as SkaterTrendRow[];
+    return data as unknown as SkaterTrendRow[];
   } catch (err) {
     console.warn('[INSIGHT FINDER] skater query threw:', err);
     return [];
@@ -452,7 +452,7 @@ async function fetchGoalieRows(): Promise<{ rows: GoalieRollingRow[]; names: Map
       if (error) console.warn('[INSIGHT FINDER] goalie query error:', error.message);
       return { rows: [], names: new Map() };
     }
-    const rows = data as GoalieRollingRow[];
+    const rows = data as unknown as GoalieRollingRow[];
     const ids = rows.map((r) => r.player_id);
     const names = new Map<number, GoalieName>();
     const { data: players } = await supabase
