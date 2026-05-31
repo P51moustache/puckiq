@@ -19,7 +19,7 @@ class AnalyticsService {
   private config: AnalyticsConfig;
   private sessionId: string;
   private eventQueue: AnalyticsEvent[] = [];
-  private flushTimer?: number;
+  private flushTimer?: ReturnType<typeof setInterval>;
   private lastActivityTime: number = Date.now();
   private initialized: boolean = false;
 
