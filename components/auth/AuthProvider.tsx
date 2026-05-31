@@ -28,7 +28,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const devEmails = (process.env.EXPO_PUBLIC_DEV_EMAILS || 'dev@puckiq.test')
   .split(',')
-  .map(e => e.trim().toLowerCase())
+  .map((e: string) => e.trim().toLowerCase())
   .filter(Boolean);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
