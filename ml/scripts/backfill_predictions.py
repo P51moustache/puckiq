@@ -64,6 +64,29 @@ def _to_native(obj):
     return obj
 
 
+def _load_tuned_params(client, model_type: str) -> dict | None:
+    """Load Optuna-tuned hyperparameters from the active model's metadata."""
+    try:
+        resp = client.table("ml_model_metadata").select(
+            "hyperparameters"
+        ).eq("model_type", model_type).eq("is_active", True).execute()
+        if resp.data and resp.data[0].get("hyperparameters"):
+            hp = resp.data[0]["hyperparameters"]
+            # Filter to only LightGBM params (exclude stored metrics like cv_folds)
+            lgbm_keys = {
+                "num_leaves", "max_depth", "learning_rate", "n_estimators",
+                "min_child_samples", "min_split_gain", "reg_alpha", "reg_lambda",
+                "subsample", "colsample_bytree",
+            }
+            params = {k: v for k, v in hp.items() if k in lgbm_keys}
+            if params:
+                logger.info("Loaded %d tuned params for %s", len(params), model_type)
+                return params
+    except Exception as e:
+        logger.warning("Could not load tuned params for %s: %s", model_type, e)
+    return None
+
+
 def main() -> None:
     logger.info("=== Backfilling honest OOS predictions + scores ===")
     client = create_supabase_client()
@@ -103,10 +126,14 @@ def main() -> None:
     train_total = total.iloc[:split_idx]
     test_total = total.iloc[split_idx:]
 
+    # Load tuned hyperparameters from active models
+    gw_params = _load_tuned_params(client, ModelType.GAME_WINNER.value)
+    spread_params = _load_tuned_params(client, ModelType.SPREAD.value)
+
     # --- Game Winner ---
     gw_probs = _backfill_game_winner(
         train_features, test_features, train_home_win, test_home_win,
-        test_games, client
+        test_games, client, params=gw_params
     )
 
     # Inject cross-model feature for spread/totals test set
@@ -114,7 +141,7 @@ def main() -> None:
         # Also need gw predictions on training data for cross-model feature
         gw_feature_names = get_model_features(ModelType.GAME_WINNER)
         gw_available = [f for f in gw_feature_names if f in features_df.columns]
-        gw_model_temp = GameWinnerModel()
+        gw_model_temp = GameWinnerModel(params=gw_params)
         gw_model_temp.train(train_features[gw_available], train_home_win)
         train_gw_probs = gw_model_temp.predict(train_features[gw_available])
         train_features = train_features.copy()
@@ -125,7 +152,7 @@ def main() -> None:
     # --- Spread ---
     _backfill_spread(
         train_features, test_features, train_spread, test_spread,
-        test_games, client
+        test_games, client, params=spread_params
     )
 
     # --- Totals ---
@@ -141,7 +168,7 @@ def main() -> None:
 
 
 def _backfill_game_winner(train_features, test_features, train_y, test_y,
-                          test_games, client) -> np.ndarray | None:
+                          test_games, client, params=None) -> np.ndarray | None:
     model_type = ModelType.GAME_WINNER
     feature_names = get_model_features(model_type)
     available = [f for f in feature_names if f in train_features.columns]
@@ -149,8 +176,9 @@ def _backfill_game_winner(train_features, test_features, train_y, test_y,
     X_train = train_features[available]
     X_test = test_features[available]
 
-    logger.info("Game winner: training on %d games, predicting %d", len(X_train), len(X_test))
-    model = GameWinnerModel()
+    logger.info("Game winner: training on %d games, predicting %d (tuned=%s)",
+                len(X_train), len(X_test), params is not None)
+    model = GameWinnerModel(params=params)
     model.train(X_train, train_y)
     probs = model.predict(X_test)
 
@@ -225,7 +253,7 @@ def _backfill_game_winner(train_features, test_features, train_y, test_y,
 
 
 def _backfill_spread(train_features, test_features, train_y, test_y,
-                     test_games, client):
+                     test_games, client, params=None):
     model_type = ModelType.SPREAD
     feature_names = get_model_features(model_type)
     available = [f for f in feature_names if f in train_features.columns]
@@ -233,8 +261,9 @@ def _backfill_spread(train_features, test_features, train_y, test_y,
     X_train = train_features[available]
     X_test = test_features[available]
 
-    logger.info("Spread: training on %d games, predicting %d", len(X_train), len(X_test))
-    model = SpreadModel()
+    logger.info("Spread: training on %d games, predicting %d (tuned=%s)",
+                len(X_train), len(X_test), params is not None)
+    model = SpreadModel(params=params)
     model.train(X_train, train_y)
     spreads = model.predict(X_test)
 

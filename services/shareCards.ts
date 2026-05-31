@@ -21,7 +21,7 @@ function tryLoadViewShot(): { captureRef: (...args: any[]) => Promise<string> } 
  * Falls back to text share if view-shot is not available.
  */
 export async function captureAndShareCard(
-  viewRef: RefObject<View>,
+  viewRef: RefObject<View | null>,
   fallbackText?: string,
 ): Promise<void> {
   try {
