@@ -41,12 +41,14 @@ export interface NHLGameSummary {
   homeTeam: {
     id?: number;
     abbrev: string;
+    name?: string;
     score?: number;
     streakCode?: string;
   };
   awayTeam: {
     id?: number;
     abbrev: string;
+    name?: string;
     score?: number;
     streakCode?: string;
   };

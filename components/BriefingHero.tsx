@@ -114,7 +114,7 @@ function pickHero({
         favoredProb,
       };
     })
-    .filter((x): x is Extract<HeroPick, { kind: 'game' }> => x !== null)
+    .filter((x): x is NonNullable<typeof x> => x !== null)
     .sort((a, b) => b.favoredProb - a.favoredProb);
 
   if (candidates.length > 0) return candidates[0];
@@ -556,6 +556,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: rinkGlass.textMuted,
     fontFamily: rinkGlass.fonts.mono,
+  },
+  heroLogo: {
+    width: 44,
+    height: 44,
   },
   heroLogoBig: {
     width: 28,

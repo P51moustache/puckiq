@@ -61,6 +61,7 @@ const mockStat: Insight = {
   text: 'Connor McDavid has 5 points in his last 2 games',
   teamAbbrev: 'EDM',
   category: 'player',
+  sentiment: 'neutral',
   shareText: 'McDavid is on fire!',
 };
 
@@ -161,6 +162,7 @@ describe('StatOfTheNight', () => {
       text: 'Edmonton is the hottest team in the league',
       teamAbbrev: 'EDM',
       category: 'streak',
+      sentiment: 'neutral',
       shareText: 'Edmonton is hot!',
     };
     const element = StatOfTheNightComponent({ stat: noNumStat, onShare: mockOnShare });
@@ -188,6 +190,7 @@ describe('StatOfTheNight', () => {
       text: 'League-wide scoring is up 12 percent this season',
       teamAbbrev: '',
       category: 'standings',
+      sentiment: 'neutral',
       shareText: 'Scoring up!',
     };
     const element = StatOfTheNightComponent({ stat: noTeamStat, onShare: mockOnShare });
@@ -211,6 +214,7 @@ describe('StatOfTheNight', () => {
         text: 'Test stat text for category',
         teamAbbrev: 'TOR',
         category: cat as Insight['category'],
+        sentiment: 'neutral',
         shareText: 'Test',
       };
       const element = StatOfTheNightComponent({ stat: catStat, onShare: mockOnShare });
@@ -224,6 +228,7 @@ describe('StatOfTheNight', () => {
       id: 'stat-4',
       text: 'League average save percentage is rising',
       category: 'standings',
+      sentiment: 'neutral',
       shareText: 'Save pct rising!',
     };
     const element = StatOfTheNightComponent({ stat: noTeamStat, onShare: mockOnShare });
@@ -258,6 +263,7 @@ describe('StatOfTheNight', () => {
       text: 'DAL riding surging momentum (+5)',
       teamAbbrev: 'DAL',
       category: 'edge',
+      sentiment: 'neutral',
       shareText: 'DAL momentum!',
     };
     const element = StatOfTheNightComponent({ stat: momentumStat, onShare: mockOnShare });
@@ -272,6 +278,7 @@ describe('StatOfTheNight', () => {
       text: 'Vasilevskiy has a 0.93 save percentage this month',
       teamAbbrev: 'TBL',
       category: 'player',
+      sentiment: 'neutral',
       shareText: 'Vasi save pct!',
     };
     const element = StatOfTheNightComponent({ stat: decimalStat, onShare: mockOnShare });
@@ -285,6 +292,7 @@ describe('StatOfTheNight', () => {
       text: 'Team has a +12 goal differential this month',
       teamAbbrev: 'COL',
       category: 'edge',
+      sentiment: 'neutral',
       shareText: 'COL differential!',
     };
     const element = StatOfTheNightComponent({ stat: plusStat, onShare: mockOnShare });
