@@ -22,6 +22,7 @@ const MAPPING = {
   'chart.bar.fill': 'bar-chart',
   'person.2.fill': 'people',
   'person.crop.circle.fill': 'account-circle',
+  'sparkles': 'auto-awesome',
 } as IconMapping;
 
 /**

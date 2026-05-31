@@ -52,7 +52,7 @@ export default function TabLayout() {
           },
         }),
       }}>
-      {/* 4-tab layout: Today, Players, Compare, Hub.
+      {/* 5-tab layout: Today, Insights, Players, Compare, Settings.
           MyTeam is hidden — fantasy product is paused; the route stays so
           deep links don't 404 if anyone has them bookmarked. */}
       <Tabs.Screen
@@ -62,6 +62,18 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <View style={{ alignItems: 'center' }}>
               <IconSymbol size={24} name="hockey.puck.fill" color={color} />
+              {focused && <GlowDot />}
+            </View>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="insights"
+        options={{
+          title: 'Insights',
+          tabBarIcon: ({ color, focused }) => (
+            <View style={{ alignItems: 'center' }}>
+              <IconSymbol size={24} name="sparkles" color={color} />
               {focused && <GlowDot />}
             </View>
           ),
