@@ -118,13 +118,6 @@ jest.mock('react-native-purchases', () => ({
   },
 }), { virtual: true });
 
-// Mock react-native-google-mobile-ads
-jest.mock('react-native-google-mobile-ads', () => ({
-  BannerAd: 'BannerAd',
-  BannerAdSize: { ANCHORED_ADAPTIVE_BANNER: 'ANCHORED_ADAPTIVE_BANNER' },
-  TestIds: { BANNER: 'ca-app-pub-3940256099942544/6300978111' },
-}), { virtual: true });
-
 // Silence console.logs in tests
 global.console = {
   ...console,
