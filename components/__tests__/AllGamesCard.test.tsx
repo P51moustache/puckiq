@@ -4,6 +4,8 @@
  */
 
 // Mock react-native
+import React from 'react';
+
 jest.mock('react-native', () => ({
   View: 'View',
   Text: 'Text',
@@ -55,8 +57,6 @@ jest.mock('../../constants/teamColors', () => ({
   getTeamColors: () => ({ primary: '#003E7E', secondary: '#fff' }),
   getAccessibleTextColor: () => '#4488cc',
 }));
-
-import React from 'react';
 
 // Mock hooks that require render context
 jest.spyOn(React, 'useEffect').mockImplementation((fn) => { /* no-op in tests */ });
@@ -400,104 +400,53 @@ describe('AllGamesCard', () => {
     });
   });
 
-  describe('factor dots (MTM, REST, H2H)', () => {
-    const homeMomentumHigh = { score: 8, trend: '↑' as const, history: [2, 1, 3, 2, 1], label: 'Strong' };
-    const awayMomentumLow = { score: 2, trend: '↘' as const, history: [-1, 0, 1, -2, 0], label: 'Weak' };
-    const awayMomentumHigh = { score: 9, trend: '↑' as const, history: [3, 2, 1, 2, 3], label: 'Hot' };
-    const homeMomentumLow = { score: 1, trend: '↓' as const, history: [-2, -1, 0, -1, -2], label: 'Cold' };
-    const evenMomentumHome = { score: 5, trend: '→' as const, history: [1, 0, -1, 1, 0], label: 'Even' };
-    const evenMomentumAway = { score: 5, trend: '→' as const, history: [0, 1, -1, 0, 1], label: 'Even' };
-
-    const restHomeAdvantage = { home: 72, away: 48 }; // diff > 10, home favored
-    const restAwayAdvantage = { home: 40, away: 70 }; // diff < -10, away favored
-    const restEven = { home: 55, away: 50 }; // diff <= 10, even
-
-    const h2hHomeLeads = { teamA: 'TOR', teamB: 'MTL', teamAWins: 1, teamBWins: 3, games: [{}, {}, {}, {}] };
-    const h2hAwayLeads = { teamA: 'TOR', teamB: 'MTL', teamAWins: 3, teamBWins: 1, games: [{}, {}, {}, {}] };
-
-    it('does NOT render factor row when fewer than 2 factors available', () => {
-      // Only momentum, no rest or h2h
-      const tree = renderCard({
-        homeMomentum: homeMomentumHigh,
-        awayMomentum: awayMomentumLow,
-      });
+  // NOTE: The redesigned card removed the old "factor dots" row (MTM / REST / H2H
+  // abbreviation labels) and the momentum (awayMomentum/homeMomentum) props.
+  // Rest advantage is now surfaced as a single "rest chip" rendered from the
+  // `restAdvantage` prop via getRestChip(home, away):
+  //   home === 0           -> "HOME B2B"
+  //   away === 0           -> "AWAY B2B"
+  //   (home - away) >= 25  -> "HOME REST +"
+  //   (home - away) <= -25 -> "AWAY REST +"
+  //   otherwise            -> no chip
+  // H2H is shown separately in row 3 (covered by the "H2H record" suite above).
+  describe('rest chip', () => {
+    it('shows "HOME REST +" when home is well-rested vs away', () => {
+      const tree = renderCard({ restAdvantage: { home: 75, away: 50 } }); // diff = 25
       const allText = collectText(tree).join(' ');
-      expect(allText).not.toContain('MTM');
+      expect(allText).toContain('HOME REST +');
     });
 
-    it('renders factor row when 2+ factors available (MTM + REST)', () => {
-      const tree = renderCard({
-        homeMomentum: homeMomentumHigh,
-        awayMomentum: awayMomentumLow,
-        restAdvantage: restHomeAdvantage,
-      });
+    it('shows "AWAY REST +" when away is well-rested vs home', () => {
+      const tree = renderCard({ restAdvantage: { home: 50, away: 75 } }); // diff = -25
       const allText = collectText(tree).join(' ');
-      expect(allText).toContain('MTM');
-      expect(allText).toContain('REST');
+      expect(allText).toContain('AWAY REST +');
     });
 
-    it('renders all three factor labels when all data present', () => {
-      const tree = renderCard({
-        homeMomentum: homeMomentumHigh,
-        awayMomentum: awayMomentumLow,
-        restAdvantage: restHomeAdvantage,
-        h2hRecord: h2hHomeLeads,
-      });
+    it('shows "HOME B2B" when home is on a back-to-back', () => {
+      const tree = renderCard({ restAdvantage: { home: 0, away: 75 } });
       const allText = collectText(tree).join(' ');
-      expect(allText).toContain('MTM');
-      expect(allText).toContain('REST');
-      expect(allText).toContain('H2H');
+      expect(allText).toContain('HOME B2B');
     });
 
-    it('renders factor row with MTM + H2H (no rest)', () => {
-      const tree = renderCard({
-        homeMomentum: homeMomentumHigh,
-        awayMomentum: awayMomentumLow,
-        h2hRecord: h2hAwayLeads,
-      });
+    it('shows "AWAY B2B" when away is on a back-to-back', () => {
+      const tree = renderCard({ restAdvantage: { home: 75, away: 0 } });
       const allText = collectText(tree).join(' ');
-      expect(allText).toContain('MTM');
-      expect(allText).toContain('H2H');
-      expect(allText).not.toContain('REST');
+      expect(allText).toContain('AWAY B2B');
     });
 
-    it('renders factor row with REST + H2H (no momentum)', () => {
-      const tree = renderCard({
-        restAdvantage: restAwayAdvantage,
-        h2hRecord: h2hHomeLeads,
-      });
-      const allText = collectText(tree).join(' ');
-      expect(allText).toContain('REST');
-      expect(allText).toContain('H2H');
-      expect(allText).not.toContain('MTM');
-    });
-
-    it('does NOT render factor row when only 1 factor (rest only)', () => {
-      const tree = renderCard({
-        restAdvantage: restHomeAdvantage,
-      });
+    it('does NOT show a rest chip when rest is roughly even', () => {
+      const tree = renderCard({ restAdvantage: { home: 55, away: 50 } }); // diff = 5
       const allText = collectText(tree).join(' ');
       expect(allText).not.toContain('REST');
-      expect(allText).not.toContain('MTM');
+      expect(allText).not.toContain('B2B');
     });
 
-    it('does NOT render factor row when only h2h with no games', () => {
-      const tree = renderCard({
-        homeMomentum: homeMomentumHigh,
-        awayMomentum: awayMomentumLow,
-        h2hRecord: { teamA: 'TOR', teamB: 'MTL', teamAWins: 0, teamBWins: 0, games: [] },
-      });
-      const allText = collectText(tree).join(' ');
-      // h2h returns null when total games = 0, so only 1 factor (MTM)
-      expect(allText).not.toContain('H2H');
-    });
-
-    it('does NOT render factor row when no factor data provided', () => {
+    it('does NOT show a rest chip when no restAdvantage data is provided', () => {
       const tree = renderCard();
       const allText = collectText(tree).join(' ');
-      expect(allText).not.toContain('MTM');
       expect(allText).not.toContain('REST');
-      expect(allText).not.toContain('H2H');
+      expect(allText).not.toContain('B2B');
     });
   });
 });

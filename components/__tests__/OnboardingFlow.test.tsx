@@ -4,6 +4,14 @@
  */
 import React from 'react';
 
+// ---- Imports (after mocks) ----
+
+import { OnboardingFlow } from '../onboarding/OnboardingFlow';
+import { WelcomeScreen } from '../onboarding/WelcomeScreen';
+import { PlatformPicker } from '../onboarding/PlatformPicker';
+import { RosterSetup } from '../onboarding/RosterSetup';
+import { TonightPreview } from '../onboarding/TonightPreview';
+
 // ---- Mocks ----
 
 jest.mock('react-native', () => ({
@@ -46,14 +54,6 @@ const mockSaveRoster = jest.fn().mockResolvedValue({
 jest.mock('../../services/fantasyRoster', () => ({
   saveRoster: (...args: any[]) => mockSaveRoster(...args),
 }));
-
-// ---- Imports (after mocks) ----
-
-import { OnboardingFlow } from '../onboarding/OnboardingFlow';
-import { WelcomeScreen } from '../onboarding/WelcomeScreen';
-import { PlatformPicker } from '../onboarding/PlatformPicker';
-import { RosterSetup } from '../onboarding/RosterSetup';
-import { TonightPreview } from '../onboarding/TonightPreview';
 
 // ---- Tests ----
 

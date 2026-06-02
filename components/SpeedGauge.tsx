@@ -1,8 +1,7 @@
 import { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import Animated, {
+import {
   useSharedValue,
-  useAnimatedProps,
   withTiming,
   Easing,
 } from 'react-native-reanimated';

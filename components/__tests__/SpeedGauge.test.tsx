@@ -3,6 +3,9 @@
  * Tests: value display, unit, label, percentile, league avg
  */
 
+import React from 'react';
+import SpeedGauge from '../SpeedGauge';
+
 jest.mock('react-native', () => ({
   View: 'View',
   Text: 'Text',
@@ -27,9 +30,6 @@ jest.mock('react', () => {
     useEffect: jest.fn(),
   };
 });
-
-import React from 'react';
-import SpeedGauge from '../SpeedGauge';
 
 function collectTexts(element: any): string[] {
   if (!element) return [];

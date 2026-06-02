@@ -5,11 +5,9 @@
  */
 
 import React, { useCallback, useMemo } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
 import { rinkGlass } from '../constants/theme';
-import { getTeamColors } from '../constants/teamColors';
 import type { TrendingPlayer, StatCategory, LeaderTrend } from '../services/playerTrends';
 
 interface HeroLeaderCardProps {
@@ -25,8 +23,6 @@ export default React.memo(function HeroLeaderCard({
   statCategory,
   onPress,
 }: HeroLeaderCardProps) {
-  const teamColors = useMemo(() => getTeamColors(player.teamAbbrev), [player.teamAbbrev]);
-
   const handlePress = useCallback(() => onPress(player.playerId), [onPress, player.playerId]);
 
   // Season total

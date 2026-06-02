@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  Dimensions,
   Modal,
   ScrollView,
   StyleSheet,
@@ -12,7 +11,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
-import { theme } from '../constants/theme';
 import { purchasePackage, restorePurchases, getOfferings } from '../services/subscription';
 import { useSubscription } from './SubscriptionProvider';
 
@@ -48,8 +46,6 @@ const FEATURES = [
     icon: 'notifications' as const,
   },
 ];
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function PaywallModal({
   visible,

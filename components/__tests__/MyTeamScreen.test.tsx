@@ -3,6 +3,12 @@
  * Verifies empty state (no roster) vs roster state rendering.
  */
 
+// @ts-expect-error no types for react-test-renderer
+import { create, act } from 'react-test-renderer';
+import React from 'react';
+import MyTeamScreen from '../MyTeamScreen';
+import type { FantasyRoster, PlayerProjection } from '../../types/fantasy';
+
 jest.mock('react-native', () => {
   const React = require('react');
   return {
@@ -82,12 +88,6 @@ jest.mock('../../services/fantasyRoster', () => ({
   saveRoster: jest.fn(),
   updateRoster: jest.fn(),
 }));
-
-// @ts-expect-error no types for react-test-renderer
-import { create, act } from 'react-test-renderer';
-import React from 'react';
-import MyTeamScreen from '../MyTeamScreen';
-import type { FantasyRoster, PlayerProjection } from '../../types/fantasy';
 
 function render() {
   let tree: any;

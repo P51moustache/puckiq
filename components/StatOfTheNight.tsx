@@ -10,7 +10,6 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { theme } from '../constants/theme';
-import { getTeamColors } from '../constants/teamColors';
 import { getTeamLogoUrl } from '../utils/teamLogo';
 import type { Insight } from '../types/insights';
 
@@ -59,15 +58,8 @@ function extractHeroNumber(text: string): { hero: string; context: string } | nu
 }
 
 function StatOfTheNightComponent({ stat, onShare, onInfoPress }: StatOfTheNightProps) {
-  if (!stat) return null;
-
-  const teamAbbrev = stat.teamAbbrev ?? '';
-  const teamColors = getTeamColors(teamAbbrev);
-  const accentColor = '#22c55e';
-  const extracted = extractHeroNumber(stat.text);
-  const categoryMeta = CATEGORY_META[stat.category] ?? { icon: 'flash-outline', label: 'HIGHLIGHT' };
-
-  // Spring pop animation for hero number
+  // Hooks must run unconditionally and in the same order every render — keep them
+  // above the early return so a null `stat` doesn't change the hook call order.
   const heroScale = useSharedValue(0.85);
   React.useEffect(() => {
     heroScale.value = withSpring(1, { damping: 12, stiffness: 120 });
@@ -75,6 +67,13 @@ function StatOfTheNightComponent({ stat, onShare, onInfoPress }: StatOfTheNightP
   const heroAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: heroScale.value }],
   }));
+
+  if (!stat) return null;
+
+  const teamAbbrev = stat.teamAbbrev ?? '';
+  const accentColor = '#22c55e';
+  const extracted = extractHeroNumber(stat.text);
+  const categoryMeta = CATEGORY_META[stat.category] ?? { icon: 'flash-outline', label: 'HIGHLIGHT' };
 
   return (
     <Animated.View

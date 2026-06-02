@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeInUp } from 'react-native-reanimated';
 import { rinkGlass } from '../constants/theme';
 import { useAuthContext } from './auth/AuthProvider';
 import { useSubscription } from './SubscriptionProvider';
@@ -56,18 +55,6 @@ function SectionHeader({ icon, title }: { icon: keyof typeof Ionicons.glyphMap; 
   );
 }
 
-/* ── Stat Mini-Card ────────────────────────────────────── */
-function StatCard({ value, label, delay }: { value: string; label: string; delay: number }) {
-  return (
-    <Animated.View entering={FadeInUp.delay(delay).duration(500)} style={s.statCardOuter}>
-      <View style={s.statCard}>
-        <Text style={s.statValue}>{value}</Text>
-        <Text style={s.statLabel}>{label}</Text>
-      </View>
-    </Animated.View>
-  );
-}
-
 /* ── Main Component ────────────────────────────────────── */
 export default function HubScreen() {
   const { user, signInWithApple, signInWithGoogle, signOut } = useAuthContext();
@@ -80,7 +67,7 @@ export default function HubScreen() {
     gameReminder: false,
     waiverAlerts: false,
   });
-  const [prefsLoaded, setPrefsLoaded] = useState(false);
+  const [, setPrefsLoaded] = useState(false);
 
   useEffect(() => {
     if (!user?.id) {
@@ -121,8 +108,6 @@ export default function HubScreen() {
   );
 
   const canToggle = !!user && isPremium;
-
-  const userInitial = user?.email ? user.email[0].toUpperCase() : '?';
 
   return (
     <View style={s.container}>

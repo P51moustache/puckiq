@@ -13,6 +13,7 @@
  */
 
 import { supabase } from '../lib/supabase';
+import { computeSavePct } from './goalieRates';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -296,7 +297,7 @@ async function fetchSeasonStats(
         losses: row.losses || 0,
         otLosses: row.ot_losses || 0,
         goalsAgainstAvg: row.goals_against_avg || 0,
-        savePctg: row.save_pctg || 0,
+        savePctg: computeSavePct(row) ?? 0,
         shotsAgainst: row.shots_against || 0,
         saves: row.saves || 0,
         shutouts: row.shutouts || 0,

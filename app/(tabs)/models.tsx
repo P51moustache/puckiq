@@ -19,6 +19,7 @@ import { useAnalytics } from '../../hooks/useAnalytics';
 import { ModelList, ModelEditScreen } from '../../components/model-builder';
 import DataSeedingModal from '../../components/DataSeedingModal';
 import { supabase } from '../../lib/supabase';
+import type { PredictionModel } from '../../types/predictions';
 
 async function isSeasonSeeded(seasonId: string): Promise<boolean> {
   try {
@@ -39,7 +40,6 @@ function getCurrentSeasonId(): string {
   if (month >= 0 && month <= 5) return `${year - 1}${year}`;
   return `${year}${year + 1}`;
 }
-import type { PredictionModel } from '../../types/predictions';
 
 export default function ModelsScreen() {
   // Analytics - tracks screen_view automatically

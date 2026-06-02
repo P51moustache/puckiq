@@ -5,6 +5,9 @@
  */
 
 // Mock react-native
+import React from 'react';
+import LiveNowBarComponent from '../LiveNowBar';
+
 jest.mock('react-native', () => ({
   View: 'View',
   Text: 'Text',
@@ -39,9 +42,6 @@ jest.mock('../../utils/teamLogo', () => ({
 jest.mock('../../constants/theme', () => ({
   theme: { text: '#ffffff', subtext: '#aaaaaa', fonts: { mono: 'monospace', system: 'System' } },
 }));
-
-import React from 'react';
-import LiveNowBarComponent from '../LiveNowBar';
 
 // Helper: build a game object
 function makeGame(overrides: Record<string, any> = {}) {

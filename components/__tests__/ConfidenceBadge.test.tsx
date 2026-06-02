@@ -7,14 +7,14 @@
 // the label text rendered for each confidence range.
 
 // Mock react-native
+import React from 'react';
+import { ConfidenceBadge } from '../ConfidenceBadge';
+
 jest.mock('react-native', () => ({
   View: 'View',
   Text: 'Text',
   StyleSheet: { create: (styles: any) => styles },
 }));
-
-import React from 'react';
-import { ConfidenceBadge } from '../ConfidenceBadge';
 
 // Simple render helper that extracts text content from JSX
 function getRenderedLabel(confidence: number, size?: 'sm' | 'md' | 'lg'): string {

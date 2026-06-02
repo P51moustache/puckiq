@@ -3,6 +3,9 @@
  * Tests: zone rendering, labels, league avg
  */
 
+import React from 'react';
+import ZoneTimeChart from '../ZoneTimeChart';
+
 jest.mock('react-native', () => ({
   View: 'View',
   Text: 'Text',
@@ -12,9 +15,6 @@ jest.mock('react-native', () => ({
 jest.mock('../../constants/theme', () => ({
   theme: { text: '#fff', accent: '#60a5fa', subtext: '#aaa' },
 }));
-
-import React from 'react';
-import ZoneTimeChart from '../ZoneTimeChart';
 
 function collectTexts(element: any): string[] {
   if (!element) return [];

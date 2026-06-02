@@ -12,21 +12,41 @@ import {
 } from '../gameResults';
 
 // ── Supabase mock ──────────────────────────────────────────────────────────
-// Build a chainable query builder whose terminal call returns { data, error }.
+// Fully chainable query builder: every filter/sort method returns the builder,
+// and the builder is thenable so `await ...` (or a terminal .order()/.limit())
+// resolves to the current mockQueryResult. This tolerates any chain shape the
+// service uses (e.g. .eq().in().in().or().order(), or .eq().in().order().limit())
+// without the mock needing to mirror the exact call order.
 let mockQueryResult: { data: any; error: any } = { data: [], error: null };
-let mockCountResult: { count: number | null; error: any } = { count: 10, error: null };
 
-const mockLimit = jest.fn(() => mockQueryResult);
-const mockOrder = jest.fn(() => ({ limit: mockLimit, ...mockQueryResult }));
-const mockOr = jest.fn(() => ({ order: mockOrder }));
-const mockIn = jest.fn(() => ({ or: mockOr }));
-const mockEq = jest.fn(() => ({ in: mockIn, order: mockOrder, ...mockCountResult }));
-const mockSelect = jest.fn(() => ({ eq: mockEq }));
+// Shared per-method spies so tests can assert calls (e.g. mockEq toHaveBeenCalledWith)
+// and inject failures (e.g. mockOrder.mockImplementationOnce(throw)). Every spy
+// returns the same chainable, thenable builder regardless of call order.
+const builder: any = {};
+const mockSelect = jest.fn(() => builder);
+const mockEq = jest.fn(() => builder);
+const mockIn = jest.fn(() => builder);
+const mockOr = jest.fn(() => builder);
+const mockOrder = jest.fn(() => builder);
+const mockLimit = jest.fn(() => builder);
 const mockUpsert = jest.fn((): { error: any } => ({ error: null }));
-const mockFrom = jest.fn(() => ({
+
+Object.assign(builder, {
   select: mockSelect,
+  eq: mockEq,
+  neq: jest.fn(() => builder),
+  in: mockIn,
+  gte: jest.fn(() => builder),
+  lte: jest.fn(() => builder),
+  or: mockOr,
+  order: mockOrder,
+  limit: mockLimit,
   upsert: mockUpsert,
-}));
+  // Thenable: `await <chain>` resolves to the current result.
+  then: (resolve: any) => Promise.resolve(mockQueryResult).then(resolve),
+});
+
+const mockFrom = jest.fn(() => builder);
 
 jest.mock('../../lib/supabase', () => ({
   supabase: {
@@ -74,7 +94,6 @@ function makeH2HRecord(overrides: Partial<H2HRecord> = {}): H2HRecord {
 beforeEach(() => {
   jest.clearAllMocks();
   mockQueryResult = { data: [], error: null };
-  mockCountResult = { count: 10, error: null };
   mockUpsert.mockReturnValue({ error: null });
   (global.fetch as jest.Mock).mockReset();
   _resetCircuitBreaker();

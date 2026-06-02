@@ -70,6 +70,17 @@ jest.mock('expo-linear-gradient', () => ({
   LinearGradient: 'LinearGradient',
 }));
 
+// Mock expo-image — the real module pulls in expo-modules-core's native
+// EventEmitter, which throws under jest. Render it as a host-component string.
+jest.mock('expo-image', () => ({
+  Image: 'ExpoImage',
+}));
+
+// Mock expo-blur (also depends on expo-modules-core native bindings).
+jest.mock('expo-blur', () => ({
+  BlurView: 'BlurView',
+}));
+
 // Mock expo-haptics
 jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn(() => Promise.resolve()),

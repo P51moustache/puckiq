@@ -18,7 +18,7 @@ export default function BannerAd() {
   if (Platform.OS === 'web') return null;
 
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+     
     const ads = require('react-native-google-mobile-ads');
     const AdMobBanner = ads.BannerAd;
     const { BannerAdSize } = ads;

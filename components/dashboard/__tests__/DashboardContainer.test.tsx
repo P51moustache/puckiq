@@ -1,3 +1,8 @@
+import React from 'react';
+import { render, waitFor, fireEvent } from '@testing-library/react-native';
+import DashboardContainer from '../DashboardContainer';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 jest.mock('react-native', () => {
   const React = require('react');
   return {
@@ -145,11 +150,6 @@ jest.mock('../DailyInsightModule', () => {
     default: () => React.createElement('View', {}, React.createElement('Text', {}, 'Daily Insight')),
   };
 });
-
-import React from 'react';
-import { render, waitFor, fireEvent } from '@testing-library/react-native';
-import DashboardContainer from '../DashboardContainer';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SAVED_PREFS = JSON.stringify({
   modules: [

@@ -2,6 +2,11 @@
  * Tests for components/AccuracyTracker.tsx
  */
 
+// @ts-expect-error no types for react-test-renderer
+import { create, act } from 'react-test-renderer';
+import React from 'react';
+import AccuracyTracker from '../AccuracyTracker';
+
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 jest.mock('react-native', () => {
@@ -28,11 +33,6 @@ const mockGetAccuracyStats = jest.fn();
 jest.mock('../../services/accuracyStats', () => ({
   getAccuracyStats: () => mockGetAccuracyStats(),
 }));
-
-// @ts-expect-error no types for react-test-renderer
-import { create, act } from 'react-test-renderer';
-import React from 'react';
-import AccuracyTracker from '../AccuracyTracker';
 
 function findByTestId(root: any, testID: string): any[] {
   return root.root.findAll(

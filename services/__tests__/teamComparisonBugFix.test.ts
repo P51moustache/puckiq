@@ -1,60 +1,14 @@
 // Test file to reproduce stats display bugs in GameDeepDiveModal
 import { getTeamComparisonData, formatStatValue } from '../teamComparison';
+import { setupTeamComparisonMocks } from './fixtures/teamComparisonMocks';
 
-// Mock standings and team summary for tests that call getTeamComparisonData
-const mockStandings = [
-  {
-    teamAbbrev: { default: 'TOR' },
-    gamesPlayed: 20,
-    goalFor: 70,
-    goalsFor: 70,
-    goalAgainst: 56,
-    goalsAgainst: 56,
-    wins: 12,
-    losses: 6,
-    otLosses: 2,
-    points: 26,
-  },
-];
-
-const mockTeamSummaryData = {
-  data: [
-    {
-      teamId: 10,
-      shotsForPerGame: 31.5,
-      shotsAgainstPerGame: 29.0,
-      powerPlayPct: 0.225,
-      penaltyKillPct: 0.800,
-    },
-  ],
-};
-
-const mockClubStats = {
-  skaters: [{ powerPlayGoals: 8 }, { powerPlayGoals: 5 }],
-};
+// Expected TOR per-game values derived from the shared fixture
+// (50 GP, 160 GF, 130 GA): 160/50 = 3.2, 130/50 = 2.6.
+const EXPECTED_TOR_GPG = 3.2;
+const EXPECTED_TOR_GAPG = 2.6;
 
 beforeEach(() => {
-  (global.fetch as jest.Mock) = jest.fn((url: string) => {
-    if (url.includes('standings')) {
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({ standings: mockStandings }),
-      });
-    }
-    if (url.includes('club-stats')) {
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve(mockClubStats),
-      });
-    }
-    if (url.includes('team/summary')) {
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve(mockTeamSummaryData),
-      });
-    }
-    return Promise.resolve({ ok: false });
-  });
+  setupTeamComparisonMocks();
 });
 
 afterEach(() => {
@@ -95,51 +49,20 @@ describe('teamComparison bug fixes', () => {
     });
   });
 
-  describe('getTeamComparisonData with pre-provided standings', () => {
-    it('should handle pre-provided standings data correctly', async () => {
-      // Mock standings data (what GameDeepDiveModal might pass)
-      const mockStandings = [
-        {
-          teamAbbrev: { default: 'TOR' },
-          gamesPlayed: 20,
-          goalFor: 70,
-          goalsFor: 70,
-          goalAgainst: 56,
-          goalsAgainst: 56,
-          wins: 12,
-          losses: 6,
-          otLosses: 2,
-          points: 26,
-        },
-      ];
+  describe('getTeamComparisonData (Supabase-sourced)', () => {
+    it('should compute per-game stats from Supabase standings', async () => {
+      // The optional standingsData param is legacy; the service is Supabase-only
+      // and ignores it, sourcing standings from the (mocked) DB instead.
+      const stats = await getTeamComparisonData('TOR');
 
-      // This should work without throwing an error
-      const stats = await getTeamComparisonData('TOR', mockStandings);
-
-      expect(stats.offense.goalsPerGame).toBeCloseTo(3.5, 1);
-      expect(stats.defense.goalsAgainstPerGame).toBeCloseTo(2.8, 1);
+      expect(stats.offense.goalsPerGame).toBeCloseTo(EXPECTED_TOR_GPG, 1);
+      expect(stats.defense.goalsAgainstPerGame).toBeCloseTo(EXPECTED_TOR_GAPG, 1);
     });
 
-    it('should handle standings wrapped in object', async () => {
-      // Sometimes standings comes wrapped
-      const mockStandingsWrapped = {
-        standings: [
-          {
-            teamAbbrev: { default: 'TOR' },
-            gamesPlayed: 20,
-            goalFor: 70,
-            goalAgainst: 56,
-            wins: 12,
-            losses: 6,
-            otLosses: 2,
-            points: 26,
-          },
-        ],
-      };
+    it('should not throw when a legacy standingsData arg is passed', async () => {
+      const stats = await getTeamComparisonData('TOR', { standings: [] });
 
-      const stats = await getTeamComparisonData('TOR', mockStandingsWrapped);
-
-      expect(stats.offense.goalsPerGame).toBeCloseTo(3.5, 1);
+      expect(stats.offense.goalsPerGame).toBeCloseTo(EXPECTED_TOR_GPG, 1);
     });
   });
 

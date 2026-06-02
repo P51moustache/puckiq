@@ -5,6 +5,11 @@
  */
 
 // Mock react-native (string components)
+import React from 'react';
+
+import ElevatedPlayerRowMemo from '../ElevatedPlayerRow';
+import type { TrendingPlayer, HitRateResult, LeaderTrend, StatCategory } from '../../services/playerTrends';
+
 jest.mock('react-native', () => ({
   View: 'View',
   Text: 'Text',
@@ -34,16 +39,11 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   },
 }));
 
-import React from 'react';
-
 // Override React hooks to work outside render cycle
 (React as any).useCallback = (fn: any) => fn;
 (React as any).useMemo = (fn: any) => fn();
 (React as any).useState = (init: any) => [init, jest.fn()];
 (React as any).useEffect = (_fn: any) => {};
-
-import ElevatedPlayerRowMemo from '../ElevatedPlayerRow';
-import type { TrendingPlayer, HitRateResult, LeaderTrend, StatCategory } from '../../services/playerTrends';
 
 const ElevatedPlayerRow = (ElevatedPlayerRowMemo as any).type || ElevatedPlayerRowMemo;
 

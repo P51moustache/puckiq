@@ -1,3 +1,7 @@
+import React from 'react';
+import { render, fireEvent } from '@testing-library/react-native';
+import StartSitModule from '../StartSitModule';
+
 jest.mock('react-native', () => {
   const React = require('react');
   const mockAnimatedValue = (val: number) => ({
@@ -83,10 +87,6 @@ jest.mock('expo-haptics', () => ({
   NotificationFeedbackType: { Success: 'success', Warning: 'warning', Error: 'error' },
 }));
 
-import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
-import StartSitModule from '../StartSitModule';
-
 const mockPlayers = [
   { id: 1, name: 'Connor McDavid', team: 'EDM', opponent: 'CGY', projectedPoints: 4.2, recommendation: 'START' as const },
   { id: 2, name: 'Leon Draisaitl', team: 'EDM', opponent: 'CGY', projectedPoints: 3.8, recommendation: 'SIT' as const },
@@ -148,7 +148,7 @@ describe('StartSitModule', () => {
     expect(getAllByText('EDM').length).toBe(2);
   });
 
-  it('shows disagreement reason when hasDisagreement is true', () => {
+  it('shows MODEL SPLIT readout when hasDisagreement is true', () => {
     const playersWithDisagreement = [
       {
         id: 1,
@@ -162,10 +162,11 @@ describe('StartSitModule', () => {
       },
     ];
     const { getByText } = render(<StartSitModule players={playersWithDisagreement} />);
-    expect(getByText('Tough opponent defense')).toBeTruthy();
+    // Component now renders a stat-only "MODEL SPLIT" readout instead of prose reason copy.
+    expect(getByText('MODEL SPLIT')).toBeTruthy();
   });
 
-  it('does not show disagreement text when hasDisagreement is false', () => {
+  it('does not show MODEL SPLIT readout when hasDisagreement is false', () => {
     const playersNoDisagreement = [
       {
         id: 1,
@@ -178,7 +179,7 @@ describe('StartSitModule', () => {
       },
     ];
     const { queryByText } = render(<StartSitModule players={playersNoDisagreement} />);
-    expect(queryByText('Tough opponent defense')).toBeNull();
+    expect(queryByText('MODEL SPLIT')).toBeNull();
   });
 
   it('works with players that omit disagreement fields', () => {

@@ -5,6 +5,11 @@
  */
 
 // Mock react-native (string components)
+import React from 'react';
+
+import HeroLeaderCardMemo from '../HeroLeaderCard';
+import type { TrendingPlayer, HitRateResult, LeaderTrend, StatCategory } from '../../services/playerTrends';
+
 jest.mock('react-native', () => ({
   View: 'View',
   Text: 'Text',
@@ -30,15 +35,10 @@ jest.mock('../../constants/teamColors', () => ({
 // Mock HitRateBar
 jest.mock('../HitRateBar', () => 'HitRateBar');
 
-import React from 'react';
-
 // Override React hooks to work outside render cycle
 const origMemo = React.memo;
 (React as any).useCallback = (fn: any) => fn;
 (React as any).useMemo = (fn: any) => fn();
-
-import HeroLeaderCardMemo from '../HeroLeaderCard';
-import type { TrendingPlayer, HitRateResult, LeaderTrend, StatCategory } from '../../services/playerTrends';
 
 // Extract the inner component from React.memo wrapper
 const HeroLeaderCard = (HeroLeaderCardMemo as any).type || HeroLeaderCardMemo;
@@ -212,30 +212,32 @@ describe('HeroLeaderCard', () => {
       expect(texts).toContain('1');
     });
 
-    it('renders trend label', () => {
+    it('renders the games-played readout', () => {
+      // The redesigned card dropped the trend label; the header now shows
+      // the season stat block with games played instead.
       const result = HeroLeaderCard({
-        player: makePlayer({ trendLabel: 'WARM' }),
+        player: makePlayer({ gamesPlayed: 50 }),
         statCategory: 'goals',
         onPress: mockOnPress,
       });
       const texts = collectTexts(result);
-      expect(texts).toContain('WARM');
+      expect(texts.join('')).toContain('50 GP');
     });
   });
 
   describe('stat category display', () => {
-    it('shows L5 AVG for goals', () => {
+    it('shows RECENT 5 GAMES for goals', () => {
       const result = HeroLeaderCard({
         player: makePlayer({ avgGoals5g: 0.8 }),
         statCategory: 'goals',
         onPress: mockOnPress,
       });
       const texts = collectTexts(result);
-      expect(texts).toContain('L5 AVG');
+      expect(texts).toContain('RECENT 5 GAMES');
       expect(texts).toContain('0.80');
     });
 
-    it('shows L5 AVG for assists', () => {
+    it('shows recent average for assists', () => {
       const result = HeroLeaderCard({
         player: makePlayer({ avgAssists5g: 1.0, gamesPlayed: 50, seasonAssists: 25 }),
         statCategory: 'assists',
@@ -272,7 +274,7 @@ describe('HeroLeaderCard', () => {
         onPress: mockOnPress,
       });
       const texts = collectTexts(result);
-      expect(texts).toContain('SEASON');
+      expect(texts).toContain('SEASON AVG');
       expect(texts).toContain('0.60');
     });
 
@@ -288,7 +290,11 @@ describe('HeroLeaderCard', () => {
   });
 
   describe('pace projection', () => {
-    it('shows pace text for goals when leaderTrend provided', () => {
+    // The redesigned card shows the 82-game projection as a numeric pace
+    // block labeled "82-GP PACE" rather than a sentence. The makePlayer
+    // fixture has no projectedGoals82/projectedPoints82, so the projection
+    // is sourced from leaderTrend.
+    it('shows 82-GP pace value for goals when leaderTrend provided', () => {
       const result = HeroLeaderCard({
         player: makePlayer(),
         leaderTrend: makeLeaderTrend({ projectedGoals82: 49 }),
@@ -296,10 +302,11 @@ describe('HeroLeaderCard', () => {
         onPress: mockOnPress,
       });
       const texts = collectTexts(result);
-      expect(texts.join('')).toContain('On pace for 49 goals');
+      expect(texts).toContain('82-GP PACE');
+      expect(texts).toContain('49');
     });
 
-    it('shows pace text for assists', () => {
+    it('shows 82-GP pace value for assists', () => {
       const result = HeroLeaderCard({
         player: makePlayer(),
         leaderTrend: makeLeaderTrend({ projectedAssists82: 41 }),
@@ -307,10 +314,11 @@ describe('HeroLeaderCard', () => {
         onPress: mockOnPress,
       });
       const texts = collectTexts(result);
-      expect(texts.join('')).toContain('On pace for 41 assists');
+      expect(texts).toContain('82-GP PACE');
+      expect(texts).toContain('41');
     });
 
-    it('shows pace text for points', () => {
+    it('shows 82-GP pace value for points', () => {
       const result = HeroLeaderCard({
         player: makePlayer(),
         leaderTrend: makeLeaderTrend({ projectedPoints82: 90 }),
@@ -318,10 +326,11 @@ describe('HeroLeaderCard', () => {
         onPress: mockOnPress,
       });
       const texts = collectTexts(result);
-      expect(texts.join('')).toContain('On pace for 90 points');
+      expect(texts).toContain('82-GP PACE');
+      expect(texts).toContain('90');
     });
 
-    it('does not show pace for shots category', () => {
+    it('does not show pace block for shots category', () => {
       const result = HeroLeaderCard({
         player: makePlayer(),
         leaderTrend: makeLeaderTrend(),
@@ -329,7 +338,7 @@ describe('HeroLeaderCard', () => {
         onPress: mockOnPress,
       });
       const texts = collectTexts(result);
-      expect(texts.join('')).not.toContain('On pace');
+      expect(texts.join('')).not.toContain('82-GP PACE');
     });
 
     it('does not show pace when leaderTrend is undefined', () => {
@@ -339,7 +348,7 @@ describe('HeroLeaderCard', () => {
         onPress: mockOnPress,
       });
       const texts = collectTexts(result);
-      expect(texts.join('')).not.toContain('On pace');
+      expect(texts.join('')).not.toContain('82-GP PACE');
     });
 
     it('does not show pace when projection is 0', () => {
@@ -350,67 +359,59 @@ describe('HeroLeaderCard', () => {
         onPress: mockOnPress,
       });
       const texts = collectTexts(result);
-      expect(texts.join('')).not.toContain('On pace');
+      expect(texts.join('')).not.toContain('82-GP PACE');
     });
   });
 
   describe('point streak', () => {
-    it('shows streak when pointStreak > 0', () => {
+    it('shows streak when pointStreak >= 3', () => {
       const result = HeroLeaderCard({
         player: makePlayer({ pointStreak: 5 }),
         statCategory: 'goals',
         onPress: mockOnPress,
       });
       const texts = collectTexts(result);
-      expect(texts).toContain('STREAK');
-      // Rendered as {player.pointStreak}G => "5" and "G" as siblings
-      expect(texts.join('')).toContain('5G');
+      // Redesigned card labels the streak block "GAME STREAK" with the
+      // raw streak count rendered as its own value.
+      expect(texts).toContain('GAME STREAK');
+      expect(texts).toContain('5');
     });
 
-    it('does not show streak when pointStreak is 0', () => {
+    it('does not show streak when pointStreak is below 3', () => {
       const result = HeroLeaderCard({
         player: makePlayer({ pointStreak: 0 }),
         statCategory: 'goals',
         onPress: mockOnPress,
       });
       const texts = collectTexts(result);
-      expect(texts).not.toContain('STREAK');
+      expect(texts).not.toContain('GAME STREAK');
     });
   });
 
-  describe('hit rate bar', () => {
-    it('renders HitRateBar when hitRate provided with total > 0', () => {
+  describe('shooting % section', () => {
+    // The redesigned card replaced the HitRateBar with a shooting %
+    // comparison block, shown only when the player has season shooting data.
+    it('renders the shooting % block when seasonShootingPct > 0', () => {
       const result = HeroLeaderCard({
-        player: makePlayer(),
-        hitRate: makeHitRate({ hit: 8, total: 10 }),
+        player: makePlayer({ seasonShootingPct: 15.2, recentShootingPct: 18.5 }),
         statCategory: 'goals',
         onPress: mockOnPress,
       });
-      const hitRateBars = findByType(result, 'HitRateBar');
-      expect(hitRateBars.length).toBe(1);
-      expect(hitRateBars[0].props.hit).toBe(8);
-      expect(hitRateBars[0].props.total).toBe(10);
+      const texts = collectTexts(result);
+      expect(texts).toContain('SHOOTING %');
+      // Rendered as "{value.toFixed(1)}%" => "18.5" and "%" as siblings.
+      expect(texts.join('')).toContain('18.5%');
+      expect(texts.join('')).toContain('SEASON 15.2%');
     });
 
-    it('does not render HitRateBar when hitRate is undefined', () => {
+    it('does not render the shooting % block when seasonShootingPct is 0', () => {
       const result = HeroLeaderCard({
-        player: makePlayer(),
+        player: makePlayer({ seasonShootingPct: 0 }),
         statCategory: 'goals',
         onPress: mockOnPress,
       });
-      const hitRateBars = findByType(result, 'HitRateBar');
-      expect(hitRateBars.length).toBe(0);
-    });
-
-    it('does not render HitRateBar when total is 0', () => {
-      const result = HeroLeaderCard({
-        player: makePlayer(),
-        hitRate: makeHitRate({ hit: 0, total: 0 }),
-        statCategory: 'goals',
-        onPress: mockOnPress,
-      });
-      const hitRateBars = findByType(result, 'HitRateBar');
-      expect(hitRateBars.length).toBe(0);
+      const texts = collectTexts(result);
+      expect(texts).not.toContain('SHOOTING %');
     });
   });
 

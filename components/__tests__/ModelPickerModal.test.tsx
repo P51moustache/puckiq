@@ -5,6 +5,8 @@
 
 import React from 'react';
 
+import ModelPickerModal from '../ModelPickerModal';
+
 // Mock react-native
 jest.mock('react-native', () => ({
   Modal: ({ children, ...props }: any) =>
@@ -26,8 +28,6 @@ jest.mock('../../constants/theme', () => ({
     accent: '#60a5fa',
   },
 }));
-
-import ModelPickerModal from '../ModelPickerModal';
 
 // Helpers
 function collectText(node: any): string[] {

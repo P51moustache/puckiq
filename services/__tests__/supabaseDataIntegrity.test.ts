@@ -13,20 +13,28 @@ import {
 } from '../gameResults';
 
 // ── Supabase mock ──────────────────────────────────────────────────────────
+// Fully chainable, thenable builder tolerant of any chain shape the service
+// uses (e.g. .eq().in().in().or().order()). All filter/sort methods return the
+// builder; awaiting resolves to the current mockQueryResult.
 let mockQueryResult: { data: any; error: any } = { data: [], error: null };
-let mockCountResult: { count: number | null; error: any } = { count: 10, error: null };
 
-const mockLimit = jest.fn(() => mockQueryResult);
-const mockOrder = jest.fn(() => ({ limit: mockLimit, ...mockQueryResult }));
-const mockOr = jest.fn(() => ({ order: mockOrder }));
-const mockIn = jest.fn(() => ({ or: mockOr }));
-const mockEq = jest.fn(() => ({ in: mockIn, order: mockOrder, ...mockCountResult }));
-const mockSelect = jest.fn(() => ({ eq: mockEq }));
+const builder: any = {};
+const mockSelect = jest.fn(() => builder);
 const mockUpsert = jest.fn((): { error: any } => ({ error: null }));
-const mockFrom = jest.fn(() => ({
+Object.assign(builder, {
   select: mockSelect,
+  eq: jest.fn(() => builder),
+  neq: jest.fn(() => builder),
+  in: jest.fn(() => builder),
+  gte: jest.fn(() => builder),
+  lte: jest.fn(() => builder),
+  or: jest.fn(() => builder),
+  order: jest.fn(() => builder),
+  limit: jest.fn(() => builder),
   upsert: mockUpsert,
-}));
+  then: (resolve: any) => Promise.resolve(mockQueryResult).then(resolve),
+});
+const mockFrom = jest.fn(() => builder);
 
 jest.mock('../../lib/supabase', () => ({
   supabase: {
@@ -55,7 +63,6 @@ function makeGameResult(overrides: Partial<GameResult> = {}): GameResult {
 beforeEach(() => {
   jest.clearAllMocks();
   mockQueryResult = { data: [], error: null };
-  mockCountResult = { count: 10, error: null };
   _resetCircuitBreaker();
 });
 

@@ -2,6 +2,9 @@
  * Tests for MomentumSparkline component
  */
 
+import React from 'react';
+import MomentumSparkline from '../MomentumSparkline';
+
 jest.mock('react-native', () => ({
   View: 'View',
   Text: 'Text',
@@ -22,9 +25,6 @@ jest.mock('../../constants/teamColors', () => ({
   getTeamColors: () => ({ primary: '#00205B', secondary: '#fff' }),
   getAccessibleTextColor: () => '#4488cc',
 }));
-
-import React from 'react';
-import MomentumSparkline from '../MomentumSparkline';
 
 function findByTestID(element: any, testID: string): any {
   if (!element) return null;

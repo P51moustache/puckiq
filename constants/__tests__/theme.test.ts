@@ -27,12 +27,13 @@ describe('Rink Glass Design Tokens', () => {
     expect(theme.accent).toBeDefined();
   });
 
-  it('has card accent colors for each module type', () => {
-    expect(rinkGlass.moduleAccents.startSit).toBe(rinkGlass.faceoffDot);
-    expect(rinkGlass.moduleAccents.trending).toBe(rinkGlass.goalLight);
-    expect(rinkGlass.moduleAccents.alerts).toBe(rinkGlass.powerPlay);
-    expect(rinkGlass.moduleAccents.waiverWire).toBe(rinkGlass.blueLight);
-    expect(rinkGlass.moduleAccents.matchupEdge).toBe('#a78bfa');
-    expect(rinkGlass.moduleAccents.dailyInsight).toBe('#f97316');
+  it('has a card accent color for each module type', () => {
+    // Current "Stat Sheet" design intentionally uses one cyan accent for every
+    // module header (semantic colors are reserved for data direction, not
+    // section decoration). Assert each module is defined and uses blueLight.
+    const modules = ['startSit', 'trending', 'alerts', 'waiverWire', 'matchupEdge', 'dailyInsight'] as const;
+    for (const m of modules) {
+      expect(rinkGlass.moduleAccents[m]).toBe(rinkGlass.blueLight);
+    }
   });
 });

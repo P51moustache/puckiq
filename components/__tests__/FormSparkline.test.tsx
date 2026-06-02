@@ -2,6 +2,9 @@
  * Tests for FormSparkline component
  */
 
+import React from 'react';
+import FormSparkline from '../FormSparkline';
+
 jest.mock('react-native', () => ({
   View: 'View',
   StyleSheet: { create: (styles: any) => styles },
@@ -13,9 +16,6 @@ jest.mock('react-native-svg', () => ({
   Polyline: 'Polyline',
   Circle: 'Circle',
 }));
-
-import React from 'react';
-import FormSparkline from '../FormSparkline';
 
 function findByTestID(element: any, testID: string): any {
   if (!element) return null;

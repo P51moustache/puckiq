@@ -1,4 +1,7 @@
 // Mock react-native
+import React from 'react';
+import WaiverWireScout from '../WaiverWireScout';
+
 jest.mock('react-native', () => ({
   View: 'View',
   Text: 'Text',
@@ -56,9 +59,6 @@ jest.mock('react', () => {
     useEffect: jest.fn(),
   };
 });
-
-import React from 'react';
-import WaiverWireScout from '../WaiverWireScout';
 
 // ---------------------------------------------------------------------------
 // Helpers to traverse rendered tree

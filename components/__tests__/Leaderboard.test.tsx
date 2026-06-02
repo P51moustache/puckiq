@@ -1,4 +1,9 @@
 // Enable React act() environment for async state updates
+// @ts-expect-error no types for react-test-renderer
+import { create, act } from 'react-test-renderer';
+import React from 'react';
+import Leaderboard from '../Leaderboard';
+
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
 jest.mock('react-native', () => {
@@ -41,11 +46,6 @@ const mockAuthContext = {
 jest.mock('../auth/AuthProvider', () => ({
   useAuthContext: () => mockAuthContext,
 }));
-
-// @ts-expect-error no types for react-test-renderer
-import { create, act } from 'react-test-renderer';
-import React from 'react';
-import Leaderboard from '../Leaderboard';
 
 // Helpers
 function findByTestId(root: any, testID: string): any[] {
@@ -102,7 +102,7 @@ describe('Leaderboard', () => {
     let tree: any;
     await act(async () => { tree = create(<Leaderboard />); });
     expect(findByTestId(tree, 'leaderboard-empty')).toHaveLength(1);
-    expect(getAllText(tree)).toContain('Be the first on the leaderboard!');
+    expect(getAllText(tree)).toContain('NO RESULTS YET');
   });
 
   it('renders leaderboard entries', async () => {

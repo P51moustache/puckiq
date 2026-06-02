@@ -26,7 +26,25 @@ if (!supabaseUrl || !supabaseKey) {
   process.exit(1);
 }
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+// Newer @supabase/supabase-js (realtime-js) eagerly constructs a RealtimeClient
+// when the SupabaseClient is created, and on Node < 22 that throws:
+//   "Node.js 20 detected without native WebSocket support."
+// Sync scripts only do REST reads/writes — never realtime subscriptions — but the
+// client is built regardless. Supply the `ws` package as the realtime transport so
+// construction succeeds on any Node version. `ws` is optional: on Node 22+ (native
+// WebSocket) or if it isn't installed, we fall back to default options.
+let realtimeOptions;
+try {
+  const { default: ws } = await import('ws');
+  realtimeOptions = { realtime: { transport: ws } };
+} catch {
+  realtimeOptions = {};
+}
+
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: { persistSession: false, autoRefreshToken: false },
+  ...realtimeOptions,
+});
 
 /**
  * Log which key type is being used (for debugging).

@@ -41,7 +41,7 @@ function computeCategories(projections: PlayerProjection[]): CategorySummary[] {
     totalBlocks += p.predBlocks;
   }
 
-  const cats: Array<{ label: string; value: number; threshold: number }> = [
+  const cats: { label: string; value: number; threshold: number }[] = [
     { label: 'Goals', value: totalGoals, threshold: 2 },
     { label: 'Assists', value: totalAssists, threshold: 3 },
     { label: 'SOG', value: totalSog, threshold: 15 },

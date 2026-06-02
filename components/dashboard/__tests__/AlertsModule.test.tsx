@@ -1,3 +1,8 @@
+import React from 'react';
+import { render } from '@testing-library/react-native';
+import AlertsModule from '../AlertsModule';
+import { FantasyAlert } from '../../../services/fantasyAlerts';
+
 jest.mock('react-native', () => {
   const React = require('react');
   const mockAnimatedValue = (val: number) => ({
@@ -70,11 +75,6 @@ jest.mock('@expo/vector-icons', () => {
     Ionicons: (props: any) => React.createElement('Ionicons', props),
   };
 });
-
-import React from 'react';
-import { render } from '@testing-library/react-native';
-import AlertsModule from '../AlertsModule';
-import { FantasyAlert } from '../../../services/fantasyAlerts';
 
 const mockAlerts: FantasyAlert[] = [
   {

@@ -70,6 +70,12 @@ function mapRowToProjection(row: any): PlayerProjection {
 // Select columns used by all queries
 // ---------------------------------------------------------------------------
 
+// Only columns that actually exist on ml_player_projections. The table does NOT
+// have recommendation/confidence/reason/opponent_abbrev/is_home — selecting them
+// caused PostgREST to 400 ("column ... does not exist"), which silently emptied
+// every projection query. mapRowToProjection defaults those fields. (Note: the
+// table is currently unpopulated — the ML pipeline must write rows before any
+// projections appear; this fix just stops the query from erroring.)
 const SELECT_COLS = [
   'game_id',
   'player_id',
@@ -82,15 +88,11 @@ const SELECT_COLS = [
   'ceiling',
   'pred_goals',
   'pred_assists',
+  'pred_points',
   'pred_sog',
   'pred_hits',
   'pred_blocks',
   'game_date',
-  'recommendation',
-  'confidence',
-  'reason',
-  'opponent_abbrev',
-  'is_home',
 ].join(',');
 
 // ---------------------------------------------------------------------------

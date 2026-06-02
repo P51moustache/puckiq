@@ -4,6 +4,10 @@
  */
 
 // Mock react-native (node test environment, no jsdom)
+import { getSeriesText } from '../SeasonSeriesBadge';
+import { SeasonSeriesBadge } from '../SeasonSeriesBadge';
+import type { H2HRecord } from '../../types/gameResults';
+
 jest.mock('react-native', () => ({
   View: 'View',
   Text: 'Text',
@@ -16,10 +20,6 @@ jest.mock('../../constants/theme', () => ({
     text: '#e6eef8',
   },
 }));
-
-import { getSeriesText } from '../SeasonSeriesBadge';
-import { SeasonSeriesBadge } from '../SeasonSeriesBadge';
-import type { H2HRecord } from '../../types/gameResults';
 
 /** Helper to build an H2HRecord with sensible defaults. */
 function makeRecord(overrides: Partial<H2HRecord> = {}): H2HRecord {

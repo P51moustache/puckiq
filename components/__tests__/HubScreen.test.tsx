@@ -3,6 +3,11 @@
  * Covers: authenticated vs unauthenticated states, subscription, notifications, about
  */
 
+// @ts-expect-error no types for react-test-renderer
+import { create, act } from 'react-test-renderer';
+import React from 'react';
+import HubScreen from '../HubScreen';
+
 jest.mock('react-native', () => {
   const React = require('react');
   return {
@@ -99,27 +104,6 @@ jest.mock('../../services/notificationSettings', () => ({
   saveFantasyNotificationPrefs: (...args: any[]) => mockSavePrefs(...args),
 }));
 
-// Mock child components that have complex dependencies
-jest.mock('../AccuracyTracker', () => {
-  const React = require('react');
-  return () => React.createElement('View', { testID: 'accuracy-tracker' });
-});
-
-jest.mock('../Leaderboard', () => {
-  const React = require('react');
-  return () => React.createElement('View', { testID: 'leaderboard' });
-});
-
-jest.mock('../ReferralCard', () => {
-  const React = require('react');
-  return () => React.createElement('View', { testID: 'referral-card' });
-});
-
-// @ts-expect-error no types for react-test-renderer
-import { create, act } from 'react-test-renderer';
-import React from 'react';
-import HubScreen from '../HubScreen';
-
 // Helpers
 function renderHub() {
   let tree: any;
@@ -152,16 +136,25 @@ describe('HubScreen', () => {
   });
 
   describe('when user is NOT authenticated', () => {
-    it('renders the Hub title', () => {
+    it('renders the Settings header', () => {
       const tree = renderHub();
-      expect(getAllText(tree)).toContain('Hub');
+      const texts = getAllText(tree);
+      expect(texts).toContain('Settings');
+      // PageHeader uppercases the subtitle
+      expect(texts).toContain('NOTIFICATIONS · ACCOUNT · ABOUT');
     });
 
     it('shows sign-in buttons', () => {
       const tree = renderHub();
       expect(findByTestId(tree, 'sign-in-apple')).toHaveLength(1);
       expect(findByTestId(tree, 'sign-in-google')).toHaveLength(1);
-      expect(findByTestId(tree, 'sign-in-email')).toHaveLength(1);
+      // Email sign-in was removed in the redesign; only Apple + Google remain.
+      expect(findByTestId(tree, 'sign-in-email')).toHaveLength(0);
+    });
+
+    it('prompts the user to sign in to enable notifications', () => {
+      const tree = renderHub();
+      expect(getAllText(tree)).toContain('Sign in below to enable notifications.');
     });
 
     it('does NOT show sign-out button', () => {
@@ -220,15 +213,16 @@ describe('HubScreen', () => {
   });
 
   describe('Subscription section', () => {
-    it('shows Free Plan badge', () => {
+    // The redesigned Settings screen no longer renders an in-screen subscription
+    // upsell. Free-tier state is now communicated by disabling the notification
+    // toggles (see "Notification preferences" below) rather than a Free Plan
+    // badge / Upgrade to Pro button.
+    it('does not render an Upgrade to Pro button or Free Plan badge', () => {
       const tree = renderHub();
-      expect(getAllText(tree)).toContain('Free Plan');
-    });
-
-    it('shows Upgrade to Pro button', () => {
-      const tree = renderHub();
-      expect(findByTestId(tree, 'upgrade-button')).toHaveLength(1);
-      expect(getAllText(tree)).toContain('Upgrade to Pro');
+      const texts = getAllText(tree);
+      expect(findByTestId(tree, 'upgrade-button')).toHaveLength(0);
+      expect(texts).not.toContain('Upgrade to Pro');
+      expect(texts).not.toContain('Free Plan');
     });
   });
 
@@ -258,19 +252,24 @@ describe('HubScreen', () => {
       expect(toggle.props.value).toBe(false);
     });
 
-    it('shows "Pro feature" labels when not premium', () => {
+    // The redesign dropped the per-row "Pro feature" text labels. Free-tier
+    // gating is now expressed purely by disabling every notification toggle.
+    it('disables all toggles when not premium', () => {
       const tree = renderHub();
       const texts = getAllText(tree);
-      expect(texts.filter((t: string) => t === 'Pro feature')).toHaveLength(5);
+      expect(texts.filter((t: string) => t === 'Pro feature')).toHaveLength(0);
+      for (const testID of [
+        'toggle-morning-brief',
+        'toggle-goalie-confirmed',
+        'toggle-injury-alerts',
+        'toggle-game-reminders',
+        'toggle-waiver-alerts',
+      ]) {
+        expect(findByTestId(tree, testID)[0].props.disabled).toBe(true);
+      }
     });
 
-    it('toggles are disabled when not premium', () => {
-      const tree = renderHub();
-      const toggle = findByTestId(tree, 'toggle-morning-brief')[0];
-      expect(toggle.props.disabled).toBe(true);
-    });
-
-    it('does not show "Pro feature" labels when authenticated + premium', async () => {
+    it('enables all toggles when authenticated + premium', async () => {
       mockAuthContext.user = { email: 'pro@puckiq.com', id: 'user-pro' };
       mockSubscription.isPremium = true;
 
@@ -278,6 +277,15 @@ describe('HubScreen', () => {
       await act(async () => { tree = create(<HubScreen />); });
       const texts = getAllText(tree);
       expect(texts.filter((t: string) => t === 'Pro feature')).toHaveLength(0);
+      for (const testID of [
+        'toggle-morning-brief',
+        'toggle-goalie-confirmed',
+        'toggle-injury-alerts',
+        'toggle-game-reminders',
+        'toggle-waiver-alerts',
+      ]) {
+        expect(findByTestId(tree, testID)[0].props.disabled).toBe(false);
+      }
     });
 
     it('can toggle morning brief on when premium', async () => {

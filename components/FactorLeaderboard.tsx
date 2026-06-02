@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet } from 'react-native';
-import { theme, rinkGlass } from '../constants/theme';
+import { theme } from '../constants/theme';
 import { FactorType } from '../types/factors';
 
 interface FactorRanking {

@@ -1,4 +1,8 @@
 // Mock react-native
+import React from 'react';
+
+import PremiumGate from '../PremiumGate';
+
 jest.mock('react-native', () => ({
   View: 'View',
   Text: 'Text',
@@ -55,12 +59,8 @@ jest.mock('../SubscriptionProvider', () => ({
   useSubscription: () => mockUseSubscription(),
 }));
 
-import React from 'react';
-
 // Mock hooks so direct function calls work outside render context
 jest.spyOn(React, 'useEffect').mockImplementation((() => {}) as any);
-
-import PremiumGate from '../PremiumGate';
 
 // Helper to find elements in the rendered tree
 function findByTestID(element: any, testID: string): any {
@@ -115,7 +115,10 @@ describe('PremiumGate', () => {
     expect(findByTestID(element, 'premium-gate')).not.toBeNull();
     expect(findByTestID(element, 'premium-gate-overlay')).not.toBeNull();
     expect(findByText(element, 'ML Predictions')).not.toBeNull();
-    expect(findByText(element, 'Unlock with PuckIQ Pro')).not.toBeNull();
+    // Redesigned subhead copy (was "Unlock with PuckIQ Pro").
+    expect(
+      findByText(element, 'Pro unlocks lineup, projections, and waiver intel.'),
+    ).not.toBeNull();
   });
 
   it('renders children directly for premium users (no wrapper)', () => {

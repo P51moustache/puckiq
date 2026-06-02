@@ -4,10 +4,9 @@
  */
 
 import React, { useCallback, useMemo } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { rinkGlass } from '../constants/theme';
-import { getTeamColors } from '../constants/teamColors';
 import type { TrendingGoalie } from '../services/playerTrends';
 
 const TREND_COLORS: Record<string, string> = {
@@ -27,7 +26,6 @@ export default React.memo(function GoalieSpotlightCard({
   goalie,
   onPress,
 }: GoalieSpotlightCardProps) {
-  const teamColors = useMemo(() => getTeamColors(goalie.teamAbbrev), [goalie.teamAbbrev]);
   const trendColor = TREND_COLORS[goalie.trendLabel] || rinkGlass.blueLight;
   const handlePress = useCallback(() => onPress(goalie.playerId), [onPress, goalie.playerId]);
 

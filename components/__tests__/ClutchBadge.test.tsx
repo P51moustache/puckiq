@@ -3,14 +3,14 @@
  * Tests: all 3 states + null rendering
  */
 
+import React from 'react';
+import ClutchBadge from '../ClutchBadge';
+
 jest.mock('react-native', () => ({
   View: 'View',
   Text: 'Text',
   StyleSheet: { create: (styles: any) => styles },
 }));
-
-import React from 'react';
-import ClutchBadge from '../ClutchBadge';
 
 function collectTexts(element: any): string[] {
   if (!element) return [];

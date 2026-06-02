@@ -15,9 +15,26 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   multiRemove: jest.fn(),
 }));
 
+// Mock Supabase — fetchStandingsForDate is Supabase-only now (no NHL API).
+// A chainable, thenable builder returns mockStandingsRows for `.from('standings')`.
+let mockStandingsRows: any[] = [];
+jest.mock('../../lib/supabase', () => {
+  const builder: any = {};
+  Object.assign(builder, {
+    select: jest.fn(() => builder),
+    eq: jest.fn(() => builder),
+    lte: jest.fn(() => builder),
+    gte: jest.fn(() => builder),
+    order: jest.fn(() => builder),
+    limit: jest.fn(() => builder),
+    then: (resolve: any) => Promise.resolve({ data: mockStandingsRows, error: null }).then(resolve),
+  });
+  return { supabase: { from: jest.fn(() => builder) } };
+});
+
 import * as backtesting from '../backtesting';
 
-// Mock fetch
+// Mock fetch (legacy; standings now come from Supabase)
 global.fetch = jest.fn();
 
 // Create test model
@@ -48,45 +65,13 @@ function createTestModel(overrides: Partial<PredictionModel> = {}): PredictionMo
   };
 }
 
-// Create mock standings
+// Create mock standings in Supabase row shape (snake_case), as
+// fetchStandingsForDate reads from the `standings` table via mapSupabaseStandings.
 function createMockStandings() {
   return [
-    {
-      teamAbbrev: { default: 'TOR' },
-      pointPctg: 0.65,
-      wins: 30,
-      losses: 15,
-      otLosses: 3,
-      points: 63,
-      goalFor: 150,
-      goalAgainst: 120,
-      gamesPlayed: 48,
-      streakCode: 'W3',
-    },
-    {
-      teamAbbrev: { default: 'MTL' },
-      pointPctg: 0.45,
-      wins: 20,
-      losses: 25,
-      otLosses: 5,
-      points: 45,
-      goalFor: 110,
-      goalAgainst: 140,
-      gamesPlayed: 50,
-      streakCode: 'L2',
-    },
-    {
-      teamAbbrev: { default: 'BOS' },
-      pointPctg: 0.70,
-      wins: 35,
-      losses: 12,
-      otLosses: 3,
-      points: 73,
-      goalFor: 170,
-      goalAgainst: 100,
-      gamesPlayed: 50,
-      streakCode: 'W5',
-    },
+    { team_abbrev: 'TOR', point_pctg: 0.65, wins: 30, losses: 15, ot_losses: 3, points: 63, goals_for: 150, goals_against: 120, games_played: 48, streak_code: 'W', streak_count: 3, snapshot_date: '2024-10-15' },
+    { team_abbrev: 'MTL', point_pctg: 0.45, wins: 20, losses: 25, ot_losses: 5, points: 45, goals_for: 110, goals_against: 140, games_played: 50, streak_code: 'L', streak_count: 2, snapshot_date: '2024-10-15' },
+    { team_abbrev: 'BOS', point_pctg: 0.70, wins: 35, losses: 12, ot_losses: 3, points: 73, goals_for: 170, goals_against: 100, games_played: 50, streak_code: 'W', streak_count: 5, snapshot_date: '2024-10-15' },
   ];
 }
 
@@ -96,6 +81,8 @@ describe('backtesting', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     backtesting.deps.getGamesInRange = mockGetGamesInRange;
+    // Default standings available from Supabase for every date.
+    mockStandingsRows = createMockStandings();
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
     (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
     (AsyncStorage.removeItem as jest.Mock).mockResolvedValue(undefined);
@@ -397,10 +384,17 @@ describe('backtesting', () => {
 
       mockGetGamesInRange.mockResolvedValue(games);
 
-      // Mock cached standings
+      // Mock cached standings. getCachedStandings returns cached.standings
+      // verbatim as TeamStandings[] (camelCase), so the cached payload must use
+      // that shape — not the snake_case Supabase row shape.
+      const cachedStandings = [
+        { teamAbbrev: 'TOR', pointPctg: 0.65, wins: 30, losses: 15, otLosses: 3, points: 63, goalFor: 150, goalAgainst: 120, gamesPlayed: 48, streakCode: 'W3' },
+        { teamAbbrev: 'MTL', pointPctg: 0.45, wins: 20, losses: 25, otLosses: 5, points: 45, goalFor: 110, goalAgainst: 140, gamesPlayed: 50, streakCode: 'L2' },
+        { teamAbbrev: 'BOS', pointPctg: 0.70, wins: 35, losses: 12, otLosses: 3, points: 73, goalFor: 170, goalAgainst: 100, gamesPlayed: 50, streakCode: 'W5' },
+      ];
       const standingsJson = JSON.stringify({
         date: '2024-10-01',
-        standings: createMockStandings(),
+        standings: cachedStandings,
         cachedAt: new Date().toISOString(),
       });
 

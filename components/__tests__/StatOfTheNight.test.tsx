@@ -5,6 +5,9 @@
  */
 
 // Mock react-native
+import React from 'react';
+import type { Insight } from '../../types/insights';
+
 jest.mock('react-native', () => ({
   View: 'View',
   Text: 'Text',
@@ -39,9 +42,6 @@ jest.mock('@expo/vector-icons', () => ({
 jest.mock('expo-linear-gradient', () => ({
   LinearGradient: 'LinearGradient',
 }));
-
-import React from 'react';
-import type { Insight } from '../../types/insights';
 
 // Mock React.useEffect since tests call the component function directly (no renderer)
 const originalUseEffect = React.useEffect;

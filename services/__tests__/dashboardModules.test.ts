@@ -24,7 +24,7 @@ describe('dashboardModules', () => {
     await saveDashboardPrefs(custom);
     // Verify setItem was called with the right data
     expect(AsyncStorage.setItem).toHaveBeenCalledWith(
-      'puckiq_dashboard_modules',
+      'puckiq_dashboard_modules_v2',
       JSON.stringify(custom)
     );
     // Mock getItem to return saved data for the load call

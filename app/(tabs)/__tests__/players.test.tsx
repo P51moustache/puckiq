@@ -13,6 +13,12 @@
 // Mocks — must come before imports
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Imports
+// ---------------------------------------------------------------------------
+
+import React from 'react';
+
 jest.mock('react-native', () => ({
   View: 'View',
   Text: 'Text',
@@ -77,12 +83,6 @@ jest.mock('../../../services/playerLeaders', () => ({
   searchPlayers: (...args: any[]) => mockSearchPlayers(...args),
   getTeamRoster: (...args: any[]) => mockGetTeamRoster(...args),
 }));
-
-// ---------------------------------------------------------------------------
-// Imports
-// ---------------------------------------------------------------------------
-
-import React from 'react';
 
 // Since the screen uses hooks (useState, useEffect, useCallback, useRef),
 // we need to mock React to work outside a render context for some tests.

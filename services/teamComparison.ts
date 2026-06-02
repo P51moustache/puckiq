@@ -371,6 +371,11 @@ export function determineWinner(
   awayValue: number,
   higherIsBetter: boolean
 ): 'home' | 'away' | 'tie' {
+  // Unavailable stats arrive as NaN (e.g. discipline before the penalties
+  // category syncs, or always-0 advanced stats). Comparing NaN would otherwise
+  // fabricate a spurious 'away' winner, so treat any non-finite input as a tie.
+  if (!Number.isFinite(homeValue) || !Number.isFinite(awayValue)) return 'tie';
+
   const diff = Math.abs(homeValue - awayValue);
 
   // Consider values within 0.5% as a tie

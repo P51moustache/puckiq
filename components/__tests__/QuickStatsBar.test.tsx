@@ -4,6 +4,9 @@
  */
 
 // Mock react-native
+import React from 'react';
+import QuickStatsBarComponent from '../QuickStatsBar';
+
 jest.mock('react-native', () => ({
   View: 'View',
   Text: 'Text',
@@ -21,9 +24,6 @@ jest.mock('react-native-reanimated', () => ({
 jest.mock('@expo/vector-icons', () => ({
   Ionicons: 'Ionicons',
 }));
-
-import React from 'react';
-import QuickStatsBarComponent from '../QuickStatsBar';
 
 describe('QuickStatsBar', () => {
   it('returns null when gameCount is 0', () => {

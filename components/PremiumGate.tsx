@@ -4,14 +4,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue,
-  useAnimatedStyle,
   withRepeat,
   withTiming,
   withSequence,
   Easing,
   FadeInUp,
 } from 'react-native-reanimated';
-import { theme } from '../constants/theme';
 import { useSubscription } from './SubscriptionProvider';
 
 export interface PremiumGateProps {
@@ -19,12 +17,6 @@ export interface PremiumGateProps {
   feature: string;
   onUpgrade?: () => void;
 }
-
-const PRO_BENEFITS = [
-  { icon: 'analytics-outline' as const, text: 'ML-Powered Predictions', color: '#f72585' },
-  { icon: 'swap-horizontal-outline' as const, text: 'Start/Sit Engine', color: '#06d6a0' },
-  { icon: 'search-outline' as const, text: 'Waiver Wire Scout', color: '#4cc9f0' },
-];
 
 export default function PremiumGate({ children, feature, onUpgrade }: PremiumGateProps) {
   const { isPremium } = useSubscription();
@@ -49,11 +41,6 @@ export default function PremiumGate({ children, feature, onUpgrade }: PremiumGat
       false,
     );
   }, [glowScale, glowOpacity]);
-
-  const pulseStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: glowScale.value }],
-    opacity: glowOpacity.value,
-  }));
 
   if (isPremium) return <>{children}</>;
 

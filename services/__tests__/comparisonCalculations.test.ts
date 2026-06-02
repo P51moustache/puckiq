@@ -1,83 +1,12 @@
 // Test to verify stat comparison calculations are correct
 import { getTeamComparisonData, determineWinner, calculateCategoryWinners } from '../teamComparison';
+import { setupTeamComparisonMocks, mockTeamSummaryData } from './fixtures/teamComparisonMocks';
 
-// Mock data matching service expectations
-const mockStandings = [
-  {
-    teamAbbrev: { default: 'TOR' },
-    gamesPlayed: 50,
-    goalFor: 160,
-    goalAgainst: 130,
-    wins: 28,
-    losses: 16,
-    otLosses: 6,
-    points: 62,
-  },
-  {
-    teamAbbrev: { default: 'BOS' },
-    gamesPlayed: 50,
-    goalFor: 155,
-    goalAgainst: 120,
-    wins: 30,
-    losses: 14,
-    otLosses: 6,
-    points: 66,
-  },
-];
-
-const mockTeamSummaryData = {
-  data: [
-    {
-      teamId: 10,
-      teamTriCode: 'TOR',
-      shotsForPerGame: 31.5,
-      shotsAgainstPerGame: 29.0,
-      powerPlayPct: 0.225,
-      penaltyKillPct: 0.800,
-      goalsFor: 160,
-      goalsAgainst: 130,
-      gamesPlayed: 50,
-    },
-    {
-      teamId: 6,
-      teamTriCode: 'BOS',
-      shotsForPerGame: 33.0,
-      shotsAgainstPerGame: 28.5,
-      powerPlayPct: 0.240,
-      penaltyKillPct: 0.820,
-      goalsFor: 155,
-      goalsAgainst: 120,
-      gamesPlayed: 50,
-    },
-  ],
-};
-
-const mockClubStats = {
-  skaters: [{ powerPlayGoals: 8 }, { powerPlayGoals: 5 }, { powerPlayGoals: 3 }],
-};
+// Summary values used by the assertions below (TOR = teamId 10).
+const torSummary = mockTeamSummaryData.data.find((t) => t.teamId === 10)!;
 
 beforeEach(() => {
-  (global.fetch as jest.Mock) = jest.fn((url: string) => {
-    if (url.includes('standings')) {
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({ standings: mockStandings }),
-      });
-    }
-    if (url.includes('club-stats')) {
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve(mockClubStats),
-      });
-    }
-    if (url.includes('team/summary')) {
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve(mockTeamSummaryData),
-      });
-    }
-    return Promise.resolve({ ok: false });
-  });
+  setupTeamComparisonMocks();
 });
 
 afterEach(() => {

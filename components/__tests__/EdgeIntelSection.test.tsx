@@ -3,6 +3,9 @@
  * Tests: card rendering, empty state, card press
  */
 
+import React from 'react';
+import EdgeIntelSection from '../EdgeIntelSection';
+
 jest.mock('react-native', () => ({
   View: 'View',
   Text: 'Text',
@@ -28,9 +31,6 @@ jest.mock('@expo/vector-icons', () => ({
 jest.mock('../../constants/theme', () => ({
   theme: { text: '#fff', accent: '#60a5fa', subtext: '#aaa', card: '#123' },
 }));
-
-import React from 'react';
-import EdgeIntelSection from '../EdgeIntelSection';
 
 function findByTestID(element: any, testID: string): any {
   if (!element) return null;

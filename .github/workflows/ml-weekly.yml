@@ -15,7 +15,9 @@ jobs:
   weekly-retrain:
     name: Retrain Models
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Weekly retrain runs Optuna tuning (75 trials) + trains 4 models, which can
+    # exceed 30 min and get cancelled mid-run. Give it headroom.
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
@@ -49,7 +51,14 @@ jobs:
 
       - name: Post failure notification
         if: failure()
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
+          # Skip cleanly when no webhook is configured (avoids "curl: no URL specified").
+          if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+            echo "DISCORD_WEBHOOK_URL not set — skipping notification."
+            exit 0
+          fi
           curl -s -H "Content-Type: application/json" \
             -d "{\"content\":\"**ML Weekly Retrain Failed**\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
-            ${{ secrets.DISCORD_WEBHOOK_URL }} || true
+            "$DISCORD_WEBHOOK_URL" || true

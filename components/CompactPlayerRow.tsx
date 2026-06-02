@@ -3,11 +3,10 @@
  * Minimal: rank, small headshot, name, team, trend pill, stat value.
  */
 
-import React, { useCallback, useMemo } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { rinkGlass } from '../constants/theme';
-import { getTeamColors } from '../constants/teamColors';
 import type { TrendingPlayer, StatCategory } from '../services/playerTrends';
 
 const TREND_COLORS: Record<string, string> = {
@@ -32,7 +31,6 @@ export default React.memo(function CompactPlayerRow({
   onPress,
 }: CompactPlayerRowProps) {
   const handlePress = useCallback(() => onPress(player.playerId), [onPress, player.playerId]);
-  const teamColors = useMemo(() => getTeamColors(player.teamAbbrev), [player.teamAbbrev]);
   const trendColor = TREND_COLORS[player.trendLabel] || rinkGlass.blueLight;
 
   // Always points-focused
@@ -117,10 +115,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
     marginRight: 8,
     fontFamily: rinkGlass.fonts.mono,
-  },
-  flamesBadge: {
-    fontSize: 9,
-    marginRight: 8,
   },
   trendPill: {
     borderRadius: 4,

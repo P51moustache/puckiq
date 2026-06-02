@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { AppState, AppStateStatus } from 'react-native';
 import AnalyticsService from '../services/analytics/AnalyticsService';
 import { UserProperties } from '../services/analytics/types';
 
@@ -15,22 +14,9 @@ export function useAnalytics(screenName?: string) {
     }
   }, [screenName]);
 
-  // Handle app state changes
-  useEffect(() => {
-    const handleAppStateChange = (nextAppState: AppStateStatus) => {
-      if (nextAppState === 'active') {
-        analytics.current.trackSessionStart();
-      } else if (nextAppState === 'background' || nextAppState === 'inactive') {
-        analytics.current.trackSessionEnd();
-      }
-    };
-
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
-    
-    return () => {
-      subscription?.remove();
-    };
-  }, []);
+  // Note: the app-wide session listener lives in AnalyticsProvider (mounted once).
+  // It used to be registered here, which duplicated session_start/session_end
+  // once per mounted screen. Screen-view tracking above stays per-hook.
 
   // Tracking methods
   const trackUserAction = useCallback((

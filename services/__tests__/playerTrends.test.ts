@@ -220,13 +220,14 @@ beforeEach(() => {
   mockPaceResult = { data: mockLeaderPace, error: null };
 
   const getResultForTable = (table: string) => {
-    if (table === 'skater_trend_summary') return mockTrendResult;
+    // skater_hot_cold is the primary trend source now (skater_trend_summary was
+    // dropped). getTrendingPlayers/getLeaderTrends both read it.
+    if (table === 'skater_hot_cold') return mockTrendResult;
     if (table === 'games') return mockGamesResult;
     if (table === 'game_skater_stats') return mockGameSkaterResult;
     if (table === 'goalie_rolling_stats') return mockGoalieRollingResult;
     if (table === 'goalie_season_stats') return mockGoalieSeasonResult;
     if (table === 'players') return mockGoaliePlayersResult;
-    if (table === 'skater_hot_cold') return mockHotColdSuppResult;
     if (table === 'skater_rolling_stats') return mockRollingSuppResult;
     if (table === 'skater_pace_projections') return mockPaceResult;
     return { data: [], error: null };
@@ -298,7 +299,7 @@ describe('getTrendingPlayers', () => {
     // Supplementary fields from skater_rolling_stats
     expect(player.avgAssists5g).toBe(1.8);
     expect(player.avgShots5g).toBe(5.4);
-    // Numeric fields mapped directly from skater_trend_summary
+    // Numeric fields mapped from the hot/cold row
     expect(player.avgGoals5g).toBe(1.2);
     expect(player.avgPoints5g).toBe(3.0);
     expect(player.avgGoals10g).toBe(0.9);
@@ -355,9 +356,9 @@ describe('getTrendingPlayers', () => {
     expect(fromCall.limit).toHaveBeenCalledWith(1);
   });
 
-  it('queries skater_trend_summary table', async () => {
+  it('queries skater_hot_cold table', async () => {
     await getTrendingPlayers('up');
-    expect(supabase.from).toHaveBeenCalledWith('skater_trend_summary');
+    expect(supabase.from).toHaveBeenCalledWith('skater_hot_cold');
   });
 
   it('handles missing optional fields gracefully', async () => {
@@ -592,7 +593,7 @@ describe('getPlayersPlayingTonight', () => {
               error: overrides?.gamesError ?? null,
             });
           }
-          if (table === 'skater_trend_summary') {
+          if (table === 'skater_hot_cold') {
             return resolve({
               data: overrides?.trendData ?? [mockHotSkater, mockWarmSkater],
               error: overrides?.trendError ?? null,
@@ -963,7 +964,7 @@ describe('_internals', () => {
 describe('getLeaderTrends', () => {
   it('returns trend data for given player IDs', async () => {
     // getLeaderTrends queries skater_hot_cold and skater_pace_projections
-    mockHotColdSuppResult = { data: mockLeaderHotCold, error: null };
+    mockTrendResult = { data: mockLeaderHotCold, error: null };
 
     const result = await getLeaderTrends([8478402, 8479318]);
 
@@ -989,7 +990,7 @@ describe('getLeaderTrends', () => {
   });
 
   it('returns pace-only data when hot/cold query errors', async () => {
-    mockHotColdSuppResult = { data: null, error: { message: 'error' } };
+    mockTrendResult = { data: null, error: { message: 'error' } };
     // Pace still succeeds — service is resilient
     const result = await getLeaderTrends([8478402]);
 
@@ -1003,7 +1004,7 @@ describe('getLeaderTrends', () => {
   });
 
   it('returns empty map when both queries error', async () => {
-    mockHotColdSuppResult = { data: null, error: { message: 'error' } };
+    mockTrendResult = { data: null, error: { message: 'error' } };
     mockPaceResult = { data: null, error: { message: 'error' } };
 
     const result = await getLeaderTrends([8478402]);
@@ -1011,7 +1012,7 @@ describe('getLeaderTrends', () => {
   });
 
   it('handles missing pace data gracefully', async () => {
-    mockHotColdSuppResult = { data: mockLeaderHotCold, error: null };
+    mockTrendResult = { data: mockLeaderHotCold, error: null };
     mockPaceResult = { data: [], error: null };
 
     const result = await getLeaderTrends([8478402]);
@@ -1025,7 +1026,7 @@ describe('getLeaderTrends', () => {
   });
 
   it('caches results within TTL', async () => {
-    mockHotColdSuppResult = { data: mockLeaderHotCold, error: null };
+    mockTrendResult = { data: mockLeaderHotCold, error: null };
 
     await getLeaderTrends([8478402, 8479318]);
     (supabase.from as jest.Mock).mockClear();

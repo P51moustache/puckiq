@@ -1,8 +1,14 @@
 import React from 'react';
 
-// Mock useState/useMemo to work outside React render context
+import HeroBanner from '../HeroBanner';
+
+// Mock hooks to work outside React render context.
+// The component imports useMemo/useRef/useCallback as named imports from 'react',
+// which are live bindings to these exports, so spying here replaces them.
 jest.spyOn(React, 'useState').mockImplementation(((init: any) => [init, jest.fn()]) as any);
 jest.spyOn(React, 'useMemo').mockImplementation((fn: () => any) => fn());
+jest.spyOn(React, 'useCallback').mockImplementation(((fn: any) => fn) as any);
+jest.spyOn(React, 'useRef').mockImplementation(((init: any) => ({ current: init })) as any);
 
 jest.mock('react-native', () => ({
   View: 'View',
@@ -47,8 +53,6 @@ jest.mock('../../constants/teamColors', () => ({
   getTeamColors: () => ({ primary: '#000000', secondary: '#ffffff' }),
   getAccessibleTextColor: () => '#4488cc',
 }));
-
-import HeroBanner from '../HeroBanner';
 
 // ─── Helpers ───
 
@@ -125,11 +129,11 @@ describe('HeroBanner', () => {
     expect(text).toContain('PuckIQ');
   });
 
-  // 2. Renders tagline
-  it('renders tagline "YOUR EDGE BEFORE EVERY PICK"', () => {
+  // 2. Renders today's date sub-line under the wordmark
+  it('renders "Today -" branding sub-line', () => {
     const tree = HeroBanner(baseProps);
     const text = collectText(tree).join(' ');
-    expect(text).toContain('YOUR EDGE BEFORE EVERY PICK');
+    expect(text).toContain('Today -');
   });
 
   // 3. Renders team logos for both teams
@@ -173,15 +177,34 @@ describe('HeroBanner', () => {
     expect(badges[0].props.confidence).toBe(72);
   });
 
-  // 6. Renders insight chips when data provided
-  it('renders H2H chip when h2hRecord provided', () => {
+  // 6. Renders insight chips when data provided.
+  // The redesigned banner no longer surfaces an H2H chip even when an
+  // h2hRecord is provided — insight chips are driven by situational factors
+  // and streaks only.
+  it('does not render an H2H chip even when h2hRecord provided', () => {
     const props = {
       ...baseProps,
       h2hRecord: { teamAWins: 3, teamBWins: 1, games: [{}] } as any,
     };
     const tree = HeroBanner(props);
     const text = collectText(tree).join(' ');
-    expect(text).toContain('H2H 3-1');
+    expect(text).not.toContain('H2H');
+  });
+
+  it('renders EVEN REST chip when teams have neutral rest advantage', () => {
+    const props = {
+      ...baseProps,
+      situationalFactors: {
+        homeBackToBack: false,
+        awayBackToBack: false,
+        homeRestDays: 2,
+        awayRestDays: 2,
+        restAdvantage: 'neutral' as const,
+      },
+    };
+    const tree = HeroBanner(props);
+    const text = collectText(tree).join(' ');
+    expect(text).toContain('EVEN REST');
   });
 
   it('renders B2B chip when home team is back-to-back', () => {
@@ -200,20 +223,21 @@ describe('HeroBanner', () => {
     expect(text).toContain('B2B');
   });
 
-  it('renders REST chip when away team is back-to-back', () => {
+  it('renders +N REST chip when one team has a rest advantage (no B2B)', () => {
     const props = {
       ...baseProps,
       situationalFactors: {
         homeBackToBack: false,
-        awayBackToBack: true,
-        homeRestDays: 2,
-        awayRestDays: 0,
+        awayBackToBack: false,
+        homeRestDays: 3,
+        awayRestDays: 1,
         restAdvantage: 'home' as const,
       },
     };
     const tree = HeroBanner(props);
     const text = collectText(tree).join(' ');
-    expect(text).toMatch(/REST/);
+    // diff = |3 - 1| = 2 => "+2 REST"
+    expect(text).toMatch(/\+2 REST/);
   });
 
   it('renders streak chip for team with 3+ win streak', () => {
@@ -230,7 +254,7 @@ describe('HeroBanner', () => {
     expect(text).toContain('W5');
   });
 
-  it('renders up to 3 chips maximum', () => {
+  it('renders situational + streak chips together', () => {
     const props = {
       ...baseProps,
       h2hRecord: { teamAWins: 3, teamBWins: 1, games: [{}] } as any,
@@ -249,16 +273,18 @@ describe('HeroBanner', () => {
     };
     const tree = HeroBanner(props);
     const text = collectText(tree).join(' ');
-    expect(text).toContain('H2H');
+    // H2H is no longer surfaced; a B2B chip and the streak chip are.
+    expect(text).not.toContain('H2H');
     expect(text).toContain('B2B');
     expect(text).toContain('W4');
   });
 
-  // 7. Renders tonight's headline text
-  it('renders headline text', () => {
+  // 7. Renders the game date line (the redesign dropped the free-text headline)
+  it('renders the game date line', () => {
     const tree = HeroBanner(baseProps);
     const text = collectText(tree).join(' ');
-    expect(text).toContain('Toronto has won 3 straight against Montreal');
+    // gameDate formatted as "Sat, Feb 7" for the fixture's start time
+    expect(text).toMatch(/(Mon|Tue|Wed|Thu|Fri|Sat|Sun), [A-Z][a-z]{2} \d{1,2}/);
   });
 
   // 8. Renders date text

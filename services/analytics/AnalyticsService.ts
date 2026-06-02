@@ -21,6 +21,7 @@ class AnalyticsService {
   private eventQueue: AnalyticsEvent[] = [];
   private flushTimer?: ReturnType<typeof setInterval>;
   private lastActivityTime: number = Date.now();
+  private sessionStartTime: number = Date.now();
   private initialized: boolean = false;
 
   private constructor() {
@@ -218,6 +219,7 @@ class AnalyticsService {
 
   // Session events
   trackSessionStart(): void {
+    this.sessionStartTime = Date.now();
     this.trackCustomEvent('session_start', {
       platform: Platform.OS,
       app_version: '1.0.0', // You can get this from app.json
@@ -226,7 +228,9 @@ class AnalyticsService {
 
   trackSessionEnd(): void {
     this.trackCustomEvent('session_end', {
-      session_duration: Date.now() - this.lastActivityTime,
+      // Measure from session start, not last activity (which is updated on every
+      // tracked event and would collapse the duration to ~0).
+      session_duration: Date.now() - this.sessionStartTime,
     });
     this.flush(); // Ensure events are sent before session ends
   }

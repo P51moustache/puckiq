@@ -5,6 +5,8 @@
 
 import React from 'react';
 
+import EmptyNightCard from '../EmptyNightCard';
+
 // Mock react-native
 jest.mock('react-native', () => ({
   View: 'View',
@@ -42,8 +44,6 @@ jest.mock('../../constants/teamColors', () => ({
   }),
   getAccessibleTextColor: () => '#4488cc',
 }));
-
-import EmptyNightCard from '../EmptyNightCard';
 
 // Helpers
 function collectText(node: any): string[] {
@@ -101,10 +101,10 @@ describe('EmptyNightCard', () => {
       expect(text).toContain('No Games Today');
     });
 
-    it('shows "Next games coming soon" subtitle', () => {
+    it('shows "Schedule resumes shortly." subtitle', () => {
       const element = EmptyNightCard({});
       const text = collectText(element).join(' ');
-      expect(text).toContain('Next games coming soon');
+      expect(text).toContain('Schedule resumes shortly.');
     });
 
     it('renders without crashing when all props are undefined', () => {

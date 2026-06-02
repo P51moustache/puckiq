@@ -1,5 +1,7 @@
 import React from 'react';
 
+import PaywallModal from '../PaywallModal';
+
 // Mock useState to work outside React render context
 jest.spyOn(React, 'useState').mockImplementation(((init: any) => [init, jest.fn()]) as any);
 
@@ -90,8 +92,6 @@ jest.mock('../SubscriptionProvider', () => ({
     refresh: mockRefresh,
   }),
 }));
-
-import PaywallModal from '../PaywallModal';
 
 // Helper: collect all text from rendered element tree
 function collectText(node: any): string[] {

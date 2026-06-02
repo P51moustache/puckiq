@@ -24,7 +24,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { rinkGlass, theme } from '../../constants/theme';
-import { getTeamColors } from '../../constants/teamColors';
 import { getTeamLogoUrl } from '../../utils/teamLogo';
 
 interface StartSitPlayer {

@@ -36,7 +36,7 @@ const getDefaultWeights = (): AllWeights => ({
 // Helper to convert AllWeights to Record<string, number>
 const toRecord = (weights: AllWeights): Record<string, number> => {
   const record: Record<string, number> = {};
-  (Object.keys(weights) as Array<keyof AllWeights>).forEach((key) => {
+  (Object.keys(weights) as (keyof AllWeights)[]).forEach((key) => {
     record[key] = weights[key];
   });
   return record;

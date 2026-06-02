@@ -5,9 +5,7 @@ import Animated, {
   FadeOut,
   SlideInRight,
   SlideOutLeft,
-  FadeInUp,
 } from 'react-native-reanimated';
-import { theme } from '../../constants/theme';
 import { WelcomeScreen } from './WelcomeScreen';
 import { PlatformPicker } from './PlatformPicker';
 import { RosterSetup } from './RosterSetup';
@@ -27,7 +25,7 @@ export function OnboardingFlow({
   onSignInWithGoogle,
 }: OnboardingFlowProps) {
   const [step, setStep] = useState(1);
-  const [scoringFormat, setScoringFormat] = useState<ScoringFormat | null>(null);
+  const [, setScoringFormat] = useState<ScoringFormat | null>(null);
   const [hasRoster, setHasRoster] = useState(false);
 
   const goToStep = useCallback((nextStep: number) => {

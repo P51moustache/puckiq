@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { ActivityIndicator, RefreshControl, Text, View } from 'react-native';
+import { RefreshControl } from 'react-native';
 import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 import LiveNowBar from '../../components/LiveNowBar';
 import LeagueBriefing from '../../components/LeagueBriefing';

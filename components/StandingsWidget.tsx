@@ -4,7 +4,7 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { theme } from '../constants/theme';
-import { getTeamColors, getAccessibleTextColor } from '../constants/teamColors';
+import { getAccessibleTextColor } from '../constants/teamColors';
 import { getTeamLogoUrl } from '../utils/teamLogo';
 import type { StandingsData } from '../types/predictions';
 

@@ -69,7 +69,7 @@ type StandingsData = {
   currentRanks: { league: number | null; conf: number | null; div: number | null };
   avgRanks: { league: number | null; conf: number | null; div: number | null };
   currentTotals: { league: number; conf: number; div: number };
-  historicalData: Array<{ year: string; league: number | null; conf: number | null; div: number | null }>;
+  historicalData: { year: string; league: number | null; conf: number | null; div: number | null }[];
   teamInfo: { conference: string | null; division: string | null };
   loading: boolean;
   error: string | null;
@@ -559,7 +559,7 @@ export default function TeamsScreen({ embedded = false }: TeamsScreenProps) {
     };
 
     // Generate key insights
-    const insights: Array<{ text: string; color: string }> = [];
+    const insights: { text: string; color: string }[] = [];
 
     // Insight 1: Standing/Ranking
     if (leagueRank <= 5) {

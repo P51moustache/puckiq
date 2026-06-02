@@ -5,6 +5,10 @@
  */
 
 // Mock react-native
+import React from 'react';
+import HotPlayersSectionComponent from '../HotPlayersSection';
+import type { TeamPlayerStats, PlayerStatLine } from '../../types/gameResults';
+
 jest.mock('react-native', () => ({
   View: 'View',
   Text: 'Text',
@@ -24,10 +28,6 @@ jest.mock('../../constants/teamColors', () => ({
   getTeamColors: () => ({ primary: '#FF0000', secondary: '#000000' }),
   getAccessibleTextColor: () => '#FF0000',
 }));
-
-import React from 'react';
-import HotPlayersSectionComponent from '../HotPlayersSection';
-import type { TeamPlayerStats, PlayerStatLine } from '../../types/gameResults';
 
 // Helper to build a PlayerStatLine
 function makeSkater(overrides: Partial<PlayerStatLine> & { playerId: number; firstName: string; lastName: string; points: number }): PlayerStatLine {

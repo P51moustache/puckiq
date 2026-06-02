@@ -4,6 +4,8 @@
  */
 
 // Mock react-native
+import StandingsSnapshotComponent from '../StandingsSnapshot';
+
 jest.mock('react-native', () => ({
   View: 'View',
   Text: 'Text',
@@ -33,8 +35,6 @@ jest.mock('react', () => {
     useState: (initial: any) => [mockState !== undefined ? mockState : initial, jest.fn()],
   };
 });
-
-import StandingsSnapshotComponent from '../StandingsSnapshot';
 
 const mockStandings = {
   standings: [

@@ -1,15 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { getTeamColors, getAccessibleTextColor } from '../constants/teamColors';
+import { getAccessibleTextColor } from '../constants/teamColors';
 import { getTeamComparisonData, calculateCategoryWinners } from '../services/teamComparison';
 import { TeamComparisonStats, StatCategory } from '../types/teamStats';
 import StatComparisonRow from './StatComparisonRow';
-import { getH2HRecord } from '../services/gameResults';
+import { getH2HRecord , fetchGameResults } from '../services/gameResults';
 import { getKeyPlayersForGame } from '../services/playerStats';
 import type { H2HRecord, TeamPlayerStats } from '../types/gameResults';
 import { fetchTeamEdge } from '../services/edgeStats';
-import { fetchGameResults } from '../services/gameResults';
 import { calculateMomentum, calculateClutchRating } from '../services/derivedStats';
 import MomentumSparkline from './MomentumSparkline';
 import ClutchBadge from './ClutchBadge';

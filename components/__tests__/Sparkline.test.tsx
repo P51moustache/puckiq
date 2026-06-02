@@ -1,3 +1,7 @@
+import React from 'react';
+import { render } from '@testing-library/react-native';
+import { Sparkline } from '../Sparkline';
+
 jest.mock('react-native', () => {
   const React = require('react');
   return {
@@ -14,10 +18,6 @@ jest.mock('react-native', () => {
     Platform: { OS: 'ios', select: (opts: any) => opts.ios },
   };
 });
-
-import React from 'react';
-import { render } from '@testing-library/react-native';
-import { Sparkline } from '../Sparkline';
 
 describe('Sparkline', () => {
   it('renders bars from data points', () => {

@@ -1,5 +1,7 @@
 import React from 'react';
 
+import GameTicker from '../GameTicker';
+
 jest.mock('react-native', () => ({
   View: 'View',
   Text: 'Text',
@@ -24,8 +26,6 @@ jest.mock('react-native-reanimated', () => ({
 jest.mock('expo-linear-gradient', () => ({ LinearGradient: 'LinearGradient' }));
 jest.mock('react-native-svg', () => ({ __esModule: true, default: 'Svg', Path: 'Path', Circle: 'Circle' }));
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }));
-
-import GameTicker from '../GameTicker';
 
 const mockGames = [
   { id: 101, awayTeam: { abbrev: 'BOS' }, homeTeam: { abbrev: 'NYR' } },

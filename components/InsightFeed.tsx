@@ -84,12 +84,14 @@ function getConfig(category?: string) {
 }
 
 function InsightFeedComponent({ insights, onShareInsight, headerLabel }: InsightFeedProps) {
-  if (!insights || insights.length === 0) return null;
-
+  // Hooks must run unconditionally and in the same order every render, so compute
+  // before any early return. (useMemo tolerates a null/empty insights list.)
   const sorted = useMemo(
-    () => [...insights].slice(0, 3),
+    () => (insights ? [...insights].slice(0, 3) : []),
     [insights],
   );
+
+  if (!insights || insights.length === 0) return null;
 
   return (
     <View testID="insight-feed" style={styles.container}>

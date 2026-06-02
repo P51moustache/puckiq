@@ -39,9 +39,6 @@ export default function StatComparisonRow({
   const awayFormattedValue = formatStatValue(awayValue, format, decimals);
   const homeFormattedValue = formatStatValue(homeValue, format, decimals);
 
-  const awayRankText = awayRank ? ` (${awayRank}${getOrdinalSuffix(awayRank)})` : '';
-  const homeRankText = homeRank ? ` (${homeRank}${getOrdinalSuffix(homeRank)})` : '';
-
   return (
     <View
       style={{

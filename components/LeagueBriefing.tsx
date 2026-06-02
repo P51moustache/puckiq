@@ -19,7 +19,7 @@
  */
 
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -35,7 +35,7 @@ import { DualTeamSplitBar, FormSquares, FactorMiniBar } from './SlateRowViz';
 import HeatStrip from './HeatStrip';
 import FlippableRow from './FlippableRow';
 import type { H2HRecord } from '../types/gameResults';
-import type { MomentumData, ClutchRating, EdgeTeamLanding } from '../types/edgeStats';
+import type { MomentumData, EdgeTeamLanding } from '../types/edgeStats';
 import type { TeamFormData } from '../types/teamForm';
 
 interface Game {
@@ -54,7 +54,7 @@ interface LeagueBriefingProps {
   isLoading?: boolean;
   hasGamesToday?: boolean;
   isShowingUpcoming?: boolean;
-  gamesByDate?: Array<{ date: string; label: string; games: Game[] }>;
+  gamesByDate?: { date: string; label: string; games: Game[] }[];
   predictionsMap?: Map<string, { homeWinProb: number; awayWinProb: number }>;
   h2hMap?: Map<string, H2HRecord>;
   momentumMap?: Map<string, MomentumData>;
@@ -124,11 +124,6 @@ function formatRelativeMinutes(d?: Date | null): string {
 function isLiveGame(g: Game): boolean {
   const s = g.gameState ?? '';
   return s === 'LIVE' || s === 'CRIT' || s === 'PRE';
-}
-
-function isFinalGame(g: Game): boolean {
-  const s = g.gameState ?? '';
-  return s === 'OFF' || s === 'FINAL';
 }
 
 /* =====================================================
@@ -254,8 +249,6 @@ function SlateSection({
           const conf = mlPred?.confidence;
           const anomaly =
             conf === 'high' && homeProb !== null && homeProb !== undefined && (homeProb >= 0.65 || homeProb <= 0.35);
-          const topFactor = mlPred?.top_factors?.[0];
-          const restAdv = restMap?.get(`${away}-${home}`);
           const awayB2B = restMap ? (restMap.get(away) ?? 99) === 0 : false;
           const homeB2B = restMap ? (restMap.get(home) ?? 99) === 0 : false;
 
@@ -973,7 +966,7 @@ function NextSlatePreview({
   predictionsMap,
   onPressGame,
 }: {
-  gamesByDate: Array<{ date: string; label: string; games: Game[] }>;
+  gamesByDate: { date: string; label: string; games: Game[] }[];
   predictionsMap?: Map<string, { homeWinProb: number; awayWinProb: number }>;
   onPressGame: (gameId: number) => void;
 }) {
@@ -1163,7 +1156,7 @@ export default function LeagueBriefing({
   }, []);
 
   const heroUpsets = useMemo(() => {
-    if (!yesterdaySummary?.games?.length) return [] as Array<{
+    if (!yesterdaySummary?.games?.length) return [] as {
       id: number;
       homeAbbrev: string;
       awayAbbrev: string;
@@ -1171,7 +1164,7 @@ export default function LeagueBriefing({
       awayScore: number;
       homeWinProb: number;
       predictedWinner: string;
-    }>;
+    }[];
     return yesterdaySummary.games
       .filter((g) => g.isUpset && g.homeWinProb !== null && g.predictedWinner)
       .map((g) => ({

@@ -9,6 +9,7 @@ import {
   TeamPlayerStats,
 } from '../types/gameResults';
 import { supabase } from '../lib/supabase';
+import { computeSavePct } from './goalieRates';
 
 // ---------------------------------------------------------------------------
 // In-memory cache
@@ -102,7 +103,7 @@ export async function getTeamPlayerStats(
           losses: row.losses || 0,
           otLosses: row.ot_losses || 0,
           goalsAgainstAvg: row.goals_against_avg || 0,
-          savePctg: row.save_pctg || 0,
+          savePctg: computeSavePct(row) ?? 0,
           headshotUrl: info?.headshotUrl,
         };
       });

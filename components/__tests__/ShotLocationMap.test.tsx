@@ -3,6 +3,9 @@
  * Tests: rendering, empty state, legend, zone colors
  */
 
+import React from 'react';
+import ShotLocationMap from '../ShotLocationMap';
+
 jest.mock('react-native', () => ({
   View: 'View',
   Text: 'Text',
@@ -31,9 +34,6 @@ jest.mock('react', () => {
     useState: (init: any) => [tooltipState ?? init, setTooltipMock],
   };
 });
-
-import React from 'react';
-import ShotLocationMap from '../ShotLocationMap';
 
 function findByTestID(element: any, testID: string): any {
   if (!element) return null;

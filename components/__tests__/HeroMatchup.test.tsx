@@ -1,5 +1,7 @@
 import React from 'react';
 
+import HeroMatchup from '../HeroMatchup';
+
 // Mock useState to work outside React render context
 jest.spyOn(React, 'useState').mockImplementation(((init: any) => [init, jest.fn()]) as any);
 
@@ -31,15 +33,12 @@ jest.mock('expo-linear-gradient', () => ({ LinearGradient: 'LinearGradient' }));
 jest.mock('expo-image', () => ({ Image: 'Image' }));
 jest.mock('react-native-svg', () => ({ __esModule: true, default: 'Svg', Path: 'Path', Circle: 'Circle' }));
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }));
-jest.mock('../ProbabilityArc', () => 'ProbabilityArc');
 jest.mock('../ConfidenceBadge', () => ({
   ConfidenceBadge: 'ConfidenceBadge',
 }));
 jest.mock('../../hooks/useHaptics', () => ({
   useHaptics: () => ({ press: jest.fn(), success: jest.fn(), error: jest.fn() }),
 }));
-
-import HeroMatchup from '../HeroMatchup';
 
 const baseGame = {
   id: 1,

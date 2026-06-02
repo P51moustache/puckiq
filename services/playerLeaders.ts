@@ -5,6 +5,7 @@
  */
 
 import { supabase } from '../lib/supabase';
+import { computeSavePct } from './goalieRates';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -239,12 +240,19 @@ export async function getGoalieLeaders(
   }
 
   try {
+    // save_pctg is NULL in the DB, so the leaderboard's save% must be computed
+    // from saves/shots_against. PostgREST can't order by that computed value, so
+    // for the savePctg category we over-fetch a pool and sort client-side.
+    const isComputedSavePct = category === 'savePctg';
+
     let query = supabase
       .from('goalie_season_stats')
       .select('*')
-      .gt('games_played', 0)
-      .order(mapping.column, { ascending: mapping.ascending })
-      .limit(limit);
+      .gt('games_played', 0);
+
+    if (!isComputedSavePct) {
+      query = query.order(mapping.column, { ascending: mapping.ascending });
+    }
 
     // Apply minimum GP filter for rate stats
     const minGP = GOALIE_MIN_GP[category];
@@ -256,6 +264,8 @@ export async function getGoalieLeaders(
       query = query.eq('team_abbrev', teamAbbrev);
     }
 
+    query = query.limit(isComputedSavePct ? 200 : limit);
+
     const { data: rows, error } = await query;
 
     if (error || !rows) {
@@ -263,10 +273,21 @@ export async function getGoalieLeaders(
       return [];
     }
 
-    const playerIds = rows.map((r: any) => r.player_id);
+    // For computed save%, rank by the derived value and take the top `limit`.
+    let rankedRows = rows;
+    if (isComputedSavePct) {
+      rankedRows = [...rows]
+        .map((r: any) => ({ r, sp: computeSavePct(r) }))
+        .filter((x) => x.sp !== null)
+        .sort((a, b) => (b.sp as number) - (a.sp as number))
+        .slice(0, limit)
+        .map((x) => x.r);
+    }
+
+    const playerIds = rankedRows.map((r: any) => r.player_id);
     const playerInfo = await fetchPlayerInfo(playerIds);
 
-    const leaders: GoalieLeader[] = rows.map((row: any) => {
+    const leaders: GoalieLeader[] = rankedRows.map((row: any) => {
       const info = playerInfo.get(row.player_id);
       return {
         playerId: row.player_id,
@@ -279,7 +300,7 @@ export async function getGoalieLeaders(
         losses: row.losses || 0,
         otLosses: row.ot_losses || 0,
         goalsAgainstAvg: row.goals_against_avg || 0,
-        savePctg: row.save_pctg || 0,
+        savePctg: computeSavePct(row) ?? 0,
         shutouts: row.shutouts || 0,
       };
     });

@@ -1,4 +1,8 @@
 // Mock react-native
+import React from 'react';
+import { Platform } from 'react-native';
+import BannerAd from '../BannerAd';
+
 jest.mock('react-native', () => ({
   View: 'View',
   Text: 'Text',
@@ -26,10 +30,6 @@ jest.mock('react-native-google-mobile-ads', () => ({
     ANCHORED_ADAPTIVE_BANNER: 'ANCHORED_ADAPTIVE_BANNER',
   },
 }), { virtual: true });
-
-import React from 'react';
-import { Platform } from 'react-native';
-import BannerAd from '../BannerAd';
 
 // Cast to callable for direct invocation in node test environment
 const renderBannerAd = BannerAd as unknown as () => any;

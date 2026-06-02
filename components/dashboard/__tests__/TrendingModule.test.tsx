@@ -1,3 +1,7 @@
+import React from 'react';
+import { render, fireEvent } from '@testing-library/react-native';
+import { TrendingModule, TrendingPlayer } from '../TrendingModule';
+
 jest.mock('react-native', () => {
   const React = require('react');
   return {
@@ -71,10 +75,6 @@ jest.mock('@expo/vector-icons', () => {
   };
 });
 
-import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
-import { TrendingModule, TrendingPlayer } from '../TrendingModule';
-
 const mockPlayers: TrendingPlayer[] = [
   {
     id: 1,
@@ -112,17 +112,14 @@ describe('TrendingModule', () => {
     expect(getAllByText('Auston Matthews').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('shows flame count based on streak intensity', () => {
-    const { getByTestId } = render(<TrendingModule players={mockPlayers} />);
-    // McDavid has flameCount 5
-    const flames1 = getByTestId('flames-1');
-    expect(flames1.props.children).toBe('🔥🔥🔥🔥🔥');
-    // MacKinnon has flameCount 3
-    const flames2 = getByTestId('flames-2');
-    expect(flames2.props.children).toBe('🔥🔥🔥');
-    // Matthews has flameCount 1
-    const flames3 = getByTestId('flames-3');
-    expect(flames3.props.children).toBe('🔥');
+  it('shows heat row with total points and games-played label', () => {
+    const { getByTestId, getAllByText } = render(<TrendingModule players={mockPlayers} />);
+    // The heat row (formerly flame emojis) now shows total points over the last N games.
+    // McDavid: 2+1+3+2+4 = 12 over 5 games
+    expect(getByTestId('flames-1')).toBeTruthy();
+    expect(getAllByText('12').length).toBeGreaterThanOrEqual(1);
+    // Every card shows an "L{n} PTS" label for its recent-points window.
+    expect(getAllByText('L5 PTS')).toHaveLength(3);
   });
 
   it('shows sparkline on each card', () => {
@@ -135,21 +132,24 @@ describe('TrendingModule', () => {
     expect(getByText('No trending players right now')).toBeTruthy();
   });
 
-  it('renders back face with "Why trending" details', () => {
+  it('renders back face with detailed stat breakdown', () => {
     const { getByTestId, getAllByText } = render(
       <TrendingModule players={mockPlayers} />
     );
     // Back face should be rendered (always present, hidden via animation opacity)
     expect(getByTestId('back-1')).toBeTruthy();
-    // Each card has a "Why trending" header on its back
-    expect(getAllByText('Why trending').length).toBe(3);
+    // Each card's back shows "Total · L{n}" and "Avg / GP" stat labels instead of a prose header.
+    expect(getAllByText('Total · L5')).toHaveLength(3);
+    expect(getAllByText('Avg / GP')).toHaveLength(3);
   });
 
-  it('shows stats on back face', () => {
-    const { getByTestId } = render(<TrendingModule players={mockPlayers} />);
+  it('shows total points stat on back face', () => {
+    const { getByTestId, getAllByText } = render(<TrendingModule players={mockPlayers} />);
     const backStats = getByTestId('back-stats-1');
-    // McDavid: 2+1+3+2+4 = 12
-    expect(backStats.props.children).toEqual(['Last ', 5, ' games: ', 12, ' pts']);
+    expect(backStats).toBeTruthy();
+    // McDavid: 2+1+3+2+4 = 12 total over the last 5 games, labelled "Total · L5".
+    expect(getAllByText('12').length).toBeGreaterThanOrEqual(1);
+    expect(getAllByText('Total · L5').length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows Watch button on back face', () => {

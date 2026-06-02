@@ -5,6 +5,11 @@
  */
 
 // Mock react-native (string components)
+import React from 'react';
+
+import GoalieSpotlightCardMemo from '../GoalieSpotlightCard';
+import type { TrendingGoalie } from '../../services/playerTrends';
+
 jest.mock('react-native', () => ({
   View: 'View',
   Text: 'Text',
@@ -24,14 +29,9 @@ jest.mock('../../constants/teamColors', () => ({
   }),
 }));
 
-import React from 'react';
-
 // Override React hooks to work outside render cycle
 (React as any).useCallback = (fn: any) => fn;
 (React as any).useMemo = (fn: any) => fn();
-
-import GoalieSpotlightCardMemo from '../GoalieSpotlightCard';
-import type { TrendingGoalie } from '../../services/playerTrends';
 
 const GoalieSpotlightCard = (GoalieSpotlightCardMemo as any).type || GoalieSpotlightCardMemo;
 
@@ -136,23 +136,35 @@ describe('GoalieSpotlightCard', () => {
     });
   });
 
-  describe('team color accent', () => {
-    it('applies team primary color to left border for NYR', () => {
+  describe('card style', () => {
+    // The redesigned card uses a Pressable style FUNCTION returning an array,
+    // and no longer applies a team-color left border. The base card style is
+    // the first element; the pressed style is appended only while pressed.
+    it('exposes a style function returning the base card style', () => {
       const result = GoalieSpotlightCard({ goalie: makeGoalie({ teamAbbrev: 'NYR' }), onPress: mockOnPress });
       const style = result?.props?.style;
-      expect(style).toEqual(
+      expect(typeof style).toBe('function');
+      const resolved = style({ pressed: false });
+      expect(resolved).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ borderLeftColor: '#0038A8', borderLeftWidth: 4 }),
+          expect.objectContaining({
+            backgroundColor: '#141829',
+            borderWidth: 1,
+            borderColor: 'rgba(255, 255, 255, 0.10)',
+          }),
         ]),
       );
     });
 
-    it('uses different color for different team', () => {
+    it('appends the pressed style only while pressed', () => {
       const result = GoalieSpotlightCard({ goalie: makeGoalie({ teamAbbrev: 'MTL' }), onPress: mockOnPress });
       const style = result?.props?.style;
-      expect(style).toEqual(
+      const pressed = style({ pressed: true }).filter(Boolean);
+      const notPressed = style({ pressed: false }).filter(Boolean);
+      expect(pressed.length).toBe(notPressed.length + 1);
+      expect(pressed).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ borderLeftColor: '#CE1126' }),
+          expect.objectContaining({ opacity: 0.9 }),
         ]),
       );
     });
@@ -160,38 +172,40 @@ describe('GoalieSpotlightCard', () => {
 
   describe('trend badge styling', () => {
     it('applies HOT trend border color to badge', () => {
+      // HOT maps to rinkGlass.goalLight (#f72585)
       const result = GoalieSpotlightCard({ goalie: makeGoalie({ trendLabel: 'HOT' }), onPress: mockOnPress });
       const views = findByType(result, 'View');
       const badge = views.find(
         (v: any) => v?.props?.style && Array.isArray(v.props.style) &&
-          v.props.style.some((s: any) => s?.borderColor === '#ef4444'),
+          v.props.style.some((s: any) => s?.borderColor === '#f72585'),
       );
       expect(badge).toBeTruthy();
     });
 
     it('applies COLD trend border color to badge', () => {
+      // COLD maps to rinkGlass.blueLight (#4cc9f0)
       const result = GoalieSpotlightCard({ goalie: makeGoalie({ trendLabel: 'COLD' }), onPress: mockOnPress });
       const views = findByType(result, 'View');
       const badge = views.find(
         (v: any) => v?.props?.style && Array.isArray(v.props.style) &&
-          v.props.style.some((s: any) => s?.borderColor === '#6366f1'),
+          v.props.style.some((s: any) => s?.borderColor === '#4cc9f0'),
       );
       expect(badge).toBeTruthy();
     });
   });
 
   describe('save percentage display', () => {
-    it('shows L5 SV% label and value', () => {
+    it('shows LAST 5 SV% label and value', () => {
       const result = GoalieSpotlightCard({ goalie: makeGoalie({ savePct5g: 0.935 }), onPress: mockOnPress });
       const texts = collectTexts(result);
-      expect(texts).toContain('L5 SV%');
+      expect(texts).toContain('LAST 5 SV%');
       expect(texts).toContain('93.5%');
     });
 
     it('shows season SV% label and value', () => {
       const result = GoalieSpotlightCard({ goalie: makeGoalie({ seasonSavePct: 0.918 }), onPress: mockOnPress });
       const texts = collectTexts(result);
-      expect(texts).toContain('SEASON');
+      expect(texts).toContain('SEASON SV%');
       expect(texts).toContain('91.8%');
     });
 
@@ -220,10 +234,10 @@ describe('GoalieSpotlightCard', () => {
         const content = collectTexts(t);
         return content.includes('93.5%');
       });
-      // Style array includes statValueGreen = { color: '#22c55e' }
+      // Style array includes statValueGreen = { color: rinkGlass.faceoffDot (#06d6a0) }
       expect(svPctNode?.props?.style).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ color: '#22c55e' }),
+          expect.objectContaining({ color: '#06d6a0' }),
         ]),
       );
     });
@@ -239,9 +253,10 @@ describe('GoalieSpotlightCard', () => {
         const content = collectTexts(t);
         return content.includes('88.0%');
       });
+      // statValueRed = { color: rinkGlass.redLine (#e63946) }
       expect(svPctNode?.props?.style).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ color: '#ef4444' }),
+          expect.objectContaining({ color: '#e63946' }),
         ]),
       );
     });
@@ -258,8 +273,8 @@ describe('GoalieSpotlightCard', () => {
         return content.includes('91.5%');
       });
       const styleStr = JSON.stringify(svPctNode?.props?.style || {});
-      expect(styleStr).not.toContain('#22c55e');
-      expect(styleStr).not.toContain('#ef4444');
+      expect(styleStr).not.toContain('#06d6a0');
+      expect(styleStr).not.toContain('#e63946');
     });
 
     it('no color override when either SV% is null', () => {
@@ -273,16 +288,16 @@ describe('GoalieSpotlightCard', () => {
         return content.includes('---');
       });
       const styleStr = JSON.stringify(dashNode?.props?.style || {});
-      expect(styleStr).not.toContain('#22c55e');
-      expect(styleStr).not.toContain('#ef4444');
+      expect(styleStr).not.toContain('#06d6a0');
+      expect(styleStr).not.toContain('#e63946');
     });
   });
 
   describe('GAA display', () => {
-    it('shows L5 GAA label and value', () => {
+    it('shows LAST 5 GAA label and value', () => {
       const result = GoalieSpotlightCard({ goalie: makeGoalie({ avgGa5g: 1.8 }), onPress: mockOnPress });
       const texts = collectTexts(result);
-      expect(texts).toContain('L5 GAA');
+      expect(texts).toContain('LAST 5 GAA');
       expect(texts).toContain('1.80');
     });
 

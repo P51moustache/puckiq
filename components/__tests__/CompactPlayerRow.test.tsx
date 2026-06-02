@@ -1,10 +1,15 @@
 /**
  * Tests for CompactPlayerRow component
  * Verifies rendering of ranks #6-10: rank, small headshot, last name only,
- * team abbrev, trend pill or flame badges, and stat value.
+ * team abbrev, trend pill (text label, not flame badges), and stat value.
  */
 
 // Mock react-native (string components)
+import React from 'react';
+
+import CompactPlayerRowMemo from '../CompactPlayerRow';
+import type { TrendingPlayer, StatCategory } from '../../services/playerTrends';
+
 jest.mock('react-native', () => ({
   View: 'View',
   Text: 'Text',
@@ -25,14 +30,9 @@ jest.mock('../../constants/teamColors', () => ({
   }),
 }));
 
-import React from 'react';
-
 // Override React hooks to work outside render cycle
 (React as any).useCallback = (fn: any) => fn;
 (React as any).useMemo = (fn: any) => fn();
-
-import CompactPlayerRowMemo from '../CompactPlayerRow';
-import type { TrendingPlayer, StatCategory } from '../../services/playerTrends';
 
 const CompactPlayerRow = (CompactPlayerRowMemo as any).type || CompactPlayerRowMemo;
 
@@ -189,8 +189,13 @@ describe('CompactPlayerRow', () => {
     });
   });
 
-  describe('flame badges and trend pills', () => {
-    it('renders flame emojis for HOT trend (5 flames)', () => {
+  // NOTE: The redesigned row no longer renders flame emojis for HOT/WARM trends.
+  // Every non-STEADY trend is now shown as a text "pill": a bordered View wrapping
+  // a Text node that displays the raw trendLabel (e.g. "HOT", "WARM", "COOL",
+  // "COLD"). The pill is tinted via `borderColor` (background stays transparent)
+  // using TREND_COLORS; STEADY renders no pill at all.
+  describe('trend pills', () => {
+    it('renders the HOT trend label as a text pill', () => {
       const result = CompactPlayerRow({
         player: makePlayer({ trendLabel: 'HOT' }),
         rank: 6,
@@ -198,12 +203,13 @@ describe('CompactPlayerRow', () => {
         onPress: mockOnPress,
       });
       const texts = collectTexts(result);
+      expect(texts).toContain('HOT');
+      // Redesigned row uses text pills, not flame emojis.
       const flameText = texts.find(t => t.includes('\uD83D\uDD25'));
-      expect(flameText).toBeTruthy();
-      expect(flameText!.split('\uD83D\uDD25').length - 1).toBe(5);
+      expect(flameText).toBeFalsy();
     });
 
-    it('renders flame emojis for WARM trend (4 flames)', () => {
+    it('renders the WARM trend label as a text pill', () => {
       const result = CompactPlayerRow({
         player: makePlayer({ trendLabel: 'WARM' }),
         rank: 6,
@@ -211,9 +217,9 @@ describe('CompactPlayerRow', () => {
         onPress: mockOnPress,
       });
       const texts = collectTexts(result);
+      expect(texts).toContain('WARM');
       const flameText = texts.find(t => t.includes('\uD83D\uDD25'));
-      expect(flameText).toBeTruthy();
-      expect(flameText!.split('\uD83D\uDD25').length - 1).toBe(4);
+      expect(flameText).toBeFalsy();
     });
 
     it('renders COLD trend label as text pill', () => {
@@ -254,7 +260,7 @@ describe('CompactPlayerRow', () => {
       expect(flameText).toBeFalsy();
     });
 
-    it('applies COLD trend color to pill background', () => {
+    it('applies the COLD trend color to the pill border', () => {
       const result = CompactPlayerRow({
         player: makePlayer({ trendLabel: 'COLD' }),
         rank: 6,
@@ -262,9 +268,11 @@ describe('CompactPlayerRow', () => {
         onPress: mockOnPress,
       });
       const views = findByType(result, 'View');
+      // The pill is a bordered View whose borderColor is the trend color
+      // (rinkGlass.blueLight = '#4cc9f0' for COLD). Background is transparent.
       const pill = views.find(
         (v: any) => v?.props?.style && Array.isArray(v.props.style) &&
-          v.props.style.some((s: any) => typeof s?.backgroundColor === 'string' && s.backgroundColor.endsWith('22')),
+          v.props.style.some((s: any) => s?.borderColor === '#4cc9f0'),
       );
       expect(pill).toBeTruthy();
     });

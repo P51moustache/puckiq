@@ -4,6 +4,10 @@
  */
 import React from 'react';
 
+// ---- Imports (after mocks) ----
+
+import MatchupAnalyzer from '../MatchupAnalyzer';
+
 // ---- Mocks (before imports) ----
 
 jest.mock('react-native', () => ({
@@ -50,10 +54,6 @@ const mockAnalyzeMatchup = jest.fn();
 jest.mock('../../services/matchupAnalysis', () => ({
   analyzeMatchup: (...args: any[]) => mockAnalyzeMatchup(...args),
 }));
-
-// ---- Imports (after mocks) ----
-
-import MatchupAnalyzer from '../MatchupAnalyzer';
 
 // ---- Tests ----
 

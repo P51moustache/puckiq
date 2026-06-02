@@ -8,6 +8,8 @@
 
 import React from 'react';
 
+import EdgeSpotlight from '../EdgeSpotlight';
+
 // Mock react-native
 jest.mock('react-native', () => ({
   View: ({ children, ...props }: any) =>
@@ -65,8 +67,6 @@ jest.mock('../../constants/teamColors', () => ({
   }),
   getAccessibleTextColor: () => '#4488cc',
 }));
-
-import EdgeSpotlight from '../EdgeSpotlight';
 
 // Helpers to navigate the element tree
 function collectText(node: any): string[] {

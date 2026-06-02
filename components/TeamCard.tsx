@@ -2,7 +2,7 @@ import React from 'react';
 import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { theme, rinkGlass } from '../constants/theme';
+import { theme } from '../constants/theme';
 import { getTeamLogoUrl } from '../utils/teamLogo';
 
 const screenWidth = Dimensions.get('window').width;

@@ -3,6 +3,10 @@
  * Uses direct function-call rendering pattern (no @testing-library/react-native).
  */
 
+import React from 'react';
+import InfoTooltip from '../InfoTooltip';
+import type { GlossaryEntry } from '../../constants/glossary';
+
 jest.mock('react-native', () => ({
   Modal: 'Modal',
   Pressable: 'Pressable',
@@ -32,10 +36,6 @@ jest.mock('../../constants/theme', () => ({
     accent: '#60a5fa',
   },
 }));
-
-import React from 'react';
-import InfoTooltip from '../InfoTooltip';
-import type { GlossaryEntry } from '../../constants/glossary';
 
 const mockEntry: GlossaryEntry = {
   term: 'LOCK',
