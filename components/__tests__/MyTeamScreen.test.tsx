@@ -14,6 +14,7 @@ jest.mock('react-native', () => {
     ActivityIndicator: (props: any) => React.createElement('ActivityIndicator', props),
     TextInput: (props: any) => React.createElement('TextInput', props),
     FlatList: (props: any) => React.createElement('FlatList', props),
+    Alert: { alert: jest.fn() },
     Modal: ({ children, visible, ...props }: any) =>
       visible ? React.createElement('Modal', props, children) : null,
     StyleSheet: { create: (s: any) => s, absoluteFillObject: {}, hairlineWidth: 0.5 },
@@ -175,7 +176,7 @@ describe('MyTeamScreen', () => {
       expect(findByTestId(tree, 'my-team-empty')).toHaveLength(1);
       const texts = getAllText(tree);
       expect(texts).toContain('Build Your Roster');
-      expect(texts.some(t => t.includes('personalized start/sit'))).toBe(true);
+      expect(texts.some(t => t.includes('fantasy team'))).toBe(true);
     });
 
     it('shows setup CTA button', () => {
@@ -208,9 +209,11 @@ describe('MyTeamScreen', () => {
       expect(findByTestId(tree, 'my-team-roster')).toHaveLength(1);
     });
 
-    it('displays scoring format badge', () => {
+    it('lists roster players and scoring format', () => {
       const tree = render();
-      expect(getAllText(tree)).toContain('Yahoo');
+      const texts = getAllText(tree);
+      expect(texts).toContain('Connor McDavid');
+      expect(texts.some((t) => t.includes('Yahoo'))).toBe(true);
     });
 
     it('shows edit roster button', () => {
@@ -218,61 +221,19 @@ describe('MyTeamScreen', () => {
       expect(findByTestId(tree, 'edit-roster-button')).toHaveLength(1);
     });
 
-    it('renders StartSitCard for projected players', () => {
-      const tree = render();
-      const cards = findByTestId(tree, 'start-sit-card');
-      expect(cards.length).toBeGreaterThanOrEqual(1);
-    });
-
-    it('renders WeeklyOutlook', () => {
-      const tree = render();
-      expect(findByTestId(tree, 'weekly-outlook')).toHaveLength(1);
-    });
-
-    it('shows no projections message when no games', () => {
+    it('does not show league-wide waiver or projection chrome', () => {
       mockUseMyTeamData.mockReturnValue({
         isLoading: false,
         roster: mockRoster,
-        projections: [],
-        waiverPicks: [],
-        hasRoster: true,
-        onRefresh: jest.fn(),
-      });
-
-      const tree = render();
-      expect(findByTestId(tree, 'my-team-roster')).toHaveLength(1);
-      const texts = getAllText(tree);
-      expect(texts.some(t => t.includes('No projections available'))).toBe(true);
-    });
-  });
-
-  describe('Waiver wire', () => {
-    it('renders WaiverWireSection when picks exist', () => {
-      mockUseMyTeamData.mockReturnValue({
-        isLoading: false,
-        roster: mockRoster,
-        projections: [],
+        projections: mockProjections,
         waiverPicks: mockWaiverPicks,
         hasRoster: true,
         onRefresh: jest.fn(),
       });
-
-      const tree = render();
-      expect(findByTestId(tree, 'waiver-wire-section')).toHaveLength(1);
-    });
-
-    it('does not render WaiverWireSection when no picks', () => {
-      mockUseMyTeamData.mockReturnValue({
-        isLoading: false,
-        roster: mockRoster,
-        projections: [],
-        waiverPicks: [],
-        hasRoster: true,
-        onRefresh: jest.fn(),
-      });
-
       const tree = render();
       expect(findByTestId(tree, 'waiver-wire-section')).toHaveLength(0);
+      expect(findByTestId(tree, 'weekly-outlook')).toHaveLength(0);
+      expect(getAllText(tree)).toContain('Nathan MacKinnon');
     });
   });
 });

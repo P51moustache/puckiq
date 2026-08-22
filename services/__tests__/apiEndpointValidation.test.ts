@@ -143,6 +143,13 @@ describe('NHL API endpoint URL patterns', () => {
       expect(url).toMatch(/\/v1\/gamecenter\/\d+\/right-rail$/);
     });
   });
+
+  describe('official NHL player search', () => {
+    it('uses the NHL site search player endpoint', () => {
+      const url = 'https://search.d3.nhle.com/api/v1/search/player?culture=en-us&limit=20&q=mcdavid';
+      expect(url).toMatch(/search\.d3\.nhle\.com\/api\/v1\/search\/player/);
+    });
+  });
 });
 
 describe('NHL API parameter validation', () => {

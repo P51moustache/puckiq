@@ -7,6 +7,7 @@ import {
   removePlayerFromRoster,
   clearRoster,
   getScoringFormat,
+  ensureRoster,
 } from '../fantasyRoster';
 import type { FantasyRoster, FantasyPlayer } from '../../types/fantasy';
 
@@ -218,6 +219,24 @@ describe('fantasyRoster service', () => {
     it('throws on storage error', async () => {
       mockRemoveItem.mockRejectedValue(new Error('Storage error'));
       await expect(clearRoster()).rejects.toThrow('Storage error');
+    });
+  });
+
+  describe('ensureRoster', () => {
+    it('returns the existing roster without writing a new one', async () => {
+      const roster = makeRoster({ players: [makePlayer()] });
+      mockGetItem.mockResolvedValue(JSON.stringify(roster));
+      const result = await ensureRoster();
+      expect(result).toEqual(roster);
+      expect(mockSetItem).not.toHaveBeenCalled();
+    });
+
+    it('creates an empty default roster when none exists', async () => {
+      mockGetItem.mockResolvedValue(null);
+      const result = await ensureRoster();
+      expect(result.name).toBe('My Team');
+      expect(result.players).toEqual([]);
+      expect(mockSetItem).toHaveBeenCalled();
     });
   });
 

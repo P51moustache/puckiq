@@ -6,12 +6,11 @@ import { IconSymbol } from '../../components/ui/IconSymbol';
 import TabBarBackground from '../../components/ui/TabBarBackground';
 import { rinkGlass } from '../../constants/theme';
 
-/** Force the Upcoming tab as the initial route on every app load */
+/** Tonight (my roster) is the only home. */
 export const unstable_settings = {
   initialRouteName: 'index',
 };
 
-/** Small glowing dot rendered beneath the active tab icon */
 const GlowDot = () => (
   <View style={{
     width: 5,
@@ -52,13 +51,10 @@ export default function TabLayout() {
           },
         }),
       }}>
-      {/* 4-tab layout: Today, Players, Compare, Hub.
-          MyTeam is hidden — fantasy product is paused; the route stays so
-          deep links don't 404 if anyone has them bookmarked. */}
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Today',
+          title: 'Tonight',
           tabBarIcon: ({ color, focused }) => (
             <View style={{ alignItems: 'center' }}>
               <IconSymbol size={24} name="hockey.puck.fill" color={color} />
@@ -68,24 +64,24 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="players"
+        name="news"
         options={{
-          title: 'Players',
+          title: 'News',
           tabBarIcon: ({ color, focused }) => (
             <View style={{ alignItems: 'center' }}>
-              <IconSymbol size={24} name="person.2.fill" color={color} />
+              <IconSymbol size={24} name="newspaper.fill" color={color} />
               {focused && <GlowDot />}
             </View>
           ),
         }}
       />
       <Tabs.Screen
-        name="stats"
+        name="myteam"
         options={{
-          title: 'Compare',
+          title: 'Roster',
           tabBarIcon: ({ color, focused }) => (
             <View style={{ alignItems: 'center' }}>
-              <IconSymbol size={24} name="chart.bar.fill" color={color} />
+              <IconSymbol size={24} name="person.2.fill" color={color} />
               {focused && <GlowDot />}
             </View>
           ),
@@ -103,8 +99,9 @@ export default function TabLayout() {
           ),
         }}
       />
-      {/* Hidden screens — reachable via deep link or lazy import, not in tab bar */}
-      <Tabs.Screen name="myteam" options={{ href: null }} />
+      {/* League-wide briefing surfaces stay in the repo but off the tab bar. */}
+      <Tabs.Screen name="players" options={{ href: null }} />
+      <Tabs.Screen name="stats" options={{ href: null }} />
       <Tabs.Screen name="models" options={{ href: null }} />
       <Tabs.Screen name="teams" options={{ href: null }} />
     </Tabs>
