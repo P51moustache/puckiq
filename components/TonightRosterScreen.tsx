@@ -16,6 +16,7 @@ import { useTonightRoster } from '../hooks/useTonightRoster';
 import PageHeader from './PageHeader';
 import RosterBuilder from './RosterBuilder';
 import SportsAdSlot from './SportsAdSlot';
+import CoachSuggestionsCard from './CoachSuggestionsCard';
 import TonightPlayerRow from './TonightPlayerRow';
 import { isAdSlotEnabled } from '../constants/monetization';
 
@@ -93,6 +94,8 @@ export default function TonightRosterScreen() {
           </View>
         ) : (
           <View testID="tonight-roster">
+            <CoachSuggestionsCard statuses={statuses} />
+
             <View style={styles.summary}>
               <Text style={styles.summaryText}>
                 {`${playing.length} play tonight · ${offNight.length} off`}

@@ -17,6 +17,7 @@ import { useAuthContext } from './auth/AuthProvider';
 import { useSubscription } from './SubscriptionProvider';
 import PageHeader from './PageHeader';
 import ProPaywall from './ProPaywall';
+import CoachAlertsCard from './CoachAlertsCard';
 import { FREE_FEATURES, LIST_PRICE_ANNUAL, PRO_UNLOCKS, isPaywallEnabled } from '../constants/monetization';
 import { restorePurchases } from '../services/subscription';
 import {
@@ -227,6 +228,11 @@ export default function HubScreen() {
               <Text style={s.toggleHelper}>Pro unlocks goalie / scratch / injury alerts for MY players.</Text>
             )}
           </View>
+        </View>
+
+        <View style={s.section}>
+          <SectionHeader icon="flash-outline" title="Coach alerts" />
+          <CoachAlertsCard />
         </View>
 
         {/* ── Account ───────────────────────────────────── */}

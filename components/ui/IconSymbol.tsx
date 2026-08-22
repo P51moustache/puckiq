@@ -23,6 +23,7 @@ const MAPPING = {
   'person.2.fill': 'people',
   'person.crop.circle.fill': 'account-circle',
   'newspaper.fill': 'article',
+  'flag.fill': 'flag',
 } as IconMapping;
 
 /**

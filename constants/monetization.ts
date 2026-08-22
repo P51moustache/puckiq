@@ -13,10 +13,11 @@ export const FREE_FEATURES = [
 ] as const;
 
 export const PRO_UNLOCKS = [
+  'Coach: sit / start / drop for MY roster (matchup + injury, not a fake model)',
+  'Alerts for MY players (goalie unconfirmed, scratch, better stream)',
+  'League view: my team vs a friend’s roster (Yahoo attach later)',
   'Yahoo / ESPN roster sync (when OAuth ships)',
-  'Push alerts only for MY players (goalie / scratch / injury)',
   'No ads',
-  'More than one league (later)',
 ] as const;
 
 /** Paywall Subscribe/Restore UI. Off only when explicitly set to "0". */

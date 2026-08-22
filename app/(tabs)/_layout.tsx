@@ -76,6 +76,18 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="league"
+        options={{
+          title: 'League',
+          tabBarIcon: ({ color, focused }) => (
+            <View style={{ alignItems: 'center' }}>
+              <IconSymbol size={24} name="flag.fill" color={color} />
+              {focused && <GlowDot />}
+            </View>
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="myteam"
         options={{
           title: 'Roster',

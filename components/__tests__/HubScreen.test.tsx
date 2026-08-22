@@ -116,6 +116,11 @@ jest.mock('../ReferralCard', () => {
   return () => React.createElement('View', { testID: 'referral-card' });
 });
 
+jest.mock('../CoachAlertsCard', () => {
+  const React = require('react');
+  return () => React.createElement('View', { testID: 'coach-alerts' });
+});
+
 jest.mock('../ProPaywall', () => {
   const React = require('react');
   return ({ visible }: any) => (visible ? React.createElement('View', { testID: 'pro-paywall' }) : null);

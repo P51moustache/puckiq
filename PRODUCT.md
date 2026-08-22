@@ -1,8 +1,8 @@
 # PuckIQ — one job
 
-PuckIQ is for **managing MY fantasy hockey team**. It is not a league-wide NHL briefing hub.
+PuckIQ is for **managing MY fantasy hockey team**. It is not a league-wide NHL briefing hub, and it does not host a new Yahoo/ESPN-style league.
 
-Left Wing Lock already owns generic goalie/line briefings. This app only answers: *who on my roster should I start tonight, and what news about those players can change that?*
+Left Wing Lock already owns generic goalie/line briefings. Friends already have a Yahoo or ESPN league — we attach to it later. This app only answers: *what should I do with MY roster tonight to be the best in THAT league?*
 
 ## v1
 
@@ -15,15 +15,22 @@ Left Wing Lock already owns generic goalie/line briefings. This app only answers
 
 PuckIQ is a **subscription**, not a one-time price.
 
+Pro should feel like a **coach that makes you the best in YOUR league** — not another briefing hub.
+
 | | Free | Pro (`$14.99/yr` or `$1.99/mo` list) |
 |---|---|---|
 | Manual roster + Tonight + filtered news | Yes | Yes |
+| One sample coach suggestion | Yes | Full sit / start / drop list |
+| Coach suggestions (sit X / start Y / drop Z) from MY roster + public NHL matchup/injury | Sample only | Unlock |
+| Alerts: “your goalie isn’t confirmed”, “your winger is a scratch”, “better stream available” | Copy + permission | Unlock (server push later) |
+| League screen: MY team vs a manually added opponent roster | Yes (manual) | Same + Yahoo attach later |
+| Invite friend / attach Yahoo league | Placeholder | Same until OAuth |
 | Yahoo / ESPN roster sync | — (when it ships, Pro only) | Unlock |
-| Push alerts for MY players (goalie / scratch / injury) | — | Unlock |
 | Ads | May show one dismissible sports-ad slot later | None |
-| More than one league | — | Later |
 
-Free is usable on purpose. Pro is the hockey-season extras worth paying for.
+The coach is honest and simple: **has a game tonight + injury/scratch**. Not a fake neural net. No waivers engine, no scoring host, no social graph, no SMS invites.
+
+Free is usable on purpose — the coaching layer is the reason to pay.
 
 RevenueCat is already in the repo (`services/subscription.ts`, entitlement `pro`). Settings shows Subscribe / Restore. The paywall UI is on unless `EXPO_PUBLIC_PAYWALL_ENABLED=0`. Store products still need to be created in App Store Connect + RevenueCat.
 
@@ -35,4 +42,4 @@ Live listing today is **paid $1.99** (`com.zlce.hockeystats`). Switching to free
 
 ## Later
 
-Other sports, Yahoo/ESPN OAuth import, and deeper category-vs-category tools. Not a second briefing product.
+Other sports, Yahoo/ESPN OAuth import (attach the league they already play), and deeper category-vs-category tools. Not a second briefing product and not a new fantasy-league host.
