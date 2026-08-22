@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { rinkGlass } from '../constants/theme';
-import { COACH_ALERT_COPY } from '../services/coachSuggestions';
+import { COACH_ALERT_COPY, NHL_TIMING_NOTE } from '../services/coachSuggestions';
 import { requestNotificationPermissions } from '../services/notifications';
 
 export default function CoachAlertsCard() {
@@ -16,8 +16,9 @@ export default function CoachAlertsCard() {
 
   return (
     <View style={styles.card} testID="coach-alerts">
-      <Text style={styles.kicker}>PRO ALERTS</Text>
+      <Text style={styles.kicker}>PRO ALERTS · BEFORE LOCK</Text>
       <Text style={styles.title}>Only for MY players</Text>
+      <Text style={styles.timing}>{NHL_TIMING_NOTE}</Text>
       {COACH_ALERT_COPY.map((item) => (
         <View key={item.id} style={styles.row} testID={`coach-alert-${item.id}`}>
           <Text style={styles.alertTitle}>{item.title}</Text>
@@ -51,6 +52,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: rinkGlass.textPrimary,
+    marginBottom: 6,
+  },
+  timing: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: rinkGlass.textMuted,
     marginBottom: 12,
   },
   row: {

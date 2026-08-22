@@ -14,8 +14,10 @@ describe('monetization flags', () => {
   it('keeps the core app on the free list and extras on Pro', () => {
     expect(FREE_FEATURES.join(' ')).toMatch(/Tonight/);
     expect(FREE_FEATURES.join(' ')).toMatch(/News/);
+    expect(FREE_FEATURES.join(' ')).toMatch(/whole week/i);
     expect(PRO_UNLOCKS.join(' ')).toMatch(/Yahoo/);
-    expect(PRO_UNLOCKS.join(' ')).toMatch(/alerts/i);
+    expect(PRO_UNLOCKS.join(' ')).toMatch(/before that player/i);
+    expect(PRO_UNLOCKS.join(' ')).toMatch(/never write your lineup/i);
     expect(PRO_UNLOCKS.join(' ')).toMatch(/No ads/);
   });
 

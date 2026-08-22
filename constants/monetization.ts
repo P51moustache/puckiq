@@ -8,15 +8,16 @@ export const LIST_PRICE_MONTHLY = '$1.99/mo';
 
 export const FREE_FEATURES = [
   'Manual roster (search and save NHL players)',
-  'Tonight status for MY players only',
+  'Tonight status for MY players only — lock countdown + Confirmed / Likely / Unknown',
+  'The whole week of MY games — no paywall',
   'News filtered to MY players',
 ] as const;
 
 export const PRO_UNLOCKS = [
   'Coach: sit / start / drop for MY roster (matchup + injury, not a fake model)',
-  'Alerts for MY players (goalie unconfirmed, scratch, better stream)',
+  'Alerts only for MY players, before that player’s game locks',
   'League view: my team vs a friend’s roster (Yahoo attach later)',
-  'Yahoo / ESPN roster sync (when OAuth ships)',
+  'Yahoo / ESPN roster read (when OAuth ships) — we never write your lineup in v1',
   'No ads',
 ] as const;
 

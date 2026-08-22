@@ -26,7 +26,7 @@ export default function SportsAdSlot() {
         </TouchableOpacity>
       </View>
       <Text style={styles.copy}>
-        Placeholder only. No live ad network. Pro removes this slot.
+        Quiet slot only. Never a full-screen ad after a roster move. No AdMob.
       </Text>
     </View>
   );

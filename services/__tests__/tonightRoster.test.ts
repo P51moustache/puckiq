@@ -54,12 +54,14 @@ describe('buildTonightStatus', () => {
     expect(row.isHome).toBe(true);
     expect(row.recommendation).toBe('START');
     expect(row.injurySignal).toBe('ok');
+    expect(row.confidence).toBe('unknown');
   });
 
   it('sits a scratched player', () => {
     const row = buildTonightStatus(mcdavid, game, new Set([8478402]));
     expect(row.injurySignal).toBe('scratch');
     expect(row.recommendation).toBe('SIT');
+    expect(row.confidence).toBe('confirmed');
   });
 
   it('sits when the team is off', () => {
@@ -83,6 +85,23 @@ describe('buildTonightStatus', () => {
     const row = buildTonightStatus(mcdavid, game, new Set(), news);
     expect(row.injurySignal).toBe('out');
     expect(row.recommendation).toBe('SIT');
+    expect(row.confidence).toBe('likely');
+  });
+
+  it('never upgrades a news scratch to Confirmed', () => {
+    const news: RosterNewsItem[] = [{
+      id: '1',
+      title: 'McDavid a healthy scratch tonight',
+      url: 'https://example.com',
+      summary: '',
+      publishedAt: '',
+      source: 'ESPN NHL',
+      matchedPlayerIds: [8478402],
+      matchedPlayerNames: ['Connor McDavid'],
+    }];
+    const row = buildTonightStatus(mcdavid, game, new Set(), news);
+    expect(row.injurySignal).toBe('scratch');
+    expect(row.confidence).toBe('likely');
   });
 });
 

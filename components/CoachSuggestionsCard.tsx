@@ -1,7 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { rinkGlass } from '../constants/theme';
-import { buildCoachSuggestions, visibleCoachSuggestions } from '../services/coachSuggestions';
+import {
+  LINEUP_HOST_NOTE,
+  buildCoachSuggestions,
+  visibleCoachSuggestions,
+} from '../services/coachSuggestions';
 import type { TonightPlayerStatus } from '../types/fantasy';
 import { useSubscription } from './SubscriptionProvider';
 import ProPaywall from './ProPaywall';
@@ -31,7 +35,7 @@ export default function CoachSuggestionsCard({
   return (
     <View style={styles.card} testID="coach-suggestions">
       <Text style={styles.kicker}>COACH</Text>
-      <Text style={styles.title}>Tonight for YOUR league</Text>
+      <Text style={styles.title}>Change it in their app</Text>
       {visible.map((row) => (
         <View key={row.id} style={styles.row} testID={`coach-${row.action.toLowerCase()}`}>
           <Text style={[styles.action, { color: ACTION_COLOR[row.action] }]}>{row.action}</Text>
@@ -51,6 +55,7 @@ export default function CoachSuggestionsCard({
           </Text>
         </TouchableOpacity>
       ) : null}
+      <Text style={styles.hostNote} testID="coach-host-note">{LINEUP_HOST_NOTE}</Text>
       <ProPaywall visible={showPaywall} onClose={() => setShowPaywall(false)} />
     </View>
   );
@@ -109,5 +114,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: rinkGlass.blueLight,
+  },
+  hostNote: {
+    marginTop: 8,
+    fontSize: 12,
+    lineHeight: 16,
+    color: rinkGlass.textMuted,
   },
 });

@@ -17,8 +17,11 @@ import PageHeader from './PageHeader';
 import RosterBuilder from './RosterBuilder';
 import SportsAdSlot from './SportsAdSlot';
 import CoachSuggestionsCard from './CoachSuggestionsCard';
+import MyWeekStrip from './MyWeekStrip';
 import TonightPlayerRow from './TonightPlayerRow';
 import { isAdSlotEnabled } from '../constants/monetization';
+import { NHL_TIMING_NOTE } from '../services/coachSuggestions';
+import { buildTonightHeadline } from '../services/tonightHeadline';
 
 function formatSlateDate(date: string | null): string {
   if (!date) {
@@ -34,7 +37,7 @@ function formatSlateDate(date: string | null): string {
 
 export default function TonightRosterScreen() {
   const router = useRouter();
-  const { isLoading, hasRoster, roster, date, nextDate, statuses, error, onRefresh } = useTonightRoster();
+  const { isLoading, hasRoster, roster, date, nextDate, statuses, week, error, onRefresh } = useTonightRoster();
   const [showBuilder, setShowBuilder] = useState(false);
 
   const playing = useMemo(
@@ -45,6 +48,7 @@ export default function TonightRosterScreen() {
     () => statuses.filter((row) => !row.opponentAbbrev),
     [statuses],
   );
+  const headline = useMemo(() => buildTonightHeadline(statuses), [statuses]);
 
   const handleSaved = useCallback(() => {
     setShowBuilder(false);
@@ -73,16 +77,15 @@ export default function TonightRosterScreen() {
       >
         <PageHeader
           title="Tonight"
-          subtitle={`${formatSlateDate(date)} · My roster`}
+          subtitle={`${formatSlateDate(date)} · Hockey only`}
         />
-        {isAdSlotEnabled() ? <SportsAdSlot /> : null}
 
         {!hasRoster ? (
           <View style={styles.empty} testID="tonight-empty">
             <Ionicons name="trophy-outline" size={48} color={rinkGlass.blueLight} />
-            <Text style={styles.emptyTitle}>Add your fantasy team</Text>
+            <Text style={styles.emptyTitle}>Add YOUR guys</Text>
             <Text style={styles.emptyCopy}>
-              Search NHL players, save ~12 names, and Tonight only shows those players — opponent, scratch/injury, start/sit.
+              Search NHL players, save ~12 names. Home is how many of YOUR guys play, what’s broken, and one move — not a league briefing.
             </Text>
             <TouchableOpacity
               style={styles.cta}
@@ -94,17 +97,16 @@ export default function TonightRosterScreen() {
           </View>
         ) : (
           <View testID="tonight-roster">
-            <CoachSuggestionsCard statuses={statuses} />
-
             <View style={styles.summary}>
-              <Text style={styles.summaryText}>
-                {`${playing.length} play tonight · ${offNight.length} off`}
-              </Text>
+              <Text style={styles.headline} testID="tonight-headline">{headline.text}</Text>
               {statuses.length > 0 && playing.length === 0 && nextDate ? (
                 <Text style={styles.nextSlate}>Next NHL slate {nextDate}</Text>
               ) : null}
               {error ? <Text style={styles.error}>{error}</Text> : null}
             </View>
+
+            <MyWeekStrip week={week} today={date} />
+            <CoachSuggestionsCard statuses={statuses} />
 
             {playing.length > 0 && (
               <View style={styles.section}>
@@ -124,6 +126,8 @@ export default function TonightRosterScreen() {
               </View>
             )}
 
+            <Text style={styles.honesty} testID="tonight-honesty">{NHL_TIMING_NOTE}</Text>
+
             <TouchableOpacity
               style={styles.secondary}
               onPress={() => router.push('/myteam')}
@@ -132,6 +136,8 @@ export default function TonightRosterScreen() {
               <Ionicons name="pencil" size={16} color={rinkGlass.blueLight} />
               <Text style={styles.secondaryText}>Edit roster</Text>
             </TouchableOpacity>
+
+            {isAdSlotEnabled() ? <SportsAdSlot /> : null}
           </View>
         )}
       </ScrollView>
@@ -196,10 +202,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 12,
   },
-  summaryText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: rinkGlass.textSecondary,
+  headline: {
+    fontSize: 20,
+    fontWeight: '800',
+    lineHeight: 26,
+    fontFamily: rinkGlass.fonts.display,
+    color: rinkGlass.textPrimary,
+  },
+  honesty: {
+    paddingHorizontal: 16,
+    marginBottom: 4,
+    fontSize: 12,
+    lineHeight: 16,
+    color: rinkGlass.textMuted,
   },
   nextSlate: {
     marginTop: 4,

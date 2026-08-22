@@ -38,6 +38,7 @@ function status(overrides: Partial<TonightPlayerStatus>): TonightPlayerStatus {
     gameState: 'FUT',
     injurySignal: 'ok',
     injuryNote: null,
+    confidence: 'unknown',
     recommendation: 'START',
     reason: "In tonight's lineup",
     ...overrides,
@@ -61,6 +62,7 @@ describe('CoachSuggestionsCard', () => {
     expect(byId('coach-suggestions')).toHaveLength(1);
     expect(byId('coach-drop')).toHaveLength(1);
     expect(byId('coach-unlock')).toHaveLength(1);
+    expect(byId('coach-host-note')).toHaveLength(1);
   });
 
   it('shows the full coach list for Pro', () => {

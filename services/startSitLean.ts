@@ -41,7 +41,7 @@ export function leanStartSit(input: LeanInput): LeanResult {
   if (input.injurySignal === 'unknown') {
     return { recommendation: 'FLEX', reason: 'Playing, injury status unclear' };
   }
-  return { recommendation: 'START', reason: 'In tonight\'s lineup' };
+  return { recommendation: 'START', reason: 'Has a game tonight' };
 }
 
 const OUT_RE = /\b(out indefinitely|placed on ir|\bir\b|season[- ]ending|will not play|sidelined)\b/i;

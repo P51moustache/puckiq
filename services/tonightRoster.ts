@@ -3,7 +3,13 @@
  * Opponent from daily score; scratch from gamecenter right-rail.
  */
 
-import type { FantasyPlayer, InjurySignal, RosterNewsItem, TonightPlayerStatus } from '../types/fantasy';
+import type {
+  FantasyPlayer,
+  InjuryConfidence,
+  InjurySignal,
+  RosterNewsItem,
+  TonightPlayerStatus,
+} from '../types/fantasy';
 import { getNhlCalendarDate } from './nhlDate';
 import { newsInjuryHintForPlayer } from './rosterNews';
 import { leanStartSit } from './startSitLean';
@@ -67,14 +73,17 @@ export function buildTonightStatus(
 
   let injurySignal: InjurySignal = 'ok';
   let injuryNote: string | null = null;
+  let confidence: InjuryConfidence = 'unknown';
 
   if (hasGame && scratchIds.has(player.playerId)) {
     injurySignal = 'scratch';
     injuryNote = 'Listed as a scratch on the NHL game report';
+    confidence = 'confirmed';
   } else {
     const fromNews = newsInjuryHintForPlayer(player, news);
     if (fromNews) {
       injurySignal = fromNews;
+      confidence = 'likely';
       injuryNote = fromNews === 'out'
         ? 'Injury language in roster news'
         : fromNews === 'dtd'
@@ -102,10 +111,17 @@ export function buildTonightStatus(
     gameState: game?.gameState ?? null,
     injurySignal,
     injuryNote,
+    confidence,
     recommendation: lean.recommendation,
     reason: lean.reason,
   };
 }
+
+export const CONFIDENCE_LABEL: Record<InjuryConfidence, string> = {
+  confirmed: 'Confirmed',
+  likely: 'Likely',
+  unknown: 'Unknown',
+};
 
 export function sortTonightStatuses(rows: TonightPlayerStatus[]): TonightPlayerStatus[] {
   const rank = (row: TonightPlayerStatus) => {

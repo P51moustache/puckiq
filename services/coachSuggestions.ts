@@ -99,20 +99,28 @@ export function visibleCoachSuggestions(
   return suggestions.slice(0, 1);
 }
 
+/** v1 never writes the host lineup. Tell them what to change in their app. */
+export const LINEUP_HOST_NOTE =
+  'Change this in Yahoo or ESPN. PuckIQ never writes your lineup.';
+
+/** Last-minute scratches are a physics problem. Do not promise earlier than the NHL. */
+export const NHL_TIMING_NOTE =
+  'We do not beat the NHL to last-minute scratches. Quieter, personal, on time.';
+
 export const COACH_ALERT_COPY = [
   {
     id: 'goalie',
     title: 'Your goalie isn’t confirmed',
-    body: 'Sit or flex until the NHL posts the starter.',
+    body: 'Alert before that start locks. Sit or flex until the NHL posts the starter.',
   },
   {
     id: 'scratch',
     title: 'Your winger is a scratch',
-    body: 'Don’t leave a healthy scratch in the lineup.',
+    body: 'When the NHL posts it, we tell you before that game locks — not the whole league.',
   },
   {
     id: 'stream',
     title: 'Better stream available',
-    body: 'A roster mate has a game — start them over an off-night or injury.',
+    body: 'A roster mate has a game — start them over an off-night or injury. Change it in Yahoo or ESPN.',
   },
 ] as const;

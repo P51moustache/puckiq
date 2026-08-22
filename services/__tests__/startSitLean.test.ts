@@ -18,7 +18,7 @@ describe('leanStartSit', () => {
 
   it('starts a healthy skater with a game', () => {
     expect(leanStartSit({ hasGameTonight: true, injurySignal: 'ok', isGoalie: false }))
-      .toEqual({ recommendation: 'START', reason: "In tonight's lineup" });
+      .toEqual({ recommendation: 'START', reason: 'Has a game tonight' });
   });
 
   it('flexes a day-to-day skater', () => {

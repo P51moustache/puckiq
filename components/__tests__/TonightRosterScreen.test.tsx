@@ -80,6 +80,7 @@ const playing: TonightPlayerStatus = {
   gameState: 'FUT',
   injurySignal: 'ok',
   injuryNote: null,
+  confidence: 'unknown',
   recommendation: 'START',
   reason: "In tonight's lineup",
 };
@@ -108,6 +109,7 @@ describe('TonightRosterScreen', () => {
       roster: null,
       date: null,
       statuses: [],
+      week: null,
       news: [],
       error: null,
       onRefresh: jest.fn(),
@@ -123,6 +125,7 @@ describe('TonightRosterScreen', () => {
       roster: null,
       date: '2026-08-22',
       statuses: [],
+      week: null,
       news: [],
       error: null,
       onRefresh: jest.fn(),
@@ -140,6 +143,13 @@ describe('TonightRosterScreen', () => {
       date: '2026-08-22',
       nextDate: '2026-09-19',
       statuses: [playing, off],
+      week: {
+        startDate: '2026-08-22',
+        days: [
+          { date: '2026-08-22', dayAbbrev: 'SAT', playerCount: 1, games: [] },
+          { date: '2026-08-23', dayAbbrev: 'SUN', playerCount: 0, games: [] },
+        ],
+      },
       news: [],
       error: null,
       onRefresh: jest.fn(),
@@ -147,10 +157,16 @@ describe('TonightRosterScreen', () => {
     const tree = render();
     const texts = getAllText(tree);
     expect(findByTestId(tree, 'tonight-roster')).toHaveLength(1);
+    expect(findByTestId(tree, 'tonight-headline')).toHaveLength(1);
+    expect(findByTestId(tree, 'my-week-strip')).toHaveLength(1);
+    expect(findByTestId(tree, 'tonight-honesty')).toHaveLength(1);
     expect(texts).toContain('Connor McDavid');
     expect(texts).toContain('Auston Matthews');
     expect(texts).toContain('START');
     expect(texts).toContain('SIT');
-    expect(texts.some((t) => t.includes('play tonight'))).toBe(true);
+    expect(texts.some((t) => t.includes('of YOUR guys play tonight'))).toBe(true);
+    expect(texts.some((t) => t.includes('Unknown'))).toBe(true);
+    expect(texts.some((t) => t.includes('Locks in') || t.includes('Locked'))).toBe(true);
+    expect(texts.some((t) => t.includes('never writes your lineup'))).toBe(true);
   });
 });

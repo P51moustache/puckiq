@@ -1,4 +1,6 @@
 import {
+  LINEUP_HOST_NOTE,
+  NHL_TIMING_NOTE,
   buildCoachSuggestions,
   visibleCoachSuggestions,
 } from '../coachSuggestions';
@@ -17,6 +19,7 @@ function row(overrides: Partial<TonightPlayerStatus>): TonightPlayerStatus {
     gameState: 'FUT',
     injurySignal: 'ok',
     injuryNote: null,
+    confidence: 'unknown',
     recommendation: 'START',
     reason: "In tonight's lineup",
     ...overrides,
@@ -59,5 +62,13 @@ describe('visibleCoachSuggestions', () => {
   it('gives Pro the full list', () => {
     expect(visibleCoachSuggestions(all, true).length).toBe(all.length);
     expect(all.length).toBeGreaterThan(1);
+  });
+});
+
+describe('host and timing copy', () => {
+  it('never claims we write the Yahoo lineup or beat the NHL', () => {
+    expect(LINEUP_HOST_NOTE).toMatch(/never writes your lineup/i);
+    expect(LINEUP_HOST_NOTE).toMatch(/Yahoo or ESPN/);
+    expect(NHL_TIMING_NOTE).toMatch(/don’t beat the NHL|do not beat the NHL/i);
   });
 });
