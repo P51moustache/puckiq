@@ -41,6 +41,7 @@ describe('useTonightRoster data path', () => {
     });
 
     const saved = await loadRoster();
+    if (!saved) throw new Error('expected roster');
     const news = await fetchRosterNews(saved.players);
     const tonight = await getTonightStatusesForRoster(saved.players, { news });
 

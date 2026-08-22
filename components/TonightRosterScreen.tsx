@@ -92,7 +92,7 @@ export default function TonightRosterScreen() {
           <View testID="tonight-roster">
             <View style={styles.summary}>
               <Text style={styles.summaryText}>
-                {playing.length} play tonight · {offNight.length} off
+                {`${playing.length} play tonight · ${offNight.length} off`}
               </Text>
               {statuses.length > 0 && playing.length === 0 && nextDate ? (
                 <Text style={styles.nextSlate}>Next NHL slate {nextDate}</Text>

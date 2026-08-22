@@ -63,7 +63,7 @@ export default function MyTeamScreen() {
             <View>
               <Text style={styles.headerTitle}>Roster</Text>
               <Text style={styles.headerMeta}>
-                {roster?.players.length ?? 0} players · {roster?.scoringFormat === 'espn' ? 'ESPN' : 'Yahoo'} scoring
+                {`${roster?.players.length ?? 0} players · ${roster?.scoringFormat === 'espn' ? 'ESPN' : 'Yahoo'} scoring`}
               </Text>
             </View>
             <TouchableOpacity
