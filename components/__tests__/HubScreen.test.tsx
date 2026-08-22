@@ -11,6 +11,7 @@ jest.mock('react-native', () => {
     ScrollView: ({ children, ...props }: any) => React.createElement('ScrollView', props, children),
     Pressable: ({ children, ...props }: any) => React.createElement('Pressable', props, children),
     Switch: (props: any) => React.createElement('Switch', props),
+    Alert: { alert: jest.fn() },
     Platform: { OS: 'ios' },
     StyleSheet: { create: (s: any) => s, hairlineWidth: 1 },
   };
@@ -115,6 +116,15 @@ jest.mock('../ReferralCard', () => {
   return () => React.createElement('View', { testID: 'referral-card' });
 });
 
+jest.mock('../ProPaywall', () => {
+  const React = require('react');
+  return ({ visible }: any) => (visible ? React.createElement('View', { testID: 'pro-paywall' }) : null);
+});
+
+jest.mock('../../services/subscription', () => ({
+  restorePurchases: jest.fn().mockResolvedValue(false),
+}));
+
 // @ts-expect-error no types for react-test-renderer
 import { create, act } from 'react-test-renderer';
 import React from 'react';
@@ -155,6 +165,17 @@ describe('HubScreen', () => {
     it('renders the Settings title', () => {
       const tree = renderHub();
       expect(getAllText(tree)).toContain('Settings');
+    });
+
+    it('shows Free plan and Pro unlocks with Subscribe and Restore', () => {
+      const tree = renderHub();
+      expect(findByTestId(tree, 'plan-section')).toHaveLength(1);
+      expect(findByTestId(tree, 'plan-tier')[0].props.children).toBe('Free');
+      expect(findByTestId(tree, 'settings-subscribe')).toHaveLength(1);
+      expect(findByTestId(tree, 'settings-restore')).toHaveLength(1);
+      const texts = getAllText(tree);
+      expect(texts.some((t) => t.includes('Tonight status'))).toBe(true);
+      expect(texts.some((t) => t.includes('Yahoo / ESPN'))).toBe(true);
     });
 
     it('shows sign-in buttons', () => {

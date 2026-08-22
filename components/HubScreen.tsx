@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
+  Alert,
   Platform,
   Pressable,
   ScrollView,
@@ -15,6 +16,9 @@ import { rinkGlass } from '../constants/theme';
 import { useAuthContext } from './auth/AuthProvider';
 import { useSubscription } from './SubscriptionProvider';
 import PageHeader from './PageHeader';
+import ProPaywall from './ProPaywall';
+import { FREE_FEATURES, LIST_PRICE_ANNUAL, PRO_UNLOCKS, isPaywallEnabled } from '../constants/monetization';
+import { restorePurchases } from '../services/subscription';
 import {
   FantasyNotificationPreferences,
   DEFAULT_FANTASY_PREFS,
@@ -71,7 +75,9 @@ function StatCard({ value, label, delay }: { value: string; label: string; delay
 /* ── Main Component ────────────────────────────────────── */
 export default function HubScreen() {
   const { user, signInWithApple, signInWithGoogle, signOut } = useAuthContext();
-  const { isPremium } = useSubscription();
+  const { isPremium, refresh } = useSubscription();
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [restoring, setRestoring] = useState(false);
   const [notificationPrefs, setNotificationPrefs] = useState<FantasyNotificationPreferences>({
     ...DEFAULT_FANTASY_PREFS,
     morningBrief: false,
@@ -121,17 +127,69 @@ export default function HubScreen() {
   );
 
   const canToggle = !!user && isPremium;
+  const paywallOn = isPaywallEnabled();
 
-  const userInitial = user?.email ? user.email[0].toUpperCase() : '?';
+  const handleRestore = useCallback(async () => {
+    setRestoring(true);
+    try {
+      const ok = await restorePurchases();
+      await refresh();
+      Alert.alert(
+        ok ? 'Pro restored' : 'No Pro subscription found',
+        ok ? 'Your Pro extras are unlocked.' : 'Free tier still works. Subscribe when you want alerts or league sync.',
+      );
+    } finally {
+      setRestoring(false);
+    }
+  }, [refresh]);
 
   return (
     <View style={s.container}>
-      <PageHeader title="Settings" subtitle="Notifications · Account · About" />
+      <PageHeader title="Settings" subtitle="Plan · Notifications · Account" />
       <ScrollView
         style={s.scroll}
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        <View style={s.section} testID="plan-section">
+          <SectionHeader icon="diamond-outline" title="Plan" />
+          <View style={s.card}>
+            <Text style={s.planTier} testID="plan-tier">
+              {isPremium ? 'Pro' : 'Free'}
+            </Text>
+            <Text style={s.planCopy}>
+              Free is the full roster app. Pro is a cheap hockey-season subscription ({LIST_PRICE_ANNUAL}), not a one-time price.
+            </Text>
+            <Text style={s.planLabel}>FREE INCLUDES</Text>
+            {FREE_FEATURES.map((line) => (
+              <Text key={line} style={s.planLine}>{`• ${line}`}</Text>
+            ))}
+            <Text style={s.planLabel}>PRO UNLOCKS</Text>
+            {PRO_UNLOCKS.map((line) => (
+              <Text key={line} style={s.planLine}>{`• ${line}`}</Text>
+            ))}
+            {paywallOn && !isPremium ? (
+              <Pressable
+                style={s.subscribeButton}
+                onPress={() => setShowPaywall(true)}
+                testID="settings-subscribe"
+              >
+                <Text style={s.subscribeButtonText}>Subscribe</Text>
+              </Pressable>
+            ) : null}
+            <Pressable
+              style={s.restoreButton}
+              onPress={handleRestore}
+              disabled={restoring}
+              testID="settings-restore"
+            >
+              <Text style={s.restoreButtonText}>
+                {restoring ? 'Restoring…' : 'Restore purchases'}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+
         {/* ── Notifications (the actual settings) ───────── */}
         <View style={s.section}>
           <SectionHeader icon="notifications-outline" title="Notifications" />
@@ -163,7 +221,10 @@ export default function HubScreen() {
               </View>
             ))}
             {!user && (
-              <Text style={s.toggleHelper}>Sign in below to enable notifications.</Text>
+              <Text style={s.toggleHelper}>Sign in below. Roster alerts are a Pro extra.</Text>
+            )}
+            {user && !isPremium && (
+              <Text style={s.toggleHelper}>Pro unlocks goalie / scratch / injury alerts for MY players.</Text>
             )}
           </View>
         </View>
@@ -223,6 +284,7 @@ export default function HubScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+      <ProPaywall visible={showPaywall} onClose={() => setShowPaywall(false)} />
     </View>
   );
 }
@@ -372,6 +434,54 @@ const s = StyleSheet.create({
     paddingHorizontal: 4,
     paddingTop: 8,
   },
+  planTier: {
+    fontSize: 20,
+    fontWeight: '800',
+    fontFamily: rinkGlass.fonts.display,
+    color: rinkGlass.textPrimary,
+    marginBottom: 8,
+  },
+  planCopy: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: rinkGlass.textSecondary,
+    marginBottom: 12,
+  },
+  planLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    color: rinkGlass.textMuted,
+    marginTop: 8,
+    marginBottom: 6,
+  },
+  planLine: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: rinkGlass.textPrimary,
+  },
+  subscribeButton: {
+    marginTop: 16,
+    backgroundColor: rinkGlass.blueLight,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  subscribeButtonText: {
+    color: '#0a0e1a',
+    fontWeight: '800',
+    fontSize: 15,
+  },
+  restoreButton: {
+    marginTop: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  restoreButtonText: {
+    color: rinkGlass.blueLight,
+    fontWeight: '600',
+    fontSize: 14,
+  },
   emailAuthButton: {
     borderColor: 'rgba(42, 64, 128, 0.5)',
     backgroundColor: 'rgba(25, 46, 94, 0.6)',
@@ -452,14 +562,14 @@ const s = StyleSheet.create({
     padding: 16,
   },
 
-  /* Subscription */
+  /* Subscription (legacy badge tokens still used by unused styles below) */
   subscriptionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 14,
   },
-  planLabel: {
+  legacyPlanLabel: {
     fontSize: 13,
     color: rinkGlass.textSecondary,
   },

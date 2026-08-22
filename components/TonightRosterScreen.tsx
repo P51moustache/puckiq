@@ -15,7 +15,9 @@ import { rinkGlass } from '../constants/theme';
 import { useTonightRoster } from '../hooks/useTonightRoster';
 import PageHeader from './PageHeader';
 import RosterBuilder from './RosterBuilder';
+import SportsAdSlot from './SportsAdSlot';
 import TonightPlayerRow from './TonightPlayerRow';
+import { isAdSlotEnabled } from '../constants/monetization';
 
 function formatSlateDate(date: string | null): string {
   if (!date) {
@@ -72,6 +74,7 @@ export default function TonightRosterScreen() {
           title="Tonight"
           subtitle={`${formatSlateDate(date)} · My roster`}
         />
+        {isAdSlotEnabled() ? <SportsAdSlot /> : null}
 
         {!hasRoster ? (
           <View style={styles.empty} testID="tonight-empty">

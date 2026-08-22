@@ -26,6 +26,10 @@ jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn() }),
 }));
 
+jest.mock('../SubscriptionProvider', () => ({
+  useSubscription: () => ({ isPremium: false, loading: false, refresh: jest.fn() }),
+}));
+
 const mockUseTonightRoster = jest.fn();
 jest.mock('../../hooks/useTonightRoster', () => ({
   useTonightRoster: () => mockUseTonightRoster(),
