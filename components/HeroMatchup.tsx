@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../constants/theme';
 import { getTeamColors } from '../constants/teamColors';
 import { getTeamLogoUrl } from '../utils/teamLogo';
+import { formatGameTime, livePrefixLabel } from '../utils/gameStatus';
 import { ConfidenceBadge } from './ConfidenceBadge';
 import { useHaptics } from '../hooks/useHaptics';
 import type { H2HRecord } from '../types/gameResults';
@@ -32,28 +33,6 @@ interface HeroMatchupProps {
   isYourTeam?: boolean;
 }
 
-function formatGameTime(game: NHLGameSummary): { text: string; isLive: boolean } {
-  const state = game.gameState;
-  if (state === 'LIVE' || state === 'CRIT') {
-    const period = game.period ?? 0;
-    const clock = game.clock?.timeRemaining ?? '';
-    const periodLabel = period <= 3 ? `P${period}` : 'OT';
-    const scoreText = `${game.awayTeam?.score ?? 0}-${game.homeTeam?.score ?? 0}`;
-    return { text: `${scoreText}  ${periodLabel} ${clock}`.trim(), isLive: true };
-  }
-  if (state === 'FINAL' || state === 'OFF') {
-    const scoreText = `${game.awayTeam?.score ?? 0}-${game.homeTeam?.score ?? 0}`;
-    return { text: `FINAL ${scoreText}`, isLive: false };
-  }
-  if (game.startTimeUTC) {
-    const time = new Date(game.startTimeUTC).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-    return { text: time, isLive: false };
-  }
-  return { text: 'TBD', isLive: false };
-}
 
 function buildInsightChips(
   game: NHLGameSummary,
@@ -251,7 +230,7 @@ export default function HeroMatchup({
                 gameTime.isLive && styles.timeLive,
               ]}
             >
-              {gameTime.isLive ? 'LIVE' : ''} {gameTime.text}
+              {gameTime.isLive ? livePrefixLabel(gameTime.text) : gameTime.text}
             </Text>
           </View>
 

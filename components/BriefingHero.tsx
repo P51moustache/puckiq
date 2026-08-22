@@ -33,6 +33,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { rinkGlass } from '../constants/theme';
 import { getTeamLogoUrl } from '../utils/teamLogo';
 import { getTeamColors } from '../constants/teamColors';
+import { isLiveGame } from '../utils/gameStatus';
 import type { MLPrediction } from '../services/mlPredictions';
 import AnimatedNumber from './AnimatedNumber';
 import AnimatedProbBar from './AnimatedProbBar';
@@ -184,7 +185,10 @@ function pickHero({
 function GameHero({ pick }: { pick: Extract<HeroPick, { kind: 'game' }> }) {
   const home = pick.game.homeTeam?.abbrev ?? '';
   const away = pick.game.awayTeam?.abbrev ?? '';
-  const time = pick.game.startTimeUTC
+  const live = isLiveGame(pick.game);
+  const time = live
+    ? 'LIVE'
+    : pick.game.startTimeUTC
     ? new Date(pick.game.startTimeUTC).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
     : '';
   const favoredColors = getTeamColors(pick.favored);
@@ -213,7 +217,7 @@ function GameHero({ pick }: { pick: Extract<HeroPick, { kind: 'game' }> }) {
       <View style={styles.headerRow}>
         <View style={styles.eyebrowDot} />
         <Text style={styles.eyebrowLabel}>TOP PICK · TONIGHT</Text>
-        <Text style={styles.eyebrowMeta}>{time}</Text>
+        <Text style={[styles.eyebrowMeta, live && styles.eyebrowLive]}>{time}</Text>
       </View>
 
       {/* Big probability moment — number is the page's lead visual */}
@@ -491,6 +495,10 @@ const styles = StyleSheet.create({
     fontFamily: rinkGlass.fonts.mono,
     marginLeft: 'auto',
     letterSpacing: 0.5,
+  },
+  eyebrowLive: {
+    color: rinkGlass.redLine,
+    fontWeight: '800',
   },
   // Game hero — big-number-first composition
   heroProbBlock: {

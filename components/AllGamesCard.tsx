@@ -17,6 +17,7 @@ import { getTeamColors, getAccessibleTextColor } from '../constants/teamColors';
 import { getTeamLogoUrl } from '../utils/teamLogo';
 import { ConfidenceBadge } from './ConfidenceBadge';
 import { getRelativeDateLabel } from '../utils/dateLabel';
+import { formatGameTime, livePrefixLabel } from '../utils/gameStatus';
 import type { H2HRecord } from '../types/gameResults';
 import type { NHLGameSummary } from '../types/predictions';
 import type { TeamFormData } from '../types/teamForm';
@@ -35,28 +36,6 @@ interface AllGamesCardProps {
   restAdvantage?: { home: number; away: number } | null;
 }
 
-function formatGameTime(game: NHLGameSummary): { text: string; isLive: boolean; isFinal: boolean } {
-  const state = game.gameState;
-  if (state === 'LIVE' || state === 'CRIT') {
-    const period = game.period ?? 0;
-    const clock = game.clock?.timeRemaining ?? '';
-    const periodLabel = period <= 3 ? `P${period}` : 'OT';
-    const scoreText = `${game.awayTeam?.score ?? 0}-${game.homeTeam?.score ?? 0}`;
-    return { text: `${scoreText}  ${periodLabel} ${clock}`.trim(), isLive: true, isFinal: false };
-  }
-  if (state === 'FINAL' || state === 'OFF') {
-    const scoreText = `${game.awayTeam?.score ?? 0}-${game.homeTeam?.score ?? 0}`;
-    return { text: `FINAL ${scoreText}`, isLive: false, isFinal: true };
-  }
-  if (game.startTimeUTC) {
-    const time = new Date(game.startTimeUTC).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-    return { text: time, isLive: false, isFinal: false };
-  }
-  return { text: 'TBD', isLive: false, isFinal: false };
-}
 
 function formatH2H(h2h: H2HRecord): string {
   const total = h2h.teamAWins + h2h.teamBWins;
@@ -185,7 +164,7 @@ function AllGamesCardComponent({ game, prediction, h2hRecord, insight, index, on
 
   // Build time + date string
   const timeDisplay = gameTime.isLive
-    ? `LIVE  ${gameTime.text}`
+    ? livePrefixLabel(gameTime.text)
     : gameTime.isFinal
     ? gameTime.text
     : dateLabel !== 'Today'

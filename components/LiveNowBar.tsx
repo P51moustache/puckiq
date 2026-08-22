@@ -11,6 +11,7 @@ import { Image } from 'expo-image';
 import { useEffect } from 'react';
 import { theme } from '../constants/theme';
 import { getTeamLogoUrl } from '../utils/teamLogo';
+import { getGameLiveStatus, isLiveGame } from '../utils/gameStatus';
 
 interface LiveNowBarProps {
   games: any[];
@@ -20,18 +21,13 @@ interface LiveNowBarProps {
 function getLiveScoreData(game: any) {
   const away = game.awayTeam?.abbrev ?? '???';
   const home = game.homeTeam?.abbrev ?? '???';
+  const status = getGameLiveStatus(game);
   const awayScore = game.awayTeam?.score ?? 0;
   const homeScore = game.homeTeam?.score ?? 0;
-  const period = game.period ?? '';
-  const clock = game.clock?.timeRemaining ?? '';
-
-  let periodLabel = '';
-  if (period) {
-    periodLabel = period <= 3 ? `P${period}` : 'OT';
-  }
-
-  const clockStr = clock && periodLabel ? `${periodLabel} ${clock}` : periodLabel;
-  return { away, home, awayScore, homeScore, clockStr };
+  const scoreText = status.score
+    ? `${away} ${awayScore} - ${home} ${homeScore}`
+    : `${away} @ ${home}`;
+  return { away, home, awayScore, homeScore, scoreText, clockStr: status.periodClock ?? '' };
 }
 
 function PulsingDot() {
@@ -73,7 +69,7 @@ function LiveScoreChip({ game, onPress }: { game: any; onPress: () => void }) {
           return (
             <View style={styles.chipContent}>
               <Image source={{ uri: getTeamLogoUrl(d.away) }} style={styles.chipLogo} contentFit="contain" />
-              <Text style={styles.scoreText}>{d.away} {d.awayScore} - {d.home} {d.homeScore}</Text>
+              <Text style={styles.scoreText}>{d.scoreText}</Text>
               <Image source={{ uri: getTeamLogoUrl(d.home) }} style={styles.chipLogo} contentFit="contain" />
               {d.clockStr ? <Text style={styles.clockText}>{d.clockStr}</Text> : null}
             </View>
@@ -85,9 +81,7 @@ function LiveScoreChip({ game, onPress }: { game: any; onPress: () => void }) {
 }
 
 function LiveNowBarComponent({ games, onGamePress }: LiveNowBarProps) {
-  const liveGames = games.filter(
-    (g: any) => g.gameState === 'LIVE' || g.gameState === 'CRIT',
-  );
+  const liveGames = games.filter((g: any) => isLiveGame(g));
 
   if (liveGames.length === 0) return null;
 

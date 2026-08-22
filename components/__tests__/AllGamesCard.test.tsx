@@ -209,6 +209,20 @@ describe('AllGamesCard', () => {
       expect(allText).toContain('P2');
     });
 
+    it('shows LIVE without a fabricated P0 clock when period/clock are missing', () => {
+      const tree = renderCard({
+        game: {
+          gameState: 'LIVE',
+          period: 0,
+          awayTeam: { abbrev: 'TOR', score: 0 },
+          homeTeam: { abbrev: 'MTL', score: 0 },
+        },
+      });
+      const allText = collectText(tree).join(' ');
+      expect(allText).toContain('LIVE');
+      expect(allText).not.toMatch(/P0/);
+    });
+
     it('shows OT for period > 3', () => {
       const tree = renderCard({
         game: {

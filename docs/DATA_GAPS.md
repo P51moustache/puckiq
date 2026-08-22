@@ -2,7 +2,7 @@
 
 Comprehensive list of missing, stale, or incomplete Supabase data that affects the Upcoming tab and its supporting services. This document is the single source of truth for what data needs to be added, synced, or fixed.
 
-Last updated: 2026-02-07
+Last updated: 2026-08-22
 
 ---
 
@@ -32,6 +32,8 @@ _No P0 gaps remaining. All critical sync scripts have been created._
 **User Impact:** When a game is LIVE, the clock data (`game.clock?.timeRemaining`) comes from the initial `games` table row which was written when the game was in FUT state. The sync pipeline would need to update live games more frequently (every few minutes during game hours) to show accurate clock data. Currently, a LIVE game would show `LIVE P0 ` with no clock.
 **Current State:** The `games` table has `game_state`, `period`, and `period_type` columns but no `clock` column. Live clock data was previously fetched in real-time from the NHL score API.
 **Fix Required:** Either: (a) add a `clock_json` JSONB column to `games` and create a more frequent sync for in-progress games (e.g., every 2 minutes during game hours), or (b) accept that live clock data is not available and show "LIVE" without a clock, or (c) allow a single NHL API call for live game clock data only.
+
+**3.0 decision:** Option (b). Today / hub game UI shows a clean LIVE mark and never fabricates `P0` / an empty clock. Period, clock, and score render only when those fields are real. FUT/PRE rows whose start time has passed (inside a typical ~4h NHL game window) are also marked LIVE so an evening slate is honest even when the twice-daily sync has not flipped `game_state` yet. No live-clock pipeline.
 
 ---
 
@@ -95,7 +97,7 @@ These gaps have been fixed and are documented here for reference only.
 | Priority | Count | Action |
 |----------|-------|--------|
 | P0 | 0 | All resolved |
-| P1 | 1 | Decide on live clock strategy |
+| P1 | 1 | Accepted option (b) for 3.0 — clean LIVE, no clock pipeline |
 | P2 | 4 | Clean up deprecated utils with NHL API calls (`recentForm.ts`, `teamStatsForPrediction.ts`) + deprecated services |
 | Docs | 0 | All resolved |
 | **Total** | **5** | (down from 11 -- 6 resolved) |

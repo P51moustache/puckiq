@@ -1,7 +1,7 @@
 {
   "name": "learning-project",
   "main": "expo-router/entry",
-  "version": "2.2.0",
+  "version": "3.0.0",
   "scripts": {
     "start": "EXPO_UNSTABLE_MCP_SERVER=1 expo start --ios",
     "reset-project": "node ./scripts/reset-project.js",

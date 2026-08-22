@@ -26,6 +26,7 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeIn, useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming, Easing } from 'react-native-reanimated';
 import { rinkGlass } from '../constants/theme';
 import { getTeamLogoUrl } from '../utils/teamLogo';
+import { getGameLiveStatus, isLiveGame } from '../utils/gameStatus';
 import { supabase } from '../lib/supabase';
 import { getMLPredictions, type MLPrediction } from '../services/mlPredictions';
 import { getLeagueLeaders, type SkaterLeader } from '../services/playerLeaders';
@@ -121,10 +122,6 @@ function formatRelativeMinutes(d?: Date | null): string {
   return `${hours}h ago`;
 }
 
-function isLiveGame(g: Game): boolean {
-  const s = g.gameState ?? '';
-  return s === 'LIVE' || s === 'CRIT' || s === 'PRE';
-}
 
 /* =====================================================
    Live ribbon — score + period for in-progress games
@@ -159,11 +156,8 @@ function LiveRibbon({ games, onPress }: { games: Game[]; onPress: (gameId: numbe
       </View>
       <View style={styles.list}>
         {games.map((g) => {
-          const periodTxt = g.clock?.inIntermission
-            ? `INT ${g.period ?? ''}`
-            : g.period
-              ? `P${g.period}${g.clock?.timeRemaining ? ` · ${g.clock.timeRemaining}` : ''}`
-              : 'LIVE';
+          const status = getGameLiveStatus(g);
+          const periodTxt = status.periodClock ?? 'LIVE';
           return (
             <Pressable
               key={g.id}
@@ -173,9 +167,15 @@ function LiveRibbon({ games, onPress }: { games: Game[]; onPress: (gameId: numbe
               <View style={styles.slateMatchup}>
                 <ExpoImage source={{ uri: getTeamLogoUrl(g.awayTeam?.abbrev ?? '') }} style={styles.slateLogo} contentFit="contain" />
                 <Text style={styles.slateAbbrev}>{g.awayTeam?.abbrev}</Text>
-                <Text style={styles.liveScore}>{g.awayTeam?.score ?? 0}</Text>
-                <Text style={styles.scoreSep}>·</Text>
-                <Text style={styles.liveScore}>{g.homeTeam?.score ?? 0}</Text>
+                {status.score ? (
+                  <>
+                    <Text style={styles.liveScore}>{g.awayTeam?.score ?? 0}</Text>
+                    <Text style={styles.scoreSep}>·</Text>
+                    <Text style={styles.liveScore}>{g.homeTeam?.score ?? 0}</Text>
+                  </>
+                ) : (
+                  <Text style={styles.scoreSep}>@</Text>
+                )}
                 <Text style={styles.slateAbbrev}>{g.homeTeam?.abbrev}</Text>
                 <ExpoImage source={{ uri: getTeamLogoUrl(g.homeTeam?.abbrev ?? '') }} style={styles.slateLogo} contentFit="contain" />
               </View>

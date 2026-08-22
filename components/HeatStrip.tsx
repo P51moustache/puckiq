@@ -21,6 +21,7 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { rinkGlass } from '../constants/theme';
 import { getTeamColors } from '../constants/teamColors';
 import { getTeamLogoUrl } from '../utils/teamLogo';
+import { isLiveGame } from '../utils/gameStatus';
 import type { MLPrediction } from '../services/mlPredictions';
 
 interface Game {
@@ -78,8 +79,8 @@ export default function HeatStrip({ games, predictions, predictionsMap, onPressG
           const barWidth = 26 + widthRange * 62;
           const intensity = 0.4 + widthRange * 0.6;
 
-          const isLive = g.gameState === 'LIVE' || g.gameState === 'CRIT';
-          const isFinal = g.gameState === 'OFF' || g.gameState === 'FINAL';
+          const isLive = isLiveGame(g);
+          const isFinal = !isLive && (g.gameState === 'OFF' || g.gameState === 'FINAL');
 
           return (
             <Pressable
@@ -105,7 +106,7 @@ export default function HeatStrip({ games, predictions, predictionsMap, onPressG
                   },
                 ]}
               />
-              <Text style={styles.cellMeta}>
+              <Text style={[styles.cellMeta, isLive && styles.cellMetaLive]}>
                 {isLive ? 'LIVE' : isFinal ? 'FINAL' : formatTime(g.startTimeUTC)}
               </Text>
             </Pressable>
@@ -186,5 +187,8 @@ const styles = StyleSheet.create({
     fontFamily: rinkGlass.fonts.mono,
     letterSpacing: 0.5,
     fontWeight: '700',
+  },
+  cellMetaLive: {
+    color: rinkGlass.redLine,
   },
 });

@@ -52,6 +52,7 @@ function makeGame(overrides: Record<string, any> = {}) {
     homeTeam: { abbrev: overrides.homeAbbrev ?? 'TOR', score: overrides.homeScore ?? 0 },
     period: overrides.period ?? null,
     clock: overrides.clock ?? null,
+    startTimeUTC: overrides.startTimeUTC,
   };
 }
 
@@ -99,6 +100,16 @@ describe('LiveNowBar', () => {
       expect(result).toBeNull();
     });
 
+    it('returns null for PRE games that have not reached puck drop', () => {
+      const games = [makeGame({
+        id: 9,
+        gameState: 'PRE',
+        startTimeUTC: '2099-01-01T00:00:00.000Z',
+      })];
+      const result = LiveNowBarComponent({ games, onGamePress: noopPress });
+      expect(result).toBeNull();
+    });
+
     it('returns null when all games are FINAL state', () => {
       const games = [
         makeGame({ id: 1, gameState: 'FINAL' }),
@@ -110,6 +121,16 @@ describe('LiveNowBar', () => {
   });
 
   describe('renders when there are LIVE games', () => {
+    it('renders a FUT game whose start time has passed as live', () => {
+      const games = [makeGame({
+        id: 11,
+        gameState: 'FUT',
+        startTimeUTC: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+      })];
+      const result = LiveNowBarComponent({ games, onGamePress: noopPress });
+      expect(result).not.toBeNull();
+    });
+
     it('renders a non-null element for a LIVE game', () => {
       const games = [makeGame({ id: 10, gameState: 'LIVE', period: 2 })];
       const result = LiveNowBarComponent({ games, onGamePress: noopPress });
