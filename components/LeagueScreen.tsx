@@ -88,77 +88,79 @@ export default function LeagueScreen() {
   return (
     <View style={styles.container} testID="league-screen">
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <PageHeader title="League" subtitle="Your team vs theirs · not a hosted league" />
+        <PageHeader title="Your team vs theirs" subtitle="Not a hosted league" />
 
-        <Text style={styles.lede}>
-          Friends already have a Yahoo or ESPN league. Attach it later. For now, put their names next to yours.
-        </Text>
+        <View style={styles.body}>
+          <Text style={styles.lede}>
+            Friends already have a Yahoo or ESPN league. Attach it later. For now, put their names next to yours.
+          </Text>
 
-        <View style={styles.placeholders}>
-          <TouchableOpacity
-            style={styles.placeholder}
-            onPress={() => Alert.alert(
-              'Invite friend',
-              'No SMS or social graph in this build. Add their roster by hand, or attach Yahoo later.',
-            )}
-            testID="league-invite"
-          >
-            <Text style={styles.placeholderText}>Invite friend</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.placeholder}
-            onPress={() => Alert.alert(
-              'Attach Yahoo league',
-              'OAuth sync is stubbed. Manual opponent roster works today.',
-            )}
-            testID="league-attach-yahoo"
-          >
-            <Text style={styles.placeholderText}>Attach Yahoo</Text>
-          </TouchableOpacity>
+          <View style={styles.placeholders}>
+            <TouchableOpacity
+              style={styles.placeholder}
+              onPress={() => Alert.alert(
+                'Invite friend',
+                'No SMS or social graph in this build. Add their roster by hand, or attach Yahoo later.',
+              )}
+              testID="league-invite"
+            >
+              <Text style={styles.placeholderText}>Invite friend</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.placeholder}
+              onPress={() => Alert.alert(
+                'Attach Yahoo league',
+                'OAuth sync is stubbed. Manual opponent roster works today.',
+              )}
+              testID="league-attach-yahoo"
+            >
+              <Text style={styles.placeholderText}>Attach Yahoo</Text>
+            </TouchableOpacity>
+          </View>
+
+          <Text style={styles.section}>MY TEAM</Text>
+          {(mine?.players ?? []).length === 0 ? (
+            <Text style={styles.empty}>Add your roster on the Roster tab first.</Text>
+          ) : (
+            mine!.players.map((p) => (
+              <Text key={p.playerId} style={styles.player} testID="league-mine-player">
+                {`${p.playerName} · ${p.teamAbbrev}`}
+              </Text>
+            ))
+          )}
+
+          <Text style={styles.section}>THEIR TEAM</Text>
+          {opponent.map((p) => (
+            <TouchableOpacity
+              key={p.playerId}
+              onPress={() => handleRemove(p.playerId)}
+              testID={`league-opp-${p.playerId}`}
+            >
+              <Text style={styles.player}>{`${p.playerName} · ${p.teamAbbrev}  (tap to remove)`}</Text>
+            </TouchableOpacity>
+          ))}
+
+          <TextInput
+            style={styles.search}
+            placeholder="Search to add their player…"
+            placeholderTextColor={rinkGlass.textMuted}
+            value={query}
+            onChangeText={handleSearch}
+            testID="league-opp-search"
+          />
+          {searching ? <ActivityIndicator color={rinkGlass.blueLight} style={{ marginTop: 8 }} /> : null}
+          {hits.map((hit) => (
+            <TouchableOpacity
+              key={hit.playerId}
+              style={styles.hit}
+              onPress={() => handleAdd(hit)}
+              testID={`league-hit-${hit.playerId}`}
+            >
+              <Text style={styles.hitName}>{hit.name}</Text>
+              <Text style={styles.hitMeta}>{`${hit.teamAbbrev} · ${hit.position}`}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
-
-        <Text style={styles.section}>MY TEAM</Text>
-        {(mine?.players ?? []).length === 0 ? (
-          <Text style={styles.empty}>Add your roster on the Roster tab first.</Text>
-        ) : (
-          mine!.players.map((p) => (
-            <Text key={p.playerId} style={styles.player} testID="league-mine-player">
-              {`${p.playerName} · ${p.teamAbbrev}`}
-            </Text>
-          ))
-        )}
-
-        <Text style={styles.section}>THEIR TEAM</Text>
-        {opponent.map((p) => (
-          <TouchableOpacity
-            key={p.playerId}
-            onPress={() => handleRemove(p.playerId)}
-            testID={`league-opp-${p.playerId}`}
-          >
-            <Text style={styles.player}>{`${p.playerName} · ${p.teamAbbrev}  (tap to remove)`}</Text>
-          </TouchableOpacity>
-        ))}
-
-        <TextInput
-          style={styles.search}
-          placeholder="Search to add their player…"
-          placeholderTextColor={rinkGlass.textMuted}
-          value={query}
-          onChangeText={handleSearch}
-          testID="league-opp-search"
-        />
-        {searching ? <ActivityIndicator color={rinkGlass.blueLight} style={{ marginTop: 8 }} /> : null}
-        {hits.map((hit) => (
-          <TouchableOpacity
-            key={hit.playerId}
-            style={styles.hit}
-            onPress={() => handleAdd(hit)}
-            testID={`league-hit-${hit.playerId}`}
-          >
-            <Text style={styles.hitName}>{hit.name}</Text>
-            <Text style={styles.hitMeta}>{`${hit.teamAbbrev} · ${hit.position}`}</Text>
-          </TouchableOpacity>
-        ))}
       </ScrollView>
     </View>
   );
@@ -177,6 +179,8 @@ const styles = StyleSheet.create({
   },
   scroll: {
     paddingBottom: Platform.OS === 'ios' ? 100 : 80,
+  },
+  body: {
     paddingHorizontal: 16,
   },
   lede: {

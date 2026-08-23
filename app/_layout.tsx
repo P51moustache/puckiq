@@ -4,6 +4,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AnalyticsProvider } from '../components/analytics/AnalyticsProvider';
@@ -90,7 +91,9 @@ export default function RootLayout() {
       <SubscriptionProvider>
         <AnalyticsProvider config={analyticsConfig}>
           <ThemeProvider value={DarkTheme}>
-            <AppContent />
+            <SafeAreaProvider>
+              <AppContent />
+            </SafeAreaProvider>
           </ThemeProvider>
         </AnalyticsProvider>
       </SubscriptionProvider>

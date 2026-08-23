@@ -213,7 +213,7 @@ describe('MyTeamScreen', () => {
       const tree = render();
       const texts = getAllText(tree);
       expect(texts).toContain('Connor McDavid');
-      expect(texts.some((t) => t.includes('Yahoo'))).toBe(true);
+      expect(texts.some((t) => t.toUpperCase().includes('YAHOO'))).toBe(true);
     });
 
     it('shows edit roster button', () => {

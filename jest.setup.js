@@ -107,12 +107,15 @@ jest.mock('react-native-purchases', () => ({
   },
 }), { virtual: true });
 
-// Mock react-native-google-mobile-ads
-jest.mock('react-native-google-mobile-ads', () => ({
-  BannerAd: 'BannerAd',
-  BannerAdSize: { ANCHORED_ADAPTIVE_BANNER: 'ANCHORED_ADAPTIVE_BANNER' },
-  TestIds: { BANNER: 'ca-app-pub-3940256099942544/6300978111' },
-}), { virtual: true });
+// PageHeader (and other screens) read insets. Tests do not wrap a provider.
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 59, bottom: 34, left: 0, right: 0 }),
+  SafeAreaProvider: ({ children }) => children,
+  SafeAreaView: ({ children, ...props }) => {
+    const React = require('react');
+    return React.createElement('SafeAreaView', props, children);
+  },
+}));
 
 // Silence console.logs in tests
 global.console = {

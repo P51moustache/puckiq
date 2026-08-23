@@ -12,6 +12,7 @@
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { rinkGlass } from '../constants/theme';
 
 interface PageHeaderProps {
@@ -23,12 +24,16 @@ interface PageHeaderProps {
 }
 
 export default function PageHeader({ title, subtitle, right }: PageHeaderProps) {
+  const insets = useSafeAreaInsets();
+
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, { paddingTop: insets.top + 8 }]} testID="page-header">
       <View style={styles.left}>
-        <Text style={styles.title}>{title}</Text>
+        <Text style={styles.title} testID="page-header-title">
+          {title}
+        </Text>
         {subtitle ? (
-          <Text style={styles.subtitle} numberOfLines={1}>
+          <Text style={styles.subtitle} testID="page-header-subtitle">
             {subtitle.toUpperCase()}
           </Text>
         ) : null}
@@ -41,17 +46,19 @@ export default function PageHeader({ title, subtitle, right }: PageHeaderProps) 
 const styles = StyleSheet.create({
   row: {
     paddingHorizontal: 16,
-    paddingTop: 4,
     paddingBottom: 10,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
   },
   left: {
     flex: 1,
+    minWidth: 0,
+    paddingRight: 8,
   },
   right: {
     marginLeft: 8,
+    marginTop: 4,
   },
   title: {
     fontSize: 24,
@@ -59,11 +66,14 @@ const styles = StyleSheet.create({
     color: rinkGlass.textPrimary,
     fontFamily: 'Display-Bold',
     letterSpacing: 0.5,
+    flexShrink: 1,
   },
   subtitle: {
     fontSize: 10,
     color: rinkGlass.textSecondary,
     marginTop: 2,
     letterSpacing: 1.5,
+    lineHeight: 15,
+    flexShrink: 1,
   },
 });

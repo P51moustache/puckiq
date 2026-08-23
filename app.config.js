@@ -20,7 +20,6 @@ export default {
         UIBackgroundModes: [
           "remote-notification"
         ],
-        NSUserTrackingUsageDescription: "This allows PuckIQ to show you relevant ads. Your data is not shared with third parties.",
       }
     },
     android: {

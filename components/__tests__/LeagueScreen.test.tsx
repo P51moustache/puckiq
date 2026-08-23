@@ -46,5 +46,13 @@ describe('LeagueScreen', () => {
     expect(find(tree, 'league-invite')).toHaveLength(1);
     expect(find(tree, 'league-attach-yahoo')).toHaveLength(1);
     expect(find(tree, 'league-mine-player')).toHaveLength(1);
+    const texts = tree.root
+      .findAll((n: any) => n.type === 'Text')
+      .map((n: any) => n.props.children)
+      .filter((t: unknown) => typeof t === 'string');
+    expect(texts).toContain('Your team vs theirs');
+    expect(texts).toContain('NOT A HOSTED LEAGUE');
+    const subtitle = tree.root.findAll((n: any) => n.props.testID === 'page-header-subtitle')[0];
+    expect(subtitle.props.numberOfLines).toBeUndefined();
   });
 });
