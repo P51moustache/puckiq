@@ -168,6 +168,21 @@ export async function clearRoster(): Promise<void> {
 }
 
 /**
+ * Load the saved roster, or create an empty one so add-player flows always have a target.
+ */
+export async function ensureRoster(
+  defaults: Omit<FantasyRoster, 'id' | 'createdAt' | 'updatedAt'> = {
+    name: 'My Team',
+    scoringFormat: 'yahoo',
+    players: [],
+  },
+): Promise<FantasyRoster> {
+  const existing = await loadRoster();
+  if (existing) return existing;
+  return saveRoster(defaults);
+}
+
+/**
  * Get just the scoring format from the saved roster
  */
 export async function getScoringFormat(): Promise<ScoringFormat | null> {

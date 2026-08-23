@@ -35,7 +35,7 @@ export function WelcomeScreen({ onContinueWithApple, onContinueWithGoogle, onSki
           Win Your Fantasy League
         </Animated.Text>
         <Animated.Text entering={FadeInDown.duration(600).delay(600)} style={styles.tagline}>
-          ML-powered lineup recommendations, start/sit advice, and waiver wire picks
+          Tonight's start/sit and news for YOUR roster — not the whole league.
         </Animated.Text>
       </View>
 

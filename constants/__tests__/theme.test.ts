@@ -28,11 +28,11 @@ describe('Rink Glass Design Tokens', () => {
   });
 
   it('has card accent colors for each module type', () => {
-    expect(rinkGlass.moduleAccents.startSit).toBe(rinkGlass.faceoffDot);
-    expect(rinkGlass.moduleAccents.trending).toBe(rinkGlass.goalLight);
-    expect(rinkGlass.moduleAccents.alerts).toBe(rinkGlass.powerPlay);
+    expect(rinkGlass.moduleAccents.startSit).toBe(rinkGlass.blueLight);
+    expect(rinkGlass.moduleAccents.trending).toBe(rinkGlass.blueLight);
+    expect(rinkGlass.moduleAccents.alerts).toBe(rinkGlass.blueLight);
     expect(rinkGlass.moduleAccents.waiverWire).toBe(rinkGlass.blueLight);
-    expect(rinkGlass.moduleAccents.matchupEdge).toBe('#a78bfa');
-    expect(rinkGlass.moduleAccents.dailyInsight).toBe('#f97316');
+    expect(rinkGlass.moduleAccents.matchupEdge).toBe(rinkGlass.blueLight);
+    expect(rinkGlass.moduleAccents.dailyInsight).toBe(rinkGlass.blueLight);
   });
 });

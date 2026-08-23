@@ -115,7 +115,7 @@ describe('PremiumGate', () => {
     expect(findByTestID(element, 'premium-gate')).not.toBeNull();
     expect(findByTestID(element, 'premium-gate-overlay')).not.toBeNull();
     expect(findByText(element, 'ML Predictions')).not.toBeNull();
-    expect(findByText(element, 'Unlock with PuckIQ Pro')).not.toBeNull();
+    expect(findByText(element, 'Start 7-day trial')).not.toBeNull();
   });
 
   it('renders children directly for premium users (no wrapper)', () => {

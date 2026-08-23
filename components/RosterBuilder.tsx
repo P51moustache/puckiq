@@ -14,12 +14,17 @@ import {
   TouchableOpacity,
   FlatList,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { rinkGlass } from '../constants/theme';
-import { supabase } from '../lib/supabase';
+import { FANTASY_SYNC_ADAPTERS } from '../services/fantasySync';
+import { searchNhlPlayers } from '../services/nhlPlayerSearch';
 import { saveRoster, updateRoster } from '../services/fantasyRoster';
-import type { FantasyPlayer, FantasyRoster, ScoringFormat } from '../types/fantasy';
+import { useSubscription } from './SubscriptionProvider';
+import ProPaywall from './ProPaywall';
+import { isPaywallEnabled } from '../constants/monetization';
+import type { FantasyPlayer, FantasyRoster, NhlSearchPlayer, ScoringFormat } from '../types/fantasy';
 
 interface RosterBuilderProps {
   visible: boolean;
@@ -28,13 +33,7 @@ interface RosterBuilderProps {
   existingRoster?: FantasyRoster | null;
 }
 
-interface SearchResult {
-  id: number;
-  first_name: string;
-  last_name: string;
-  current_team_abbrev: string;
-  position_code: string;
-}
+type SearchResult = NhlSearchPlayer;
 
 export default function RosterBuilder({
   visible,
@@ -52,6 +51,8 @@ export default function RosterBuilder({
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
+  const { isPremium } = useSubscription();
 
   const handleSearch = useCallback(async (query: string) => {
     setSearchQuery(query);
@@ -62,17 +63,7 @@ export default function RosterBuilder({
 
     setSearching(true);
     try {
-      const { data, error } = await supabase
-        .from('players')
-        .select('id, first_name, last_name, current_team_abbrev, position_code')
-        .ilike('last_name', `%${query}%`)
-        .limit(20);
-
-      if (!error && data) {
-        setSearchResults(data);
-      } else {
-        setSearchResults([]);
-      }
+      setSearchResults(await searchNhlPlayers(query, 20));
     } catch {
       setSearchResults([]);
     } finally {
@@ -81,14 +72,14 @@ export default function RosterBuilder({
   }, []);
 
   const handleAddPlayer = useCallback((result: SearchResult) => {
-    const alreadyAdded = addedPlayers.some(p => p.playerId === result.id);
+    const alreadyAdded = addedPlayers.some(p => p.playerId === result.playerId);
     if (alreadyAdded) return;
 
     const player: FantasyPlayer = {
-      playerId: result.id,
-      playerName: `${result.first_name} ${result.last_name}`,
-      teamAbbrev: result.current_team_abbrev ?? '',
-      position: result.position_code ?? '',
+      playerId: result.playerId,
+      playerName: result.name,
+      teamAbbrev: result.teamAbbrev ?? '',
+      position: result.position ?? '',
       rosterPosition: 'BN',
     };
 
@@ -126,20 +117,32 @@ export default function RosterBuilder({
     }
   }, [addedPlayers, scoringFormat, existingRoster, onSaved]);
 
+  const handleSyncPress = useCallback((adapterId: 'yahoo' | 'espn') => {
+    if (isPaywallEnabled() && !isPremium) {
+      setShowPaywall(true);
+      return;
+    }
+    const adapter = FANTASY_SYNC_ADAPTERS.find((item) => item.id === adapterId);
+    Alert.alert(
+      adapter?.label ?? 'League sync',
+      adapter?.reasonUnavailable ?? 'League sync is not available in this build.',
+    );
+  }, [isPremium]);
+
   const renderSearchResult = useCallback(({ item }: { item: SearchResult }) => {
-    const alreadyAdded = addedPlayers.some(p => p.playerId === item.id);
+    const alreadyAdded = addedPlayers.some(p => p.playerId === item.playerId);
     return (
       <TouchableOpacity
         style={[styles.resultRow, alreadyAdded && styles.resultRowDisabled]}
         onPress={() => handleAddPlayer(item)}
         disabled={alreadyAdded}
-        testID={`search-result-${item.id}`}
+        testID={`search-result-${item.playerId}`}
       >
         <Text style={styles.resultName}>
-          {item.first_name} {item.last_name}
+          {item.name}
         </Text>
         <Text style={styles.resultMeta}>
-          {item.current_team_abbrev} {'\u2022'} {item.position_code}
+          {item.teamAbbrev || 'FA'} {'\u2022'} {item.position || '—'}
         </Text>
         {alreadyAdded && (
           <Ionicons name="checkmark-circle" size={18} color={rinkGlass.faceoffDot} />
@@ -207,6 +210,28 @@ export default function RosterBuilder({
           </TouchableOpacity>
         </View>
 
+        <View style={styles.syncRow}>
+          <Text style={styles.syncHint}>
+            Manual add is free. Yahoo / ESPN sync is a Pro extra and still stubbed.
+          </Text>
+          <View style={styles.syncButtons}>
+            <TouchableOpacity
+              style={styles.syncButton}
+              onPress={() => handleSyncPress('yahoo')}
+              testID="sync-yahoo"
+            >
+              <Text style={styles.syncButtonText}>Yahoo (Pro)</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.syncButton}
+              onPress={() => handleSyncPress('espn')}
+              testID="sync-espn"
+            >
+              <Text style={styles.syncButtonText}>ESPN (Pro)</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Search */}
         <View style={styles.searchContainer}>
           <Ionicons name="search" size={18} color={rinkGlass.textMuted} style={styles.searchIcon} />
@@ -245,7 +270,7 @@ export default function RosterBuilder({
           <FlatList
             data={searchResults}
             renderItem={renderSearchResult}
-            keyExtractor={item => String(item.id)}
+            keyExtractor={item => String(item.playerId)}
             style={styles.resultsList}
             keyboardShouldPersistTaps="handled"
             ListEmptyComponent={
@@ -256,6 +281,7 @@ export default function RosterBuilder({
           />
         )}
       </View>
+      <ProPaywall visible={showPaywall} onClose={() => setShowPaywall(false)} />
     </Modal>
   );
 }
@@ -318,6 +344,33 @@ const styles = StyleSheet.create({
   },
   formatTextActive: {
     color: '#fff',
+  },
+  syncRow: {
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
+  syncHint: {
+    fontSize: 12,
+    color: rinkGlass.textMuted,
+    marginBottom: 8,
+  },
+  syncButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  syncButton: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: rinkGlass.glassBorder,
+    backgroundColor: rinkGlass.boards,
+    alignItems: 'center',
+  },
+  syncButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: rinkGlass.textSecondary,
   },
   searchContainer: {
     flexDirection: 'row',

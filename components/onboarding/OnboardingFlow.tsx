@@ -71,8 +71,24 @@ export function OnboardingFlow({
   // Screen 3 handlers
   const handleRosterContinue = useCallback(async (players: { id: number; name: string; teamAbbrev: string; position: string }[]) => {
     setHasRoster(players.length > 0);
+    const format = scoringFormat ?? 'yahoo';
+    try {
+      await saveRoster({
+        name: 'My Team',
+        scoringFormat: format,
+        players: players.map((p) => ({
+          playerId: p.id,
+          playerName: p.name,
+          teamAbbrev: p.teamAbbrev,
+          position: p.position,
+          rosterPosition: 'BN' as const,
+        })),
+      });
+    } catch (err) {
+      console.warn('[ONBOARDING] Failed to save roster players:', err);
+    }
     goToStep(4);
-  }, [goToStep]);
+  }, [goToStep, scoringFormat]);
 
   const handleRosterSkip = useCallback(() => {
     goToStep(4);

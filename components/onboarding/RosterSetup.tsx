@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { theme } from '../../constants/theme';
-import { supabase } from '../../lib/supabase';
+import { searchNhlPlayers } from '../../services/nhlPlayerSearch';
 
 interface PlayerResult {
   id: number;
@@ -38,25 +38,16 @@ export function RosterSetup({ onContinue, onSkip }: RosterSetupProps) {
 
     setSearching(true);
     try {
-      const { data, error } = await supabase
-        .from('skater_season_stats')
-        .select('player_id, player_name, team_abbrev, position')
-        .ilike('player_name', `%${text}%`)
-        .limit(10);
-
-      if (!error && data) {
-        const mapped = data.map((p: any) => ({
-          id: p.player_id,
-          name: p.player_name,
-          teamAbbrev: p.team_abbrev,
-          position: p.position,
-        }));
-        // Filter out already-added players
-        const filtered = mapped.filter(
-          (p: PlayerResult) => !addedPlayers.some((a) => a.id === p.id)
-        );
-        setResults(filtered);
-      }
+      const mapped = (await searchNhlPlayers(text, 10)).map((p) => ({
+        id: p.playerId,
+        name: p.name,
+        teamAbbrev: p.teamAbbrev,
+        position: p.position,
+      }));
+      const filtered = mapped.filter(
+        (p: PlayerResult) => !addedPlayers.some((a) => a.id === p.id)
+      );
+      setResults(filtered);
     } catch (err) {
       console.warn('[ONBOARDING] Player search failed:', err);
     } finally {
@@ -79,7 +70,7 @@ export function RosterSetup({ onContinue, onSkip }: RosterSetupProps) {
       <View style={styles.header}>
         <Text style={styles.title}>Add a few key players</Text>
         <Text style={styles.subtitle}>
-          We'll give you personalized start/sit recommendations
+          Tonight and News will only follow the players you add
         </Text>
       </View>
 

@@ -11,6 +11,7 @@ jest.mock('react-native', () => {
     ScrollView: ({ children, ...props }: any) => React.createElement('ScrollView', props, children),
     Pressable: ({ children, ...props }: any) => React.createElement('Pressable', props, children),
     Switch: (props: any) => React.createElement('Switch', props),
+    Alert: { alert: jest.fn() },
     Platform: { OS: 'ios' },
     StyleSheet: { create: (s: any) => s, hairlineWidth: 1 },
   };
@@ -115,6 +116,20 @@ jest.mock('../ReferralCard', () => {
   return () => React.createElement('View', { testID: 'referral-card' });
 });
 
+jest.mock('../CoachAlertsCard', () => {
+  const React = require('react');
+  return () => React.createElement('View', { testID: 'coach-alerts' });
+});
+
+jest.mock('../ProPaywall', () => {
+  const React = require('react');
+  return ({ visible }: any) => (visible ? React.createElement('View', { testID: 'pro-paywall' }) : null);
+});
+
+jest.mock('../../services/subscription', () => ({
+  restorePurchases: jest.fn().mockResolvedValue(false),
+}));
+
 // @ts-expect-error no types for react-test-renderer
 import { create, act } from 'react-test-renderer';
 import React from 'react';
@@ -152,16 +167,26 @@ describe('HubScreen', () => {
   });
 
   describe('when user is NOT authenticated', () => {
-    it('renders the Hub title', () => {
+    it('renders the Settings title', () => {
       const tree = renderHub();
-      expect(getAllText(tree)).toContain('Hub');
+      expect(getAllText(tree)).toContain('Settings');
+    });
+
+    it('shows Free plan and Pro unlocks with Subscribe and Restore', () => {
+      const tree = renderHub();
+      expect(findByTestId(tree, 'plan-section')).toHaveLength(1);
+      expect(findByTestId(tree, 'plan-tier')[0].props.children).toBe('Free');
+      expect(findByTestId(tree, 'settings-subscribe')).toHaveLength(1);
+      expect(findByTestId(tree, 'settings-restore')).toHaveLength(1);
+      const texts = getAllText(tree);
+      expect(texts.some((t) => t.includes('Tonight status'))).toBe(true);
+      expect(texts.some((t) => t.includes('Yahoo / ESPN'))).toBe(true);
     });
 
     it('shows sign-in buttons', () => {
       const tree = renderHub();
       expect(findByTestId(tree, 'sign-in-apple')).toHaveLength(1);
       expect(findByTestId(tree, 'sign-in-google')).toHaveLength(1);
-      expect(findByTestId(tree, 'sign-in-email')).toHaveLength(1);
     });
 
     it('does NOT show sign-out button', () => {
@@ -203,7 +228,6 @@ describe('HubScreen', () => {
       const tree = renderHub();
       expect(findByTestId(tree, 'sign-in-apple')).toHaveLength(0);
       expect(findByTestId(tree, 'sign-in-google')).toHaveLength(0);
-      expect(findByTestId(tree, 'sign-in-email')).toHaveLength(0);
     });
 
     it('calls signOut when sign-out button pressed', () => {
@@ -216,19 +240,6 @@ describe('HubScreen', () => {
     it('loads notification prefs from Supabase', async () => {
       await act(async () => { create(<HubScreen />); });
       expect(mockLoadPrefs).toHaveBeenCalledWith('user-123');
-    });
-  });
-
-  describe('Subscription section', () => {
-    it('shows Free Plan badge', () => {
-      const tree = renderHub();
-      expect(getAllText(tree)).toContain('Free Plan');
-    });
-
-    it('shows Upgrade to Pro button', () => {
-      const tree = renderHub();
-      expect(findByTestId(tree, 'upgrade-button')).toHaveLength(1);
-      expect(getAllText(tree)).toContain('Upgrade to Pro');
     });
   });
 
@@ -258,26 +269,10 @@ describe('HubScreen', () => {
       expect(toggle.props.value).toBe(false);
     });
 
-    it('shows "Pro feature" labels when not premium', () => {
-      const tree = renderHub();
-      const texts = getAllText(tree);
-      expect(texts.filter((t: string) => t === 'Pro feature')).toHaveLength(5);
-    });
-
     it('toggles are disabled when not premium', () => {
       const tree = renderHub();
       const toggle = findByTestId(tree, 'toggle-morning-brief')[0];
       expect(toggle.props.disabled).toBe(true);
-    });
-
-    it('does not show "Pro feature" labels when authenticated + premium', async () => {
-      mockAuthContext.user = { email: 'pro@puckiq.com', id: 'user-pro' };
-      mockSubscription.isPremium = true;
-
-      let tree: any;
-      await act(async () => { tree = create(<HubScreen />); });
-      const texts = getAllText(tree);
-      expect(texts.filter((t: string) => t === 'Pro feature')).toHaveLength(0);
     });
 
     it('can toggle morning brief on when premium', async () => {
