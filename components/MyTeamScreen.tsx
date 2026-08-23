@@ -6,7 +6,6 @@
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { rinkGlass } from '../constants/theme';
 import { useMyTeamData } from '../hooks/useMyTeamData';
+import PageHeader from './PageHeader';
 import RosterBuilder from './RosterBuilder';
 
 export default function MyTeamScreen() {
@@ -37,6 +37,25 @@ export default function MyTeamScreen() {
 
   return (
     <View style={styles.container}>
+      <PageHeader
+        title="Roster"
+        subtitle={
+          hasRoster
+            ? `${roster?.players.length ?? 0} players · ${roster?.scoringFormat === 'espn' ? 'ESPN' : 'Yahoo'} scoring`
+            : 'Search NHL players · Save YOUR guys'
+        }
+        right={
+          hasRoster ? (
+            <TouchableOpacity
+              onPress={() => setShowRosterBuilder(true)}
+              style={styles.editButton}
+              testID="edit-roster-button"
+            >
+              <Ionicons name="pencil" size={16} color={rinkGlass.blueLight} />
+            </TouchableOpacity>
+          ) : undefined
+        }
+      />
       {!hasRoster ? (
         <View style={styles.emptyState} testID="my-team-empty">
           <View style={styles.emptyIconWrapper}>
@@ -59,22 +78,6 @@ export default function MyTeamScreen() {
         </View>
       ) : (
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} testID="my-team-roster">
-          <View style={styles.headerRow}>
-            <View>
-              <Text style={styles.headerTitle}>Roster</Text>
-              <Text style={styles.headerMeta}>
-                {`${roster?.players.length ?? 0} players · ${roster?.scoringFormat === 'espn' ? 'ESPN' : 'Yahoo'} scoring`}
-              </Text>
-            </View>
-            <TouchableOpacity
-              onPress={() => setShowRosterBuilder(true)}
-              style={styles.editButton}
-              testID="edit-roster-button"
-            >
-              <Ionicons name="pencil" size={16} color={rinkGlass.blueLight} />
-            </TouchableOpacity>
-          </View>
-
           {roster?.players.map((player) => (
             <View key={player.playerId} style={styles.playerRow} testID="roster-player-row">
               <View style={styles.playerText}>
@@ -156,26 +159,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'ios' ? 16 : 12,
     paddingBottom: 40,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 24,
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: '800',
-    fontFamily: rinkGlass.fonts.display,
-    color: rinkGlass.textPrimary,
-    marginBottom: 6,
-  },
-  headerMeta: {
-    fontSize: 13,
-    color: rinkGlass.textSecondary,
-    fontWeight: '600',
   },
   editButton: {
     width: 36,

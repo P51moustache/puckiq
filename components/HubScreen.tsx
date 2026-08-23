@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Alert,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -300,7 +299,6 @@ const s = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: rinkGlass.ice,
-    paddingTop: Platform.OS === 'ios' ? 56 : 26,
   },
   scroll: {
     flex: 1,
