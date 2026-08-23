@@ -16,6 +16,7 @@
     "test:unit": "jest services/ hooks/",
     "test:integration": "jest __tests__/integration/",
     "test:component": "jest components/__tests__/",
+    "test:legacy": "jest --config jest.legacy.config.js",
     "test:all": "npm run lint && npm run test:coverage",
     "seed:games": "node scripts/sync/sync-games.mjs --full",
     "seed:all": "node scripts/sync/sync-all.mjs --full",
