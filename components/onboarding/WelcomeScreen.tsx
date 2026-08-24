@@ -32,10 +32,10 @@ export function WelcomeScreen({ onContinueWithApple, onContinueWithGoogle, onSki
           PuckIQ
         </Animated.Text>
         <Animated.Text entering={FadeInDown.duration(600).delay(400)} style={styles.subtitle}>
-          Win Your Fantasy League
+          This week’s lines
         </Animated.Text>
         <Animated.Text entering={FadeInDown.duration(600).delay(600)} style={styles.tagline}>
-          Tonight's start/sit and news for YOUR roster — not the whole league.
+          Coach YOUR roster. Copy last week, then tap players into F, D, G, or bench.
         </Animated.Text>
       </View>
 

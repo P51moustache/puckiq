@@ -1,48 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
-import {
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  View,
-} from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeInUp } from 'react-native-reanimated';
 import { rinkGlass } from '../constants/theme';
+import { LIST_PRICE } from '../constants/monetization';
 import { useAuthContext } from './auth/AuthProvider';
-import { useSubscription } from './SubscriptionProvider';
 import PageHeader from './PageHeader';
-import ProPaywall from './ProPaywall';
-import CoachAlertsCard from './CoachAlertsCard';
-import { FREE_FEATURES, LIST_PRICE_ANNUAL, PRO_UNLOCKS, isPaywallEnabled } from '../constants/monetization';
-import { restorePurchases } from '../services/subscription';
-import {
-  FantasyNotificationPreferences,
-  DEFAULT_FANTASY_PREFS,
-  loadFantasyNotificationPrefs,
-  saveFantasyNotificationPrefs,
-} from '../services/notificationSettings';
 
-type PrefKey = keyof FantasyNotificationPreferences;
-
-const NOTIFICATION_TOGGLES: {
-  key: PrefKey;
-  label: string;
-  testID: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  color: string;
-}[] = [
-  { key: 'morningBrief', label: 'Morning Brief', testID: 'toggle-morning-brief', icon: 'newspaper-outline', color: rinkGlass.moduleAccents.dailyInsight },
-  { key: 'goalieConfirmed', label: 'Goalie Confirmed', testID: 'toggle-goalie-confirmed', icon: 'shield-checkmark-outline', color: rinkGlass.faceoffDot },
-  { key: 'injuryAlerts', label: 'Injury Alerts', testID: 'toggle-injury-alerts', icon: 'alert-circle-outline', color: rinkGlass.redLine },
-  { key: 'gameReminder', label: 'Game Reminders', testID: 'toggle-game-reminders', icon: 'time-outline', color: rinkGlass.blueLight },
-  { key: 'waiverAlerts', label: 'Waiver Alerts', testID: 'toggle-waiver-alerts', icon: 'trending-up-outline', color: rinkGlass.moduleAccents.waiverWire },
-];
-
-/* ── Section Header ────────────────────────────────────── */
 function SectionHeader({ icon, title }: { icon: keyof typeof Ionicons.glyphMap; title: string }) {
   return (
     <View style={s.sectionHeader}>
@@ -60,181 +23,29 @@ function SectionHeader({ icon, title }: { icon: keyof typeof Ionicons.glyphMap; 
   );
 }
 
-/* ── Stat Mini-Card ────────────────────────────────────── */
-function StatCard({ value, label, delay }: { value: string; label: string; delay: number }) {
-  return (
-    <Animated.View entering={FadeInUp.delay(delay).duration(500)} style={s.statCardOuter}>
-      <View style={s.statCard}>
-        <Text style={s.statValue}>{value}</Text>
-        <Text style={s.statLabel}>{label}</Text>
-      </View>
-    </Animated.View>
-  );
-}
-
-/* ── Main Component ────────────────────────────────────── */
 export default function HubScreen() {
   const { user, signInWithApple, signInWithGoogle, signOut } = useAuthContext();
-  const { isPremium, refresh } = useSubscription();
-  const [showPaywall, setShowPaywall] = useState(false);
-  const [restoring, setRestoring] = useState(false);
-  const [notificationPrefs, setNotificationPrefs] = useState<FantasyNotificationPreferences>({
-    ...DEFAULT_FANTASY_PREFS,
-    morningBrief: false,
-    goalieConfirmed: false,
-    injuryAlerts: false,
-    gameReminder: false,
-    waiverAlerts: false,
-  });
-  const [prefsLoaded, setPrefsLoaded] = useState(false);
-
-  useEffect(() => {
-    if (!user?.id) {
-      setPrefsLoaded(false);
-      return;
-    }
-
-    let cancelled = false;
-    (async () => {
-      try {
-        const prefs = await loadFantasyNotificationPrefs(user.id);
-        if (!cancelled) {
-          setNotificationPrefs(prefs);
-          setPrefsLoaded(true);
-        }
-      } catch (err) {
-        console.error('[HubScreen] Error loading notification prefs:', err);
-        if (!cancelled) setPrefsLoaded(true);
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, [user?.id]);
-
-  const togglePref = useCallback(
-    (key: PrefKey) => {
-      if (!user?.id || !isPremium) return;
-
-      setNotificationPrefs((prev) => {
-        const updated = { ...prev, [key]: !prev[key] };
-        saveFantasyNotificationPrefs(user.id, updated).catch((err) => {
-          console.error('[HubScreen] Error saving notification prefs:', err);
-        });
-        return updated;
-      });
-    },
-    [user?.id, isPremium]
-  );
-
-  const canToggle = !!user && isPremium;
-  const paywallOn = isPaywallEnabled();
-
-  const handleRestore = useCallback(async () => {
-    setRestoring(true);
-    try {
-      const ok = await restorePurchases();
-      await refresh();
-      Alert.alert(
-        ok ? 'Pro restored' : 'No Pro subscription found',
-        ok ? 'Your Pro extras are unlocked.' : 'Free tier still works. Subscribe when you want alerts or league sync.',
-      );
-    } finally {
-      setRestoring(false);
-    }
-  }, [refresh]);
 
   return (
     <View style={s.container}>
-      <PageHeader title="Settings" subtitle="Plan · Notifications · Account" />
+      <PageHeader title="Settings" subtitle="Your roster · this device" />
       <ScrollView
         style={s.scroll}
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         <View style={s.section} testID="plan-section">
-          <SectionHeader icon="diamond-outline" title="Plan" />
+          <SectionHeader icon="disc-outline" title="PuckIQ" />
           <View style={s.card}>
             <Text style={s.planTier} testID="plan-tier">
-              {isPremium ? 'Pro' : 'Free'}
+              Paid app · {LIST_PRICE}
             </Text>
             <Text style={s.planCopy}>
-              Free is the full roster app. Pro is a cheap hockey-season subscription ({LIST_PRICE_ANNUAL}), not a one-time price.
+              One coach tool for YOUR roster. This week’s lines, copy last week, tap F / D / G / bench. Local on this device — no Pro gate, no extra teams.
             </Text>
-            <Text style={s.planLabel}>FREE INCLUDES</Text>
-            {FREE_FEATURES.map((line) => (
-              <Text key={line} style={s.planLine}>{`• ${line}`}</Text>
-            ))}
-            <Text style={s.planLabel}>PRO UNLOCKS</Text>
-            {PRO_UNLOCKS.map((line) => (
-              <Text key={line} style={s.planLine}>{`• ${line}`}</Text>
-            ))}
-            {paywallOn && !isPremium ? (
-              <Pressable
-                style={s.subscribeButton}
-                onPress={() => setShowPaywall(true)}
-                testID="settings-subscribe"
-              >
-                <Text style={s.subscribeButtonText}>Subscribe</Text>
-              </Pressable>
-            ) : null}
-            <Pressable
-              style={s.restoreButton}
-              onPress={handleRestore}
-              disabled={restoring}
-              testID="settings-restore"
-            >
-              <Text style={s.restoreButtonText}>
-                {restoring ? 'Restoring…' : 'Restore purchases'}
-              </Text>
-            </Pressable>
           </View>
         </View>
 
-        {/* ── Notifications (the actual settings) ───────── */}
-        <View style={s.section}>
-          <SectionHeader icon="notifications-outline" title="Notifications" />
-          <View style={s.card}>
-            {NOTIFICATION_TOGGLES.map(({ key, label, testID, icon, color }, idx) => (
-              <View
-                style={[s.toggleRow, idx < NOTIFICATION_TOGGLES.length - 1 && s.toggleRowBorder]}
-                key={key}
-              >
-                <View style={s.toggleLeft}>
-                  <Ionicons
-                    name={icon}
-                    size={18}
-                    color={canToggle ? color : rinkGlass.textSecondary}
-                    style={s.toggleIcon}
-                  />
-                  <Text style={[s.toggleLabel, !canToggle && s.toggleLabelDisabled]}>
-                    {label}
-                  </Text>
-                </View>
-                <Switch
-                  value={notificationPrefs[key]}
-                  onValueChange={() => togglePref(key)}
-                  trackColor={{ false: '#1a2744', true: rinkGlass.blueLight }}
-                  thumbColor={notificationPrefs[key] ? rinkGlass.blueLight : rinkGlass.textSecondary}
-                  disabled={!canToggle}
-                  testID={testID}
-                />
-              </View>
-            ))}
-            {!user && (
-              <Text style={s.toggleHelper}>Sign in below. Roster alerts are a Pro extra.</Text>
-            )}
-            {user && !isPremium && (
-              <Text style={s.toggleHelper}>Pro unlocks goalie / scratch / injury alerts for MY players.</Text>
-            )}
-          </View>
-        </View>
-
-        <View style={s.section}>
-          <SectionHeader icon="flash-outline" title="Coach alerts" />
-          <CoachAlertsCard />
-        </View>
-
-        {/* ── Account ───────────────────────────────────── */}
         <View style={s.section}>
           <SectionHeader icon="person-outline" title="Account" />
           <View style={s.card}>
@@ -275,11 +86,10 @@ export default function HubScreen() {
           </View>
         </View>
 
-        {/* ── About ───────────────────────────────────── */}
         <View style={s.aboutRow}>
           <View style={s.aboutLeft}>
             <Text style={s.aboutLabel}>VERSION</Text>
-            <Text style={s.aboutValue}>3.0.0</Text>
+            <Text style={s.aboutValue}>2.3.0</Text>
           </View>
           <Pressable style={s.supportLink} testID="support-link">
             <Text style={s.supportLinkText}>Support</Text>
@@ -289,12 +99,10 @@ export default function HubScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
-      <ProPaywall visible={showPaywall} onClose={() => setShowPaywall(false)} />
     </View>
   );
 }
 
-/* ── Styles ────────────────────────────────────────────── */
 const s = StyleSheet.create({
   container: {
     flex: 1,
@@ -307,80 +115,11 @@ const s = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 120,
   },
-
-  /* Header */
-  headerArea: {
-    marginBottom: 20,
-  },
-  screenTitle: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: rinkGlass.textPrimary,
-    letterSpacing: -0.5,
-    marginBottom: 16,
-    fontFamily: rinkGlass.fonts.display,
-  },
-  profileRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  avatarRing: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInner: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: rinkGlass.ice,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: rinkGlass.blueLight,
-  },
-  identityCol: {
-    flex: 1,
-  },
-  emailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 6,
-  },
   emailText: {
     fontSize: 15,
     color: rinkGlass.textPrimary,
     fontWeight: '500',
     flexShrink: 1,
-  },
-  tierBadge: {
-    backgroundColor: 'rgba(96, 165, 250, 0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(96, 165, 250, 0.3)',
-  },
-  tierBadgePro: {
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
-    borderColor: 'rgba(245, 158, 11, 0.4)',
-  },
-  tierBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: rinkGlass.blueLight,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  tierBadgeTextPro: {
-    color: rinkGlass.powerPlay,
   },
   signOutButton: {
     paddingVertical: 6,
@@ -395,12 +134,6 @@ const s = StyleSheet.create({
     fontSize: 11,
     letterSpacing: 0.5,
   },
-  signInPrompt: {
-    color: rinkGlass.textSecondary,
-    fontSize: 14,
-  },
-
-  /* Auth Buttons */
   authButtons: {
     gap: 8,
   },
@@ -432,12 +165,6 @@ const s = StyleSheet.create({
     fontFamily: rinkGlass.fonts.mono,
     fontWeight: '700',
   },
-  toggleHelper: {
-    fontSize: 11,
-    color: rinkGlass.textMuted,
-    paddingHorizontal: 4,
-    paddingTop: 8,
-  },
   planTier: {
     fontSize: 20,
     fontWeight: '800',
@@ -449,46 +176,6 @@ const s = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     color: rinkGlass.textSecondary,
-    marginBottom: 12,
-  },
-  planLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1.2,
-    color: rinkGlass.textMuted,
-    marginTop: 8,
-    marginBottom: 6,
-  },
-  planLine: {
-    fontSize: 13,
-    lineHeight: 20,
-    color: rinkGlass.textPrimary,
-  },
-  subscribeButton: {
-    marginTop: 16,
-    backgroundColor: rinkGlass.blueLight,
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  subscribeButtonText: {
-    color: '#0a0e1a',
-    fontWeight: '800',
-    fontSize: 15,
-  },
-  restoreButton: {
-    marginTop: 10,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  restoreButtonText: {
-    color: rinkGlass.blueLight,
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  emailAuthButton: {
-    borderColor: 'rgba(42, 64, 128, 0.5)',
-    backgroundColor: 'rgba(25, 46, 94, 0.6)',
   },
   authIcon: {
     marginRight: 10,
@@ -498,41 +185,6 @@ const s = StyleSheet.create({
     fontWeight: '600',
     fontSize: 15,
   },
-
-  /* Stats Row */
-  statsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 24,
-  },
-  statCardOuter: {
-    flex: 1,
-  },
-  statCard: {
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: rinkGlass.glassBorder,
-    backgroundColor: rinkGlass.glass,
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: rinkGlass.blueLight,
-    letterSpacing: -0.5,
-    fontFamily: rinkGlass.fonts.display,
-  },
-  statLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: rinkGlass.textSecondary,
-    marginTop: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-
-  /* Sections */
   section: {
     marginBottom: 24,
   },
@@ -556,8 +208,6 @@ const s = StyleSheet.create({
     height: 1,
     borderRadius: 1,
   },
-
-  /* Card */
   card: {
     backgroundColor: rinkGlass.glass,
     borderRadius: 14,
@@ -565,108 +215,6 @@ const s = StyleSheet.create({
     borderColor: rinkGlass.glassBorder,
     padding: 16,
   },
-
-  /* Subscription (legacy badge tokens still used by unused styles below) */
-  subscriptionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  legacyPlanLabel: {
-    fontSize: 13,
-    color: rinkGlass.textSecondary,
-  },
-  freeBadge: {
-    backgroundColor: 'rgba(96, 165, 250, 0.12)',
-    paddingVertical: 3,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-  },
-  freeBadgeText: {
-    color: rinkGlass.blueLight,
-    fontWeight: '600',
-    fontSize: 12,
-  },
-  upgradeOuter: {
-    borderRadius: 14,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: rinkGlass.blueLight,
-  },
-  upgradeCard: {
-    padding: 18,
-  },
-  upgradeBadgeRow: {},
-  upgradeCtaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 6,
-  },
-  upgradeButtonText: {
-    color: '#fff',
-    fontWeight: '800',
-    fontSize: 16,
-    flex: 1,
-  },
-  upgradeSubtext: {
-    color: 'rgba(255,255,255,0.55)',
-    fontSize: 12,
-  },
-  proActiveRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  proActiveText: {
-    color: rinkGlass.powerPlay,
-    fontWeight: '700',
-    fontSize: 16,
-  },
-
-  /* Notifications */
-  toggleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  toggleRowBorder: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(42, 64, 128, 0.5)',
-  },
-  toggleLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  toggleIcon: {
-    marginRight: 12,
-  },
-  toggleLabelRow: {
-    flexDirection: 'column',
-  },
-  toggleLabel: {
-    fontSize: 14,
-    color: rinkGlass.textPrimary,
-    fontWeight: '500',
-  },
-  toggleLabelDisabled: {
-    opacity: 0.5,
-  },
-  proLockRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 2,
-  },
-  proLabel: {
-    fontSize: 11,
-    color: rinkGlass.textSecondary,
-  },
-
-  /* About */
   aboutRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

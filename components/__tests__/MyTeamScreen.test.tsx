@@ -176,7 +176,7 @@ describe('MyTeamScreen', () => {
       expect(findByTestId(tree, 'my-team-empty')).toHaveLength(1);
       const texts = getAllText(tree);
       expect(texts).toContain('Build Your Roster');
-      expect(texts.some(t => t.includes('fantasy team'))).toBe(true);
+      expect(texts.some(t => t.toLowerCase().includes('this week') && t.includes('lines'))).toBe(true);
     });
 
     it('shows setup CTA button', () => {
@@ -209,11 +209,12 @@ describe('MyTeamScreen', () => {
       expect(findByTestId(tree, 'my-team-roster')).toHaveLength(1);
     });
 
-    it('lists roster players and scoring format', () => {
+    it('lists roster players without fantasy scoring chrome', () => {
       const tree = render();
       const texts = getAllText(tree);
       expect(texts).toContain('Connor McDavid');
-      expect(texts.some((t) => t.toUpperCase().includes('YAHOO'))).toBe(true);
+      expect(texts.some((t) => t.toUpperCase().includes('YOUR ROSTER'))).toBe(true);
+      expect(texts.some((t) => t.toUpperCase().includes('YAHOO'))).toBe(false);
     });
 
     it('shows edit roster button', () => {

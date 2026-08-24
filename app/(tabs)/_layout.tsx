@@ -6,7 +6,7 @@ import { IconSymbol } from '../../components/ui/IconSymbol';
 import TabBarBackground from '../../components/ui/TabBarBackground';
 import { rinkGlass } from '../../constants/theme';
 
-/** Tonight (my roster) is the only home. */
+/** This week's lines is the only home. */
 export const unstable_settings = {
   initialRouteName: 'index',
 };
@@ -54,34 +54,10 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Tonight',
+          title: 'Lines',
           tabBarIcon: ({ color, focused }) => (
             <View style={{ alignItems: 'center' }}>
               <IconSymbol size={24} name="hockey.puck.fill" color={color} />
-              {focused && <GlowDot />}
-            </View>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="news"
-        options={{
-          title: 'News',
-          tabBarIcon: ({ color, focused }) => (
-            <View style={{ alignItems: 'center' }}>
-              <IconSymbol size={24} name="newspaper.fill" color={color} />
-              {focused && <GlowDot />}
-            </View>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="league"
-        options={{
-          title: 'League',
-          tabBarIcon: ({ color, focused }) => (
-            <View style={{ alignItems: 'center' }}>
-              <IconSymbol size={24} name="flag.fill" color={color} />
               {focused && <GlowDot />}
             </View>
           ),
@@ -111,7 +87,9 @@ export default function TabLayout() {
           ),
         }}
       />
-      {/* League-wide briefing surfaces stay in the repo but off the tab bar. */}
+      {/* Pick-edge / extra-team / NHL briefing surfaces stay in the repo but off the tab bar. */}
+      <Tabs.Screen name="news" options={{ href: null }} />
+      <Tabs.Screen name="league" options={{ href: null }} />
       <Tabs.Screen name="players" options={{ href: null }} />
       <Tabs.Screen name="stats" options={{ href: null }} />
       <Tabs.Screen name="models" options={{ href: null }} />

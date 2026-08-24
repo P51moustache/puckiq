@@ -11,18 +11,17 @@ describe('monetization flags', () => {
     else process.env.EXPO_PUBLIC_SHOW_AD_SLOT = originalAd;
   });
 
-  it('keeps the core app on the free list and extras on Pro', () => {
-    expect(FREE_FEATURES.join(' ')).toMatch(/Tonight/);
-    expect(FREE_FEATURES.join(' ')).toMatch(/News/);
-    expect(FREE_FEATURES.join(' ')).toMatch(/whole week/i);
-    expect(PRO_UNLOCKS.join(' ')).toMatch(/Yahoo/);
-    expect(PRO_UNLOCKS.join(' ')).toMatch(/before that player/i);
-    expect(PRO_UNLOCKS.join(' ')).toMatch(/never write your lineup/i);
-    expect(PRO_UNLOCKS.join(' ')).toMatch(/No ads/);
+  it('describes the paid $1.99 coach tool, not a Pro gate', () => {
+    expect(FREE_FEATURES.join(' ')).toMatch(/This week/);
+    expect(FREE_FEATURES.join(' ')).toMatch(/Copy last week/);
+    expect(FREE_FEATURES.join(' ')).not.toMatch(/News|Tonight|Yahoo|Lock of the Day/);
+    expect(PRO_UNLOCKS).toHaveLength(0);
   });
 
-  it('enables the paywall unless explicitly set to 0', () => {
+  it('keeps the paywall off unless explicitly set to 1', () => {
     delete process.env.EXPO_PUBLIC_PAYWALL_ENABLED;
+    expect(isPaywallEnabled()).toBe(false);
+    process.env.EXPO_PUBLIC_PAYWALL_ENABLED = '1';
     expect(isPaywallEnabled()).toBe(true);
     process.env.EXPO_PUBLIC_PAYWALL_ENABLED = '0';
     expect(isPaywallEnabled()).toBe(false);

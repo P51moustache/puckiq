@@ -1,15 +1,12 @@
-import React, { useState, useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
-  FlatList,
   StyleSheet,
-  ActivityIndicator,
 } from 'react-native';
 import { theme } from '../../constants/theme';
-import { searchNhlPlayers } from '../../services/nhlPlayerSearch';
 
 interface PlayerResult {
   id: number;
@@ -23,68 +20,76 @@ interface RosterSetupProps {
   onSkip: () => void;
 }
 
+type LocalPosition = 'F' | 'D' | 'G';
+
 export function RosterSetup({ onContinue, onSkip }: RosterSetupProps) {
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<PlayerResult[]>([]);
-  const [searching, setSearching] = useState(false);
+  const [name, setName] = useState('');
+  const [position, setPosition] = useState<LocalPosition>('F');
   const [addedPlayers, setAddedPlayers] = useState<PlayerResult[]>([]);
 
-  const searchPlayers = useCallback(async (text: string) => {
-    setQuery(text);
-    if (text.length < 2) {
-      setResults([]);
+  const addPlayer = useCallback(() => {
+    const trimmed = name.trim();
+    if (trimmed.length < 1) return;
+    if (addedPlayers.some((player) => player.name.toLowerCase() === trimmed.toLowerCase())) {
       return;
     }
-
-    setSearching(true);
-    try {
-      const mapped = (await searchNhlPlayers(text, 10)).map((p) => ({
-        id: p.playerId,
-        name: p.name,
-        teamAbbrev: p.teamAbbrev,
-        position: p.position,
-      }));
-      const filtered = mapped.filter(
-        (p: PlayerResult) => !addedPlayers.some((a) => a.id === p.id)
-      );
-      setResults(filtered);
-    } catch (err) {
-      console.warn('[ONBOARDING] Player search failed:', err);
-    } finally {
-      setSearching(false);
-    }
-  }, [addedPlayers]);
-
-  const addPlayer = useCallback((player: PlayerResult) => {
-    setAddedPlayers((prev) => [...prev, player]);
-    setResults((prev) => prev.filter((p) => p.id !== player.id));
-    setQuery('');
-  }, []);
+    setAddedPlayers((prev) => [
+      ...prev,
+      {
+        id: Date.now() * 1000 + Math.floor(Math.random() * 1000),
+        name: trimmed,
+        teamAbbrev: '',
+        position,
+      },
+    ]);
+    setName('');
+  }, [addedPlayers, name, position]);
 
   const removePlayer = useCallback((playerId: number) => {
-    setAddedPlayers((prev) => prev.filter((p) => p.id !== playerId));
+    setAddedPlayers((prev) => prev.filter((player) => player.id !== playerId));
   }, []);
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Add a few key players</Text>
+        <Text style={styles.title}>Add your roster</Text>
         <Text style={styles.subtitle}>
-          Tonight and News will only follow the players you add
+          One roster. You’ll tap these names into F, D, G, or bench on this week’s lines.
         </Text>
       </View>
 
-      <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search player names..."
-          placeholderTextColor={theme.subtext}
-          value={query}
-          onChangeText={searchPlayers}
-          autoCapitalize="words"
-          autoCorrect={false}
-        />
-        {searching && <ActivityIndicator style={styles.spinner} color={theme.accent} />}
+      <TextInput
+        style={styles.searchInput}
+        placeholder="Player name"
+        placeholderTextColor={theme.subtext}
+        value={name}
+        onChangeText={setName}
+        autoCapitalize="words"
+        autoCorrect={false}
+        onSubmitEditing={addPlayer}
+        returnKeyType="done"
+      />
+
+      <View style={styles.positionRow}>
+        {(['F', 'D', 'G'] as LocalPosition[]).map((item) => (
+          <TouchableOpacity
+            key={item}
+            style={[styles.positionChip, position === item && styles.positionChipActive]}
+            onPress={() => setPosition(item)}
+            accessibilityLabel={`Position ${item}`}
+          >
+            <Text style={[styles.positionText, position === item && styles.positionTextActive]}>
+              {item}
+            </Text>
+          </TouchableOpacity>
+        ))}
+        <TouchableOpacity
+          style={[styles.addButton, name.trim().length < 1 && styles.addButtonDisabled]}
+          onPress={addPlayer}
+          disabled={name.trim().length < 1}
+        >
+          <Text style={styles.addButtonText}>Add</Text>
+        </TouchableOpacity>
       </View>
 
       {addedPlayers.length > 0 && (
@@ -96,34 +101,14 @@ export function RosterSetup({ onContinue, onSkip }: RosterSetupProps) {
               onPress={() => removePlayer(player.id)}
               accessibilityLabel={`Remove ${player.name}`}
             >
-              <Text style={styles.chipText}>{player.name}</Text>
+              <Text style={styles.chipText}>
+                {player.name} · {player.position}
+              </Text>
               <Text style={styles.chipClose}>x</Text>
             </TouchableOpacity>
           ))}
         </View>
       )}
-
-      <FlatList
-        data={results}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.resultRow}
-            onPress={() => addPlayer(item)}
-            accessibilityLabel={`Add ${item.name}`}
-          >
-            <View style={styles.resultInfo}>
-              <Text style={styles.resultName}>{item.name}</Text>
-              <Text style={styles.resultDetail}>
-                {item.position} - {item.teamAbbrev}
-              </Text>
-            </View>
-            <Text style={styles.addIcon}>+</Text>
-          </TouchableOpacity>
-        )}
-        style={styles.resultsList}
-        keyboardShouldPersistTaps="handled"
-      />
 
       <View style={styles.footer}>
         <TouchableOpacity
@@ -138,7 +123,7 @@ export function RosterSetup({ onContinue, onSkip }: RosterSetupProps) {
         </TouchableOpacity>
 
         <TouchableOpacity onPress={onSkip} style={styles.skipLink}>
-          <Text style={styles.skipText}>Skip — I'll do this later</Text>
+          <Text style={styles.skipText}>Skip — I’ll do this later</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -167,13 +152,7 @@ const styles = StyleSheet.create({
     color: theme.subtext,
     lineHeight: 22,
   },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
   searchInput: {
-    flex: 1,
     backgroundColor: theme.card,
     borderRadius: 12,
     paddingHorizontal: 16,
@@ -183,9 +162,49 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.subtle,
   },
-  spinner: {
-    position: 'absolute',
-    right: 16,
+  positionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  positionChip: {
+    width: 44,
+    height: 40,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.subtle,
+    backgroundColor: theme.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  positionChipActive: {
+    backgroundColor: theme.accent,
+    borderColor: theme.accent,
+  },
+  positionText: {
+    color: theme.subtext,
+    fontWeight: '700',
+  },
+  positionTextActive: {
+    color: '#0a0e1a',
+  },
+  addButton: {
+    marginLeft: 'auto',
+    backgroundColor: theme.accent,
+    paddingHorizontal: 16,
+    height: 40,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addButtonDisabled: {
+    opacity: 0.4,
+  },
+  addButtonText: {
+    color: '#0a0e1a',
+    fontWeight: '700',
   },
   chips: {
     flexDirection: 'row',
@@ -212,36 +231,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
-  resultsList: {
-    flex: 1,
-  },
-  resultRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.subtle,
-  },
-  resultInfo: {
-    flex: 1,
-  },
-  resultName: {
-    color: theme.text,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  resultDetail: {
-    color: theme.subtext,
-    fontSize: 13,
-    marginTop: 2,
-  },
-  addIcon: {
-    color: theme.accent,
-    fontSize: 24,
-    fontWeight: '600',
-    paddingHorizontal: 8,
-  },
   footer: {
+    marginTop: 'auto',
     paddingVertical: 24,
     gap: 12,
   },
