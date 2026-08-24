@@ -1,6 +1,6 @@
 import React from 'react';
-import TonightRosterScreen from '../../components/TonightRosterScreen';
+import ThisWeekLinesScreen from '../../components/ThisWeekLinesScreen';
 
-export default function TonightScreen() {
-  return <TonightRosterScreen />;
+export default function LinesScreen() {
+  return <ThisWeekLinesScreen />;
 }

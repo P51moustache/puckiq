@@ -172,15 +172,17 @@ describe('HubScreen', () => {
       expect(getAllText(tree)).toContain('Settings');
     });
 
-    it('shows Free plan and Pro unlocks with Subscribe and Restore', () => {
+    it('describes the paid $1.99 coach tool and does not show a Pro gate', () => {
       const tree = renderHub();
       expect(findByTestId(tree, 'plan-section')).toHaveLength(1);
-      expect(findByTestId(tree, 'plan-tier')[0].props.children).toBe('Free');
-      expect(findByTestId(tree, 'settings-subscribe')).toHaveLength(1);
-      expect(findByTestId(tree, 'settings-restore')).toHaveLength(1);
+      const tier = findByTestId(tree, 'plan-tier')[0].props.children;
+      expect(Array.isArray(tier) ? tier.join('') : String(tier)).toMatch(/\$1\.99/);
+      expect(findByTestId(tree, 'settings-subscribe')).toHaveLength(0);
+      expect(findByTestId(tree, 'settings-restore')).toHaveLength(0);
       const texts = getAllText(tree);
-      expect(texts.some((t) => t.includes('Tonight status'))).toBe(true);
-      expect(texts.some((t) => t.includes('Yahoo / ESPN'))).toBe(true);
+      expect(texts.some((t) => t.includes('This week'))).toBe(true);
+      expect(texts.some((t) => t.includes('Yahoo / ESPN'))).toBe(false);
+      expect(texts.some((t) => t.includes('Lock of the Day'))).toBe(false);
     });
 
     it('shows sign-in buttons', () => {
@@ -237,79 +239,16 @@ describe('HubScreen', () => {
       expect(mockSignOut).toHaveBeenCalledTimes(1);
     });
 
-    it('loads notification prefs from Supabase', async () => {
+    it('does not load fantasy notification prefs', async () => {
       await act(async () => { create(<HubScreen />); });
-      expect(mockLoadPrefs).toHaveBeenCalledWith('user-123');
-    });
-  });
-
-  describe('Notification preferences', () => {
-    it('shows all five notification toggles', () => {
-      const tree = renderHub();
-      expect(findByTestId(tree, 'toggle-morning-brief')).toHaveLength(1);
-      expect(findByTestId(tree, 'toggle-goalie-confirmed')).toHaveLength(1);
-      expect(findByTestId(tree, 'toggle-injury-alerts')).toHaveLength(1);
-      expect(findByTestId(tree, 'toggle-game-reminders')).toHaveLength(1);
-      expect(findByTestId(tree, 'toggle-waiver-alerts')).toHaveLength(1);
-    });
-
-    it('shows notification labels', () => {
-      const tree = renderHub();
-      const texts = getAllText(tree);
-      expect(texts).toContain('Morning Brief');
-      expect(texts).toContain('Goalie Confirmed');
-      expect(texts).toContain('Injury Alerts');
-      expect(texts).toContain('Game Reminders');
-      expect(texts).toContain('Waiver Alerts');
-    });
-
-    it('toggles start as off', () => {
-      const tree = renderHub();
-      const toggle = findByTestId(tree, 'toggle-morning-brief')[0];
-      expect(toggle.props.value).toBe(false);
-    });
-
-    it('toggles are disabled when not premium', () => {
-      const tree = renderHub();
-      const toggle = findByTestId(tree, 'toggle-morning-brief')[0];
-      expect(toggle.props.disabled).toBe(true);
-    });
-
-    it('can toggle morning brief on when premium', async () => {
-      mockAuthContext.user = { email: 'pro@puckiq.com', id: 'user-pro' };
-      mockSubscription.isPremium = true;
-
-      let tree: any;
-      await act(async () => { tree = create(<HubScreen />); });
-
-      const toggle = findByTestId(tree, 'toggle-morning-brief')[0];
-      expect(toggle.props.disabled).toBe(false);
-
-      await act(async () => { toggle.props.onValueChange(true); });
-      const updated = findByTestId(tree, 'toggle-morning-brief')[0];
-      expect(updated.props.value).toBe(true);
-    });
-
-    it('saves prefs to Supabase on toggle', async () => {
-      mockAuthContext.user = { email: 'pro@puckiq.com', id: 'user-pro' };
-      mockSubscription.isPremium = true;
-
-      let tree: any;
-      await act(async () => { tree = create(<HubScreen />); });
-
-      const toggle = findByTestId(tree, 'toggle-morning-brief')[0];
-      await act(async () => { toggle.props.onValueChange(true); });
-
-      expect(mockSavePrefs).toHaveBeenCalledWith('user-pro', expect.objectContaining({
-        morningBrief: true,
-      }));
+      expect(mockLoadPrefs).not.toHaveBeenCalled();
     });
   });
 
   describe('About section', () => {
-    it('shows version 3.0.0', () => {
+    it('shows version 2.3.0', () => {
       const tree = renderHub();
-      expect(getAllText(tree)).toContain('3.0.0');
+      expect(getAllText(tree)).toContain('2.3.0');
     });
 
     it('shows Support link', () => {

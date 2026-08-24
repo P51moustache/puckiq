@@ -219,7 +219,7 @@ export default function Spotlight({
   const renderSeeAll = () => (
     <Pressable
       testID="spotlight-see-all"
-      onPress={() => router.push('/stats')}
+      onPress={() => router.push('/stats' as never)}
       style={({ pressed }) => [
         styles.seeAllCard,
         pressed && { opacity: 0.7 },

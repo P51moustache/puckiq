@@ -110,7 +110,7 @@ function StandingsWidgetComponent({ standings, selectedTeam }: StandingsWidgetPr
 
         {/* Footer link */}
         <Pressable
-          onPress={() => router.push('/stats')}
+          onPress={() => router.push('/stats' as never)}
           style={({ pressed }) => [styles.footer, pressed && { opacity: 0.7 }]}
         >
           <Text style={styles.footerText}>Full Standings →</Text>

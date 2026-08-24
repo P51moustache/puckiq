@@ -1,6 +1,5 @@
 /**
- * Roster tab — add/remove the players on MY fantasy team.
- * Tonight status lives on the home tab; this screen is just the roster.
+ * Roster tab — the one roster this week's lines uses.
  */
 
 import React, { useCallback, useState } from 'react';
@@ -41,8 +40,8 @@ export default function MyTeamScreen() {
         title="Roster"
         subtitle={
           hasRoster
-            ? `${roster?.players.length ?? 0} players · ${roster?.scoringFormat === 'espn' ? 'ESPN' : 'Yahoo'} scoring`
-            : 'Search NHL players · Save YOUR guys'
+            ? `${roster?.players.length ?? 0} players · your roster`
+            : 'One roster · used for this week’s lines'
         }
         right={
           hasRoster ? (
@@ -63,7 +62,7 @@ export default function MyTeamScreen() {
           </View>
           <Text style={styles.emptyTitle}>Build Your Roster</Text>
           <Text style={styles.emptyDescription}>
-            Search NHL players and save the names on your fantasy team. Tonight and News only follow those players.
+            Add the names on your roster. This week’s lines uses only these players.
           </Text>
           <TouchableOpacity
             onPress={() => setShowRosterBuilder(true)}
@@ -83,7 +82,7 @@ export default function MyTeamScreen() {
               <View style={styles.playerText}>
                 <Text style={styles.playerName}>{player.playerName}</Text>
                 <Text style={styles.playerMeta}>
-                  {player.position} · {player.teamAbbrev}
+                  {[player.position, player.teamAbbrev].filter(Boolean).join(' · ') || '—'}
                 </Text>
               </View>
             </View>

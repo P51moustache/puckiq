@@ -51,8 +51,16 @@ function texts(tree: any): string[] {
 }
 
 describe('ProPaywall', () => {
+  const originalPaywall = process.env.EXPO_PUBLIC_PAYWALL_ENABLED;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env.EXPO_PUBLIC_PAYWALL_ENABLED = '1';
+  });
+
+  afterEach(() => {
+    if (originalPaywall === undefined) delete process.env.EXPO_PUBLIC_PAYWALL_ENABLED;
+    else process.env.EXPO_PUBLIC_PAYWALL_ENABLED = originalPaywall;
   });
 
   it('lists Pro unlocks and Subscribe / Restore', () => {
@@ -61,8 +69,7 @@ describe('ProPaywall', () => {
     expect(find(tree, 'pro-subscribe')).toHaveLength(1);
     expect(find(tree, 'pro-restore')).toHaveLength(1);
     const copy = texts(tree).join(' ');
-    expect(copy).toContain('$14.99/yr');
-    expect(copy).toMatch(/Yahoo/);
+    expect(copy).toContain('$1.99');
   });
 
   it('purchases the annual package by default', async () => {

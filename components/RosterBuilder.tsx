@@ -1,30 +1,21 @@
 /**
- * RosterBuilder
- * Modal for searching and adding players to a fantasy roster.
- * Includes scoring format selector, player search, and save functionality.
+ * RosterBuilder — add names to the one roster. Local only. No Yahoo/ESPN, no Pro.
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
+  Alert,
   Modal,
+  StyleSheet,
+  Text,
   TextInput,
   TouchableOpacity,
-  FlatList,
-  ActivityIndicator,
-  Alert,
+  View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { rinkGlass } from '../constants/theme';
-import { FANTASY_SYNC_ADAPTERS } from '../services/fantasySync';
-import { searchNhlPlayers } from '../services/nhlPlayerSearch';
 import { saveRoster, updateRoster } from '../services/fantasyRoster';
-import { useSubscription } from './SubscriptionProvider';
-import ProPaywall from './ProPaywall';
-import { isPaywallEnabled } from '../constants/monetization';
-import type { FantasyPlayer, FantasyRoster, NhlSearchPlayer, ScoringFormat } from '../types/fantasy';
+import type { FantasyPlayer, FantasyRoster } from '../types/fantasy';
 
 interface RosterBuilderProps {
   visible: boolean;
@@ -33,7 +24,17 @@ interface RosterBuilderProps {
   existingRoster?: FantasyRoster | null;
 }
 
-type SearchResult = NhlSearchPlayer;
+type LocalPosition = 'F' | 'D' | 'G';
+
+function makeLocalPlayer(name: string, position: LocalPosition): FantasyPlayer {
+  return {
+    playerId: Date.now() * 1000 + Math.floor(Math.random() * 1000),
+    playerName: name.trim(),
+    teamAbbrev: '',
+    position,
+    rosterPosition: 'BN',
+  };
+}
 
 export default function RosterBuilder({
   visible,
@@ -41,55 +42,39 @@ export default function RosterBuilder({
   onSaved,
   existingRoster,
 }: RosterBuilderProps) {
-  const [scoringFormat, setScoringFormat] = useState<ScoringFormat>(
-    existingRoster?.scoringFormat ?? 'yahoo'
-  );
   const [addedPlayers, setAddedPlayers] = useState<FantasyPlayer[]>(
-    existingRoster?.players ?? []
+    existingRoster?.players ?? [],
   );
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [searching, setSearching] = useState(false);
+  const [name, setName] = useState('');
+  const [position, setPosition] = useState<LocalPosition>('F');
   const [saving, setSaving] = useState(false);
-  const [showPaywall, setShowPaywall] = useState(false);
-  const { isPremium } = useSubscription();
 
-  const handleSearch = useCallback(async (query: string) => {
-    setSearchQuery(query);
-    if (query.length < 2) {
-      setSearchResults([]);
+  useEffect(() => {
+    if (visible) {
+      setAddedPlayers(existingRoster?.players ?? []);
+      setName('');
+      setPosition('F');
+    }
+  }, [visible, existingRoster]);
+
+  const handleAdd = useCallback(() => {
+    const trimmed = name.trim();
+    if (trimmed.length < 1) {
       return;
     }
-
-    setSearching(true);
-    try {
-      setSearchResults(await searchNhlPlayers(query, 20));
-    } catch {
-      setSearchResults([]);
-    } finally {
-      setSearching(false);
+    const duplicate = addedPlayers.some(
+      (player) => player.playerName.toLowerCase() === trimmed.toLowerCase(),
+    );
+    if (duplicate) {
+      Alert.alert('Already on the roster', `${trimmed} is already listed.`);
+      return;
     }
-  }, []);
-
-  const handleAddPlayer = useCallback((result: SearchResult) => {
-    const alreadyAdded = addedPlayers.some(p => p.playerId === result.playerId);
-    if (alreadyAdded) return;
-
-    const player: FantasyPlayer = {
-      playerId: result.playerId,
-      playerName: result.name,
-      teamAbbrev: result.teamAbbrev ?? '',
-      position: result.position ?? '',
-      rosterPosition: 'BN',
-    };
-
-    setAddedPlayers(prev => [...prev, player]);
-    setSearchQuery('');
-    setSearchResults([]);
-  }, [addedPlayers]);
+    setAddedPlayers((prev) => [...prev, makeLocalPlayer(trimmed, position)]);
+    setName('');
+  }, [addedPlayers, name, position]);
 
   const handleRemovePlayer = useCallback((playerId: number) => {
-    setAddedPlayers(prev => prev.filter(p => p.playerId !== playerId));
+    setAddedPlayers((prev) => prev.filter((player) => player.playerId !== playerId));
   }, []);
 
   const handleSave = useCallback(async () => {
@@ -99,13 +84,12 @@ export default function RosterBuilder({
       if (existingRoster) {
         await updateRoster({
           ...existingRoster,
-          scoringFormat,
           players: addedPlayers,
         });
       } else {
         await saveRoster({
           name: 'My Team',
-          scoringFormat,
+          scoringFormat: 'yahoo',
           players: addedPlayers,
         });
       }
@@ -115,41 +99,7 @@ export default function RosterBuilder({
     } finally {
       setSaving(false);
     }
-  }, [addedPlayers, scoringFormat, existingRoster, onSaved]);
-
-  const handleSyncPress = useCallback((adapterId: 'yahoo' | 'espn') => {
-    if (isPaywallEnabled() && !isPremium) {
-      setShowPaywall(true);
-      return;
-    }
-    const adapter = FANTASY_SYNC_ADAPTERS.find((item) => item.id === adapterId);
-    Alert.alert(
-      adapter?.label ?? 'League sync',
-      adapter?.reasonUnavailable ?? 'League sync is not available in this build.',
-    );
-  }, [isPremium]);
-
-  const renderSearchResult = useCallback(({ item }: { item: SearchResult }) => {
-    const alreadyAdded = addedPlayers.some(p => p.playerId === item.playerId);
-    return (
-      <TouchableOpacity
-        style={[styles.resultRow, alreadyAdded && styles.resultRowDisabled]}
-        onPress={() => handleAddPlayer(item)}
-        disabled={alreadyAdded}
-        testID={`search-result-${item.playerId}`}
-      >
-        <Text style={styles.resultName}>
-          {item.name}
-        </Text>
-        <Text style={styles.resultMeta}>
-          {item.teamAbbrev || 'FA'} {'\u2022'} {item.position || '—'}
-        </Text>
-        {alreadyAdded && (
-          <Ionicons name="checkmark-circle" size={18} color={rinkGlass.faceoffDot} />
-        )}
-      </TouchableOpacity>
-    );
-  }, [addedPlayers, handleAddPlayer]);
+  }, [addedPlayers, existingRoster, onSaved]);
 
   return (
     <Modal
@@ -160,7 +110,6 @@ export default function RosterBuilder({
       testID="roster-builder-modal"
     >
       <View style={styles.container}>
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={onDismiss} testID="roster-builder-cancel">
             <Text style={styles.cancelText}>Cancel</Text>
@@ -184,104 +133,67 @@ export default function RosterBuilder({
           </TouchableOpacity>
         </View>
 
-        {/* Scoring Format Selector */}
-        <View style={styles.formatRow}>
-          <TouchableOpacity
-            style={[styles.formatButton, scoringFormat === 'yahoo' && styles.formatActive]}
-            onPress={() => setScoringFormat('yahoo')}
-            testID="format-yahoo"
-          >
-            <Text
-              style={[styles.formatText, scoringFormat === 'yahoo' && styles.formatTextActive]}
-            >
-              Yahoo
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.formatButton, scoringFormat === 'espn' && styles.formatActive]}
-            onPress={() => setScoringFormat('espn')}
-            testID="format-espn"
-          >
-            <Text
-              style={[styles.formatText, scoringFormat === 'espn' && styles.formatTextActive]}
-            >
-              ESPN
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <Text style={styles.hint}>
+          Add the names on your roster. No NHL search, no extra teams.
+        </Text>
 
-        <View style={styles.syncRow}>
-          <Text style={styles.syncHint}>
-            Manual add is free. Yahoo / ESPN sync is a Pro extra and still stubbed.
-          </Text>
-          <View style={styles.syncButtons}>
-            <TouchableOpacity
-              style={styles.syncButton}
-              onPress={() => handleSyncPress('yahoo')}
-              testID="sync-yahoo"
-            >
-              <Text style={styles.syncButtonText}>Yahoo (Pro)</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.syncButton}
-              onPress={() => handleSyncPress('espn')}
-              testID="sync-espn"
-            >
-              <Text style={styles.syncButtonText}>ESPN (Pro)</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Search */}
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={18} color={rinkGlass.textMuted} style={styles.searchIcon} />
+        <View style={styles.addRow}>
           <TextInput
-            style={styles.searchInput}
-            placeholder="Search players by name..."
+            style={styles.nameInput}
+            placeholder="Player name"
             placeholderTextColor={rinkGlass.textMuted}
-            value={searchQuery}
-            onChangeText={handleSearch}
-            testID="roster-search-input"
+            value={name}
+            onChangeText={setName}
+            testID="roster-name-input"
             autoCorrect={false}
+            autoCapitalize="words"
+            onSubmitEditing={handleAdd}
+            returnKeyType="done"
           />
         </View>
 
-        {/* Added Players Chips */}
+        <View style={styles.positionRow} testID="roster-position-chips">
+          {(['F', 'D', 'G'] as LocalPosition[]).map((item) => (
+            <TouchableOpacity
+              key={item}
+              style={[styles.positionChip, position === item && styles.positionChipActive]}
+              onPress={() => setPosition(item)}
+              testID={`roster-position-${item}`}
+            >
+              <Text style={[styles.positionText, position === item && styles.positionTextActive]}>
+                {item}
+              </Text>
+            </TouchableOpacity>
+          ))}
+          <TouchableOpacity
+            style={[styles.addButton, name.trim().length < 1 && styles.addButtonDisabled]}
+            onPress={handleAdd}
+            disabled={name.trim().length < 1}
+            testID="roster-add-player"
+          >
+            <Text style={styles.addButtonText}>Add</Text>
+          </TouchableOpacity>
+        </View>
+
         {addedPlayers.length > 0 && (
           <View style={styles.chipsContainer} testID="added-players-chips">
-            {addedPlayers.map(player => (
+            {addedPlayers.map((player) => (
               <TouchableOpacity
                 key={player.playerId}
                 style={styles.chip}
                 onPress={() => handleRemovePlayer(player.playerId)}
                 testID={`chip-${player.playerId}`}
               >
-                <Text style={styles.chipText}>{player.playerName}</Text>
+                <Text style={styles.chipText}>
+                  {player.playerName}
+                  {player.position ? ` · ${player.position}` : ''}
+                </Text>
                 <Ionicons name="close-circle" size={14} color={rinkGlass.textSecondary} />
               </TouchableOpacity>
             ))}
           </View>
         )}
-
-        {/* Search Results */}
-        {searching ? (
-          <ActivityIndicator color={rinkGlass.blueLight} style={styles.loader} />
-        ) : (
-          <FlatList
-            data={searchResults}
-            renderItem={renderSearchResult}
-            keyExtractor={item => String(item.playerId)}
-            style={styles.resultsList}
-            keyboardShouldPersistTaps="handled"
-            ListEmptyComponent={
-              searchQuery.length >= 2 ? (
-                <Text style={styles.emptyText}>No players found</Text>
-              ) : null
-            }
-          />
-        )}
       </View>
-      <ProPaywall visible={showPaywall} onClose={() => setShowPaywall(false)} />
     </Modal>
   );
 }
@@ -319,84 +231,77 @@ const styles = StyleSheet.create({
   saveTextDisabled: {
     opacity: 0.4,
   },
-  formatRow: {
-    flexDirection: 'row',
-    padding: 16,
-    gap: 8,
+  hint: {
+    fontSize: 13,
+    color: rinkGlass.textSecondary,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
-  formatButton: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 8,
-    backgroundColor: rinkGlass.glass,
-    alignItems: 'center',
+  addRow: {
+    paddingHorizontal: 16,
+  },
+  nameInput: {
+    height: 44,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    backgroundColor: rinkGlass.boards,
     borderWidth: 1,
     borderColor: rinkGlass.glassBorder,
+    fontSize: 15,
+    color: rinkGlass.textPrimary,
   },
-  formatActive: {
+  positionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
+  positionChip: {
+    width: 44,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: rinkGlass.boards,
+    borderWidth: 1,
+    borderColor: rinkGlass.glassBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  positionChipActive: {
     backgroundColor: rinkGlass.blueLight,
     borderColor: rinkGlass.blueLight,
   },
-  formatText: {
+  positionText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
     color: rinkGlass.textSecondary,
   },
-  formatTextActive: {
-    color: '#fff',
+  positionTextActive: {
+    color: '#0a0e1a',
   },
-  syncRow: {
-    paddingHorizontal: 16,
-    marginBottom: 8,
-  },
-  syncHint: {
-    fontSize: 12,
-    color: rinkGlass.textMuted,
-    marginBottom: 8,
-  },
-  syncButtons: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  syncButton: {
-    flex: 1,
-    paddingVertical: 8,
+  addButton: {
+    marginLeft: 'auto',
+    backgroundColor: rinkGlass.blueLight,
+    paddingHorizontal: 18,
+    height: 40,
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: rinkGlass.glassBorder,
-    backgroundColor: rinkGlass.boards,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  syncButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: rinkGlass.textSecondary,
+  addButtonDisabled: {
+    opacity: 0.4,
   },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: rinkGlass.boards,
-    borderRadius: 10,
-    marginHorizontal: 16,
-    paddingHorizontal: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: rinkGlass.glassBorder,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    height: 44,
+  addButtonText: {
     fontSize: 15,
-    color: rinkGlass.textPrimary,
+    fontWeight: '700',
+    color: '#0a0e1a',
   },
   chipsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 16,
     gap: 6,
   },
   chip: {
@@ -411,39 +316,5 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: 13,
     color: rinkGlass.textPrimary,
-  },
-  resultsList: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
-  resultRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: rinkGlass.glassBorder,
-  },
-  resultRowDisabled: {
-    opacity: 0.5,
-  },
-  resultName: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '500',
-    color: rinkGlass.textPrimary,
-  },
-  resultMeta: {
-    fontSize: 13,
-    color: rinkGlass.textSecondary,
-    marginRight: 8,
-  },
-  loader: {
-    marginTop: 24,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: rinkGlass.textSecondary,
-    textAlign: 'center',
-    marginTop: 24,
   },
 });
