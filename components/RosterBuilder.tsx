@@ -89,7 +89,7 @@ export default function RosterBuilder({
       } else {
         await saveRoster({
           name: 'My Team',
-          scoringFormat: existingRoster?.scoringFormat ?? 'yahoo',
+          scoringFormat: 'yahoo',
           players: addedPlayers,
         });
       }

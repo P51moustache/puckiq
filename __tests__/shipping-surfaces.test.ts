@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
-const repoRoot = path.join(__dirname, '../../..');
+const repoRoot = path.join(__dirname, '..');
 
 describe('Week 1 shipping surfaces', () => {
   it('makes this week’s lines the home tab and hides pick-edge / extra-team tabs', () => {
@@ -29,8 +29,12 @@ describe('Week 1 shipping surfaces', () => {
     const hub = fs.readFileSync(path.join(repoRoot, 'components/HubScreen.tsx'), 'utf8');
     expect(hub).not.toMatch(/settings-subscribe/);
     expect(hub).not.toMatch(/ProPaywall/);
-    expect(hub).toMatch(/\$1\.99/);
+    expect(hub).toMatch(/LIST_PRICE/);
     expect(hub).not.toMatch(/Lock of the Day/);
+
+    const monetization = fs.readFileSync(path.join(repoRoot, 'constants/monetization.ts'), 'utf8');
+    expect(monetization).toMatch(/\$1\.99/);
+    expect(monetization).toMatch(/EXPO_PUBLIC_PAYWALL_ENABLED === '1'/);
 
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
     expect(pkg.dependencies['react-native-google-mobile-ads']).toBeUndefined();
