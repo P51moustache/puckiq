@@ -87,13 +87,6 @@ export default function TabLayout() {
           ),
         }}
       />
-      {/* Pick-edge / extra-team / NHL briefing surfaces stay in the repo but off the tab bar. */}
-      <Tabs.Screen name="news" options={{ href: null }} />
-      <Tabs.Screen name="league" options={{ href: null }} />
-      <Tabs.Screen name="players" options={{ href: null }} />
-      <Tabs.Screen name="stats" options={{ href: null }} />
-      <Tabs.Screen name="models" options={{ href: null }} />
-      <Tabs.Screen name="teams" options={{ href: null }} />
     </Tabs>
   );
 }

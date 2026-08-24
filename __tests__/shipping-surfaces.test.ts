@@ -2,24 +2,38 @@ import fs from 'fs';
 import path from 'path';
 
 const repoRoot = path.join(__dirname, '..');
+const tabsDir = path.join(repoRoot, 'app/(tabs)');
+
+const SHIPPED_TAB_FILES = new Set(['_layout.tsx', 'index.tsx', 'myteam.tsx', 'hub.tsx']);
+const KILLED_ROUTES = ['news', 'league', 'players', 'stats', 'models', 'teams'];
 
 describe('Week 1 shipping surfaces', () => {
-  it('makes this week’s lines the home tab and hides pick-edge / extra-team tabs', () => {
-    const layout = fs.readFileSync(path.join(repoRoot, 'app/(tabs)/_layout.tsx'), 'utf8');
+  it('registers only Lines / Roster / Settings — no leftover tab or href:null routes', () => {
+    const layout = fs.readFileSync(path.join(tabsDir, '_layout.tsx'), 'utf8');
     expect(layout).toMatch(/title: 'Lines'/);
-    expect(layout).toMatch(/name="news"[\s\S]*href: null/);
-    expect(layout).toMatch(/name="league"[\s\S]*href: null/);
-    expect(layout).toMatch(/name="players"[\s\S]*href: null/);
-    expect(layout).toMatch(/name="stats"[\s\S]*href: null/);
-    expect(layout).toMatch(/name="models"[\s\S]*href: null/);
-    expect(layout).toMatch(/name="teams"[\s\S]*href: null/);
+    expect(layout).toMatch(/title: 'Roster'/);
+    expect(layout).toMatch(/title: 'Settings'/);
+    expect(layout).not.toMatch(/href:\s*null/);
     expect(layout).not.toMatch(/title: 'Tonight'/);
     expect(layout).not.toMatch(/title: 'News'/);
     expect(layout).not.toMatch(/title: 'League'/);
+    for (const name of KILLED_ROUTES) {
+      expect(layout).not.toMatch(new RegExp(`name=["']${name}["']`));
+    }
+  });
+
+  it('does not keep pick-edge route files that Expo Router can deep-link', () => {
+    const files = fs.readdirSync(tabsDir).filter((name) => !name.startsWith('.'));
+    expect(files.sort()).toEqual([...SHIPPED_TAB_FILES].sort());
+    for (const name of KILLED_ROUTES) {
+      expect(fs.existsSync(path.join(tabsDir, `${name}.tsx`))).toBe(false);
+      expect(fs.existsSync(path.join(tabsDir, `${name}.ts`))).toBe(false);
+      expect(fs.existsSync(path.join(tabsDir, `${name}.jsx`))).toBe(false);
+    }
   });
 
   it('opens the Lines tab on ThisWeekLinesScreen', () => {
-    const home = fs.readFileSync(path.join(repoRoot, 'app/(tabs)/index.tsx'), 'utf8');
+    const home = fs.readFileSync(path.join(tabsDir, 'index.tsx'), 'utf8');
     expect(home).toMatch(/ThisWeekLinesScreen/);
     expect(home).not.toMatch(/TonightRosterScreen/);
     expect(home).not.toMatch(/LockOfTheDay/);
