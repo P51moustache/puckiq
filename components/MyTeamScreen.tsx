@@ -82,7 +82,7 @@ export default function MyTeamScreen() {
               <View style={styles.playerText}>
                 <Text style={styles.playerName}>{player.playerName}</Text>
                 <Text style={styles.playerMeta}>
-                  {player.position} · {player.teamAbbrev}
+                  {[player.position, player.teamAbbrev].filter(Boolean).join(' · ') || '—'}
                 </Text>
               </View>
             </View>
