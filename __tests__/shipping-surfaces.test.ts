@@ -73,5 +73,8 @@ describe('Week 1 shipping surfaces', () => {
     const provider = fs.readFileSync(path.join(repoRoot, 'components/SubscriptionProvider.tsx'), 'utf8');
     expect(provider).not.toMatch(/initializeSubscription/);
     expect(provider).not.toMatch(/isPro/);
+
+    const supabase = fs.readFileSync(path.join(repoRoot, 'lib/supabase.ts'), 'utf8');
+    expect(supabase).not.toMatch(/throw new Error/);
   });
 });
