@@ -13,7 +13,14 @@ export async function isPro(): Promise<boolean> {
   return true;
 }
 
-export async function getOfferings(): Promise<null> {
+export type OfferingsStub = {
+  current: {
+    monthly: unknown | null;
+    annual: unknown | null;
+  } | null;
+};
+
+export async function getOfferings(): Promise<OfferingsStub | null> {
   return null;
 }
 
