@@ -4,19 +4,27 @@ import { Platform } from 'react-native';
 import { getNotificationSettings } from './notificationSettings';
 import { getAllPicks, getYesterdaysResults, Pick } from './pickTracking';
 
-// Configure how notifications should be handled when app is in foreground
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: false, // Don't show alerts when app is in foreground
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-    shouldShowBanner: false,
-    shouldShowList: false,
-  }),
-});
+let notificationHandlerInstalled = false;
+
+function ensureNotificationHandler(): void {
+  if (notificationHandlerInstalled) {
+    return;
+  }
+  notificationHandlerInstalled = true;
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: false,
+      shouldPlaySound: false,
+      shouldSetBadge: false,
+      shouldShowBanner: false,
+      shouldShowList: false,
+    }),
+  });
+}
 
 // Request notification permissions
 export async function requestNotificationPermissions(): Promise<boolean> {
+  ensureNotificationHandler();
   // Check if physical device (notifications don't work on all simulators)
   if (!Device.isDevice) {
     console.log('Notifications only work on physical devices');
@@ -191,6 +199,7 @@ export async function scheduleDailyNotification(time: string = '09:00'): Promise
 // Initialize notification system
 export async function initializeNotifications(): Promise<void> {
   try {
+    ensureNotificationHandler();
     const settings = await getNotificationSettings();
 
     if (!settings.enabled) {

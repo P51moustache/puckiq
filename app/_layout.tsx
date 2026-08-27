@@ -11,7 +11,6 @@ import { AnalyticsProvider } from '../components/analytics/AnalyticsProvider';
 import { AuthProvider, useAuthContext } from '../components/auth/AuthProvider';
 import { SubscriptionProvider } from '../components/SubscriptionProvider';
 import { OnboardingFlow } from '../components/onboarding/OnboardingFlow';
-import { initializeNotifications } from '../services/notifications';
 
 const ONBOARDING_KEY = 'puckiq_onboarding_complete';
 
@@ -75,10 +74,6 @@ export default function RootLayout() {
   useEffect(() => {
     if (loaded) {
       SplashScreen.hideAsync();
-      // Initialize notifications (schedule daily results if enabled)
-      initializeNotifications().catch((error) => {
-        console.log('[Notifications] Failed to initialize:', error);
-      });
     }
   }, [loaded]);
 
