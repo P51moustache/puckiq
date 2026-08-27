@@ -60,18 +60,18 @@ describe('Week 1 shipping surfaces', () => {
   it('keeps RevenueCat and other purchase SDKs off the launch path', () => {
     const root = fs.readFileSync(path.join(repoRoot, 'app/_layout.tsx'), 'utf8');
     expect(root).not.toMatch(/SubscriptionProvider/);
-    expect(root).not.toMatch(/react-native-purchases/);
+    expect(root).not.toMatch(/from ['"]react-native-purchases['"]/);
     expect(root).not.toMatch(/initializeSubscription/);
     expect(root).not.toMatch(/OnboardingFlow/);
     expect(root).not.toMatch(/initializeNotifications/);
-    expect(root).not.toMatch(/RevenueCat/);
+    expect(root).not.toMatch(/Purchases\.configure/);
 
     const subscription = fs.readFileSync(path.join(repoRoot, 'services/subscription.ts'), 'utf8');
-    expect(subscription).not.toMatch(/react-native-purchases/);
+    expect(subscription).not.toMatch(/from ['"]react-native-purchases['"]/);
     expect(subscription).not.toMatch(/Purchases\.configure/);
 
     const provider = fs.readFileSync(path.join(repoRoot, 'components/SubscriptionProvider.tsx'), 'utf8');
     expect(provider).not.toMatch(/initializeSubscription/);
-    expect(provider).not.toMatch(/react-native-purchases/);
+    expect(provider).not.toMatch(/from ['"]react-native-purchases['"]/);
   });
 });

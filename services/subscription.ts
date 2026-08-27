@@ -11,7 +11,9 @@ export async function isPro(): Promise<boolean> {
   return true;
 }
 
-export async function getOfferings(): Promise<null> {
+export async function getOfferings(): Promise<{
+  current?: { monthly?: unknown; annual?: unknown };
+} | null> {
   return null;
 }
 
