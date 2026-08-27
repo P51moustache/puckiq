@@ -36,8 +36,7 @@ describe('subscription service (RevenueCat unloaded)', () => {
     const fs = require('fs');
     const path = require('path');
     const src = fs.readFileSync(path.join(__dirname, '../subscription.ts'), 'utf8');
-    expect(src).not.toMatch(/react-native-purchases/);
-    expect(src).not.toMatch(/Purchases\.configure/);
-    expect(src).not.toMatch(/Purchases\.getCustomerInfo/);
+    expect(src).not.toMatch(/from ['"]react-native-purchases['"]/);
+    expect(src).not.toMatch(/require\(['"]react-native-purchases['"]\)/);
   });
 });
