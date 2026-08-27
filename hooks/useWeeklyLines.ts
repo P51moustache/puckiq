@@ -3,7 +3,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { loadRoster } from '../services/fantasyRoster';
+import { addOrCreateNamedPlayer, loadRoster } from '../services/fantasyRoster';
 import {
   assignPlayer,
   canCopyLastWeek,
@@ -25,6 +25,7 @@ export interface WeeklyLinesData {
   error: string | null;
   groupOf: (playerId: number) => LineGroup;
   assign: (playerId: number, group: LineGroup) => Promise<void>;
+  addName: (name: string, group: LineGroup) => Promise<void>;
   copyLastWeek: () => Promise<void>;
   onRefresh: () => void;
 }
@@ -69,6 +70,26 @@ export function useWeeklyLines(): WeeklyLinesData {
     [store],
   );
 
+  const addName = useCallback(
+    async (name: string, group: LineGroup) => {
+      const trimmed = name.trim();
+      if (!trimmed || !store) return;
+      try {
+        const position = group === 'bench' ? 'F' : group;
+        const { roster: nextRoster, player } = await addOrCreateNamedPlayer(trimmed, position);
+        const next = assignPlayer(store, player.playerId, group);
+        setRoster(nextRoster);
+        setStore(next);
+        await persistLines(next);
+        setError(null);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : '';
+        setError(message.includes('already') ? message : 'Could not add that name.');
+      }
+    },
+    [store],
+  );
+
   const copyLastWeek = useCallback(async () => {
     if (!store || !roster) return;
     const next = copyPreviousWeek(
@@ -101,6 +122,7 @@ export function useWeeklyLines(): WeeklyLinesData {
     error,
     groupOf,
     assign,
+    addName,
     copyLastWeek,
     onRefresh: fetchData,
   };

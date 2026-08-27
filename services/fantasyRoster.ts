@@ -170,6 +170,16 @@ export async function clearRoster(): Promise<void> {
 /**
  * Load the saved roster, or create an empty one so add-player flows always have a target.
  */
+export function createLocalPlayer(name: string, position: string = 'F'): FantasyPlayer {
+  return {
+    playerId: Date.now() * 1000 + Math.floor(Math.random() * 1000),
+    playerName: name.trim(),
+    teamAbbrev: '',
+    position,
+    rosterPosition: 'BN',
+  };
+}
+
 export async function ensureRoster(
   defaults: Omit<FantasyRoster, 'id' | 'createdAt' | 'updatedAt'> = {
     name: 'My Team',
@@ -180,6 +190,49 @@ export async function ensureRoster(
   const existing = await loadRoster();
   if (existing) return existing;
   return saveRoster(defaults);
+}
+
+/**
+ * Type a name on Lines. Creates the one roster if needed and appends the player.
+ * Local only — no NHL search.
+ */
+export async function addOrCreateNamedPlayer(
+  name: string,
+  position: string = 'F',
+): Promise<{ roster: FantasyRoster; player: FantasyPlayer }> {
+  const trimmed = name.trim();
+  if (trimmed.length < 1) {
+    throw new Error('Name required');
+  }
+
+  const player = createLocalPlayer(trimmed, position);
+  const existing = await loadRoster();
+
+  if (!existing) {
+    const roster = await saveRoster({
+      name: 'My Team',
+      scoringFormat: 'yahoo',
+      players: [player],
+    });
+    return { roster, player };
+  }
+
+  const duplicate = existing.players.some(
+    (row) => row.playerName.toLowerCase() === trimmed.toLowerCase(),
+  );
+  if (duplicate) {
+    throw new Error(`${trimmed} is already on the roster.`);
+  }
+
+  if (existing.players.length >= MAX_ROSTER_SIZE) {
+    throw new Error(`Roster is full (max ${MAX_ROSTER_SIZE} players).`);
+  }
+
+  const roster = await updateRoster({
+    ...existing,
+    players: [...existing.players, player],
+  });
+  return { roster, player };
 }
 
 /**

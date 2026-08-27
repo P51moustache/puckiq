@@ -30,6 +30,7 @@ jest.mock('../SubscriptionProvider', () => ({
 }));
 
 const mockAssign = jest.fn();
+const mockAddName = jest.fn();
 const mockCopyLastWeek = jest.fn();
 const mockOnRefresh = jest.fn();
 const mockUseWeeklyLines = jest.fn();
@@ -116,6 +117,7 @@ function linesState(overrides: Record<string, unknown> = {}) {
     error: null,
     groupOf: (playerId: number) => groups[playerId] ?? 'bench',
     assign: mockAssign,
+    addName: mockAddName,
     copyLastWeek: mockCopyLastWeek,
     onRefresh: mockOnRefresh,
     ...overrides,
@@ -142,7 +144,26 @@ describe('ThisWeekLinesScreen', () => {
     const tree = render();
     expect(findByTestId(tree, 'lines-empty')).toHaveLength(1);
     expect(getAllText(tree)).toContain('Add your roster');
-    expect(findByTestId(tree, 'lines-add-roster')).toHaveLength(1);
+    expect(findByTestId(tree, 'lines-first-add')).toHaveLength(1);
+    expect(findByTestId(tree, 'lines-first-add-name')).toHaveLength(1);
+    expect(findByTestId(tree, 'lines-first-add-F')).toHaveLength(1);
+  });
+
+  it('adds a typed name onto F without leaving Lines', () => {
+    mockUseWeeklyLines.mockReturnValue(linesState({
+      hasRoster: false,
+      roster: null,
+    }));
+    const tree = render();
+    const input = findByTestId(tree, 'lines-first-add-name')[0];
+    act(() => {
+      input.props.onChangeText('Jamie');
+    });
+    const chip = findByTestId(tree, 'lines-first-add-F')[0];
+    act(() => {
+      chip.props.onPress();
+    });
+    expect(mockAddName).toHaveBeenCalledWith('Jamie', 'F');
   });
 
   it('lists this week’s F / D / G / bench groups', () => {
