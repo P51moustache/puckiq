@@ -3,6 +3,7 @@ jest.mock('react-native', () => {
   return {
     View: ({ children, ...props }: any) => React.createElement('View', props, children),
     Text: ({ children, ...props }: any) => React.createElement('Text', props, children),
+    KeyboardAvoidingView: ({ children, ...props }: any) => React.createElement('KeyboardAvoidingView', props, children),
     ScrollView: ({ children, ...props }: any) => React.createElement('ScrollView', props, children),
     TouchableOpacity: ({ children, ...props }: any) => React.createElement('TouchableOpacity', props, children),
     ActivityIndicator: (props: any) => React.createElement('ActivityIndicator', props),
@@ -30,6 +31,7 @@ jest.mock('../SubscriptionProvider', () => ({
 }));
 
 const mockAssign = jest.fn();
+const mockAddName = jest.fn(async () => undefined);
 const mockCopyLastWeek = jest.fn();
 const mockOnRefresh = jest.fn();
 const mockUseWeeklyLines = jest.fn();
@@ -115,6 +117,7 @@ function linesState(overrides: Record<string, unknown> = {}) {
     canCopyLastWeek: false,
     error: null,
     groupOf: (playerId: number) => groups[playerId] ?? 'bench',
+    addName: mockAddName,
     assign: mockAssign,
     copyLastWeek: mockCopyLastWeek,
     onRefresh: mockOnRefresh,
@@ -134,15 +137,27 @@ describe('ThisWeekLinesScreen', () => {
     expect(findByTestId(tree, 'lines-loading')).toHaveLength(1);
   });
 
-  it('prompts a coach to add the one roster when it is empty', () => {
+  it('lets a coach type the first name on the empty Lines screen', () => {
     mockUseWeeklyLines.mockReturnValue(linesState({
       hasRoster: false,
       roster: null,
     }));
     const tree = render();
     expect(findByTestId(tree, 'lines-empty')).toHaveLength(1);
-    expect(getAllText(tree)).toContain('Add your roster');
-    expect(findByTestId(tree, 'lines-add-roster')).toHaveLength(1);
+    expect(getAllText(tree)).toContain('Add a name');
+    expect(findByTestId(tree, 'lines-name-input')).toHaveLength(1);
+    expect(findByTestId(tree, 'lines-add-name-button')).toHaveLength(1);
+    expect(findByTestId(tree, 'roster-builder-modal')).toHaveLength(0);
+
+    const input = findByTestId(tree, 'lines-name-input')[0];
+    act(() => {
+      input.props.onChangeText('Jamie');
+    });
+    const button = findByTestId(tree, 'lines-add-name-button')[0];
+    act(() => {
+      button.props.onPress();
+    });
+    expect(mockAddName).toHaveBeenCalledWith('Jamie');
   });
 
   it('lists this week’s F / D / G / bench groups', () => {

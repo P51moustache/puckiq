@@ -6,9 +6,12 @@ import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -73,6 +76,46 @@ function PlayerRow({
   );
 }
 
+function AddNameRow({
+  value,
+  onChange,
+  onAdd,
+  autoFocus,
+}: {
+  value: string;
+  onChange: (text: string) => void;
+  onAdd: () => void;
+  autoFocus?: boolean;
+}) {
+  return (
+    <View style={styles.addBlock} testID="lines-add-name">
+      <TextInput
+        style={styles.nameInput}
+        placeholder="Player name"
+        placeholderTextColor={rinkGlass.textMuted}
+        value={value}
+        onChangeText={onChange}
+        testID="lines-name-input"
+        autoCorrect={false}
+        autoCapitalize="words"
+        autoFocus={autoFocus}
+        onSubmitEditing={onAdd}
+        returnKeyType="done"
+      />
+      <TouchableOpacity
+        style={[styles.addButton, value.trim().length < 1 && styles.addButtonDisabled]}
+        onPress={onAdd}
+        disabled={value.trim().length < 1}
+        testID="lines-add-name-button"
+        accessibilityRole="button"
+        accessibilityLabel="Add this name to the roster"
+      >
+        <Text style={styles.addButtonText}>Add</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 export default function ThisWeekLinesScreen() {
   const {
     isLoading,
@@ -82,12 +125,25 @@ export default function ThisWeekLinesScreen() {
     canCopyLastWeek,
     error,
     groupOf,
+    addName,
     assign,
     copyLastWeek,
     onRefresh,
   } = useWeeklyLines();
   const grouped = useGroupedRosterPlayers(roster, groupOf);
   const [showBuilder, setShowBuilder] = useState(false);
+  const [draftName, setDraftName] = useState('');
+
+  const handleAddName = useCallback(async () => {
+    const trimmed = draftName.trim();
+    if (trimmed.length < 1) return;
+    try {
+      await addName(trimmed);
+      setDraftName('');
+    } catch {
+      // Error text is set by the hook.
+    }
+  }, [addName, draftName]);
 
   const handleAssign = useCallback(
     (playerId: number, group: LineGroup) => {
@@ -140,22 +196,31 @@ export default function ThisWeekLinesScreen() {
       />
 
       {!hasRoster ? (
-        <View style={styles.empty} testID="lines-empty">
+        <KeyboardAvoidingView
+          style={styles.empty}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          testID="lines-empty"
+        >
           <Ionicons name="people-outline" size={48} color={rinkGlass.blueLight} />
-          <Text style={styles.emptyTitle}>Add your roster</Text>
+          <Text style={styles.emptyTitle}>Add a name</Text>
           <Text style={styles.emptyCopy}>
-            One roster. Put this week’s lines on the board before the next game — tap players into F, D, G, or bench.
+            Type a player on YOUR roster. They land on the board — then tap F, D, G, or bench for this week.
           </Text>
-          <TouchableOpacity
-            style={styles.cta}
-            onPress={() => setShowBuilder(true)}
-            testID="lines-add-roster"
-          >
-            <Text style={styles.ctaText}>Add players</Text>
-          </TouchableOpacity>
-        </View>
+          <AddNameRow
+            value={draftName}
+            onChange={setDraftName}
+            onAdd={handleAddName}
+            autoFocus
+          />
+          {error ? <Text style={styles.error} testID="lines-error">{error}</Text> : null}
+        </KeyboardAvoidingView>
       ) : (
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+          <AddNameRow
+            value={draftName}
+            onChange={setDraftName}
+            onAdd={handleAddName}
+          />
           <TouchableOpacity
             style={[styles.copyButton, !canCopyLastWeek && styles.copyButtonDisabled]}
             onPress={handleCopyLastWeek}
@@ -229,6 +294,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 32,
+    width: '100%',
   },
   emptyTitle: {
     fontSize: 26,
@@ -246,14 +312,34 @@ const styles = StyleSheet.create({
     marginBottom: 28,
     maxWidth: 320,
   },
-  cta: {
-    backgroundColor: rinkGlass.blueLight,
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 14,
+  addBlock: {
+    width: '100%',
+    maxWidth: 400,
+    alignSelf: 'stretch',
+    gap: 10,
+    marginBottom: 16,
   },
-  ctaText: {
-    fontSize: 17,
+  nameInput: {
+    height: 48,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    backgroundColor: rinkGlass.boards,
+    borderWidth: 1,
+    borderColor: rinkGlass.glassBorder,
+    fontSize: 16,
+    color: rinkGlass.textPrimary,
+  },
+  addButton: {
+    backgroundColor: rinkGlass.blueLight,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  addButtonDisabled: {
+    opacity: 0.4,
+  },
+  addButtonText: {
+    fontSize: 16,
     fontWeight: '800',
     color: '#0a0e1a',
   },

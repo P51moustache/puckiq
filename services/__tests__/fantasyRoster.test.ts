@@ -4,6 +4,8 @@ import {
   saveRoster,
   updateRoster,
   addPlayerToRoster,
+  addLocalName,
+  makeLocalPlayer,
   removePlayerFromRoster,
   clearRoster,
   getScoringFormat,
@@ -237,6 +239,43 @@ describe('fantasyRoster service', () => {
       expect(result.name).toBe('My Team');
       expect(result.players).toEqual([]);
       expect(mockSetItem).toHaveBeenCalled();
+    });
+  });
+
+  describe('addLocalName', () => {
+    it('creates the one roster on first add', async () => {
+      mockGetItem.mockResolvedValue(null);
+      const result = await addLocalName('Jamie');
+      expect(result.players).toHaveLength(1);
+      expect(result.players[0].playerName).toBe('Jamie');
+      expect(result.players[0].teamAbbrev).toBe('');
+      expect(mockSetItem).toHaveBeenCalled();
+    });
+
+    it('appends a typed name to the existing roster', async () => {
+      const roster = makeRoster({ players: [makePlayer({ playerId: 1, playerName: 'Sam' })] });
+      mockGetItem.mockResolvedValue(JSON.stringify(roster));
+      const result = await addLocalName('Jamie');
+      expect(result.players.map((player) => player.playerName)).toEqual(['Sam', 'Jamie']);
+    });
+
+    it('rejects a blank name', async () => {
+      await expect(addLocalName('   ')).rejects.toThrow('Name is required');
+    });
+
+    it('rejects a duplicate name', async () => {
+      const roster = makeRoster({ players: [makePlayer({ playerName: 'Jamie' })] });
+      mockGetItem.mockResolvedValue(JSON.stringify(roster));
+      await expect(addLocalName('jamie')).rejects.toThrow('already on the roster');
+    });
+  });
+
+  describe('makeLocalPlayer', () => {
+    it('builds a local name with no NHL team', () => {
+      const player = makeLocalPlayer('Pat');
+      expect(player.playerName).toBe('Pat');
+      expect(player.teamAbbrev).toBe('');
+      expect(player.rosterPosition).toBe('BN');
     });
   });
 

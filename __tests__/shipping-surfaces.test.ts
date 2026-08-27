@@ -52,6 +52,30 @@ describe('Week 1 shipping surfaces', () => {
 
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
     expect(pkg.dependencies['react-native-google-mobile-ads']).toBeUndefined();
+    expect(pkg.dependencies['react-native-purchases']).toBeUndefined();
     expect(pkg.version).toBe('2.3.0');
+  });
+
+  it('opens Lines with no native SDK on the launch path', () => {
+    const rootLayout = fs.readFileSync(path.join(repoRoot, 'app/_layout.tsx'), 'utf8');
+    expect(rootLayout).not.toMatch(/react-native-purchases/);
+    expect(rootLayout).not.toMatch(/SubscriptionProvider/);
+    expect(rootLayout).not.toMatch(/initializeNotifications/);
+    expect(rootLayout).not.toMatch(/OnboardingFlow/);
+    expect(rootLayout).not.toMatch(/AuthProvider/);
+    expect(rootLayout).not.toMatch(/AnalyticsProvider/);
+    expect(rootLayout).toMatch(/Stack\.Screen name="\(tabs\)"/);
+
+    const subscription = fs.readFileSync(path.join(repoRoot, 'services/subscription.ts'), 'utf8');
+    expect(subscription).not.toMatch(/from ['"]react-native-purchases['"]/);
+    expect(subscription).not.toMatch(/Purchases\.configure/);
+  });
+
+  it('lets the first name be typed on Lines without a Notes workaround', () => {
+    const lines = fs.readFileSync(path.join(repoRoot, 'components/ThisWeekLinesScreen.tsx'), 'utf8');
+    expect(lines).toMatch(/lines-name-input/);
+    expect(lines).toMatch(/addName/);
+    expect(lines).not.toMatch(/Lock of the Day/);
+    expect(lines).not.toMatch(/searchNhlPlayers/);
   });
 });
