@@ -52,6 +52,52 @@ describe('Week 1 shipping surfaces', () => {
 
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
     expect(pkg.dependencies['react-native-google-mobile-ads']).toBeUndefined();
+    expect(pkg.dependencies['react-native-purchases']).toBeUndefined();
     expect(pkg.version).toBe('2.3.0');
+
+    const lock = fs.readFileSync(path.join(repoRoot, 'package-lock.json'), 'utf8');
+    expect(lock).not.toMatch(/"node_modules\/react-native-purchases"/);
+  });
+
+  it('does not call RevenueCat or expo-notifications on the root launch path', () => {
+    const layout = fs.readFileSync(path.join(repoRoot, 'app/_layout.tsx'), 'utf8');
+    expect(layout).not.toMatch(/initializeNotifications/);
+    expect(layout).not.toMatch(/react-native-purchases/);
+    expect(layout).not.toMatch(/Purchases\.configure/);
+    expect(layout).not.toMatch(/from ['"].*notifications['"]/);
+
+    const provider = fs.readFileSync(
+      path.join(repoRoot, 'components/SubscriptionProvider.tsx'),
+      'utf8',
+    );
+    expect(provider).not.toMatch(/initializeSubscription/);
+    expect(provider).not.toMatch(/isPro\(/);
+    expect(provider).not.toMatch(/react-native-purchases/);
+
+    const subscription = fs.readFileSync(
+      path.join(repoRoot, 'services/subscription.ts'),
+      'utf8',
+    );
+    expect(subscription).not.toMatch(/from ['"]react-native-purchases['"]/);
+    expect(subscription).toMatch(/return false/);
+
+    const notifications = fs.readFileSync(
+      path.join(repoRoot, 'services/notifications.ts'),
+      'utf8',
+    );
+    expect(notifications).toMatch(/function ensureNotificationHandler/);
+    expect(notifications).not.toMatch(/^Notifications\.setNotificationHandler/m);
+  });
+
+  it('ships iOS 2.3.0 build 5', () => {
+    const plist = fs.readFileSync(path.join(repoRoot, 'ios/PuckIQ/Info.plist'), 'utf8');
+    expect(plist).toMatch(/<key>CFBundleShortVersionString<\/key>\s*<string>2\.3\.0<\/string>/);
+    expect(plist).toMatch(/<key>CFBundleVersion<\/key>\s*<string>5<\/string>/);
+
+    const pbx = fs.readFileSync(path.join(repoRoot, 'ios/PuckIQ.xcodeproj/project.pbxproj'), 'utf8');
+    expect(pbx).toMatch(/CURRENT_PROJECT_VERSION = 5;/);
+    expect(pbx).toMatch(/MARKETING_VERSION = 2.3.0;/);
+    expect(pbx).not.toMatch(/CURRENT_PROJECT_VERSION = 4;/);
   });
 });
+

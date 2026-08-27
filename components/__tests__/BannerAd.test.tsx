@@ -18,6 +18,7 @@ describe('AdMob is fully unloaded', () => {
 
     const lock = fs.readFileSync(path.join(repoRoot, 'package-lock.json'), 'utf8');
     expect(lock).not.toMatch(/react-native-google-mobile-ads/);
+    expect(lock).not.toMatch(/"node_modules\/react-native-purchases"/);
   });
 
   it('does not configure a GAD application ID or AdMob plugin', () => {

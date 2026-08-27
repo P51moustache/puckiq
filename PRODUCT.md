@@ -74,7 +74,7 @@ The coach is honest and simple: **has a game tonight + injury/scratch**. Not a f
 
 Free is usable on purpose — the coaching layer and before-lock alerts are the reason to pay.
 
-RevenueCat is already in the repo (`services/subscription.ts`, entitlement `pro`). Settings shows Subscribe / Restore. The paywall UI is on unless `EXPO_PUBLIC_PAYWALL_ENABLED=0`. Store products still need to be created in App Store Connect + RevenueCat.
+**RevenueCat is not used.** A review launch abort was `RNPurchases` (`Purchases.configure` / `getCustomerInfo`) on the TurboModule queue on iOS 26. Do not add `react-native-purchases`. `services/subscription.ts` is a stub. No Pro gate.
 
 **AdMob is not used.** A previous launch crash was tied to that SDK. Do not add `react-native-google-mobile-ads`, a `GADApplicationIdentifier`, or a test/real GAD app ID. `BannerAd` is a no-op. `SportsAdSlot` is a placeholder gated by `EXPO_PUBLIC_SHOW_AD_SLOT=1` (off by default). No ads mediation stack. Never a full-screen ad after a roster move.
 
