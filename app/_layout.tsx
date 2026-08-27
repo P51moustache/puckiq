@@ -3,69 +3,19 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AnalyticsProvider } from '../components/analytics/AnalyticsProvider';
-import { AuthProvider, useAuthContext } from '../components/auth/AuthProvider';
-import { SubscriptionProvider } from '../components/SubscriptionProvider';
-import { OnboardingFlow } from '../components/onboarding/OnboardingFlow';
-import { initializeNotifications } from '../services/notifications';
-
-const ONBOARDING_KEY = 'puckiq_onboarding_complete';
+import { AuthProvider } from '../components/auth/AuthProvider';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
-
-function AppContent() {
-  const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
-  const { signInWithApple, signInWithGoogle } = useAuthContext();
-
-  useEffect(() => {
-    AsyncStorage.getItem(ONBOARDING_KEY).then((value) => {
-      setOnboardingComplete(value === 'true');
-    });
-  }, []);
-
-  const handleOnboardingComplete = useCallback(async () => {
-    await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
-    setOnboardingComplete(true);
-  }, []);
-
-  // Still loading onboarding state
-  if (onboardingComplete === null) {
-    return null;
-  }
-
-  if (!onboardingComplete) {
-    return (
-      <OnboardingFlow
-        onComplete={handleOnboardingComplete}
-        onSignInWithApple={signInWithApple}
-        onSignInWithGoogle={signInWithGoogle}
-      />
-    );
-  }
-
-  return (
-    <>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style="light" />
-    </>
-  );
-}
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
     'Display-Bold': require('../assets/fonts/Oswald-Bold.ttf'),
   });
-
-  const analyticsConfig = useMemo(() => ({ enabled: true, debug: __DEV__ }), []);
 
   // Expo Router uses Error Boundaries to catch errors in the navigation tree.
   useEffect(() => {
@@ -75,10 +25,6 @@ export default function RootLayout() {
   useEffect(() => {
     if (loaded) {
       SplashScreen.hideAsync();
-      // Initialize notifications (schedule daily results if enabled)
-      initializeNotifications().catch((error) => {
-        console.log('[Notifications] Failed to initialize:', error);
-      });
     }
   }, [loaded]);
 
@@ -86,17 +32,18 @@ export default function RootLayout() {
     return null;
   }
 
+  // Open is Lines. No RevenueCat, no onboarding gate, no notification SDK on launch.
   return (
     <AuthProvider>
-      <SubscriptionProvider>
-        <AnalyticsProvider config={analyticsConfig}>
-          <ThemeProvider value={DarkTheme}>
-            <SafeAreaProvider>
-              <AppContent />
-            </SafeAreaProvider>
-          </ThemeProvider>
-        </AnalyticsProvider>
-      </SubscriptionProvider>
+      <ThemeProvider value={DarkTheme}>
+        <SafeAreaProvider>
+          <Stack>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="+not-found" />
+          </Stack>
+          <StatusBar style="light" />
+        </SafeAreaProvider>
+      </ThemeProvider>
     </AuthProvider>
   );
 }
