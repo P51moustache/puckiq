@@ -96,17 +96,6 @@ jest.mock('react-native-view-shot', () => ({
   captureRef: jest.fn(() => Promise.resolve('/tmp/capture.png')),
 }), { virtual: true });
 
-// Mock react-native-purchases
-jest.mock('react-native-purchases', () => ({
-  default: {
-    configure: jest.fn(),
-    getOfferings: jest.fn(() => Promise.resolve({ current: null })),
-    getCustomerInfo: jest.fn(() => Promise.resolve({ entitlements: { active: {} } })),
-    purchasePackage: jest.fn(),
-    restorePurchases: jest.fn(() => Promise.resolve({ entitlements: { active: {} } })),
-  },
-}), { virtual: true });
-
 // PageHeader (and other screens) read insets. Tests do not wrap a provider.
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 59, bottom: 34, left: 0, right: 0 }),

@@ -9,6 +9,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -33,6 +34,56 @@ const GROUP_CHIPS: { key: LineGroup; label: string }[] = [
   { key: 'G', label: 'G' },
   { key: 'bench', label: 'BN' },
 ];
+
+function FirstNameRow({
+  onAdd,
+}: {
+  onAdd: (name: string, group: LineGroup) => void;
+}) {
+  const [name, setName] = useState('');
+
+  const submit = useCallback(
+    (group: LineGroup) => {
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      onAdd(trimmed, group);
+      setName('');
+    },
+    [name, onAdd],
+  );
+
+  return (
+    <View style={styles.firstAdd} testID="lines-first-add">
+      <TextInput
+        style={styles.nameInput}
+        placeholder="Player name"
+        placeholderTextColor={rinkGlass.textMuted}
+        value={name}
+        onChangeText={setName}
+        testID="lines-first-add-name"
+        autoCorrect={false}
+        autoCapitalize="words"
+        returnKeyType="done"
+        accessibilityLabel="Player name"
+      />
+      <View style={styles.firstAddChips}>
+        {GROUP_CHIPS.map((chip) => (
+          <TouchableOpacity
+            key={chip.key}
+            onPress={() => submit(chip.key)}
+            disabled={name.trim().length < 1}
+            style={[styles.chip, styles.firstAddChip, name.trim().length < 1 && styles.chipDisabled]}
+            testID={`lines-first-add-${chip.key}`}
+            accessibilityRole="button"
+            accessibilityLabel={`Put ${name.trim() || 'this player'} on ${chip.label}`}
+          >
+            <Text style={styles.chipLabel}>{chip.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+}
 
 function PlayerRow({
   player,
@@ -83,6 +134,7 @@ export default function ThisWeekLinesScreen() {
     error,
     groupOf,
     assign,
+    addName,
     copyLastWeek,
     onRefresh,
   } = useWeeklyLines();
@@ -144,18 +196,13 @@ export default function ThisWeekLinesScreen() {
           <Ionicons name="people-outline" size={48} color={rinkGlass.blueLight} />
           <Text style={styles.emptyTitle}>Add your roster</Text>
           <Text style={styles.emptyCopy}>
-            One roster. Put this week’s lines on the board before the next game — tap players into F, D, G, or bench.
+            Type a name, tap F. That’s this week’s line — no Notes, no extra teams.
           </Text>
-          <TouchableOpacity
-            style={styles.cta}
-            onPress={() => setShowBuilder(true)}
-            testID="lines-add-roster"
-          >
-            <Text style={styles.ctaText}>Add players</Text>
-          </TouchableOpacity>
+          <FirstNameRow onAdd={addName} />
         </View>
       ) : (
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+          <FirstNameRow onAdd={addName} />
           <TouchableOpacity
             style={[styles.copyButton, !canCopyLastWeek && styles.copyButtonDisabled]}
             onPress={handleCopyLastWeek}
@@ -243,19 +290,35 @@ const styles = StyleSheet.create({
     color: rinkGlass.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
-    marginBottom: 28,
+    marginBottom: 20,
     maxWidth: 320,
   },
-  cta: {
-    backgroundColor: rinkGlass.blueLight,
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 14,
+  firstAdd: {
+    width: '100%',
+    maxWidth: 360,
+    alignSelf: 'center',
+    marginBottom: 16,
+    gap: 10,
   },
-  ctaText: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#0a0e1a',
+  nameInput: {
+    height: 44,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    backgroundColor: rinkGlass.boards,
+    borderWidth: 1,
+    borderColor: rinkGlass.glassBorder,
+    fontSize: 15,
+    color: rinkGlass.textPrimary,
+  },
+  firstAddChips: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  firstAddChip: {
+    flex: 1,
+  },
+  chipDisabled: {
+    opacity: 0.4,
   },
   scroll: {
     flex: 1,

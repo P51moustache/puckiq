@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { rinkGlass } from '../constants/theme';
-import { saveRoster, updateRoster } from '../services/fantasyRoster';
+import { createLocalPlayer, saveRoster, updateRoster } from '../services/fantasyRoster';
 import type { FantasyPlayer, FantasyRoster } from '../types/fantasy';
 
 interface RosterBuilderProps {
@@ -25,16 +25,6 @@ interface RosterBuilderProps {
 }
 
 type LocalPosition = 'F' | 'D' | 'G';
-
-function makeLocalPlayer(name: string, position: LocalPosition): FantasyPlayer {
-  return {
-    playerId: Date.now() * 1000 + Math.floor(Math.random() * 1000),
-    playerName: name.trim(),
-    teamAbbrev: '',
-    position,
-    rosterPosition: 'BN',
-  };
-}
 
 export default function RosterBuilder({
   visible,
@@ -69,7 +59,7 @@ export default function RosterBuilder({
       Alert.alert('Already on the roster', `${trimmed} is already listed.`);
       return;
     }
-    setAddedPlayers((prev) => [...prev, makeLocalPlayer(trimmed, position)]);
+    setAddedPlayers((prev) => [...prev, createLocalPlayer(trimmed, position)]);
     setName('');
   }, [addedPlayers, name, position]);
 

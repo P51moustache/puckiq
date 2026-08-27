@@ -52,6 +52,29 @@ describe('Week 1 shipping surfaces', () => {
 
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
     expect(pkg.dependencies['react-native-google-mobile-ads']).toBeUndefined();
+    expect(pkg.dependencies['react-native-purchases']).toBeUndefined();
     expect(pkg.version).toBe('2.3.0');
+  });
+
+  it('opens Lines without RevenueCat, onboarding, or pick-notifications on the launch path', () => {
+    const root = fs.readFileSync(path.join(repoRoot, 'app/_layout.tsx'), 'utf8');
+    expect(root).toMatch(/name="\(tabs\)"/);
+    expect(root).not.toMatch(/OnboardingFlow/);
+    expect(root).not.toMatch(/initializeNotifications/);
+    expect(root).not.toMatch(/react-native-purchases/);
+    expect(root).not.toMatch(/initializeSubscription/);
+    expect(root).not.toMatch(/Lock of the Day/);
+
+    const subscription = fs.readFileSync(path.join(repoRoot, 'services/subscription.ts'), 'utf8');
+    expect(subscription).not.toMatch(/react-native-purchases/);
+    expect(subscription).not.toMatch(/from ['"]react-native-purchases['"]/);
+    expect(subscription).not.toMatch(/Purchases\./);
+
+    const provider = fs.readFileSync(path.join(repoRoot, 'components/SubscriptionProvider.tsx'), 'utf8');
+    expect(provider).not.toMatch(/initializeSubscription/);
+    expect(provider).not.toMatch(/isPro/);
+
+    const supabase = fs.readFileSync(path.join(repoRoot, 'lib/supabase.ts'), 'utf8');
+    expect(supabase).not.toMatch(/throw new Error/);
   });
 });
