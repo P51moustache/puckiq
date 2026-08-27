@@ -9,6 +9,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -33,6 +34,58 @@ const GROUP_CHIPS: { key: LineGroup; label: string }[] = [
   { key: 'G', label: 'G' },
   { key: 'bench', label: 'BN' },
 ];
+
+function FirstAddRow({
+  onAdd,
+  busy,
+}: {
+  onAdd: (name: string) => Promise<void>;
+  busy?: boolean;
+}) {
+  const [name, setName] = useState('');
+  const [adding, setAdding] = useState(false);
+  const disabled = name.trim().length < 1 || adding || busy;
+
+  const submit = useCallback(async () => {
+    const trimmed = name.trim();
+    if (!trimmed || adding) return;
+    setAdding(true);
+    try {
+      await onAdd(trimmed);
+      setName('');
+    } finally {
+      setAdding(false);
+    }
+  }, [adding, name, onAdd]);
+
+  return (
+    <View style={styles.addBlock} testID="lines-first-add">
+      <TextInput
+        style={styles.nameInput}
+        placeholder="Type a name"
+        placeholderTextColor={rinkGlass.textMuted}
+        value={name}
+        onChangeText={setName}
+        testID="lines-add-name-input"
+        autoCorrect={false}
+        autoCapitalize="words"
+        onSubmitEditing={submit}
+        returnKeyType="done"
+        editable={!adding}
+      />
+      <TouchableOpacity
+        style={[styles.addNameButton, disabled && styles.addNameButtonDisabled]}
+        onPress={submit}
+        disabled={disabled}
+        testID="lines-add-name"
+        accessibilityRole="button"
+        accessibilityLabel="Add name to roster"
+      >
+        <Text style={styles.addNameButtonText}>{adding ? 'Adding…' : 'Add'}</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
 
 function PlayerRow({
   player,
@@ -83,6 +136,7 @@ export default function ThisWeekLinesScreen() {
     error,
     groupOf,
     assign,
+    addName,
     copyLastWeek,
     onRefresh,
   } = useWeeklyLines();
@@ -142,20 +196,16 @@ export default function ThisWeekLinesScreen() {
       {!hasRoster ? (
         <View style={styles.empty} testID="lines-empty">
           <Ionicons name="people-outline" size={48} color={rinkGlass.blueLight} />
-          <Text style={styles.emptyTitle}>Add your roster</Text>
+          <Text style={styles.emptyTitle}>Add a name</Text>
           <Text style={styles.emptyCopy}>
-            One roster. Put this week’s lines on the board before the next game — tap players into F, D, G, or bench.
+            Type the first player on YOUR roster. Then tap them onto F, D, G, or bench. No NHL search.
           </Text>
-          <TouchableOpacity
-            style={styles.cta}
-            onPress={() => setShowBuilder(true)}
-            testID="lines-add-roster"
-          >
-            <Text style={styles.ctaText}>Add players</Text>
-          </TouchableOpacity>
+          <FirstAddRow onAdd={addName} />
+          {error ? <Text style={styles.error} testID="lines-error">{error}</Text> : null}
         </View>
       ) : (
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+          <FirstAddRow onAdd={addName} />
           <TouchableOpacity
             style={[styles.copyButton, !canCopyLastWeek && styles.copyButtonDisabled]}
             onPress={handleCopyLastWeek}
@@ -246,14 +296,39 @@ const styles = StyleSheet.create({
     marginBottom: 28,
     maxWidth: 320,
   },
-  cta: {
-    backgroundColor: rinkGlass.blueLight,
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 14,
+  addBlock: {
+    width: '100%',
+    maxWidth: 400,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+    alignSelf: 'center',
   },
-  ctaText: {
-    fontSize: 17,
+  nameInput: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    backgroundColor: rinkGlass.boards,
+    borderWidth: 1,
+    borderColor: rinkGlass.glassBorder,
+    fontSize: 16,
+    color: rinkGlass.textPrimary,
+  },
+  addNameButton: {
+    backgroundColor: rinkGlass.blueLight,
+    paddingHorizontal: 20,
+    height: 48,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addNameButtonDisabled: {
+    opacity: 0.4,
+  },
+  addNameButtonText: {
+    fontSize: 16,
     fontWeight: '800',
     color: '#0a0e1a',
   },

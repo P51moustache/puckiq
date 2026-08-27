@@ -4,10 +4,13 @@ import {
   saveRoster,
   updateRoster,
   addPlayerToRoster,
+  addNamedPlayer,
   removePlayerFromRoster,
   clearRoster,
   getScoringFormat,
   ensureRoster,
+  createRosterPlayer,
+  MAX_ROSTER_SIZE,
 } from '../fantasyRoster';
 import type { FantasyRoster, FantasyPlayer } from '../../types/fantasy';
 
@@ -157,26 +160,65 @@ describe('fantasyRoster service', () => {
         .rejects.toThrow('already on the roster');
     });
 
-    it('enforces max roster size of 20', async () => {
-      const players = Array.from({ length: 20 }, (_, i) =>
+    it(`enforces max roster size of ${MAX_ROSTER_SIZE}`, async () => {
+      const players = Array.from({ length: MAX_ROSTER_SIZE }, (_, i) =>
         makePlayer({ playerId: i + 1, playerName: `Player ${i + 1}` })
       );
       const roster = makeRoster({ players });
       mockGetItem.mockResolvedValue(JSON.stringify(roster));
 
       await expect(addPlayerToRoster(makePlayer({ playerId: 999 })))
-        .rejects.toThrow('Roster is full (max 20 players)');
+        .rejects.toThrow(`Roster is full (max ${MAX_ROSTER_SIZE} players)`);
     });
 
-    it('allows adding up to the 20th player', async () => {
-      const players = Array.from({ length: 19 }, (_, i) =>
+    it(`allows adding up to the ${MAX_ROSTER_SIZE}th player`, async () => {
+      const players = Array.from({ length: MAX_ROSTER_SIZE - 1 }, (_, i) =>
         makePlayer({ playerId: i + 1, playerName: `Player ${i + 1}` })
       );
       const roster = makeRoster({ players });
       mockGetItem.mockResolvedValue(JSON.stringify(roster));
 
       const result = await addPlayerToRoster(makePlayer({ playerId: 999 }));
-      expect(result.players).toHaveLength(20);
+      expect(result.players).toHaveLength(MAX_ROSTER_SIZE);
+    });
+  });
+
+  describe('addNamedPlayer', () => {
+    it('creates the one roster on the first typed name', async () => {
+      mockGetItem.mockResolvedValue(null);
+      mockSetItem.mockImplementation((_key: string, value: string) => {
+        mockGetItem.mockResolvedValue(value);
+        return Promise.resolve();
+      });
+
+      const result = await addNamedPlayer('  Jamie Forward  ');
+      expect(result.players).toHaveLength(1);
+      expect(result.players[0].playerName).toBe('Jamie Forward');
+      expect(result.players[0].rosterPosition).toBe('BN');
+      expect(mockSetItem).toHaveBeenCalled();
+    });
+
+    it('rejects a blank name', async () => {
+      await expect(addNamedPlayer('   ')).rejects.toThrow('Type a name first.');
+    });
+
+    it('rejects a duplicate name so the coach stays on Lines', async () => {
+      const roster = makeRoster({
+        players: [makePlayer({ playerName: 'Jamie Forward', playerId: 1 })],
+      });
+      mockGetItem.mockResolvedValue(JSON.stringify(roster));
+      await expect(addNamedPlayer('jamie forward')).rejects.toThrow('already on the roster');
+    });
+  });
+
+  describe('createRosterPlayer', () => {
+    it('builds a local player from a typed name', () => {
+      const player = createRosterPlayer('Sam Defense', 'D');
+      expect(player.playerName).toBe('Sam Defense');
+      expect(player.position).toBe('D');
+      expect(player.teamAbbrev).toBe('');
+      expect(player.rosterPosition).toBe('BN');
+      expect(typeof player.playerId).toBe('number');
     });
   });
 

@@ -3,51 +3,17 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AnalyticsProvider } from '../components/analytics/AnalyticsProvider';
-import { AuthProvider, useAuthContext } from '../components/auth/AuthProvider';
+import { AuthProvider } from '../components/auth/AuthProvider';
 import { SubscriptionProvider } from '../components/SubscriptionProvider';
-import { OnboardingFlow } from '../components/onboarding/OnboardingFlow';
-import { initializeNotifications } from '../services/notifications';
-
-const ONBOARDING_KEY = 'puckiq_onboarding_complete';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
 
 function AppContent() {
-  const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
-  const { signInWithApple, signInWithGoogle } = useAuthContext();
-
-  useEffect(() => {
-    AsyncStorage.getItem(ONBOARDING_KEY).then((value) => {
-      setOnboardingComplete(value === 'true');
-    });
-  }, []);
-
-  const handleOnboardingComplete = useCallback(async () => {
-    await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
-    setOnboardingComplete(true);
-  }, []);
-
-  // Still loading onboarding state
-  if (onboardingComplete === null) {
-    return null;
-  }
-
-  if (!onboardingComplete) {
-    return (
-      <OnboardingFlow
-        onComplete={handleOnboardingComplete}
-        onSignInWithApple={signInWithApple}
-        onSignInWithGoogle={signInWithGoogle}
-      />
-    );
-  }
-
   return (
     <>
       <Stack>
@@ -75,10 +41,6 @@ export default function RootLayout() {
   useEffect(() => {
     if (loaded) {
       SplashScreen.hideAsync();
-      // Initialize notifications (schedule daily results if enabled)
-      initializeNotifications().catch((error) => {
-        console.log('[Notifications] Failed to initialize:', error);
-      });
     }
   }, [loaded]);
 
