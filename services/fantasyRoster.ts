@@ -7,13 +7,48 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { FantasyRoster, FantasyPlayer, ScoringFormat } from '../types/fantasy';
 
 const ROSTER_STORAGE_KEY = 'puckiq_fantasy_roster';
-const MAX_ROSTER_SIZE = 20;
+export const MAX_ROSTER_SIZE = 40;
 
 /**
  * Generate a unique ID for new rosters
  */
 function generateRosterId(): string {
   return Date.now().toString();
+}
+
+/** Local roster name — not an NHL id. Used so a coach can type THEIR players. */
+export function createRosterPlayer(name: string, position = 'F'): FantasyPlayer {
+  return {
+    playerId: Date.now() * 1000 + Math.floor(Math.random() * 1000),
+    playerName: name.trim(),
+    teamAbbrev: '',
+    position,
+    rosterPosition: 'BN',
+  };
+}
+
+/**
+ * Type a name onto the one roster. Creates the roster on first add.
+ * Matches by name so the coach does not leave for Notes.
+ */
+export async function addNamedPlayer(name: string, position = 'F'): Promise<FantasyRoster> {
+  const trimmed = name.trim();
+  if (trimmed.length < 1) {
+    throw new Error('Type a name first.');
+  }
+
+  const roster = await ensureRoster();
+  const duplicate = roster.players.some(
+    (player) => player.playerName.toLowerCase() === trimmed.toLowerCase(),
+  );
+  if (duplicate) {
+    throw new Error(`${trimmed} is already on the roster.`);
+  }
+  if (roster.players.length >= MAX_ROSTER_SIZE) {
+    throw new Error(`Roster is full (max ${MAX_ROSTER_SIZE} players).`);
+  }
+
+  return addPlayerToRoster(createRosterPlayer(trimmed, position));
 }
 
 /**

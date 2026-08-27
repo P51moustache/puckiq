@@ -30,6 +30,7 @@ jest.mock('../SubscriptionProvider', () => ({
 }));
 
 const mockAssign = jest.fn();
+const mockAddName = jest.fn();
 const mockCopyLastWeek = jest.fn();
 const mockOnRefresh = jest.fn();
 const mockUseWeeklyLines = jest.fn();
@@ -116,6 +117,7 @@ function linesState(overrides: Record<string, unknown> = {}) {
     error: null,
     groupOf: (playerId: number) => groups[playerId] ?? 'bench',
     assign: mockAssign,
+    addName: mockAddName,
     copyLastWeek: mockCopyLastWeek,
     onRefresh: mockOnRefresh,
     ...overrides,
@@ -134,15 +136,41 @@ describe('ThisWeekLinesScreen', () => {
     expect(findByTestId(tree, 'lines-loading')).toHaveLength(1);
   });
 
-  it('prompts a coach to add the one roster when it is empty', () => {
+  it('prompts a coach to type the first name on Lines when the roster is empty', () => {
     mockUseWeeklyLines.mockReturnValue(linesState({
       hasRoster: false,
       roster: null,
     }));
     const tree = render();
     expect(findByTestId(tree, 'lines-empty')).toHaveLength(1);
-    expect(getAllText(tree)).toContain('Add your roster');
-    expect(findByTestId(tree, 'lines-add-roster')).toHaveLength(1);
+    expect(getAllText(tree)).toContain('Add a name');
+    expect(findByTestId(tree, 'lines-add-name-input')).toHaveLength(1);
+    expect(findByTestId(tree, 'lines-add-name')).toHaveLength(1);
+    expect(findByTestId(tree, 'lines-add-roster')).toHaveLength(0);
+  });
+
+  it('adds a typed name from the empty Lines board', async () => {
+    mockAddName.mockResolvedValue(undefined);
+    mockUseWeeklyLines.mockReturnValue(linesState({
+      hasRoster: false,
+      roster: null,
+    }));
+    const tree = render();
+    const input = findByTestId(tree, 'lines-add-name-input')[0];
+    act(() => {
+      input.props.onChangeText('Jamie Forward');
+    });
+    const add = findByTestId(tree, 'lines-add-name')[0];
+    await act(async () => {
+      await add.props.onPress();
+    });
+    expect(mockAddName).toHaveBeenCalledWith('Jamie Forward');
+  });
+
+  it('keeps the name field on Lines after the first add so more names stay in-app', () => {
+    const tree = render();
+    expect(findByTestId(tree, 'lines-first-add')).toHaveLength(1);
+    expect(findByTestId(tree, 'lines-add-name-input')).toHaveLength(1);
   });
 
   it('lists this week’s F / D / G / bench groups', () => {

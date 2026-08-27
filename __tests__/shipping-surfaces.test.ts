@@ -39,6 +39,26 @@ describe('Week 1 shipping surfaces', () => {
     expect(home).not.toMatch(/LockOfTheDay/);
   });
 
+  it('opens Lines without an onboarding wall or RevenueCat on the launch path', () => {
+    const root = fs.readFileSync(path.join(repoRoot, 'app/_layout.tsx'), 'utf8');
+    expect(root).not.toMatch(/OnboardingFlow/);
+    expect(root).not.toMatch(/initializeNotifications/);
+    expect(root).not.toMatch(/react-native-purchases/);
+    expect(root).not.toMatch(/initializeSubscription/);
+
+    const provider = fs.readFileSync(path.join(repoRoot, 'components/SubscriptionProvider.tsx'), 'utf8');
+    expect(provider).not.toMatch(/react-native-purchases/);
+    expect(provider).not.toMatch(/initializeSubscription/);
+
+    const subscription = fs.readFileSync(path.join(repoRoot, 'services/subscription.ts'), 'utf8');
+    expect(subscription).not.toMatch(/react-native-purchases/);
+    expect(subscription).not.toMatch(/Purchases/);
+
+    const lines = fs.readFileSync(path.join(repoRoot, 'components/ThisWeekLinesScreen.tsx'), 'utf8');
+    expect(lines).toMatch(/lines-add-name-input/);
+    expect(lines).toMatch(/addName/);
+  });
+
   it('does not ship AdMob, IAP paywall chrome, or a Pro subscribe control on Settings', () => {
     const hub = fs.readFileSync(path.join(repoRoot, 'components/HubScreen.tsx'), 'utf8');
     expect(hub).not.toMatch(/settings-subscribe/);
