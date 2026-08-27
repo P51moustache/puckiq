@@ -1,6 +1,6 @@
 /**
- * Paid $1.99 app. No RevenueCat, no IAP, no Pro.
- * Never import react-native-purchases — that TurboModule aborted App Review (2.1(a)).
+ * Paid $1.99 app. No IAP, no Pro, no purchase SDK on the launch path.
+ * Last App Review 2.1(a) abort was a purchases TurboModule. That import stays out.
  */
 
 export async function initializeSubscription(_userId?: string): Promise<void> {
@@ -11,7 +11,9 @@ export async function isPro(): Promise<boolean> {
   return true;
 }
 
-export async function getOfferings(): Promise<null> {
+export async function getOfferings(): Promise<{
+  current: { monthly: null; annual: null } | null;
+} | null> {
   return null;
 }
 

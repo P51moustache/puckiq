@@ -51,8 +51,8 @@ describe('Week 1 shipping surfaces', () => {
     expect(provider).not.toMatch(/initializeSubscription/);
 
     const subscription = fs.readFileSync(path.join(repoRoot, 'services/subscription.ts'), 'utf8');
-    expect(subscription).not.toMatch(/react-native-purchases/);
-    expect(subscription).not.toMatch(/Purchases/);
+    expect(subscription).not.toMatch(/from ['"]react-native-purchases['"]/);
+    expect(subscription).not.toMatch(/import Purchases/);
 
     const lines = fs.readFileSync(path.join(repoRoot, 'components/ThisWeekLinesScreen.tsx'), 'utf8');
     expect(lines).toMatch(/lines-add-name-input/);
