@@ -9,6 +9,51 @@ import type { FantasyRoster, FantasyPlayer, ScoringFormat } from '../types/fanta
 const ROSTER_STORAGE_KEY = 'puckiq_fantasy_roster';
 const MAX_ROSTER_SIZE = 20;
 
+/** Local name on THIS roster — not an NHL search result. */
+export function makeLocalPlayer(name: string, position: string = 'F'): FantasyPlayer {
+  return {
+    playerId: Date.now() * 1000 + Math.floor(Math.random() * 1000),
+    playerName: name.trim(),
+    teamAbbrev: '',
+    position,
+    rosterPosition: 'BN',
+  };
+}
+
+/**
+ * Type a name onto the one roster. Creates the roster on first add.
+ * Coach stays on Lines — no NHL search, no extra Save step.
+ */
+export async function addLocalName(name: string): Promise<FantasyRoster> {
+  const trimmed = name.trim();
+  if (trimmed.length < 1) {
+    throw new Error('Name is required.');
+  }
+
+  const existing = await loadRoster();
+  if (existing) {
+    const duplicate = existing.players.some(
+      (player) => player.playerName.toLowerCase() === trimmed.toLowerCase(),
+    );
+    if (duplicate) {
+      throw new Error(`${trimmed} is already on the roster.`);
+    }
+    if (existing.players.length >= MAX_ROSTER_SIZE) {
+      throw new Error(`Roster is full (max ${MAX_ROSTER_SIZE} players).`);
+    }
+    return updateRoster({
+      ...existing,
+      players: [...existing.players, makeLocalPlayer(trimmed)],
+    });
+  }
+
+  return saveRoster({
+    name: 'My Team',
+    scoringFormat: 'yahoo',
+    players: [makeLocalPlayer(trimmed)],
+  });
+}
+
 /**
  * Generate a unique ID for new rosters
  */

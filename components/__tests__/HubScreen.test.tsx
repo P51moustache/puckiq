@@ -185,58 +185,12 @@ describe('HubScreen', () => {
       expect(texts.some((t) => t.includes('Lock of the Day'))).toBe(false);
     });
 
-    it('shows sign-in buttons', () => {
-      const tree = renderHub();
-      expect(findByTestId(tree, 'sign-in-apple')).toHaveLength(1);
-      expect(findByTestId(tree, 'sign-in-google')).toHaveLength(1);
-    });
-
-    it('does NOT show sign-out button', () => {
-      const tree = renderHub();
-      expect(findByTestId(tree, 'sign-out-button')).toHaveLength(0);
-    });
-
-    it('calls signInWithApple when Apple button pressed', () => {
-      const tree = renderHub();
-      const btn = findByTestId(tree, 'sign-in-apple')[0];
-      act(() => { btn.props.onPress(); });
-      expect(mockSignInWithApple).toHaveBeenCalledTimes(1);
-    });
-
-    it('calls signInWithGoogle when Google button pressed', () => {
-      const tree = renderHub();
-      const btn = findByTestId(tree, 'sign-in-google')[0];
-      act(() => { btn.props.onPress(); });
-      expect(mockSignInWithGoogle).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe('when user IS authenticated', () => {
-    beforeEach(() => {
-      mockAuthContext.user = { email: 'test@puckiq.com', id: 'user-123' };
-    });
-
-    it('shows user email', () => {
-      const tree = renderHub();
-      expect(getAllText(tree)).toContain('test@puckiq.com');
-    });
-
-    it('shows sign-out button', () => {
-      const tree = renderHub();
-      expect(findByTestId(tree, 'sign-out-button')).toHaveLength(1);
-    });
-
-    it('does NOT show sign-in buttons', () => {
+    it('does not offer Apple or Google sign-in', () => {
       const tree = renderHub();
       expect(findByTestId(tree, 'sign-in-apple')).toHaveLength(0);
       expect(findByTestId(tree, 'sign-in-google')).toHaveLength(0);
-    });
-
-    it('calls signOut when sign-out button pressed', () => {
-      const tree = renderHub();
-      const btn = findByTestId(tree, 'sign-out-button')[0];
-      act(() => { btn.props.onPress(); });
-      expect(mockSignOut).toHaveBeenCalledTimes(1);
+      expect(findByTestId(tree, 'sign-out-button')).toHaveLength(0);
+      expect(findByTestId(tree, 'device-section')).toHaveLength(1);
     });
 
     it('does not load fantasy notification prefs', async () => {
