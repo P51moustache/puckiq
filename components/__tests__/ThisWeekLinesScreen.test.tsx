@@ -21,6 +21,14 @@ jest.mock('@expo/vector-icons', () => {
   return { Ionicons: (props: any) => React.createElement('Ionicons', props) };
 });
 
+jest.mock('expo-linear-gradient', () => {
+  const React = require('react');
+  return {
+    LinearGradient: ({ children, ...props }: any) =>
+      React.createElement('LinearGradient', props, children),
+  };
+});
+
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
@@ -160,7 +168,7 @@ describe('ThisWeekLinesScreen', () => {
     }));
     const tree = render();
     expect(findByTestId(tree, 'lines-empty')).toHaveLength(1);
-    expect(getAllText(tree)).toContain('Add your roster');
+    expect(getAllText(tree).join(' ')).toContain('Nobody on the board. Write a name.');
     expect(findByTestId(tree, 'lines-nhl-search')).toHaveLength(1);
     expect(findByTestId(tree, 'lines-first-add-name')).toHaveLength(1);
   });
@@ -187,7 +195,7 @@ describe('ThisWeekLinesScreen', () => {
       },
     }));
     const tree = render();
-    expect(getAllText(tree)).toContain('OUT — cannot start');
+    expect(getAllText(tree)).toContain("He's out. You already knew.");
     const chip = findByTestId(tree, 'lines-assign-100-F')[0];
     expect(chip.props.disabled).toBe(true);
   });
@@ -203,7 +211,8 @@ describe('ThisWeekLinesScreen', () => {
     expect(texts).toContain('Alex Forward');
     expect(texts).toContain('Sam Defense');
     expect(texts).toContain('Pat Goalie');
-    expect(texts).toContain("This week's lines");
+    expect(texts).toContain('BARN');
+    expect(texts.join(' ')).toContain('GOALIE IS A LIFESTYLE');
   });
 
   it('taps a player into a new group', () => {
@@ -219,7 +228,7 @@ describe('ThisWeekLinesScreen', () => {
     const tree = render();
     const button = findByTestId(tree, 'copy-last-week')[0];
     expect(button.props.disabled).toBe(true);
-    expect(getAllText(tree).some((t) => t.includes('After this week'))).toBe(true);
+    expect(getAllText(tree).some((t) => t.includes('No tape from last week'))).toBe(true);
   });
 
   it('copies last week after confirm', () => {
@@ -232,7 +241,7 @@ describe('ThisWeekLinesScreen', () => {
     });
     expect(Alert.alert).toHaveBeenCalled();
     const buttons = (Alert.alert as jest.Mock).mock.calls[0][2];
-    const confirm = buttons.find((item: { text: string }) => item.text === 'Copy');
+    const confirm = buttons.find((item: { text: string }) => item.text === 'Stick it');
     act(() => {
       confirm.onPress();
     });
@@ -276,11 +285,11 @@ describe('ThisWeekLinesScreen', () => {
       },
     }));
     const tree = render();
-    expect(findByTestId(tree, 'lines-headline')).toHaveLength(1);
+    expect(findByTestId(tree, 'lines-hero')).toHaveLength(1);
     expect(findByTestId(tree, 'my-week-strip')).toHaveLength(1);
-    expect(getAllText(tree)).toContain('1 of YOUR guys play tonight. 0 problems. 0 moves.');
+    expect(getAllText(tree).join(' ')).toContain('GOALIE IS A LIFESTYLE');
     expect(getAllText(tree)).toContain('START');
-    expect(getAllText(tree).some((t) => t.includes('Unknown'))).toBe(true);
+    expect(getAllText(tree).some((t) => t.includes('Unknown'))).toBe(false);
   });
 
   it('does not surface pick-edge or extra-team chrome', () => {

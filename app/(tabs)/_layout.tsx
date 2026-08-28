@@ -2,52 +2,55 @@ import { Tabs } from 'expo-router';
 import React from 'react';
 import { Platform, View } from 'react-native';
 import { HapticTab } from '../../components/HapticTab';
-import { IconSymbol } from '../../components/ui/IconSymbol';
 import TabBarBackground from '../../components/ui/TabBarBackground';
-import { rinkGlass } from '../../constants/theme';
+import { barn } from '../../constants/barn';
 
 /** This week's lines is the only home. */
 export const unstable_settings = {
   initialRouteName: 'index',
 };
 
-const GlowDot = () => (
-  <View style={{
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: rinkGlass.blueLight,
-    marginTop: 3,
-    shadowColor: rinkGlass.blueLight,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 4,
-    elevation: 4,
-  }} />
+const LampTick = ({ on }: { on: boolean }) => (
+  <View
+    style={{
+      width: 22,
+      height: 2,
+      backgroundColor: on ? barn.signal : 'transparent',
+      shadowColor: barn.signal,
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: on ? 0.9 : 0,
+      shadowRadius: 6,
+    }}
+  />
 );
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: rinkGlass.blueLight,
-        tabBarInactiveTintColor: rinkGlass.textMuted,
+        tabBarActiveTintColor: barn.ink,
+        tabBarInactiveTintColor: barn.ghost,
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarBackground: TabBarBackground,
         tabBarLabelStyle: {
           fontSize: 10,
-          fontWeight: '600',
+          fontWeight: '700',
+          letterSpacing: 2,
+          fontFamily: barn.fonts.mono,
+          textTransform: 'uppercase',
         },
         tabBarStyle: Platform.select({
           ios: {
             position: 'absolute',
-            backgroundColor: rinkGlass.ice,
-            borderTopColor: rinkGlass.glassBorder,
+            backgroundColor: barn.ground,
+            borderTopColor: barn.rule,
+            borderTopWidth: 1,
           },
           default: {
-            backgroundColor: rinkGlass.ice,
-            borderTopColor: rinkGlass.glassBorder,
+            backgroundColor: barn.ground,
+            borderTopColor: barn.rule,
+            borderTopWidth: 1,
           },
         }),
       }}>
@@ -55,36 +58,21 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Lines',
-          tabBarIcon: ({ color, focused }) => (
-            <View style={{ alignItems: 'center' }}>
-              <IconSymbol size={24} name="hockey.puck.fill" color={color} />
-              {focused && <GlowDot />}
-            </View>
-          ),
+          tabBarIcon: ({ focused }) => <LampTick on={focused} />,
         }}
       />
       <Tabs.Screen
         name="myteam"
         options={{
           title: 'Roster',
-          tabBarIcon: ({ color, focused }) => (
-            <View style={{ alignItems: 'center' }}>
-              <IconSymbol size={24} name="person.2.fill" color={color} />
-              {focused && <GlowDot />}
-            </View>
-          ),
+          tabBarIcon: ({ focused }) => <LampTick on={focused} />,
         }}
       />
       <Tabs.Screen
         name="hub"
         options={{
           title: 'Settings',
-          tabBarIcon: ({ color, focused }) => (
-            <View style={{ alignItems: 'center' }}>
-              <IconSymbol size={24} name="person.crop.circle.fill" color={color} />
-              {focused && <GlowDot />}
-            </View>
-          ),
+          tabBarIcon: ({ focused }) => <LampTick on={focused} />,
         }}
       />
     </Tabs>

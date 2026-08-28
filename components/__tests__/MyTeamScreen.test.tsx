@@ -180,15 +180,13 @@ describe('MyTeamScreen', () => {
     it('shows empty state when no roster exists', () => {
       const tree = render();
       expect(findByTestId(tree, 'my-team-empty')).toHaveLength(1);
-      const texts = getAllText(tree);
-      expect(texts).toContain('Build Your Roster');
-      expect(texts.some(t => t.toLowerCase().includes('this week') && t.includes('lines'))).toBe(true);
+      expect(getAllText(tree).join(' ')).toContain('Nobody on the board. Write a name.');
     });
 
     it('shows official NHL search instead of a typed-name CTA', () => {
       const tree = render();
       expect(findByTestId(tree, 'lines-nhl-search')).toHaveLength(1);
-      expect(getAllText(tree).join(' ')).toMatch(/official NHL/i);
+      expect(findByTestId(tree, 'lines-first-add-name')).toHaveLength(1);
     });
 
     it('does not show roster view', () => {
@@ -219,7 +217,7 @@ describe('MyTeamScreen', () => {
       const tree = render();
       const texts = getAllText(tree);
       expect(texts).toContain('Connor McDavid');
-      expect(texts.some((t) => t.toUpperCase().includes('YOUR ROSTER'))).toBe(true);
+      expect(texts.join(' ').toUpperCase()).toContain('ON THE BOARD');
       expect(texts.some((t) => t.toUpperCase().includes('YAHOO'))).toBe(false);
     });
 

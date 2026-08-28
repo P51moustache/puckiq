@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { rinkGlass } from '../constants/theme';
+import { barn } from '../constants/barn';
 import type { MyWeek } from '../types/fantasy';
 
 export default function MyWeekStrip({
@@ -14,7 +14,7 @@ export default function MyWeekStrip({
 
   return (
     <View style={styles.wrap} testID="my-week-strip">
-      <Text style={styles.kicker}>MY WEEK · FREE · NO PAYWALL</Text>
+      <Text style={styles.kicker}>THE WEEK</Text>
       <View style={styles.row}>
         {week.days.map((day) => {
           const isToday = !!today && day.date === today;
@@ -38,48 +38,50 @@ export default function MyWeekStrip({
 
 const styles = StyleSheet.create({
   wrap: {
-    marginHorizontal: 16,
-    marginBottom: 16,
+    marginBottom: 0,
   },
   kicker: {
     fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1.2,
-    color: rinkGlass.textMuted,
+    fontWeight: '700',
+    letterSpacing: 3,
+    color: barn.ghost,
     marginBottom: 8,
+    fontFamily: barn.fonts.mono,
   },
   row: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 0,
   },
   day: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 8,
-    borderRadius: 10,
-    backgroundColor: rinkGlass.glass,
-    borderWidth: 1,
-    borderColor: rinkGlass.glassBorder,
+    paddingVertical: 2,
+    borderBottomWidth: 1,
+    borderBottomColor: barn.rule,
   },
   dayToday: {
-    borderColor: rinkGlass.blueLight,
+    borderBottomWidth: 2,
+    borderBottomColor: barn.signal,
   },
   abbrev: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.6,
-    color: rinkGlass.textSecondary,
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    color: barn.ghost,
+    fontFamily: barn.fonts.mono,
   },
   abbrevToday: {
-    color: rinkGlass.blueLight,
+    color: barn.ink,
   },
   count: {
-    marginTop: 4,
-    fontSize: 16,
+    marginTop: 2,
+    fontSize: 18,
+    lineHeight: 20,
     fontWeight: '800',
-    color: rinkGlass.textPrimary,
+    color: barn.ink,
+    fontFamily: barn.fonts.display,
   },
   countToday: {
-    color: rinkGlass.blueLight,
+    color: barn.ink,
   },
 });

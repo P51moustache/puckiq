@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { rinkGlass } from '../constants/theme';
+import { barn, barnLines } from '../constants/barn';
 import { searchNhlPlayers, suggestedLineGroup } from '../services/nhlPlayerSearch';
 import type { NhlSearchPlayer } from '../types/fantasy';
 import type { LineGroup } from '../types/lines';
@@ -44,12 +44,12 @@ export default function NhlPlayerSearch({ onAdd, alreadyOnRoster }: NhlPlayerSea
         const next = await searchNhlPlayers(trimmed, 8);
         if (!cancelled) {
           setHits(next);
-          setError(next.length === 0 ? 'No NHL match' : null);
+          setError(next.length === 0 ? 'Nobody by that name' : null);
         }
       } catch {
         if (!cancelled) {
           setHits([]);
-          setError('NHL search failed');
+          setError(barnLines.error);
         }
       } finally {
         if (!cancelled) setSearching(false);
@@ -74,8 +74,8 @@ export default function NhlPlayerSearch({ onAdd, alreadyOnRoster }: NhlPlayerSea
     <View style={styles.wrap} testID="lines-nhl-search">
       <TextInput
         style={styles.input}
-        placeholder="Search NHL — McDavid, Makar…"
-        placeholderTextColor={rinkGlass.textMuted}
+        placeholder="Write a name"
+        placeholderTextColor={barn.ghost}
         value={query}
         onChangeText={setQuery}
         autoCorrect={false}
@@ -83,7 +83,7 @@ export default function NhlPlayerSearch({ onAdd, alreadyOnRoster }: NhlPlayerSea
         testID="lines-first-add-name"
         accessibilityLabel="Search NHL players"
       />
-      {searching ? <ActivityIndicator color={rinkGlass.blueLight} style={styles.spinner} /> : null}
+      {searching ? <ActivityIndicator color={barn.signal} style={styles.spinner} /> : null}
       {error ? <Text style={styles.error} testID="lines-search-empty">{error}</Text> : null}
       {hits.map((hit) => {
         const onRoster = alreadyOnRoster?.has(hit.playerId);
@@ -99,7 +99,7 @@ export default function NhlPlayerSearch({ onAdd, alreadyOnRoster }: NhlPlayerSea
               </Text>
             </View>
             {onRoster ? (
-              <Text style={styles.onRoster}>On roster</Text>
+              <Text style={styles.onRoster}>On the board</Text>
             ) : (
               <View style={styles.chips}>
                 {CHIPS.map((chip) => (
@@ -131,45 +131,55 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   input: {
-    height: 44,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    backgroundColor: rinkGlass.boards,
-    borderWidth: 1,
-    borderColor: rinkGlass.glassBorder,
-    fontSize: 15,
-    color: rinkGlass.textPrimary,
+    height: 52,
+    borderRadius: 0,
+    paddingHorizontal: 0,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    borderBottomWidth: 1,
+    borderColor: barn.ink,
+    fontSize: 20,
+    color: barn.ink,
+    fontFamily: barn.fonts.body,
+    outlineWidth: 0,
   },
   spinner: {
     marginVertical: 4,
   },
   error: {
     fontSize: 13,
-    color: rinkGlass.textMuted,
+    color: barn.ghost,
+    fontFamily: barn.fonts.body,
   },
   hit: {
-    backgroundColor: rinkGlass.glass,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: rinkGlass.glassBorder,
-    padding: 12,
+    backgroundColor: 'transparent',
+    borderRadius: 0,
+    borderWidth: 0,
+    borderBottomWidth: 1,
+    borderColor: `${barn.ink}22`,
+    paddingVertical: 10,
     gap: 8,
   },
   hitText: {
     gap: 2,
   },
   hitName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: rinkGlass.textPrimary,
+    fontSize: 25,
+    fontWeight: '800',
+    letterSpacing: -0.4,
+    color: barn.ink,
+    fontFamily: barn.fonts.display,
+    textTransform: 'uppercase',
   },
   hitMeta: {
-    fontSize: 13,
-    color: rinkGlass.textSecondary,
+    fontSize: 12,
+    color: barn.ghost,
+    fontFamily: barn.fonts.mono,
   },
   onRoster: {
     fontSize: 12,
-    color: rinkGlass.textMuted,
+    color: barn.ghost,
+    fontFamily: barn.fonts.body,
   },
   chips: {
     flexDirection: 'row',
@@ -178,22 +188,23 @@ const styles = StyleSheet.create({
   chip: {
     flex: 1,
     paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: rinkGlass.boards,
+    borderRadius: 0,
+    backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: rinkGlass.glassBorder,
+    borderColor: barn.ink,
     alignItems: 'center',
   },
   chipSuggested: {
-    backgroundColor: rinkGlass.blueLight,
-    borderColor: rinkGlass.blueLight,
+    backgroundColor: barn.signal,
+    borderColor: barn.signal,
   },
   chipLabel: {
     fontSize: 13,
     fontWeight: '700',
-    color: rinkGlass.textSecondary,
+    color: barn.ink,
+    fontFamily: barn.fonts.mono,
   },
   chipLabelSuggested: {
-    color: '#0a0e1a',
+    color: barn.ink,
   },
 });

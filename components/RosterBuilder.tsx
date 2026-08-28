@@ -1,5 +1,5 @@
 /**
- * RosterBuilder — add names to the one roster. Local only. No Yahoo/ESPN, no Pro.
+ * RosterBuilder — add names to the one roster. Local only.
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { rinkGlass } from '../constants/theme';
+import { barn, barnLines } from '../constants/barn';
 import { nhlHitToPlayer, saveRoster, updateRoster } from '../services/fantasyRoster';
 import type { FantasyPlayer, FantasyRoster, NhlSearchPlayer } from '../types/fantasy';
 import type { LineGroup } from '../types/lines';
@@ -45,7 +45,7 @@ export default function RosterBuilder({
   const handleAddHit = useCallback((hit: NhlSearchPlayer, group: LineGroup) => {
     const duplicate = addedPlayers.some((player) => player.playerId === hit.playerId);
     if (duplicate) {
-      Alert.alert('Already on the roster', `${hit.name} is already listed.`);
+      Alert.alert('On the board', `${hit.name} is already listed.`);
       return;
     }
     setAddedPlayers((prev) => [...prev, nhlHitToPlayer(hit)]);
@@ -90,11 +90,9 @@ export default function RosterBuilder({
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={onDismiss} testID="roster-builder-cancel">
-            <Text style={styles.cancelText}>Cancel</Text>
+            <Text style={styles.cancelText}>Leave it</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>
-            {existingRoster ? 'Edit Roster' : 'Build Roster'}
-          </Text>
+          <Text style={styles.title}>The board</Text>
           <TouchableOpacity
             onPress={handleSave}
             disabled={addedPlayers.length === 0 || saving}
@@ -106,14 +104,12 @@ export default function RosterBuilder({
                 (addedPlayers.length === 0 || saving) && styles.saveTextDisabled,
               ]}
             >
-              {saving ? 'Saving...' : 'Save'}
+              {saving ? barnLines.loading : 'Stick it'}
             </Text>
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.hint}>
-          Search official NHL players. Same list as old Pick IQ / League.
-        </Text>
+        <Text style={styles.hint}>{barnLines.emptyBoard}</Text>
 
         <NhlPlayerSearch
           onAdd={handleAddHit}
@@ -133,7 +129,7 @@ export default function RosterBuilder({
                   {player.playerName}
                   {player.position ? ` · ${player.position}` : ''}
                 </Text>
-                <Ionicons name="close-circle" size={14} color={rinkGlass.textSecondary} />
+                <Ionicons name="close" size={12} color={barn.ink} />
               </TouchableOpacity>
             ))}
           </View>
@@ -146,120 +142,70 @@ export default function RosterBuilder({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: rinkGlass.ice,
+    backgroundColor: barn.ground,
+    paddingHorizontal: 20,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
     paddingTop: 16,
-    paddingBottom: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: rinkGlass.glassBorder,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: barn.rule,
   },
   cancelText: {
-    fontSize: 16,
-    color: rinkGlass.textSecondary,
+    fontSize: 14,
+    color: barn.ghost,
+    fontFamily: barn.fonts.body,
   },
   title: {
-    fontSize: 17,
-    fontWeight: '600',
-    fontFamily: rinkGlass.fonts.display,
-    color: rinkGlass.textPrimary,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 2.4,
+    fontFamily: barn.fonts.mono,
+    color: barn.ink,
+    textTransform: 'uppercase',
   },
   saveText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: rinkGlass.blueLight,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1.4,
+    color: barn.signal,
+    fontFamily: barn.fonts.mono,
+    textTransform: 'uppercase',
   },
   saveTextDisabled: {
-    opacity: 0.4,
+    color: barn.ghost,
   },
   hint: {
-    fontSize: 13,
-    color: rinkGlass.textSecondary,
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
-  },
-  addRow: {
-    paddingHorizontal: 16,
-  },
-  nameInput: {
-    height: 44,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    backgroundColor: rinkGlass.boards,
-    borderWidth: 1,
-    borderColor: rinkGlass.glassBorder,
-    fontSize: 15,
-    color: rinkGlass.textPrimary,
-  },
-  positionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-  },
-  positionChip: {
-    width: 44,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: rinkGlass.boards,
-    borderWidth: 1,
-    borderColor: rinkGlass.glassBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  positionChipActive: {
-    backgroundColor: rinkGlass.blueLight,
-    borderColor: rinkGlass.blueLight,
-  },
-  positionText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: rinkGlass.textSecondary,
-  },
-  positionTextActive: {
-    color: '#0a0e1a',
-  },
-  addButton: {
-    marginLeft: 'auto',
-    backgroundColor: rinkGlass.blueLight,
-    paddingHorizontal: 18,
-    height: 40,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addButtonDisabled: {
-    opacity: 0.4,
-  },
-  addButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0a0e1a',
+    fontSize: 16,
+    color: barn.ink,
+    fontFamily: barn.fonts.body,
+    paddingTop: 24,
+    paddingBottom: 16,
   },
   chipsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: 16,
     paddingVertical: 16,
-    gap: 6,
+    gap: 8,
   },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: rinkGlass.zamboni,
-    borderRadius: 16,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: barn.ink,
+    borderRadius: 0,
     paddingHorizontal: 10,
-    paddingVertical: 6,
-    gap: 4,
+    paddingVertical: 8,
+    gap: 6,
   },
   chipText: {
-    fontSize: 13,
-    color: rinkGlass.textPrimary,
+    fontSize: 12,
+    color: barn.ink,
+    fontFamily: barn.fonts.mono,
+    textTransform: 'uppercase',
   },
 });
