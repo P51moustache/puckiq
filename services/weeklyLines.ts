@@ -4,7 +4,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { LineAssignment, LineGroup, LinesStore, WeeklyLines } from '../types/lines';
+import type { DoNotPair, LineAssignment, LineGroup, LinesStore, WeeklyLines } from '../types/lines';
 
 export const LINES_STORAGE_KEY = 'puckiq_weekly_lines';
 
@@ -70,7 +70,7 @@ export function emptyWeek(weekId: string): WeeklyLines {
 export function rollToCurrentWeek(store: LinesStore | null, now: Date): LinesStore {
   const weekId = getIsoWeekId(now);
   if (!store) {
-    return { current: emptyWeek(weekId), previous: null };
+    return { current: emptyWeek(weekId), previous: null, doNotPairs: [] };
   }
 
   if (store.current.weekId === weekId) {
@@ -80,6 +80,7 @@ export function rollToCurrentWeek(store: LinesStore | null, now: Date): LinesSto
         ...store.current,
         label: getWeekRangeLabel(weekId),
       },
+      doNotPairs: store.doNotPairs ?? [],
     };
   }
 
@@ -87,10 +88,11 @@ export function rollToCurrentWeek(store: LinesStore | null, now: Date): LinesSto
     return {
       current: emptyWeek(weekId),
       previous: store.current,
+      doNotPairs: store.doNotPairs ?? [],
     };
   }
 
-  return store;
+  return { ...store, doNotPairs: store.doNotPairs ?? [] };
 }
 
 export function assignPlayer(store: LinesStore, playerId: number, group: LineGroup): LinesStore {
@@ -102,6 +104,7 @@ export function assignPlayer(store: LinesStore, playerId: number, group: LineGro
       ...store.current,
       assignments,
     },
+    doNotPairs: store.doNotPairs ?? [],
   };
 }
 
@@ -126,6 +129,44 @@ export function groupForPlayer(assignments: LineAssignment[], playerId: number):
 
 export function canCopyLastWeek(store: LinesStore | null): boolean {
   return !!store?.previous && store.previous.assignments.length > 0;
+}
+
+export function normalizePair(a: number, b: number): DoNotPair {
+  return a < b ? [a, b] : [b, a];
+}
+
+export function toggleDoNotPair(store: LinesStore, a: number, b: number): LinesStore {
+  if (a === b) return store;
+  const next = normalizePair(a, b);
+  const existing = store.doNotPairs ?? [];
+  const has = existing.some((row) => row[0] === next[0] && row[1] === next[1]);
+  return {
+    ...store,
+    doNotPairs: has
+      ? existing.filter((row) => row[0] !== next[0] || row[1] !== next[1])
+      : [...existing, next],
+  };
+}
+
+export function pairedWith(store: LinesStore | null, playerId: number): number[] {
+  return (store?.doNotPairs ?? [])
+    .filter((row) => row[0] === playerId || row[1] === playerId)
+    .map((row) => (row[0] === playerId ? row[1] : row[0]));
+}
+
+export function brokenDoNotPairs(
+  store: LinesStore | null,
+  groupOf: (playerId: number) => LineGroup,
+): DoNotPair[] {
+  return (store?.doNotPairs ?? []).filter((row) => {
+    const left = groupOf(row[0]);
+    const right = groupOf(row[1]);
+    return left === 'F' && right === 'F';
+  });
+}
+
+export function cannotStart(signal: string | undefined): boolean {
+  return signal === 'out' || signal === 'scratch';
 }
 
 function parseStore(raw: unknown): LinesStore | null {
@@ -155,6 +196,17 @@ function parseStore(raw: unknown): LinesStore | null {
       }
     : null;
 
+  const doNotPairs = Array.isArray(candidate.doNotPairs)
+    ? candidate.doNotPairs.filter(
+        (row): row is DoNotPair =>
+          Array.isArray(row)
+          && row.length === 2
+          && typeof row[0] === 'number'
+          && typeof row[1] === 'number'
+          && row[0] !== row[1],
+      ).map((row) => normalizePair(row[0], row[1]))
+    : [];
+
   return {
     current: {
       weekId: candidate.current.weekId,
@@ -162,6 +214,7 @@ function parseStore(raw: unknown): LinesStore | null {
       assignments: currentAssignments,
     },
     previous,
+    doNotPairs,
   };
 }
 

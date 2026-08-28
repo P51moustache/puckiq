@@ -31,7 +31,9 @@ jest.mock('../SubscriptionProvider', () => ({
 
 const mockAssign = jest.fn();
 const mockAddName = jest.fn();
+const mockAddNhlPlayer = jest.fn();
 const mockCopyLastWeek = jest.fn();
+const mockBeginPair = jest.fn();
 const mockOnRefresh = jest.fn();
 const mockUseWeeklyLines = jest.fn();
 
@@ -45,6 +47,12 @@ jest.mock('../../hooks/useWeeklyLines', () => {
 
 jest.mock('../../services/nhlPlayerSearch', () => ({
   searchNhlPlayers: jest.fn().mockResolvedValue([]),
+  suggestedLineGroup: (position: string) => {
+    const code = (position || '').toUpperCase();
+    if (code === 'G') return 'G';
+    if (code === 'D') return 'D';
+    return 'F';
+  },
 }));
 
 jest.mock('../../services/fantasyRoster', () => ({
@@ -111,14 +119,23 @@ function linesState(overrides: Record<string, unknown> = {}) {
     store: {
       current: { weekId: '2026-W34', label: 'Aug 17–23, 2026', assignments: [] },
       previous: null,
+      doNotPairs: [],
     },
     weekLabel: 'Aug 17–23, 2026',
     canCopyLastWeek: false,
     error: null,
+    statuses: {},
+    headline: null,
+    week: null,
+    slateDate: null,
+    brokenPairs: [],
+    pairingFrom: null,
     groupOf: (playerId: number) => groups[playerId] ?? 'bench',
     assign: mockAssign,
     addName: mockAddName,
+    addNhlPlayer: mockAddNhlPlayer,
     copyLastWeek: mockCopyLastWeek,
+    beginPair: mockBeginPair,
     onRefresh: mockOnRefresh,
     ...overrides,
   };
@@ -144,26 +161,35 @@ describe('ThisWeekLinesScreen', () => {
     const tree = render();
     expect(findByTestId(tree, 'lines-empty')).toHaveLength(1);
     expect(getAllText(tree)).toContain('Add your roster');
-    expect(findByTestId(tree, 'lines-first-add')).toHaveLength(1);
+    expect(findByTestId(tree, 'lines-nhl-search')).toHaveLength(1);
     expect(findByTestId(tree, 'lines-first-add-name')).toHaveLength(1);
-    expect(findByTestId(tree, 'lines-first-add-F')).toHaveLength(1);
   });
 
-  it('adds a typed name onto F without leaving Lines', () => {
+  it('blocks an OUT player from starting', () => {
     mockUseWeeklyLines.mockReturnValue(linesState({
-      hasRoster: false,
-      roster: null,
+      statuses: {
+        100: {
+          playerId: 100,
+          playerName: 'Alex Forward',
+          teamAbbrev: 'EDM',
+          position: 'C',
+          opponentAbbrev: 'VGK',
+          isHome: true,
+          gameId: 1,
+          startTimeUTC: '2026-08-27T02:00:00Z',
+          gameState: 'FUT',
+          injurySignal: 'out',
+          injuryNote: 'Injured',
+          confidence: 'likely',
+          recommendation: 'SIT',
+          reason: 'Out / IR — do not start',
+        },
+      },
     }));
     const tree = render();
-    const input = findByTestId(tree, 'lines-first-add-name')[0];
-    act(() => {
-      input.props.onChangeText('Jamie');
-    });
-    const chip = findByTestId(tree, 'lines-first-add-F')[0];
-    act(() => {
-      chip.props.onPress();
-    });
-    expect(mockAddName).toHaveBeenCalledWith('Jamie', 'F');
+    expect(getAllText(tree)).toContain('OUT — cannot start');
+    const chip = findByTestId(tree, 'lines-assign-100-F')[0];
+    expect(chip.props.disabled).toBe(true);
   });
 
   it('lists this week’s F / D / G / bench groups', () => {
@@ -211,6 +237,50 @@ describe('ThisWeekLinesScreen', () => {
       confirm.onPress();
     });
     expect(mockCopyLastWeek).toHaveBeenCalled();
+  });
+
+  it('shows the NHL headline, week strip, and start/sit from existing APIs', () => {
+    mockUseWeeklyLines.mockReturnValue(linesState({
+      headline: {
+        playing: 1,
+        problems: 0,
+        moves: 0,
+        primaryMove: null,
+        text: '1 of YOUR guys play tonight. 0 problems. 0 moves.',
+      },
+      week: {
+        startDate: '2026-08-24',
+        days: [
+          { date: '2026-08-24', dayAbbrev: 'MON', playerCount: 1, games: [] },
+          { date: '2026-08-25', dayAbbrev: 'TUE', playerCount: 0, games: [] },
+        ],
+      },
+      slateDate: '2026-08-24',
+      statuses: {
+        100: {
+          playerId: 100,
+          playerName: 'Alex Forward',
+          teamAbbrev: 'EDM',
+          position: 'C',
+          opponentAbbrev: 'VGK',
+          isHome: true,
+          gameId: 1,
+          startTimeUTC: '2026-10-08T02:00:00Z',
+          gameState: 'FUT',
+          injurySignal: 'ok',
+          injuryNote: null,
+          confidence: 'unknown',
+          recommendation: 'START',
+          reason: 'Has a game tonight',
+        },
+      },
+    }));
+    const tree = render();
+    expect(findByTestId(tree, 'lines-headline')).toHaveLength(1);
+    expect(findByTestId(tree, 'my-week-strip')).toHaveLength(1);
+    expect(getAllText(tree)).toContain('1 of YOUR guys play tonight. 0 problems. 0 moves.');
+    expect(getAllText(tree)).toContain('START');
+    expect(getAllText(tree).some((t) => t.includes('Unknown'))).toBe(true);
   });
 
   it('does not surface pick-edge or extra-team chrome', () => {

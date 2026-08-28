@@ -16,7 +16,11 @@ export interface WeeklyLines {
   assignments: LineAssignment[];
 }
 
+export type DoNotPair = [number, number];
+
 export interface LinesStore {
   current: WeeklyLines;
   previous: WeeklyLines | null;
+  /** Roster-level: these two names should not share a forward line. */
+  doNotPairs: DoNotPair[];
 }

@@ -4,7 +4,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { FantasyRoster, FantasyPlayer, ScoringFormat } from '../types/fantasy';
+import type { FantasyRoster, FantasyPlayer, NhlSearchPlayer, ScoringFormat } from '../types/fantasy';
 
 const ROSTER_STORAGE_KEY = 'puckiq_fantasy_roster';
 const MAX_ROSTER_SIZE = 20;
@@ -228,6 +228,36 @@ export async function addOrCreateNamedPlayer(
     throw new Error(`Roster is full (max ${MAX_ROSTER_SIZE} players).`);
   }
 
+  const roster = await updateRoster({
+    ...existing,
+    players: [...existing.players, player],
+  });
+  return { roster, player };
+}
+
+export function nhlHitToPlayer(hit: NhlSearchPlayer, rosterPosition: FantasyPlayer['rosterPosition'] = 'BN'): FantasyPlayer {
+  return {
+    playerId: hit.playerId,
+    playerName: hit.name,
+    teamAbbrev: hit.teamAbbrev,
+    position: hit.position,
+    rosterPosition,
+  };
+}
+
+/** Add an official NHL search hit to the one roster. Real playerId — no local fake IDs. */
+export async function addNhlSearchPlayer(
+  hit: NhlSearchPlayer,
+): Promise<{ roster: FantasyRoster; player: FantasyPlayer }> {
+  const player = nhlHitToPlayer(hit);
+  const existing = await ensureRoster();
+  const duplicate = existing.players.some((row) => row.playerId === player.playerId);
+  if (duplicate) {
+    throw new Error(`${player.playerName} is already on the roster.`);
+  }
+  if (existing.players.length >= MAX_ROSTER_SIZE) {
+    throw new Error(`Roster is full (max ${MAX_ROSTER_SIZE} players).`);
+  }
   const roster = await updateRoster({
     ...existing,
     players: [...existing.players, player],

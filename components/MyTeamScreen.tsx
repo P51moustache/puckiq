@@ -14,6 +14,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { rinkGlass } from '../constants/theme';
 import { useMyTeamData } from '../hooks/useMyTeamData';
+import { addNhlSearchPlayer } from '../services/fantasyRoster';
+import type { NhlSearchPlayer } from '../types/fantasy';
+import NhlPlayerSearch from './NhlPlayerSearch';
 import PageHeader from './PageHeader';
 import RosterBuilder from './RosterBuilder';
 
@@ -24,6 +27,15 @@ export default function MyTeamScreen() {
   const handleRosterSaved = useCallback(() => {
     setShowRosterBuilder(false);
     onRefresh();
+  }, [onRefresh]);
+
+  const handleAddNhl = useCallback(async (hit: NhlSearchPlayer) => {
+    try {
+      await addNhlSearchPlayer(hit);
+      onRefresh();
+    } catch (error) {
+      console.warn('[MY_TEAM] Could not add NHL player:', error);
+    }
   }, [onRefresh]);
 
   if (isLoading) {
@@ -62,21 +74,18 @@ export default function MyTeamScreen() {
           </View>
           <Text style={styles.emptyTitle}>Build Your Roster</Text>
           <Text style={styles.emptyDescription}>
-            Add the names on your roster. This week’s lines uses only these players.
+            Search official NHL players. Same list as old Pick IQ. This week’s lines uses only these names.
           </Text>
-          <TouchableOpacity
-            onPress={() => setShowRosterBuilder(true)}
-            activeOpacity={0.85}
-            testID="setup-roster-button"
-          >
-            <View style={styles.ctaButton}>
-              <Ionicons name="add-circle" size={20} color="#0a0e1a" />
-              <Text style={styles.ctaText}>Add Players</Text>
-            </View>
-          </TouchableOpacity>
+          <View style={styles.emptySearch}>
+            <NhlPlayerSearch onAdd={(hit) => { handleAddNhl(hit); }} />
+          </View>
         </View>
       ) : (
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} testID="my-team-roster">
+          <NhlPlayerSearch
+            onAdd={(hit) => { handleAddNhl(hit); }}
+            alreadyOnRoster={new Set((roster?.players ?? []).map((player) => player.playerId))}
+          />
           {roster?.players.map((player) => (
             <View key={player.playerId} style={styles.playerRow} testID="roster-player-row">
               <View style={styles.playerText}>
@@ -138,6 +147,10 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 28,
     maxWidth: 320,
+  },
+  emptySearch: {
+    width: '100%',
+    maxWidth: 400,
   },
   ctaButton: {
     flexDirection: 'row',

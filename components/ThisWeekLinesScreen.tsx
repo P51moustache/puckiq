@@ -1,25 +1,36 @@
 /**
- * This week's lines — one roster, tap into F / D / G / bench, copy last week.
+ * This week's lines — official NHL search, next-game, OUT lock, do-not-pair.
  */
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { rinkGlass } from '../constants/theme';
 import { useGroupedRosterPlayers, useWeeklyLines } from '../hooks/useWeeklyLines';
-import type { FantasyPlayer } from '../types/fantasy';
+import { formatLockCountdown } from '../services/lockCountdown';
+import { CONFIDENCE_LABEL } from '../services/tonightRoster';
+import { cannotStart } from '../services/weeklyLines';
+import type { FantasyPlayer, StartSitRec, TonightPlayerStatus } from '../types/fantasy';
 import type { LineGroup } from '../types/lines';
+import MyWeekStrip from './MyWeekStrip';
+import NhlPlayerSearch from './NhlPlayerSearch';
 import PageHeader from './PageHeader';
 import RosterBuilder from './RosterBuilder';
+
+const REC_BADGE: Record<StartSitRec, { color: string; label: string }> = {
+  START: { color: rinkGlass.faceoffDot, label: 'START' },
+  SIT: { color: rinkGlass.redLine, label: 'SIT' },
+  UPSIDE: { color: rinkGlass.powerPlay, label: 'UPSIDE' },
+  FLEX: { color: rinkGlass.blueLight, label: 'FLEX' },
+};
 
 const GROUPS: { key: LineGroup; title: string; testID: string }[] = [
   { key: 'F', title: 'Forwards', testID: 'lines-group-F' },
@@ -35,82 +46,101 @@ const GROUP_CHIPS: { key: LineGroup; label: string }[] = [
   { key: 'bench', label: 'BN' },
 ];
 
-function FirstNameRow({
-  onAdd,
-}: {
-  onAdd: (name: string, group: LineGroup) => void;
-}) {
-  const [name, setName] = useState('');
-
-  const submit = useCallback(
-    (group: LineGroup) => {
-      const trimmed = name.trim();
-      if (!trimmed) return;
-      onAdd(trimmed, group);
-      setName('');
-    },
-    [name, onAdd],
-  );
-
-  return (
-    <View style={styles.firstAdd} testID="lines-first-add">
-      <TextInput
-        style={styles.nameInput}
-        placeholder="Player name"
-        placeholderTextColor={rinkGlass.textMuted}
-        value={name}
-        onChangeText={setName}
-        testID="lines-first-add-name"
-        autoCorrect={false}
-        autoCapitalize="words"
-        returnKeyType="done"
-        accessibilityLabel="Player name"
-      />
-      <View style={styles.firstAddChips}>
-        {GROUP_CHIPS.map((chip) => (
-          <TouchableOpacity
-            key={chip.key}
-            onPress={() => submit(chip.key)}
-            disabled={name.trim().length < 1}
-            style={[styles.chip, styles.firstAddChip, name.trim().length < 1 && styles.chipDisabled]}
-            testID={`lines-first-add-${chip.key}`}
-            accessibilityRole="button"
-            accessibilityLabel={`Put ${name.trim() || 'this player'} on ${chip.label}`}
-          >
-            <Text style={styles.chipLabel}>{chip.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
-  );
+function nextGameLabel(status?: TonightPlayerStatus): string {
+  if (!status) return '';
+  if (status.injurySignal === 'out') return 'OUT — cannot start';
+  if (status.injurySignal === 'scratch') return 'Scratch — cannot start';
+  if (status.injurySignal === 'dtd') return 'DTD — start only if you mean it';
+  if (!status.opponentAbbrev) {
+    return status.teamAbbrev ? `${status.teamAbbrev} · no game tonight` : '';
+  }
+  const vs = status.isHome ? `vs ${status.opponentAbbrev}` : `@ ${status.opponentAbbrev}`;
+  let when = '';
+  if (status.startTimeUTC) {
+    when = new Date(status.startTimeUTC).toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  }
+  return `${status.teamAbbrev} ${vs}${when ? ` · ${when}` : ''}`;
 }
 
 function PlayerRow({
   player,
   group,
+  status,
+  pairLocked,
+  pairingFrom,
   onAssign,
+  onPair,
 }: {
   player: FantasyPlayer;
   group: LineGroup;
+  status?: TonightPlayerStatus;
+  pairLocked: boolean;
+  pairingFrom: boolean;
   onAssign: (playerId: number, group: LineGroup) => void;
+  onPair: (playerId: number) => void;
 }) {
+  const locked = cannotStart(status?.injurySignal);
   return (
     <View style={styles.playerRow} testID={`lines-player-${player.playerId}`}>
       <View style={styles.playerText}>
         <Text style={styles.playerName}>{player.playerName}</Text>
         <Text style={styles.playerMeta}>
-          {player.position || '—'}
-          {player.teamAbbrev ? ` · ${player.teamAbbrev}` : ''}
+          {[player.position || '—', player.teamAbbrev].filter(Boolean).join(' · ')}
         </Text>
+        {nextGameLabel(status) ? (
+          <Text
+            style={[styles.nextGame, locked && styles.nextGameOut]}
+            testID={`lines-next-${player.playerId}`}
+          >
+            {nextGameLabel(status)}
+          </Text>
+        ) : null}
+        {status ? (
+          <View style={styles.coachRow} testID={`lines-coach-${player.playerId}`}>
+            {status.recommendation ? (
+              <View
+                style={[
+                  styles.recBadge,
+                  { backgroundColor: (REC_BADGE[status.recommendation] ?? REC_BADGE.FLEX).color },
+                ]}
+              >
+                <Text style={styles.recBadgeText}>
+                  {(REC_BADGE[status.recommendation] ?? REC_BADGE.FLEX).label}
+                </Text>
+              </View>
+            ) : null}
+            <Text style={styles.coachMeta}>
+              {[
+                status.opponentAbbrev
+                  ? formatLockCountdown(status.startTimeUTC, undefined, status.gameState)
+                  : null,
+                CONFIDENCE_LABEL[status.confidence],
+                status.reason,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </Text>
+          </View>
+        ) : null}
+        {pairLocked ? (
+          <Text style={styles.pairWarn} testID={`lines-pair-warn-${player.playerId}`}>
+            Do-not-pair is on F with their lock
+          </Text>
+        ) : null}
       </View>
       <View style={styles.chips} testID={`lines-chips-${player.playerId}`}>
         {GROUP_CHIPS.map((chip) => {
           const active = group === chip.key;
+          const blocked = locked && chip.key !== 'bench';
           return (
             <TouchableOpacity
               key={chip.key}
               onPress={() => onAssign(player.playerId, chip.key)}
-              style={[styles.chip, active && styles.chipActive]}
+              disabled={blocked}
+              style={[styles.chip, active && styles.chipActive, blocked && styles.chipDisabled]}
               testID={`lines-assign-${player.playerId}-${chip.key}`}
               accessibilityRole="button"
               accessibilityLabel={`Put ${player.playerName} on ${chip.label}`}
@@ -120,6 +150,15 @@ function PlayerRow({
           );
         })}
       </View>
+      <TouchableOpacity
+        onPress={() => onPair(player.playerId)}
+        style={[styles.pairChip, pairingFrom && styles.pairChipActive]}
+        testID={`lines-pair-${player.playerId}`}
+      >
+        <Text style={styles.pairChipLabel}>
+          {pairingFrom ? 'Tap the other name' : 'Do not pair'}
+        </Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -132,14 +171,33 @@ export default function ThisWeekLinesScreen() {
     weekLabel,
     canCopyLastWeek,
     error,
+    statuses,
+    headline,
+    week,
+    slateDate,
+    brokenPairs,
+    pairingFrom,
     groupOf,
     assign,
-    addName,
+    addNhlPlayer,
     copyLastWeek,
+    beginPair,
     onRefresh,
   } = useWeeklyLines();
   const grouped = useGroupedRosterPlayers(roster, groupOf);
   const [showBuilder, setShowBuilder] = useState(false);
+  const alreadyOnRoster = useMemo(
+    () => new Set((roster?.players ?? []).map((player) => player.playerId)),
+    [roster],
+  );
+  const brokenIds = useMemo(() => {
+    const ids = new Set<number>();
+    for (const row of brokenPairs) {
+      ids.add(row[0]);
+      ids.add(row[1]);
+    }
+    return ids;
+  }, [brokenPairs]);
 
   const handleAssign = useCallback(
     (playerId: number, group: LineGroup) => {
@@ -196,13 +254,30 @@ export default function ThisWeekLinesScreen() {
           <Ionicons name="people-outline" size={48} color={rinkGlass.blueLight} />
           <Text style={styles.emptyTitle}>Add your roster</Text>
           <Text style={styles.emptyCopy}>
-            Type a name, tap F. That’s this week’s line — no Notes, no extra teams.
+            Search the NHL list, then tap F. Real players — next game and scratches come with them.
           </Text>
-          <FirstNameRow onAdd={addName} />
+          <NhlPlayerSearch onAdd={addNhlPlayer} alreadyOnRoster={alreadyOnRoster} />
         </View>
       ) : (
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-          <FirstNameRow onAdd={addName} />
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <NhlPlayerSearch onAdd={addNhlPlayer} alreadyOnRoster={alreadyOnRoster} />
+          {headline ? (
+            <View style={styles.headlineCard} testID="lines-headline">
+              <Text style={styles.headlineText}>{headline.text}</Text>
+              {headline.primaryMove ? (
+                <Text style={styles.headlineMove} testID="lines-primary-move">
+                  {`${headline.primaryMove.action} ${headline.primaryMove.playerName} — ${headline.primaryMove.detail}`}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
+          <View style={styles.weekWrap}>
+            <MyWeekStrip week={week} today={slateDate} />
+          </View>
           <TouchableOpacity
             style={[styles.copyButton, !canCopyLastWeek && styles.copyButtonDisabled]}
             onPress={handleCopyLastWeek}
@@ -224,6 +299,11 @@ export default function ThisWeekLinesScreen() {
               : 'After this week, you can copy last week forward.'}
           </Text>
           {error ? <Text style={styles.error} testID="lines-error">{error}</Text> : null}
+          {brokenPairs.length > 0 ? (
+            <Text style={styles.error} testID="lines-pair-banner">
+              Do-not-pair names are both on F. Move one.
+            </Text>
+          ) : null}
 
           {GROUPS.map((section) => {
             const players = grouped[section.key];
@@ -240,7 +320,11 @@ export default function ThisWeekLinesScreen() {
                       key={player.playerId}
                       player={player}
                       group={section.key}
+                      status={statuses[player.playerId]}
+                      pairLocked={brokenIds.has(player.playerId)}
+                      pairingFrom={pairingFrom === player.playerId}
                       onAssign={handleAssign}
+                      onPair={beginPair}
                     />
                   ))
                 )}
@@ -273,52 +357,23 @@ const styles = StyleSheet.create({
   },
   empty: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
+    justifyContent: 'flex-start',
+    paddingHorizontal: 20,
+    paddingTop: 12,
   },
   emptyTitle: {
     fontSize: 26,
     fontWeight: '800',
     fontFamily: rinkGlass.fonts.display,
     color: rinkGlass.textPrimary,
-    marginTop: 16,
+    marginTop: 8,
     marginBottom: 8,
   },
   emptyCopy: {
     fontSize: 15,
     color: rinkGlass.textSecondary,
-    textAlign: 'center',
     lineHeight: 22,
-    marginBottom: 20,
-    maxWidth: 320,
-  },
-  firstAdd: {
-    width: '100%',
-    maxWidth: 360,
-    alignSelf: 'center',
     marginBottom: 16,
-    gap: 10,
-  },
-  nameInput: {
-    height: 44,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    backgroundColor: rinkGlass.boards,
-    borderWidth: 1,
-    borderColor: rinkGlass.glassBorder,
-    fontSize: 15,
-    color: rinkGlass.textPrimary,
-  },
-  firstAddChips: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  firstAddChip: {
-    flex: 1,
-  },
-  chipDisabled: {
-    opacity: 0.4,
   },
   scroll: {
     flex: 1,
@@ -326,6 +381,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 16,
     paddingBottom: 48,
+    gap: 8,
   },
   editButton: {
     width: 36,
@@ -343,6 +399,7 @@ const styles = StyleSheet.create({
     backgroundColor: rinkGlass.blueLight,
     paddingVertical: 12,
     borderRadius: 12,
+    marginTop: 8,
     marginBottom: 8,
   },
   copyButtonDisabled: {
@@ -361,7 +418,7 @@ const styles = StyleSheet.create({
   copyHint: {
     fontSize: 12,
     color: rinkGlass.textSecondary,
-    marginBottom: 20,
+    marginBottom: 12,
     textAlign: 'center',
   },
   error: {
@@ -406,6 +463,65 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: rinkGlass.textSecondary,
   },
+  nextGame: {
+    fontSize: 12,
+    color: rinkGlass.blueLight,
+    marginTop: 2,
+  },
+  nextGameOut: {
+    color: rinkGlass.redLine,
+  },
+  headlineCard: {
+    backgroundColor: rinkGlass.glass,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: rinkGlass.glassBorder,
+    padding: 14,
+    marginTop: 4,
+    gap: 6,
+  },
+  headlineText: {
+    fontSize: 18,
+    fontWeight: '800',
+    fontFamily: rinkGlass.fonts.display,
+    color: rinkGlass.textPrimary,
+    lineHeight: 24,
+  },
+  headlineMove: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: rinkGlass.blueLight,
+  },
+  weekWrap: {
+    marginHorizontal: -16,
+  },
+  coachRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+    flexWrap: 'wrap',
+  },
+  recBadge: {
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  recBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#fff',
+    letterSpacing: 0.8,
+  },
+  coachMeta: {
+    flex: 1,
+    fontSize: 12,
+    color: rinkGlass.textSecondary,
+  },
+  pairWarn: {
+    fontSize: 12,
+    color: rinkGlass.redLine,
+  },
   chips: {
     flexDirection: 'row',
     gap: 6,
@@ -423,6 +539,9 @@ const styles = StyleSheet.create({
     backgroundColor: rinkGlass.blueLight,
     borderColor: rinkGlass.blueLight,
   },
+  chipDisabled: {
+    opacity: 0.35,
+  },
   chipLabel: {
     fontSize: 13,
     fontWeight: '700',
@@ -430,5 +549,22 @@ const styles = StyleSheet.create({
   },
   chipLabelActive: {
     color: '#0a0e1a',
+  },
+  pairChip: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: rinkGlass.boards,
+    borderWidth: 1,
+    borderColor: rinkGlass.glassBorder,
+  },
+  pairChipActive: {
+    borderColor: rinkGlass.blueLight,
+  },
+  pairChipLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: rinkGlass.textSecondary,
   },
 });

@@ -9,6 +9,7 @@ import {
   getScoringFormat,
   ensureRoster,
   addOrCreateNamedPlayer,
+  addNhlSearchPlayer,
   createLocalPlayer,
 } from '../fantasyRoster';
 import type { FantasyRoster, FantasyPlayer } from '../../types/fantasy';
@@ -271,6 +272,33 @@ describe('fantasyRoster service', () => {
       expect(player.playerName).toBe('Jamie');
       expect(player.teamAbbrev).toBe('');
       expect(player.position).toBe('G');
+    });
+  });
+
+  describe('addNhlSearchPlayer', () => {
+    it('persists the official NHL playerId', async () => {
+      mockGetItem.mockResolvedValue(null);
+      const { player, roster } = await addNhlSearchPlayer({
+        playerId: 8478402,
+        name: 'Connor McDavid',
+        teamAbbrev: 'EDM',
+        position: 'C',
+        active: true,
+      });
+      expect(player.playerId).toBe(8478402);
+      expect(player.teamAbbrev).toBe('EDM');
+      expect(roster.players[0].playerId).toBe(8478402);
+    });
+
+    it('rejects a duplicate NHL id', async () => {
+      mockGetItem.mockResolvedValue(JSON.stringify(makeRoster({ players: [makePlayer()] })));
+      await expect(addNhlSearchPlayer({
+        playerId: 8478402,
+        name: 'Connor McDavid',
+        teamAbbrev: 'EDM',
+        position: 'C',
+        active: true,
+      })).rejects.toThrow('already on the roster');
     });
   });
 

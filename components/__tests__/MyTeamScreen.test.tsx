@@ -82,6 +82,12 @@ jest.mock('../../services/fantasyRoster', () => ({
   loadRoster: jest.fn(),
   saveRoster: jest.fn(),
   updateRoster: jest.fn(),
+  addNhlSearchPlayer: jest.fn(),
+}));
+
+jest.mock('../../services/nhlPlayerSearch', () => ({
+  searchNhlPlayers: jest.fn().mockResolvedValue([]),
+  suggestedLineGroup: () => 'F',
 }));
 
 // @ts-expect-error no types for react-test-renderer
@@ -179,10 +185,10 @@ describe('MyTeamScreen', () => {
       expect(texts.some(t => t.toLowerCase().includes('this week') && t.includes('lines'))).toBe(true);
     });
 
-    it('shows setup CTA button', () => {
+    it('shows official NHL search instead of a typed-name CTA', () => {
       const tree = render();
-      expect(findByTestId(tree, 'setup-roster-button')).toHaveLength(1);
-      expect(getAllText(tree)).toContain('Add Players');
+      expect(findByTestId(tree, 'lines-nhl-search')).toHaveLength(1);
+      expect(getAllText(tree).join(' ')).toMatch(/official NHL/i);
     });
 
     it('does not show roster view', () => {

@@ -1,4 +1,10 @@
-import { mapNhlSearchRow, rankSearchResults, searchNhlPlayers } from '../nhlPlayerSearch';
+import {
+  mapNhlSearchRow,
+  preferActiveHits,
+  rankSearchResults,
+  searchNhlPlayers,
+  suggestedLineGroup,
+} from '../nhlPlayerSearch';
 
 describe('mapNhlSearchRow', () => {
   it('maps an official NHL search hit', () => {
@@ -26,6 +32,30 @@ describe('mapNhlSearchRow', () => {
     })?.teamAbbrev).toBe('EDM');
     expect(mapNhlSearchRow({ playerId: 'x', name: 'Nope' })).toBeNull();
     expect(mapNhlSearchRow({ playerId: 1, name: '  ' })).toBeNull();
+  });
+});
+
+describe('suggestedLineGroup', () => {
+  it('maps official NHL positions to F / D / G', () => {
+    expect(suggestedLineGroup('C')).toBe('F');
+    expect(suggestedLineGroup('LW')).toBe('F');
+    expect(suggestedLineGroup('D')).toBe('D');
+    expect(suggestedLineGroup('G')).toBe('G');
+  });
+});
+
+describe('preferActiveHits', () => {
+  it('hides inactive when an active hit exists', () => {
+    const kept = preferActiveHits([
+      { playerId: 1, name: 'Old', teamAbbrev: '', position: 'D', active: false },
+      { playerId: 2, name: 'Now', teamAbbrev: 'COL', position: 'D', active: true },
+    ]);
+    expect(kept.map((row) => row.playerId)).toEqual([2]);
+  });
+
+  it('keeps inactive when that is the only match', () => {
+    const only = [{ playerId: 1, name: 'Retired', teamAbbrev: '', position: 'C', active: false }];
+    expect(preferActiveHits(only)).toEqual(only);
   });
 });
 
@@ -63,6 +93,18 @@ describe('searchNhlPlayers', () => {
       expect.stringContaining('search.d3.nhle.com/api/v1/search/player'),
     );
     expect(results[0].playerId).toBe(8478402);
+  });
+
+  it('returns only active NHL hits when any are active', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ([
+        { playerId: '1', name: 'Brian McDavid', positionCode: 'D', active: false },
+        { playerId: '8478402', name: 'Connor McDavid', positionCode: 'C', teamAbbrev: 'EDM', active: true },
+      ]),
+    });
+    const results = await searchNhlPlayers('mcdavid');
+    expect(results.map((row) => row.playerId)).toEqual([8478402]);
   });
 
   it('throws when the search endpoint fails', async () => {

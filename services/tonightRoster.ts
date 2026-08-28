@@ -10,11 +10,12 @@ import type {
   RosterNewsItem,
   TonightPlayerStatus,
 } from '../types/fantasy';
+import { nhlWebApiBase, NHL_WEB_API } from '../lib/nhlEndpoints';
 import { getNhlCalendarDate } from './nhlDate';
 import { newsInjuryHintForPlayer } from './rosterNews';
 import { leanStartSit } from './startSitLean';
 
-export const NHL_WEB_API = 'https://api-web.nhle.com';
+export { NHL_WEB_API };
 
 interface ScoreTeam {
   abbrev?: string;
@@ -137,7 +138,7 @@ export function sortTonightStatuses(rows: TonightPlayerStatus[]): TonightPlayerS
 }
 
 export async function fetchTonightSlate(date: string = getNhlCalendarDate()): Promise<TonightSlate> {
-  const res = await fetch(`${NHL_WEB_API}/v1/score/${date}`);
+  const res = await fetch(`${nhlWebApiBase()}/v1/score/${date}`);
   if (!res.ok) {
     throw new Error(`NHL score fetch failed (${res.status})`);
   }
@@ -151,7 +152,7 @@ export async function fetchTonightSlate(date: string = getNhlCalendarDate()): Pr
 
 export async function fetchScratchIdsForGame(gameId: number): Promise<Set<number>> {
   try {
-    const res = await fetch(`${NHL_WEB_API}/v1/gamecenter/${gameId}/right-rail`);
+    const res = await fetch(`${nhlWebApiBase()}/v1/gamecenter/${gameId}/right-rail`);
     if (!res.ok) return new Set();
     const payload = await res.json();
     return extractScratchIds(payload);

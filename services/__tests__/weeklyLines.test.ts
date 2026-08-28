@@ -2,7 +2,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   LINES_STORAGE_KEY,
   assignPlayer,
+  brokenDoNotPairs,
   canCopyLastWeek,
+  cannotStart,
   copyPreviousWeek,
   emptyWeek,
   getIsoWeekId,
@@ -12,6 +14,7 @@ import {
   loadAndRollLines,
   persistLines,
   rollToCurrentWeek,
+  toggleDoNotPair,
 } from '../weeklyLines';
 import type { LinesStore } from '../../types/lines';
 
@@ -28,6 +31,7 @@ function storeForWeek(weekId: string, assignments: LinesStore['current']['assign
   return {
     current: { weekId, label: weekId, assignments },
     previous: null,
+    doNotPairs: [],
   };
 }
 
@@ -71,6 +75,7 @@ describe('rollToCurrentWeek', () => {
     const stored: LinesStore = {
       current: { weekId: lastWeek, label: 'last', assignments: [{ playerId: 7, group: 'D' }] },
       previous: { weekId: '2026-W01', label: 'older', assignments: [{ playerId: 9, group: 'G' }] },
+      doNotPairs: [],
     };
     const rolled = rollToCurrentWeek(stored, now);
     expect(rolled.current.weekId).toBe(thisWeek);
@@ -90,6 +95,7 @@ describe('assign and copy', () => {
   it('copies last week onto this week for players still on the roster', () => {
     const store: LinesStore = {
       current: emptyWeek('2026-W34'),
+      doNotPairs: [],
       previous: {
         weekId: '2026-W33',
         label: 'last',
@@ -117,6 +123,7 @@ describe('assign and copy', () => {
     const emptyPrev: LinesStore = {
       current: emptyWeek('2026-W34'),
       previous: emptyWeek('2026-W33'),
+      doNotPairs: [],
     };
     const withPrev: LinesStore = {
       ...emptyPrev,
@@ -166,5 +173,26 @@ describe('weeklyLines persistence', () => {
     const store = storeForWeek('2026-W34');
     await persistLines(store);
     expect(mockSetItem).toHaveBeenCalledWith(LINES_STORAGE_KEY, JSON.stringify(store));
+  });
+});
+
+describe('do-not-pair and OUT lock', () => {
+  it('toggles a pair lock and flags both names on F', () => {
+    const store = toggleDoNotPair(storeForWeek('2026-W34', [
+      { playerId: 1, group: 'F' },
+      { playerId: 2, group: 'F' },
+    ]), 1, 2);
+    expect(store.doNotPairs).toEqual([[1, 2]]);
+    const broken = brokenDoNotPairs(store, (id) => (id === 1 || id === 2 ? 'F' : 'bench'));
+    expect(broken).toEqual([[1, 2]]);
+    const cleared = toggleDoNotPair(store, 2, 1);
+    expect(cleared.doNotPairs).toEqual([]);
+  });
+
+  it('treats out and scratch as cannot start', () => {
+    expect(cannotStart('out')).toBe(true);
+    expect(cannotStart('scratch')).toBe(true);
+    expect(cannotStart('ok')).toBe(false);
+    expect(cannotStart('dtd')).toBe(false);
   });
 });

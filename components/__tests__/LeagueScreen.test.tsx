@@ -26,6 +26,7 @@ jest.mock('../../services/opponentRoster', () => ({
 }));
 
 jest.mock('../../services/nhlPlayerSearch', () => ({
+  suggestedLineGroup: () => 'F',
   searchNhlPlayers: jest.fn().mockResolvedValue([]),
 }));
 

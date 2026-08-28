@@ -37,6 +37,7 @@ jest.mock('../../hooks/useTonightRoster', () => ({
 
 jest.mock('../../services/nhlPlayerSearch', () => ({
   searchNhlPlayers: jest.fn().mockResolvedValue([]),
+  suggestedLineGroup: () => 'F',
 }));
 
 // @ts-expect-error no types for react-test-renderer

@@ -8,14 +8,15 @@ import {
   Modal,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { rinkGlass } from '../constants/theme';
-import { createLocalPlayer, saveRoster, updateRoster } from '../services/fantasyRoster';
-import type { FantasyPlayer, FantasyRoster } from '../types/fantasy';
+import { nhlHitToPlayer, saveRoster, updateRoster } from '../services/fantasyRoster';
+import type { FantasyPlayer, FantasyRoster, NhlSearchPlayer } from '../types/fantasy';
+import type { LineGroup } from '../types/lines';
+import NhlPlayerSearch from './NhlPlayerSearch';
 
 interface RosterBuilderProps {
   visible: boolean;
@@ -23,8 +24,6 @@ interface RosterBuilderProps {
   onSaved: () => void;
   existingRoster?: FantasyRoster | null;
 }
-
-type LocalPosition = 'F' | 'D' | 'G';
 
 export default function RosterBuilder({
   visible,
@@ -35,33 +34,22 @@ export default function RosterBuilder({
   const [addedPlayers, setAddedPlayers] = useState<FantasyPlayer[]>(
     existingRoster?.players ?? [],
   );
-  const [name, setName] = useState('');
-  const [position, setPosition] = useState<LocalPosition>('F');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (visible) {
       setAddedPlayers(existingRoster?.players ?? []);
-      setName('');
-      setPosition('F');
     }
   }, [visible, existingRoster]);
 
-  const handleAdd = useCallback(() => {
-    const trimmed = name.trim();
-    if (trimmed.length < 1) {
-      return;
-    }
-    const duplicate = addedPlayers.some(
-      (player) => player.playerName.toLowerCase() === trimmed.toLowerCase(),
-    );
+  const handleAddHit = useCallback((hit: NhlSearchPlayer, group: LineGroup) => {
+    const duplicate = addedPlayers.some((player) => player.playerId === hit.playerId);
     if (duplicate) {
-      Alert.alert('Already on the roster', `${trimmed} is already listed.`);
+      Alert.alert('Already on the roster', `${hit.name} is already listed.`);
       return;
     }
-    setAddedPlayers((prev) => [...prev, createLocalPlayer(trimmed, position)]);
-    setName('');
-  }, [addedPlayers, name, position]);
+    setAddedPlayers((prev) => [...prev, nhlHitToPlayer(hit)]);
+  }, [addedPlayers]);
 
   const handleRemovePlayer = useCallback((playerId: number) => {
     setAddedPlayers((prev) => prev.filter((player) => player.playerId !== playerId));
@@ -124,46 +112,13 @@ export default function RosterBuilder({
         </View>
 
         <Text style={styles.hint}>
-          Add the names on your roster. No NHL search, no extra teams.
+          Search official NHL players. Same list as old Pick IQ / League.
         </Text>
 
-        <View style={styles.addRow}>
-          <TextInput
-            style={styles.nameInput}
-            placeholder="Player name"
-            placeholderTextColor={rinkGlass.textMuted}
-            value={name}
-            onChangeText={setName}
-            testID="roster-name-input"
-            autoCorrect={false}
-            autoCapitalize="words"
-            onSubmitEditing={handleAdd}
-            returnKeyType="done"
-          />
-        </View>
-
-        <View style={styles.positionRow} testID="roster-position-chips">
-          {(['F', 'D', 'G'] as LocalPosition[]).map((item) => (
-            <TouchableOpacity
-              key={item}
-              style={[styles.positionChip, position === item && styles.positionChipActive]}
-              onPress={() => setPosition(item)}
-              testID={`roster-position-${item}`}
-            >
-              <Text style={[styles.positionText, position === item && styles.positionTextActive]}>
-                {item}
-              </Text>
-            </TouchableOpacity>
-          ))}
-          <TouchableOpacity
-            style={[styles.addButton, name.trim().length < 1 && styles.addButtonDisabled]}
-            onPress={handleAdd}
-            disabled={name.trim().length < 1}
-            testID="roster-add-player"
-          >
-            <Text style={styles.addButtonText}>Add</Text>
-          </TouchableOpacity>
-        </View>
+        <NhlPlayerSearch
+          onAdd={handleAddHit}
+          alreadyOnRoster={new Set(addedPlayers.map((player) => player.playerId))}
+        />
 
         {addedPlayers.length > 0 && (
           <View style={styles.chipsContainer} testID="added-players-chips">

@@ -5,7 +5,8 @@
 
 import type { FantasyPlayer, MyWeek, MyWeekDay } from '../types/fantasy';
 import { getNhlCalendarDate } from './nhlDate';
-import { findGameForTeam, NHL_WEB_API } from './tonightRoster';
+import { nhlWebApiBase } from '../lib/nhlEndpoints';
+import { findGameForTeam } from './tonightRoster';
 
 interface ScheduleTeam {
   abbrev?: string;
@@ -82,7 +83,7 @@ export async function fetchMyWeek(
 ): Promise<MyWeek> {
   if (players.length === 0) return emptyMyWeek(date);
   try {
-    const res = await fetch(`${NHL_WEB_API}/v1/schedule/${date}`);
+    const res = await fetch(`${nhlWebApiBase()}/v1/schedule/${date}`);
     if (!res.ok) return emptyMyWeek(date);
     const payload = await res.json() as NhlWeekSchedule;
     return mapScheduleToMyWeek(payload, players);

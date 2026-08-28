@@ -4,11 +4,19 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo } from 'react';
+import { LogBox, Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 import { AnalyticsProvider } from '../components/analytics/AnalyticsProvider';
 import { AuthProvider } from '../components/auth/AuthProvider';
 import { SubscriptionProvider } from '../components/SubscriptionProvider';
+
+if (Platform.OS === 'web') {
+  LogBox.ignoreLogs([
+    '"shadow*" style props are deprecated',
+    'props.pointerEvents is deprecated',
+  ]);
+}
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
