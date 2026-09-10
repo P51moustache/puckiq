@@ -54,3 +54,9 @@ The connected feed currently has no upcoming games and its latest standings snap
 - [Settings](screenshots/arena-club/settings.png)
 
 These are captures of the real native app and its connected feed, not the HTML concept. A blue floating gear visible in some captures belongs to Expo Go's developer tools.
+
+## Typography correction
+
+A follow-up native check reproduced cropped cap tops with Teko's forced line heights. The bundled font has a native ascent/descent total of 1.433em; the previous ~1.05em line boxes clipped glyphs on iOS. Display labels now use native line metrics. Two-line poster/onboarding headlines retain complete native text boxes and tighten only the unused interline space via `ArenaHeadline`. The font asset and selected design are unchanged.
+
+Verified the card front, card back and Game Preview in Expo Go after a full reload. TypeScript and the complete Jest suite still pass (110 suites, 1,701 passed, 1 skipped); focused ESLint and diff checks pass. [Corrected poster](screenshots/arena-club/typography-fixed-poster.png) · [Corrected card back](screenshots/arena-club/typography-fixed-card-back.png).

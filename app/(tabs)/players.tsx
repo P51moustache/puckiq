@@ -755,7 +755,6 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontSize: 28,
-    lineHeight: 30,
     color: rinkGlass.blueLight,
     fontFamily: arenaType.display,
   },

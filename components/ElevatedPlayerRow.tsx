@@ -229,7 +229,6 @@ const styles = StyleSheet.create({
     color: rinkGlass.textPrimary,
     fontFamily: rinkGlass.fonts.mono,
     fontVariant: ['tabular-nums'] as any,
-    lineHeight: 24,
   },
   ppgLabel: {
     fontSize: 10,

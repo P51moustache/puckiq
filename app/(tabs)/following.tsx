@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
   },
   homeCardCopy: { flex: 1, justifyContent: 'center', zIndex: 1 },
   kicker: { fontFamily: arenaType.body, fontSize: 11, fontWeight: '800', letterSpacing: 1.4, opacity: 0.78 },
-  homeName: { fontFamily: arenaType.display, fontSize: 38, lineHeight: 40, marginTop: 4 },
+  homeName: { fontFamily: arenaType.display, fontSize: 38, marginTop: 4 },
   homeMeta: { fontFamily: arenaType.body, fontSize: 12, marginTop: 6, opacity: 0.78 },
   homeLogo: { width: 104, height: 104, alignSelf: 'center' },
   watchCard: {
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
   cardTitle: { fontFamily: arenaType.body, fontSize: 15, fontWeight: '800' },
   cardMeta: { fontFamily: arenaType.body, fontSize: 12, marginTop: 3 },
   sectionHeading: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 20, marginBottom: 12 },
-  sectionTitle: { fontFamily: arenaType.display, fontSize: 29, lineHeight: 31 },
+  sectionTitle: { fontFamily: arenaType.display, fontSize: 29 },
   sectionMeta: { fontFamily: arenaType.body, fontSize: 12, marginTop: 2 },
   headingRule: { width: 52, height: 5, borderRadius: 3, marginBottom: 6 },
   teamList: { gap: 9 },

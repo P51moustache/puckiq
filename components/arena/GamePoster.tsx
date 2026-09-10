@@ -18,6 +18,7 @@ import {
 } from "../../services/arenaData";
 import type { ArenaGame } from "../../types/arena";
 import { ArenaSkater } from "./ArenaSkater";
+import { ArenaHeadline } from "./ArenaHeadline";
 
 export function gameTime(game: ArenaGame) {
   return new Date(game.start_time_utc).toLocaleString(undefined, {
@@ -190,25 +191,19 @@ export function GamePoster({
               bottom: 51,
             }}
           />
-          <Text
-            accessibilityRole="header"
+          <ArenaHeadline
+            text={header}
+            fontSize={width < 380 ? 77 : 88}
+            color={p.heroInk}
+            textShadowColor={p.hero}
             style={{
               position: "absolute",
               top: 51,
               left: 15,
-              fontFamily: arenaType.display,
-              fontSize: width < 380 ? 77 : 88,
-              lineHeight: width < 380 ? 81 : 92,
-              color: p.heroInk,
               transform: [{ rotate: "-4deg" }],
-              textShadowColor: p.hero,
-              textShadowOffset: { width: 2, height: 2 },
-              textShadowRadius: 1,
               zIndex: 3,
             }}
-          >
-            {header}
-          </Text>
+          />
           <View
             style={{
               position: "absolute",
@@ -244,7 +239,6 @@ export function GamePoster({
               style={{
                 fontFamily: arenaType.display,
                 fontSize: 45,
-                lineHeight: 50,
                 color: p.ink,
               }}
             >
@@ -311,7 +305,6 @@ export function GamePoster({
                 color: p.frameInk,
                 fontFamily: arenaType.display,
                 fontSize: 29,
-                lineHeight: 32,
               }}
             >
               {game
@@ -366,17 +359,12 @@ export function GamePoster({
           >
             THE OTHER SIDE OF THE CARD
           </Text>
-          <Text
-            style={{
-              fontFamily: arenaType.display,
-              fontSize: 48,
-              lineHeight: 51,
-              color: p.ink,
-              marginTop: 15,
-            }}
-          >
-            BEFORE{"\n"}THE BUZZER.
-          </Text>
+          <ArenaHeadline
+            text={"BEFORE\nTHE BUZZER."}
+            fontSize={48}
+            color={p.ink}
+            style={{ marginTop: 15 }}
+          />
           {forecast && game ? (
             <View style={{ marginTop: 20 }}>
               <Text
@@ -425,7 +413,6 @@ export function GamePoster({
                         color: p.ink,
                         fontFamily: arenaType.display,
                         fontSize: 43,
-                        lineHeight: 51,
                       }}
                     >
                       {Math.round(side.probability * 100)}%

@@ -27,7 +27,6 @@ export function SeasonBook({
           fontFamily: arenaType.display,
           color: p.ink,
           fontSize: 49,
-          lineHeight: 52,
         }}
       >
         KEEP THE SEASON.

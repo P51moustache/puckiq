@@ -147,7 +147,6 @@ export function GamePreview({
             color: p.frameInk,
             fontFamily: arenaType.display,
             fontSize: 44,
-            lineHeight: 48,
             marginTop: 8,
           }}
         >

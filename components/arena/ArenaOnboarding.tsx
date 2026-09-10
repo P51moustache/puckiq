@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { ArenaButton, arenaType, TeamPicker } from "./ArenaPrimitives";
 import { useArena } from "./ArenaProvider";
 import { ArenaSkater } from "./ArenaSkater";
+import { ArenaHeadline } from "./ArenaHeadline";
 
 export function ArenaOnboarding({
   onComplete,
@@ -82,20 +83,13 @@ export function ArenaOnboarding({
           >
             WELCOME TO THE CLUB
           </Text>
-          <Text
-            style={{
-              fontFamily: arenaType.display,
-              fontSize: 76,
-              lineHeight: 82,
-              color: p.heroInk,
-              marginTop: 14,
-              textShadowColor: p.hero,
-              textShadowOffset: { width: 2, height: 2 },
-              textShadowRadius: 1,
-            }}
-          >
-            YOUR TEAM.{"\n"}YOUR ICE.
-          </Text>
+          <ArenaHeadline
+            text={"YOUR TEAM.\nYOUR ICE."}
+            fontSize={76}
+            color={p.heroInk}
+            textShadowColor={p.hero}
+            style={{ marginTop: 14 }}
+          />
           <Text
             style={{
               position: "absolute",
