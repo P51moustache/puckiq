@@ -172,7 +172,7 @@ def read_games_multi(
 
 @_retry
 def read_standings(
-    client: Client, team_abbrev: str, as_of_date: str
+    client: Client, team_abbrev: str, as_of_date: str, season: int | None = None
 ) -> dict[str, Any] | None:
     """
     Read the latest standings snapshot for a team on or before as_of_date.
@@ -184,15 +184,10 @@ def read_standings(
     Returns:
         Dict of standings columns, or None if not found.
     """
-    response = (
-        client.table(STANDINGS_TABLE)
-        .select("*")
-        .eq("team_abbrev", team_abbrev)
-        .lte("snapshot_date", as_of_date)
-        .order("snapshot_date", desc=True)
-        .limit(1)
-        .execute()
-    )
+    query = client.table(STANDINGS_TABLE).select("*").eq("team_abbrev", team_abbrev)
+    if season is not None:
+        query = query.eq("season", season)
+    response = query.lte("snapshot_date", as_of_date).order("snapshot_date", desc=True).limit(1).execute()
     if response.data:
         return response.data[0]
     return None
@@ -334,37 +329,21 @@ def read_player_season_stats(
 
 @_retry
 def read_recent_games(
-    client: Client, team_abbrev: str, before_date: str, limit: int = 10
+    client: Client, team_abbrev: str, before_date: str, limit: int = 10, season: int | None = None
 ) -> list[dict[str, Any]]:
     """
     Read recent completed games for a team (home or away) before a date.
 
     Used for rolling window features.
     """
-    # Home games
-    home_resp = (
-        client.table(GAMES_TABLE)
-        .select("*")
-        .eq("home_team_abbrev", team_abbrev)
-        .in_("game_state", ["OFF", "FINAL"])
-        .lt("game_date", before_date)
-        .order("game_date", desc=True)
-        .limit(limit)
-        .execute()
-    )
-    # Away games
-    away_resp = (
-        client.table(GAMES_TABLE)
-        .select("*")
-        .eq("away_team_abbrev", team_abbrev)
-        .in_("game_state", ["OFF", "FINAL"])
-        .lt("game_date", before_date)
-        .order("game_date", desc=True)
-        .limit(limit)
-        .execute()
-    )
-
-    all_games = (home_resp.data or []) + (away_resp.data or [])
+    all_games: list[dict[str, Any]] = []
+    for side in ("home_team_abbrev", "away_team_abbrev"):
+        query = client.table(GAMES_TABLE).select("*").eq(side, team_abbrev)
+        if season is not None:
+            query = query.eq("season", season).in_("game_type", [2, 3])
+        response = (query.in_("game_state", ["OFF", "FINAL"]).lt("game_date", before_date)
+                    .order("game_date", desc=True).limit(limit).execute())
+        all_games.extend(response.data or [])
     all_games.sort(key=lambda g: g["game_date"], reverse=True)
     return all_games[:limit]
 

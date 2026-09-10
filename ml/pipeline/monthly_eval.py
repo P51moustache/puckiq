@@ -33,7 +33,7 @@ HOW MONTHLY EVALUATION WORKS (tutorial):
 
 import logging
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import httpx
@@ -42,20 +42,18 @@ import pandas as pd
 from supabase import Client
 
 from ml.config import (
-    CURRENT_SEASON,
     DISCORD_WEBHOOK_URL,
     HEALTHCHECK_URL,
     ML_MODEL_EVALUATIONS_TABLE,
     ML_MODEL_METADATA_TABLE,
-    ML_SCORES_TABLE,
+    ML_PREDICTIONS_TABLE,
+    GAMES_TABLE,
     ModelType,
 )
 from ml.evaluation.calibration import compute_calibration_buckets, compute_ece
+from ml.evaluation.cohort import build_version_scores
 from ml.evaluation.overfitting import compute_train_val_gap_history
-from ml.features.disk_cache import compute_features_with_cache
-from ml.features.registry import load_feature_registry
-from ml.io.supabase_client import create_supabase_client, read_games
-from ml.models.baselines import evaluate_baselines
+from ml.io.supabase_client import create_supabase_client
 
 logging.basicConfig(
     level=logging.INFO,
@@ -79,19 +77,9 @@ def _run() -> None:
     client = create_supabase_client()
     evaluation_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
-    # Pre-compute baselines once (shared across model evaluations, only used by game_winner).
-    # We do this outside the loop to avoid re-computing features for each model type.
-    # Include playoffs (game_type=3) so monthly eval covers the games we
-    # actually scored predictions on via daily_run.
-    games_df = read_games(client, CURRENT_SEASON, game_state=["OFF", "FINAL"], game_types=[2, 3])
-    baseline_results: dict[str, Any] = {}
-    if not games_df.empty:
-        games_df = games_df.sort_values("game_date").reset_index(drop=True)
-        registry = load_feature_registry()
-        features_df = compute_features_with_cache(
-            games_df, client, registry=registry,
-        )
-        baseline_results = evaluate_baselines(games_df, features_df)
+    # A fixed, disclosed 30-day window; the evaluation day is excluded because
+    # its games may not be final. Versioned pregame rows define the cohort.
+    start_date = (datetime.fromisoformat(evaluation_date) - timedelta(days=30)).date().isoformat()
 
     # Evaluate each model type: game_winner, spread, totals.
     # Each gets its own row in ml_model_evaluations via UPSERT on
@@ -107,7 +95,7 @@ def _run() -> None:
             logger.warning("No active model version found for %s — skipping", model_type.value)
             continue
 
-        scores_df = _load_scores(client, model_type.value)
+        scores_df = _load_scores(client, model_type.value, active_version, start_date, evaluation_date)
         if scores_df.empty:
             logger.warning("No scores found for %s — skipping", model_type.value)
             continue
@@ -115,7 +103,7 @@ def _run() -> None:
         # Build the evaluation row based on model type
         if model_type == ModelType.GAME_WINNER:
             evaluation = _evaluate_game_winner(
-                client, scores_df, active_version, evaluation_date, baseline_results
+                client, scores_df, active_version, evaluation_date
             )
         elif model_type == ModelType.SPREAD:
             evaluation = _evaluate_spread(
@@ -128,6 +116,13 @@ def _run() -> None:
         else:
             continue
 
+        # Persist the coverage alongside the metrics in the existing JSONB field.
+        evaluation["train_val_gap_history"].append({
+            "version": "_cohort", "start_date": start_date,
+            "end_date_exclusive": evaluation_date, "n_scored": len(scores_df),
+            "game_ids": scores_df["game_id"].tolist(),
+            "source": "versioned pregame predictions joined to final games",
+        })
         # UPSERT to ml_model_evaluations
         client.table(ML_MODEL_EVALUATIONS_TABLE).upsert(
             evaluation, on_conflict="model_type,model_version,evaluation_date"
@@ -156,7 +151,6 @@ def _evaluate_game_winner(
     scores_df: pd.DataFrame,
     active_version: str,
     evaluation_date: str,
-    baseline_results: dict[str, Any],
 ) -> dict[str, Any]:
     """
     Build evaluation row for game_winner model.
@@ -164,11 +158,11 @@ def _evaluate_game_winner(
     Metrics: accuracy, Brier score, ECE, calibration buckets, confidence
     breakdown, baseline comparisons, overfitting trend.
 
-    This is the original evaluation logic, preserved exactly as-is.
+    Baseline and model accuracy use exactly the same game outcomes.
     """
     # Calibration analysis.
-    #   We use home_win_prob (the predicted probability) and was_correct (the outcome)
-    #   from the ml_prediction_scores table.
+    # Home-win probability must be compared with home wins. A correct away pick
+    # has was_correct=True but a home-win outcome of zero.
     #
     #   WHY CALIBRATION MATTERS:
     #   A model can be "accurate" (>50% correct) but poorly calibrated. For example,
@@ -176,9 +170,9 @@ def _evaluate_game_winner(
     #   zero useful confidence information. Calibration tells us if the probability
     #   values themselves are meaningful.
     ece_score = None
-    if "home_win_prob" in scores_df.columns and "was_correct" in scores_df.columns:
+    if "home_win_prob" in scores_df.columns and "actual_spread" in scores_df.columns:
         predictions = scores_df["home_win_prob"].values
-        actuals = scores_df["was_correct"].astype(float).values
+        actuals = (scores_df["actual_spread"] > 0).astype(float).values
         buckets = compute_calibration_buckets(predictions, actuals)
         calibration_data = [
             {
@@ -201,12 +195,10 @@ def _evaluate_game_winner(
     vs_simple = None
     vs_rule = None
     model_accuracy = float(scores_df["was_correct"].mean()) if "was_correct" in scores_df.columns else 0.0
-    if "naive_home" in baseline_results:
-        vs_naive = model_accuracy - baseline_results["naive_home"].get("accuracy", 0.0)
-    if "logistic" in baseline_results:
-        vs_simple = model_accuracy - baseline_results["logistic"].get("accuracy", 0.0)
-    if "favorite" in baseline_results:
-        vs_rule = model_accuracy - baseline_results["favorite"].get("accuracy", 0.0)
+    if "actual_spread" in scores_df.columns:
+        vs_naive = model_accuracy - float((scores_df["actual_spread"] > 0).mean())
+    # No archived pregame logistic/favorite predictions for this exact cohort:
+    # leave these comparisons unavailable instead of subtracting other games.
 
     # Overfitting trend across model versions.
     metadata_list = _load_model_metadata_history(client, ModelType.GAME_WINNER.value)
@@ -382,15 +374,30 @@ def _get_active_model_version(client: Client, model_type: str) -> str | None:
     return None
 
 
-def _load_scores(client: Client, model_type: str) -> pd.DataFrame:
-    """Load all prediction scores for a model type."""
-    response = (
-        client.table(ML_SCORES_TABLE)
-        .select("*")
-        .eq("model_type", model_type)
-        .execute()
-    )
-    return pd.DataFrame(response.data) if response.data else pd.DataFrame()
+def _load_scores(
+    client: Client, model_type: str, version: str, start_date: str, end_date: str,
+) -> pd.DataFrame:
+    """Rebuild scores from versioned evidence; the legacy score table loses version."""
+    predictions: list[dict[str, Any]] = []
+    offset = 0
+    while True:
+        response = (
+            client.table(ML_PREDICTIONS_TABLE).select("*")
+            .eq("model_type", model_type).eq("model_version", version)
+            .gte("game_date", start_date).lt("game_date", end_date)
+            .order("id").range(offset, offset + 999).execute()
+        )
+        batch = response.data or []
+        predictions.extend(batch)
+        if len(batch) < 1000:
+            break
+        offset += 1000
+    game_ids = sorted({row["game_id"] for row in predictions})
+    games: list[dict[str, Any]] = []
+    for offset in range(0, len(game_ids), 200):
+        response = client.table(GAMES_TABLE).select("*").in_("id", game_ids[offset:offset + 200]).execute()
+        games.extend(response.data or [])
+    return build_version_scores(predictions, games, model_type, version, start_date, end_date)
 
 
 def _load_model_metadata_history(
@@ -433,7 +440,7 @@ def _accuracy_by_confidence(scores_df: pd.DataFrame) -> list[dict[str, Any]]:
         # A 0.3 home_win_prob means 0.7 confidence in the away team.
         probs = scores_df["home_win_prob"].values
         confidence = np.maximum(probs, 1 - probs)
-        mask = (confidence >= low) & (confidence < high)
+        mask = (confidence >= low) & ((confidence <= high) if high == 1.0 else (confidence < high))
         subset = scores_df[mask]
 
         if len(subset) > 0:

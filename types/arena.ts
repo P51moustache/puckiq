@@ -6,6 +6,7 @@ export interface ArenaForecast {
 }
 
 export interface ArenaGame {
+  freshness?: { source: SourceFreshness; prediction: SourceFreshness; forecastUnavailable: boolean };
   id: number;
   season: number;
   game_date: string;
@@ -41,6 +42,7 @@ export interface ArenaStanding {
 }
 
 export interface ArenaGoalie {
+  updated_at?: string;
   player_id: number;
   team_abbrev: string;
   name: string;
@@ -54,3 +56,5 @@ export interface SeasonEntry {
   game: ArenaGame;
   savedAt: string;
 }
+
+export interface SourceFreshness { asOf: string | null; ageHours: number | null; status: "fresh" | "stale" | "unknown"; }

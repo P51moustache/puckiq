@@ -1,3 +1,5 @@
+import { useLocalSearchParams } from 'expo-router';
+import { parseEntityId } from '../../utils/entityRoutes';
 import React, {
   useCallback,
   useEffect,
@@ -25,6 +27,8 @@ import { SeasonBook } from "./SeasonBook";
 import { useArenaGames } from "../../hooks/useArenaGames";
 import {
   fetchArenaResults,
+  fetchArenaGameById,
+  applyGameFreshness,
   isFinalGame,
   isLiveGame,
   orderArenaGames,
@@ -38,6 +42,8 @@ import {
 import type { ArenaGame, SeasonEntry } from "../../types/arena";
 
 export default function TonightScreen() {
+  const params = useLocalSearchParams<{ game?: string | string[] }>();
+  const [routeMessage, setRouteMessage] = useState<string | null>(null);
   const { palette: p, homeTeam } = useArena();
   const { games, loading, error, notice, refresh } = useArenaGames(
     homeTeam?.abbrev,
@@ -56,7 +62,7 @@ export default function TonightScreen() {
   );
   const featured = ordered[0] ?? null;
   const selected =
-    games.find((g) => g.id === selection?.id) ?? selection ?? featured;
+    games.find((g) => g.id === selection?.id) ?? (selection ? applyGameFreshness(selection) : featured);
   const reloadBook = useCallback(async () => {
     try {
       const next = await getSeasonBook();
@@ -106,10 +112,24 @@ export default function TonightScreen() {
     }
   };
   const openGame = (game: ArenaGame) => {
+    setRouteMessage(null);
     setSelection(game);
     setSection("preview");
     scroll.current?.scrollTo({ y: 0, animated: false });
   };
+  useEffect(() => {
+    if (params.game === undefined) return;
+    let alive = true;
+    setSection('preview'); setSelection(null);
+    const id = parseEntityId(params.game);
+    setRouteMessage(id ? 'Loading selected game…' : 'Game unavailable: this link has an invalid game ID. Choose a game from Tonight.');
+    if (id) void fetchArenaGameById(id).then(game => {
+      if (!alive) return;
+      setSelection(game);
+      setRouteMessage(game ? null : 'This game is unavailable in the feed. Choose a game from Tonight.');
+    }).catch(() => { if (alive) setRouteMessage('The selected game could not be loaded. Return to Tonight and try again.'); });
+    return () => { alive = false; };
+  }, [params.game]);
   const upcoming = games.some((g) => !isFinalGame(g));
   return (
     <SafeAreaView edges={["top"]} style={{ flex: 1, backgroundColor: p.page }}>
@@ -348,7 +368,7 @@ export default function TonightScreen() {
           </>
         )}
         {section === "preview" &&
-          (selected ? (
+          (routeMessage ? <ArenaNote>{routeMessage}</ArenaNote> : selected ? (
             <GamePreview
               game={selected}
               entry={entries.find((e) => e.game.id === selected.id)}

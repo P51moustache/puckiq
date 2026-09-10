@@ -24,6 +24,7 @@ jest.mock('../../lib/supabase', () => {
     select: jest.fn(() => builder),
     eq: jest.fn(() => builder),
     lte: jest.fn(() => builder),
+    lt: jest.fn(() => builder),
     gte: jest.fn(() => builder),
     order: jest.fn(() => builder),
     limit: jest.fn(() => builder),
@@ -69,9 +70,9 @@ function createTestModel(overrides: Partial<PredictionModel> = {}): PredictionMo
 // fetchStandingsForDate reads from the `standings` table via mapSupabaseStandings.
 function createMockStandings() {
   return [
-    { team_abbrev: 'TOR', point_pctg: 0.65, wins: 30, losses: 15, ot_losses: 3, points: 63, goals_for: 150, goals_against: 120, games_played: 48, streak_code: 'W', streak_count: 3, snapshot_date: '2024-10-15' },
-    { team_abbrev: 'MTL', point_pctg: 0.45, wins: 20, losses: 25, ot_losses: 5, points: 45, goals_for: 110, goals_against: 140, games_played: 50, streak_code: 'L', streak_count: 2, snapshot_date: '2024-10-15' },
-    { team_abbrev: 'BOS', point_pctg: 0.70, wins: 35, losses: 12, ot_losses: 3, points: 73, goals_for: 170, goals_against: 100, games_played: 50, streak_code: 'W', streak_count: 5, snapshot_date: '2024-10-15' },
+    { team_abbrev: 'TOR', point_pctg: 0.65, wins: 30, losses: 15, ot_losses: 3, points: 63, goals_for: 150, goals_against: 120, games_played: 48, streak_code: 'W', streak_count: 3, season: 20242025, snapshot_date: '2024-10-14' },
+    { team_abbrev: 'MTL', point_pctg: 0.45, wins: 20, losses: 25, ot_losses: 5, points: 45, goals_for: 110, goals_against: 140, games_played: 50, streak_code: 'L', streak_count: 2, season: 20242025, snapshot_date: '2024-10-14' },
+    { team_abbrev: 'BOS', point_pctg: 0.70, wins: 35, losses: 12, ot_losses: 3, points: 73, goals_for: 170, goals_against: 100, games_played: 50, streak_code: 'W', streak_count: 5, season: 20242025, snapshot_date: '2024-10-14' },
   ];
 }
 
@@ -151,13 +152,7 @@ describe('backtesting', () => {
         durationMs: 500,
       };
 
-      // Cache key includes a weights hash — compute it to match the service logic
-      const weightValues = [
-        100, 3, 2, 5, 20, 4, 1, 10, 3, // ConfidenceWeights
-        1.0, 1.5, // PlayerWeights
-      ];
-      const sum = weightValues.reduce((acc, val) => acc + val * 1000, 0);
-      const weightsHash = Math.abs(sum).toString(36).substring(0, 8);
+      const weightsHash = backtesting.getReplayWeightsKey(createTestModel().weights);
 
       (AsyncStorage.getItem as jest.Mock).mockResolvedValue(
         JSON.stringify({
@@ -226,7 +221,7 @@ describe('backtesting', () => {
 
       // Should cache standings
       expect(AsyncStorage.setItem).toHaveBeenCalledWith(
-        expect.stringContaining('puckiq_standings_cache_2024-10-15'),
+        expect.stringContaining('puckiq_standings_cache_v2_2024-10-15'),
         expect.any(String)
       );
     });
@@ -333,16 +328,16 @@ describe('backtesting', () => {
   describe('clearStandingsCache', () => {
     it('removes all standings cache entries', async () => {
       (AsyncStorage.getAllKeys as jest.Mock).mockResolvedValue([
-        'puckiq_standings_cache_2024-10-15',
-        'puckiq_standings_cache_2024-10-16',
+        'puckiq_standings_cache_v2_2024-10-15',
+        'puckiq_standings_cache_v2_2024-10-16',
         'other_key',
       ]);
 
       await backtesting.clearStandingsCache();
 
       expect(AsyncStorage.multiRemove).toHaveBeenCalledWith([
-        'puckiq_standings_cache_2024-10-15',
-        'puckiq_standings_cache_2024-10-16',
+        'puckiq_standings_cache_v2_2024-10-15',
+        'puckiq_standings_cache_v2_2024-10-16',
       ]);
     });
   });
@@ -399,7 +394,7 @@ describe('backtesting', () => {
       });
 
       (AsyncStorage.getItem as jest.Mock).mockImplementation((key: string) => {
-        if (key.startsWith('puckiq_standings_cache_')) {
+        if (key.startsWith('puckiq_standings_cache_v2_')) {
           return Promise.resolve(standingsJson);
         }
         return Promise.resolve(null);
@@ -419,5 +414,21 @@ describe('backtesting', () => {
       // Should complete quickly with cached data (< 1 second for 100 games)
       expect(duration).toBeLessThan(1000);
     });
+  });
+});
+
+describe('four-factor replay identity', () => {
+  it('ignores unsupported sliders but distinguishes equal-sum supported weights', () => {
+    const weights = createTestModel().weights;
+    const original = backtesting.getReplayWeightsKey(weights);
+    expect(backtesting.getReplayWeightsKey({ ...weights, recentFormImpact: 99 })).toBe(original);
+    expect(backtesting.getReplayWeightsKey({ ...weights, homeIceAdvantage: 4, streakImpact: 1 })).not.toBe(original);
+  });
+  it('rejects same-day or different-season snapshots instead of scoring with hindsight', async () => {
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+    mockStandingsRows = createMockStandings().map(r => ({ ...r, season: 20242025, snapshot_date: '2024-10-15' }));
+    expect(await backtesting.fetchStandingsForDate('2024-10-15')).toBeNull();
+    mockStandingsRows = createMockStandings().map(r => ({ ...r, season: 20232024, snapshot_date: '2024-06-01' }));
+    expect(await backtesting.fetchStandingsForDate('2024-10-15')).toBeNull();
   });
 });

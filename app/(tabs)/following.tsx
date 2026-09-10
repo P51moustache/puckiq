@@ -150,7 +150,7 @@ export default function FollowingScreen() {
                   />
                 </View>
                 <View style={styles.teamCopy}>
-                  <Text style={[styles.teamName, { color: p.ink }]} numberOfLines={1}>{team.name}</Text>
+                  <Pressable accessibilityRole="button" accessibilityLabel={`Open ${team.name} team detail`} onPress={() => router.push({ pathname: '/(tabs)/teams', params: { team: team.abbrev } })}><Text style={[styles.teamName, { color: p.ink }]} numberOfLines={1}>{team.name}</Text></Pressable>
                   <Text style={[styles.teamState, { color: p.muted }]}>
                     {isHome ? 'Home team · Following' : isFollowed ? 'Following' : team.abbrev}
                   </Text>

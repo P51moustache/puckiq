@@ -22,7 +22,10 @@ async function syncPlayerStats(seasonOverride) {
 
   for (const team of ALL_TEAMS) {
     try {
-      const data = await fetchWithRetry(endpoints.teamStats(team));
+      const data = await fetchWithRetry(endpoints.teamStats(team, season));
+      if (Number(data.season) !== season || Number(data.gameType) !== 2) {
+        throw new Error(`Unexpected player-stat period for ${team}; refusing to relabel rows`);
+      }
       const skaters = data.skaters ?? [];
       const goalies = data.goalies ?? [];
 

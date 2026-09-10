@@ -10,6 +10,7 @@ import { Image } from 'expo-image';
 import { rinkGlass } from '../constants/theme';
 import { arenaType } from '../constants/arenaTypography';
 import { getArenaPalette, type ArenaPalette } from '../constants/arenaTheme';
+import { formatSeasonLabel } from '../utils/season';
 import type { TrendingPlayer, StatCategory, LeaderTrend } from '../services/playerTrends';
 
 interface HeroLeaderCardProps {
@@ -36,7 +37,7 @@ export default React.memo(function HeroLeaderCard({
       case 'goals': return player.seasonGoals;
       case 'assists': return player.seasonAssists;
       case 'points': return player.seasonPoints;
-      case 'shots': return player.avgShots5g ? player.avgShots5g.toFixed(1) : '0';
+      case 'shots': return player.seasonShots ?? '—';
       default: return 0;
     }
   }, [player, statCategory]);
@@ -71,7 +72,7 @@ export default React.memo(function HeroLeaderCard({
       case 'goals': return player.seasonGoals / player.gamesPlayed;
       case 'assists': return player.seasonAssists / player.gamesPlayed;
       case 'points': return player.seasonPoints / player.gamesPlayed;
-      case 'shots': return player.seasonShotsPerGame || player.avgShots5g;
+      case 'shots': return player.seasonShots != null ? player.seasonShots / player.gamesPlayed : NaN;
       default: return 0;
     }
   }, [player, statCategory]);
@@ -79,7 +80,7 @@ export default React.memo(function HeroLeaderCard({
   // Shooting %
   const shootingPctRecent = player.recentShootingPct;
   const shootingPctSeason = player.seasonShootingPct;
-  const hasShootingData = shootingPctSeason > 0;
+  const hasShootingData = player.recentAvailable !== false && shootingPctSeason !== null && shootingPctRecent !== null;
 
   const shootingBarWidth = useMemo(() => {
     if (!hasShootingData) return 0;
@@ -87,8 +88,8 @@ export default React.memo(function HeroLeaderCard({
   }, [shootingPctRecent, hasShootingData]);
 
   // Recent form comparison
-  const recentIsUp = recentAvg > seasonAvg * 1.05;
-  const recentIsDown = recentAvg < seasonAvg * 0.95;
+  const recentIsUp = player.recentAvailable !== false && recentAvg > seasonAvg * 1.05;
+  const recentIsDown = player.recentAvailable !== false && recentAvg < seasonAvg * 0.95;
 
   return (
     <Pressable
@@ -121,7 +122,7 @@ export default React.memo(function HeroLeaderCard({
         <View style={styles.bigStatContainer}>
           <Text style={[styles.bigStatNumber, { color: p.ink, fontFamily: arenaType.display }]}>{seasonTotal}</Text>
           <View>
-            <Text style={[styles.bigStatLabel, { color: p.muted }]}>POINTS</Text>
+            <Text style={[styles.bigStatLabel, { color: p.muted }]}>{statCategory.toUpperCase()}</Text>
             <Text style={[styles.gamesPlayedLabel, { color: p.muted, fontFamily: arenaType.body }]}>{player.gamesPlayed} GP</Text>
           </View>
         </View>
@@ -133,10 +134,10 @@ export default React.memo(function HeroLeaderCard({
           </View>
         )}
 
-        {player.pointStreak >= 3 && (
+        {player.recentAvailable !== false && player.pointStreak >= 3 && (
           <View style={styles.streakBlock}>
-            <Text style={styles.streakValue}>{player.pointStreak}</Text>
-            <Text style={[styles.streakLabel, { color: p.muted, fontFamily: arenaType.body }]}>GAME STREAK</Text>
+            <Text style={styles.streakValue}>{player.pointStreak}{player.pointStreakIsMinimum ? "+" : ""}</Text>
+            <Text style={[styles.streakLabel, { color: p.muted, fontFamily: arenaType.body }]}>POINT STREAK</Text>
           </View>
         )}
       </View>
@@ -144,20 +145,20 @@ export default React.memo(function HeroLeaderCard({
       {/* Per-game averages: Recent 5 vs Season */}
       <View style={[styles.formRow, { backgroundColor: p.soft }]}>
         <View style={styles.formItem}>
-          <Text style={[styles.formLabel, { color: p.muted }]}>RECENT 5 GAMES</Text>
+          <Text style={[styles.formLabel, { color: p.muted }]}>RECENT {player.recentSampleSize ?? 5} GAMES</Text>
           <Text style={[
             styles.formValue, { color: p.ink, fontFamily: arenaType.display },
             recentIsUp && { color: rinkGlass.faceoffDot },
             recentIsDown && { color: rinkGlass.redLine },
           ]}>
-            {recentAvg > 0 ? recentAvg.toFixed(2) : '—'}
+            {player.recentAvailable !== false ? recentAvg.toFixed(2) : '—'}
           </Text>
           <Text style={[styles.formSubLabel, { color: p.muted }]}>per game</Text>
         </View>
         <View style={[styles.formDivider, { backgroundColor: p.edge }]} />
         <View style={styles.formItem}>
           <Text style={[styles.formLabel, { color: p.muted }]}>SEASON AVG</Text>
-          <Text style={[styles.formValue, { color: p.ink, fontFamily: arenaType.display }]}>{seasonAvg.toFixed(2)}</Text>
+          <Text style={[styles.formValue, { color: p.ink, fontFamily: arenaType.display }]}>{Number.isFinite(seasonAvg) ? seasonAvg.toFixed(2) : '—'}</Text>
           <Text style={[styles.formSubLabel, { color: p.muted }]}>per game</Text>
         </View>
       </View>
@@ -169,13 +170,13 @@ export default React.memo(function HeroLeaderCard({
             <Text style={[styles.shootingLabel, { color: p.muted }]}>SHOOTING %</Text>
             <Text style={[
               styles.shootingValue,
-              shootingPctRecent > shootingPctSeason && { color: rinkGlass.faceoffDot },
-              shootingPctRecent < shootingPctSeason * 0.85 && { color: rinkGlass.redLine },
+              (shootingPctRecent ?? 0) > (shootingPctSeason ?? 0) && { color: rinkGlass.faceoffDot },
+              (shootingPctRecent ?? 0) < (shootingPctSeason ?? 0) * 0.85 && { color: rinkGlass.redLine },
             ]}>
-              {shootingPctRecent.toFixed(1)}%
+              {shootingPctRecent?.toFixed(1)}%
             </Text>
             <Text style={[styles.shootingSeasonRef, { color: p.muted }]}>
-              SEASON {shootingPctSeason.toFixed(1)}%
+              SEASON {shootingPctSeason?.toFixed(1)}%
             </Text>
           </View>
           <View style={[styles.shootingBarBg, { backgroundColor: p.soft }]}>
@@ -193,7 +194,7 @@ export default React.memo(function HeroLeaderCard({
       {/* Season breakdown */}
       <View style={styles.seasonLineRow}>
         <Text style={[styles.seasonLineText, { color: p.muted, fontFamily: arenaType.body }]}>
-          {player.seasonGoals} Goals · {player.seasonAssists} Assists
+          {player.season ? formatSeasonLabel(player.season) : 'Season unavailable'} · Regular season · {player.gamesPlayed} GP{player.asOf ? ` · Updated ${player.asOf.slice(0, 10)}` : ' · Update time unavailable'}
         </Text>
       </View>
     </Pressable>

@@ -1,5 +1,6 @@
+import { parseTeamParam } from '../../utils/entityRoutes';
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -34,8 +35,16 @@ function formatSeason(value: number): string {
 }
 
 export default function LeagueScreen() {
+  const params = useLocalSearchParams<{ teamA?: string | string[]; teamB?: string | string[]; game?: string | string[]; team?: string | string[] }>();
+  const initialA = parseTeamParam(params.teamA);
+  const initialB = parseTeamParam(params.teamB);
+  useEffect(() => {
+    if (params.game !== undefined) router.replace({ pathname: '/(tabs)', params: { game: typeof params.game === 'string' ? params.game : 'invalid' } });
+    else if (params.team !== undefined) router.replace({ pathname: '/(tabs)/teams', params: { team: typeof params.team === 'string' ? params.team : 'invalid' } });
+  }, [params.game, params.team]);
   const { palette: p } = useArena();
-  const [view, setView] = useState<LeagueView>('standings');
+  const [view, setView] = useState<LeagueView>(initialA || initialB ? 'compare' : 'standings');
+  useEffect(() => { if (params.teamA !== undefined || params.teamB !== undefined) setView('compare'); }, [params.teamA, params.teamB]);
   const [standings, setStandings] = useState<ArenaStanding[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -71,7 +80,7 @@ export default function LeagueScreen() {
   return (
     <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: p.page }]} testID="league-tab">
       <View style={styles.headerArea}>
-        <ArenaHeader title="LEAGUE" subtitle="The current table and the tools behind your picks." />
+        <ArenaHeader title="LEAGUE" subtitle="Stored standings and the tools behind your picks." />
         <View style={[styles.switcher, { backgroundColor: p.soft, borderColor: p.edge }]}>
           {(['standings', 'compare'] as const).map((item) => {
             const active = item === view;
@@ -93,7 +102,7 @@ export default function LeagueScreen() {
       </View>
 
       {view === 'compare' ? (
-        <View style={styles.compareView}><TeamHeadToHead /></View>
+        <View style={styles.compareView}>{((params.teamA !== undefined && !initialA) || (params.teamB !== undefined && !initialB)) && <ArenaNote>A team in this link is unavailable. Choose valid clubs below.</ArenaNote>}<TeamHeadToHead initialA={initialA ?? undefined} initialB={initialB ?? undefined} /></View>
       ) : (
         <ScrollView
           style={styles.scroll}
@@ -140,7 +149,7 @@ export default function LeagueScreen() {
                 const rank = standing.league_sequence ?? index + 1;
                 const goalDiff = standing.goals_for - standing.goals_against;
                 return (
-                  <View key={standing.team_abbrev} style={[styles.standingRow, { borderBottomColor: p.edge }]} testID={`standing-${standing.team_abbrev}`}>
+                  <Pressable accessibilityRole="button" accessibilityLabel={`Open ${standing.team_abbrev} team detail`} onPress={() => router.push({ pathname: '/(tabs)/teams', params: { team: standing.team_abbrev } })} key={standing.team_abbrev} style={[styles.standingRow, { borderBottomColor: p.edge }]} testID={`standing-${standing.team_abbrev}`}>
                     <Text style={[styles.rank, { color: p.ink }]}>{rank}</Text>
                     <View style={[styles.accent, { backgroundColor: team?.tokens.hero ?? p.frame }]} />
                     <Image source={{ uri: getTeamLogoUrl(standing.team_abbrev) }} style={styles.logo} contentFit="contain" accessibilityLabel={`${team?.name ?? standing.team_abbrev} logo`} />
@@ -152,7 +161,7 @@ export default function LeagueScreen() {
                     </View>
                     <Text style={[styles.record, { color: p.muted }]}>{standing.wins}-{standing.losses}-{standing.ot_losses}</Text>
                     <Text style={[styles.points, { color: p.ink }]}>{standing.points}</Text>
-                  </View>
+                  </Pressable>
                 );
               })}
             </View>

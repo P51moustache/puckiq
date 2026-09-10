@@ -91,6 +91,7 @@ export interface DisciplineStats {
 }
 
 export interface TeamComparisonStats {
+  period?: { season: number; snapshotDate: string; gameType: 2; summaryAsOf: string | null; penaltiesAsOf?: string | null };
   teamId: number;
   teamAbbrev: string;
   offense: OffenseStats;
@@ -116,6 +117,6 @@ export interface StatDefinition {
   key: string;
   label: string;
   higherIsBetter: boolean;
-  format?: 'number' | 'percentage' | 'decimal';
+  format?: 'number' | 'percentage' | 'decimal' | 'saveFraction';
   decimals?: number;
 }

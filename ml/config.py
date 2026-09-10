@@ -8,6 +8,7 @@ Nothing is hardcoded in model or pipeline code — import from this module.
 import os
 from enum import Enum
 from pathlib import Path
+from ml.season import resolve_season, training_seasons
 
 # Load .env if present (local dev). In GitHub Actions the env vars are set directly.
 # Check ml/.env first, then project root .env.
@@ -52,12 +53,11 @@ CURRENT_SEASON_WEIGHT = 1.0
 PRIOR_SEASON_WEIGHT = 0.7
 
 # Training seasons: 3 seasons with decay weights (more data reduces overfitting)
-TRAINING_SEASONS = [20232024, 20242025, 20252026]
-
+CURRENT_SEASON = resolve_season(override=os.getenv("PUCKIQ_ML_SEASON"))
+TRAINING_SEASONS = training_seasons(CURRENT_SEASON)
 SEASON_WEIGHTS = {
-    20232024: PRIOR_SEASON_WEIGHT * PRIOR_SEASON_WEIGHT,  # 0.49
-    20242025: PRIOR_SEASON_WEIGHT,                         # 0.70
-    20252026: CURRENT_SEASON_WEIGHT,                       # 1.00
+    season: PRIOR_SEASON_WEIGHT ** (len(TRAINING_SEASONS) - index - 1)
+    for index, season in enumerate(TRAINING_SEASONS)
 }
 
 
@@ -174,7 +174,6 @@ GAME_DETAILS_TABLE = "game_details"
 # NHL constants
 # ---------------------------------------------------------------------------
 
-CURRENT_SEASON = 20252026
 ALL_TEAMS = [
     "ANA", "BOS", "BUF", "CAR", "CBJ", "CGY", "CHI", "COL",
     "DAL", "DET", "EDM", "FLA", "LAK", "MIN", "MTL", "NJD",

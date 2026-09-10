@@ -62,9 +62,9 @@ export const mockTeamSummaryData = {
 
 // Standings rows in Supabase shape (snake_case, flat team_abbrev string).
 export const mockStandings = [
-  { team_abbrev: 'TOR', team_id: 10, games_played: 50, wins: 28, losses: 16, ot_losses: 6, points: 62, goals_for: 160, goals_against: 130, snapshot_date: '2026-02-20' },
-  { team_abbrev: 'BOS', team_id: 6, games_played: 50, wins: 30, losses: 14, ot_losses: 6, points: 66, goals_for: 155, goals_against: 120, snapshot_date: '2026-02-20' },
-  { team_abbrev: 'MTL', team_id: 8, games_played: 50, wins: 20, losses: 24, ot_losses: 6, points: 46, goals_for: 130, goals_against: 155, snapshot_date: '2026-02-20' },
+  { team_abbrev: 'TOR', team_id: 10, games_played: 50, wins: 28, losses: 16, ot_losses: 6, points: 62, goals_for: 160, goals_against: 130, season: 20252026, snapshot_date: '2026-02-20' },
+  { team_abbrev: 'BOS', team_id: 6, games_played: 50, wins: 30, losses: 14, ot_losses: 6, points: 66, goals_for: 155, goals_against: 120, season: 20252026, snapshot_date: '2026-02-20' },
+  { team_abbrev: 'MTL', team_id: 8, games_played: 50, wins: 20, losses: 24, ot_losses: 6, points: 46, goals_for: 130, goals_against: 155, season: 20252026, snapshot_date: '2026-02-20' },
 ];
 
 const summaryByTeam: Record<string, any> = {
@@ -135,7 +135,8 @@ export function setupTeamComparisonMocks(): void {
             const d = penaltiesByTeam[team];
             return { data: d ? [{ data: d }] : [], error: null };
           }
-          return { data: [], error: null };
+          const d = summaryByTeam[team];
+          return { data: d ? [{stat_category:'summary', data:{...d, powerPlayGoals:32, shutouts:4}, fetched_at:'2026-02-20T12:00:00Z'}] : [], error: null };
         }
         case 'skater_season_stats':
           return { data: skatersByTeam[filters['team_abbrev']] ?? [], error: null };

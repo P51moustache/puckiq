@@ -11,7 +11,7 @@
  */
 
 import { supabase, logConnectionInfo } from './supabase-client.mjs';
-import { fetchWithRetry, sleep, getCurrentSeason, parseSeasonArg } from './nhl-api.mjs';
+import { fetchWithRetry, sleep, getCurrentSeason, parseSeasonArg, endpoints } from './nhl-api.mjs';
 
 const STATS_API = 'https://api.nhle.com/stats/rest/en';
 // `penalties` gives us authoritative timesShorthanded (real penalty count) +
@@ -43,7 +43,7 @@ async function syncStatCategories() {
 
   for (const category of CATEGORIES) {
     try {
-      const url = `${STATS_API}/team/${category}?cayenneExp=seasonId=${season}`;
+      const url = endpoints.teamStatCategory(category, season);
       const result = await fetchWithRetry(url);
       const apiData = result?.data || [];
 

@@ -263,6 +263,8 @@ let tableCallCount: Record<string, number> = {};
 let mockSingleResults: Record<string, { data: any; error: any }> = {};
 let mockListResults: Record<string, { data: any; error: any }> = {};
 
+function withGame(row: any) { return {...row, team_abbrev:'EDM', games:{season:20252026,game_type:2,game_state:'OFF',game_date:`2026-02-0${6 - row.game_id % 10}`,home_team_abbrev:'EDM',away_team_abbrev:'TOR'}}; }
+
 function buildChain(table: string) {
   const chain: any = {
     select: jest.fn().mockReturnThis(),
@@ -301,7 +303,7 @@ beforeEach(() => {
     skater_season_stats: { data: [mockSkaterSeasonRow], error: null },
     goalie_season_stats: { data: [], error: null },
     edge_skater_stats: { data: [mockEdgeRow], error: null },
-    game_skater_stats: { data: mockRecentGameRows, error: null },
+    game_skater_stats: { data: mockRecentGameRows.map(withGame), error: null },
     game_goalie_stats: { data: [], error: null },
     skater_hot_cold: { data: [mockHotColdRow], error: null },
     skater_pace_projections: { data: [mockPaceRow], error: null },
@@ -326,6 +328,15 @@ afterEach(() => {
 // ===========================================================================
 
 describe('getPlayerDetail — skater', () => {
+  it('hides mislabeled season totals that are smaller than verified recent games', async () => {
+    mockListResults.skater_season_stats.data = [{ ...mockSkaterSeasonRow, games_played: 1, goals: 0, assists: 0, points: 0 }];
+    const result = await getPlayerDetail(8478402);
+    expect(result!.seasonStats).toBeNull();
+    expect(result!.seasonStatsIssue).toBe('conflicting_game_records');
+    expect(result!.season).toBe(20252026);
+    expect(result!.recentGames).toHaveLength(5);
+  });
+
   it('returns full player detail', async () => {
     const result = await getPlayerDetail(8478402);
     expect(result).not.toBeNull();
@@ -381,7 +392,7 @@ describe('getPlayerDetail — skater', () => {
     const result = await getPlayerDetail(8478402);
     expect(result!.career).not.toBeNull();
     expect(result!.career!.seasonTotals).toHaveLength(2);
-    expect(result!.career!.careerTotals.regularSeason.gamesPlayed).toBe(645);
+    expect(result!.career!.careerTotals.gamesPlayed).toBe(645);
     expect(result!.career!.awards).toHaveLength(2);
   });
 
@@ -406,18 +417,18 @@ describe('getPlayerDetail — skater', () => {
     expect(result!.recentGames[0].shots).toBe(5);
   });
 
-  it('queries all required tables including trend views', async () => {
+  it('queries required period-scoped data tables', async () => {
     await getPlayerDetail(8478402);
     expect(supabase.from).toHaveBeenCalledWith('players');
     expect(supabase.from).toHaveBeenCalledWith('skater_season_stats');
     expect(supabase.from).toHaveBeenCalledWith('player_career_data');
     expect(supabase.from).toHaveBeenCalledWith('edge_skater_stats');
     expect(supabase.from).toHaveBeenCalledWith('game_skater_stats');
-    expect(supabase.from).toHaveBeenCalledWith('skater_hot_cold');
-    expect(supabase.from).toHaveBeenCalledWith('skater_pace_projections');
-    expect(supabase.from).toHaveBeenCalledWith('skater_rolling_stats');
-    expect(supabase.from).toHaveBeenCalledWith('skater_advanced_trends');
-    expect(supabase.from).toHaveBeenCalledWith('game_three_stars');
+    expect(supabase.from).not.toHaveBeenCalledWith('skater_hot_cold');
+    expect(supabase.from).not.toHaveBeenCalledWith('skater_pace_projections');
+    expect(supabase.from).not.toHaveBeenCalledWith('skater_rolling_stats');
+    expect(supabase.from).not.toHaveBeenCalledWith('skater_advanced_trends');
+    expect(supabase.from).not.toHaveBeenCalledWith('game_three_stars');
   });
 });
 
@@ -481,13 +492,11 @@ describe('getPlayerDetail — graceful fallbacks', () => {
     expect(result!.recentGames).toEqual([]);
   });
 
-  it('returns default stats when season stats are empty', async () => {
+  it('returns unavailable stats when season stats are empty', async () => {
     mockListResults['skater_season_stats'] = { data: [], error: null };
     const result = await getPlayerDetail(8478402);
     expect(result).not.toBeNull();
-    expect(result!.seasonStats.gamesPlayed).toBe(0);
-    expect(result!.seasonStats.goals).toBe(0);
-    expect(result!.seasonStats.points).toBe(0);
+    expect(result!.seasonStats).toBeNull();
   });
 });
 
@@ -503,7 +512,7 @@ describe('getPlayerDetail — goalie', () => {
     mockListResults['goalie_season_stats'] = { data: [mockGoalieSeasonRow], error: null };
     mockListResults['edge_skater_stats'] = { data: [], error: null };
     mockListResults['game_skater_stats'] = { data: [], error: null };
-    mockListResults['game_goalie_stats'] = { data: mockGoalieRecentGames, error: null };
+    mockListResults['game_goalie_stats'] = { data: mockGoalieRecentGames.map(withGame), error: null };
   });
 
   it('returns goalie detail', async () => {
@@ -529,6 +538,18 @@ describe('getPlayerDetail — goalie', () => {
     expect(result!.edgeStats).toBeNull();
     // Should NOT query edge_skater_stats for goalies
     expect(supabase.from).not.toHaveBeenCalledWith('edge_skater_stats');
+  });
+
+  it('does not count dressed backups as goalie appearances or conflicting season totals', async () => {
+    mockListResults.goalie_season_stats.data = [{ ...mockGoalieSeasonRow, games_played: 1 }];
+    mockListResults.game_goalie_stats.data = [
+      ...mockGoalieRecentGames.map(withGame),
+      ...[2, 3, 4, 5].map(id => withGame({ game_id: 2025020900 + id, toi: '00:00', saves: 0, goals_against: 0, starter: false })),
+    ];
+    const result = await getPlayerDetail(8477424);
+    expect(result!.seasonStats.gamesPlayed).toBe(1);
+    expect(result!.seasonStatsIssue).toBeUndefined();
+    expect(result!.recentGames).toHaveLength(1);
   });
 
   it('queries game_goalie_stats for recent games', async () => {
@@ -568,7 +589,7 @@ describe('getPlayerDetail — cache', () => {
     mockSingleResults['players'] = { data: mockGoaliePlayerRow, error: null };
     mockSingleResults['player_career_data'] = { data: null, error: null };
     mockListResults['goalie_season_stats'] = { data: [mockGoalieSeasonRow], error: null };
-    mockListResults['game_goalie_stats'] = { data: mockGoalieRecentGames, error: null };
+    mockListResults['game_goalie_stats'] = { data: mockGoalieRecentGames.map(withGame), error: null };
     mockListResults['goalie_rolling_stats'] = { data: [mockGoalieRollingRow], error: null };
 
     await getPlayerDetail(8477424);
@@ -582,147 +603,43 @@ describe('getPlayerDetail — cache', () => {
 // Skater trends
 // ===========================================================================
 
-describe('getPlayerDetail — skater trends', () => {
-  it('includes trends in player detail', async () => {
-    const result = await getPlayerDetail(8478402);
-    expect(result).not.toBeNull();
-    expect(result!.trends).not.toBeNull();
-  });
-
-  it('maps hot/cold data', async () => {
-    const result = await getPlayerDetail(8478402);
-    const trends = result!.trends as any;
-    expect(trends.hotCold).not.toBeNull();
-    expect(trends.hotCold.hotColdScore).toBe(1.8);
-    expect(trends.hotCold.trendLabel).toBe('HOT');
-    expect(trends.hotCold.pointStreak).toBe(5);
-    expect(trends.hotCold.seasonPpg).toBe(1.617);
-    expect(trends.hotCold.recentPpg).toBe(2.0);
-    expect(trends.hotCold.recentShootingPct).toBe(18.5);
-    expect(trends.hotCold.seasonShootingPct).toBe(15.0);
-  });
-
-  it('maps pace projections', async () => {
-    const result = await getPlayerDetail(8478402);
-    const trends = result!.trends as any;
-    expect(trends.pace).not.toBeNull();
-    expect(trends.pace.projectedGoals82).toBe(57);
-    expect(trends.pace.projectedAssists82).toBe(75);
-    expect(trends.pace.projectedPoints82).toBe(133);
-    expect(trends.pace.goalsPerGame).toBe(0.7);
-    expect(trends.pace.pointsPerGame).toBe(1.62);
-  });
-
-  it('maps rolling stats (5/10/20 game averages)', async () => {
-    const result = await getPlayerDetail(8478402);
-    const trends = result!.trends as any;
-    expect(trends.rolling).not.toBeNull();
-    expect(trends.rolling.avgGoals5g).toBe(1.2);
-    expect(trends.rolling.avgPoints5g).toBe(2.0);
-    expect(trends.rolling.avgGoals10g).toBe(0.9);
-    expect(trends.rolling.avgPoints10g).toBe(1.9);
-    expect(trends.rolling.avgGoals20g).toBe(0.75);
-    expect(trends.rolling.avgPoints20g).toBe(1.7);
-    expect(trends.rolling.seasonAvgGoals).toBe(0.7);
-    expect(trends.rolling.lastGameDate).toBe('2026-02-07');
-  });
-
-  it('maps advanced trends (Corsi, Fenwick, PDO)', async () => {
-    const result = await getPlayerDetail(8478402);
-    const trends = result!.trends as any;
-    expect(trends.advanced).not.toBeNull();
-    expect(trends.advanced.avgCorsiPct5g).toBe(55.2);
-    expect(trends.advanced.avgFenwickPct5g).toBe(54.8);
-    expect(trends.advanced.avgPdo5g).toBe(102.3);
-    expect(trends.advanced.seasonCorsiPct).toBe(52.8);
-    expect(trends.advanced.seasonPdo).toBe(100.8);
-    expect(trends.advanced.gamesWithAdvanced).toBe(58);
-  });
-
-  it('counts three star appearances', async () => {
-    const result = await getPlayerDetail(8478402);
-    const trends = result!.trends as any;
-    expect(trends.threeStarCount).toBe(4);
-  });
-
-  it('returns null trends when all views are empty', async () => {
-    mockListResults['skater_hot_cold'] = { data: [], error: null };
-    mockListResults['skater_pace_projections'] = { data: [], error: null };
-    mockListResults['skater_rolling_stats'] = { data: [], error: null };
-    mockListResults['skater_advanced_trends'] = { data: [], error: null };
-    mockListResults['game_three_stars'] = { data: [], error: null };
-    const result = await getPlayerDetail(8478402);
-    expect(result).not.toBeNull();
-    expect(result!.trends).toBeNull();
-  });
-
-  it('returns partial trends when some views error', async () => {
-    mockListResults['skater_hot_cold'] = { data: null, error: { message: 'timeout' } };
-    mockListResults['skater_advanced_trends'] = { data: null, error: { message: 'timeout' } };
-    const result = await getPlayerDetail(8478402);
-    expect(result).not.toBeNull();
-    // pace + rolling + three stars still present = non-null trends
-    const trends = result!.trends as any;
-    expect(trends).not.toBeNull();
-    expect(trends.hotCold).toBeNull();
-    expect(trends.pace).not.toBeNull();
-    expect(trends.rolling).not.toBeNull();
-    expect(trends.advanced).toBeNull();
-  });
+describe('unscoped views', () => {
+ it('does not fetch rolling, pace, or advanced data with no period contract', async () => {
+  const detail = await getPlayerDetail(8478402);
+  expect(detail!.trends).toBeNull();
+  for (const table of ['skater_hot_cold','skater_rolling_stats','skater_pace_projections','skater_advanced_trends','goalie_rolling_stats']) expect(supabase.from).not.toHaveBeenCalledWith(table);
+ });
 });
 
-// ===========================================================================
-// Goalie trends
-// ===========================================================================
+describe('reliability regressions', () => {
+ it('combines traded splits without choosing an arbitrary first team', async () => {
+  mockListResults.skater_season_stats = {data:[mockSkaterSeasonRow,{...mockSkaterSeasonRow,team_abbrev:'TOR',games_played:2,goals:0,assists:1,points:1,shots:5}],error:null};
+  expect((await getPlayerDetail(8478402))!.seasonStats.points).toBe(98);
+ });
+ it('flattens regular season career totals without nested values', async () => {
+  mockSingleResults.player_career_data = {data:{...mockCareerRow,career_totals:{regularSeason:{points:100},playoffs:{points:20}}},error:null};
+  expect((await getPlayerDetail(8478402))!.career!.careerTotals).toEqual({points:100});
+ });
+ it('does not invent a zero season when no season exists', async () => {
+  mockListResults.skater_season_stats = {data:[],error:null};
+  expect((await getPlayerDetail(8478402))!.seasonStats).toBeNull();
+ });
+});
 
-describe('getPlayerDetail — goalie trends', () => {
-  beforeEach(() => {
-    mockSingleResults['players'] = { data: mockGoaliePlayerRow, error: null };
-    mockSingleResults['player_career_data'] = { data: null, error: null };
-    mockListResults['skater_season_stats'] = { data: [], error: null };
-    mockListResults['goalie_season_stats'] = { data: [mockGoalieSeasonRow], error: null };
-    mockListResults['edge_skater_stats'] = { data: [], error: null };
-    mockListResults['game_skater_stats'] = { data: [], error: null };
-    mockListResults['game_goalie_stats'] = { data: mockGoalieRecentGames, error: null };
-    mockListResults['goalie_rolling_stats'] = { data: [mockGoalieRollingRow], error: null };
-  });
-
-  it('maps goalie rolling trends', async () => {
-    const result = await getPlayerDetail(8477424);
-    expect(result).not.toBeNull();
-    expect(result!.trends).not.toBeNull();
-    const trends = result!.trends as any;
-    expect(trends.avgGa5g).toBe(2.0);
-    expect(trends.savePct5g).toBe(0.935);
-    expect(trends.wins5g).toBe(4);
-    expect(trends.avgGa10g).toBe(2.2);
-    expect(trends.savePct10g).toBe(0.928);
-    expect(trends.wins10g).toBe(7);
-    expect(trends.starts).toBe(43);
-    expect(trends.seasonSavePct).toBe(0.925);
-    expect(trends.seasonAvgGa).toBe(2.15);
-    expect(trends.seasonWins).toBe(30);
-    expect(trends.seasonShutouts).toBe(4);
-    expect(trends.lastStartDate).toBe('2026-02-06');
-  });
-
-  it('does NOT query skater trend views for goalies', async () => {
-    await getPlayerDetail(8477424);
-    expect(supabase.from).not.toHaveBeenCalledWith('skater_hot_cold');
-    expect(supabase.from).not.toHaveBeenCalledWith('skater_pace_projections');
-    expect(supabase.from).not.toHaveBeenCalledWith('skater_rolling_stats');
-    expect(supabase.from).not.toHaveBeenCalledWith('skater_advanced_trends');
-  });
-
-  it('queries goalie_rolling_stats for goalies', async () => {
-    await getPlayerDetail(8477424);
-    expect(supabase.from).toHaveBeenCalledWith('goalie_rolling_stats');
-  });
-
-  it('returns null trends when goalie_rolling_stats is empty', async () => {
-    mockListResults['goalie_rolling_stats'] = { data: [], error: null };
-    const result = await getPlayerDetail(8477424);
-    expect(result).not.toBeNull();
-    expect(result!.trends).toBeNull();
-  });
+test('detail exposes stored season and resolved date/opponent rather than game-id suffix', async () => {
+ const result=await getPlayerDetail(8478402);
+ expect(result!.season).toBe(20252026);expect(result!.gameType).toBe(2);
+ expect(result!.recentGames[0]).toMatchObject({gameDate:'2026-02-05',opponent:'TOR'});
+ const query=(supabase.from as jest.Mock).mock.results[(supabase.from as jest.Mock).mock.calls.findIndex(([table])=>table==='game_skater_stats')].value;
+ expect(query.eq).toHaveBeenCalledWith('games.season',20252026);
+ expect(query.eq).toHaveBeenCalledWith('games.game_type',2);
+ expect(query.lte).toHaveBeenCalledWith('games.game_date',expect.any(String));
+});
+test('detail rejects other seasons, postseason, and unresolved games', async () => {
+ mockListResults.game_skater_stats={data:[withGame(mockRecentGameRows[0]),{...withGame(mockRecentGameRows[1]),games:{season:20242025,game_type:2,game_state:'OFF',game_date:'2025-01-01'}},{...mockRecentGameRows[2],games:null}],error:null};
+ expect((await getPlayerDetail(8478402))!.recentGames).toHaveLength(1);
+});
+test('detail preserves missing counting stats instead of making them zero', async () => {
+ mockListResults.skater_season_stats={data:[{...mockSkaterSeasonRow,shots:null,pim:0}],error:null};
+ expect((await getPlayerDetail(8478402))!.seasonStats).toMatchObject({shots:null,pim:0,shootingPctg:null});
 });

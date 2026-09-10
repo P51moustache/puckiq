@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getAccessibleTextColor } from '../constants/teamColors';
-import { getTeamComparisonData, calculateCategoryWinners } from '../services/teamComparison';
+import { getTeamComparisonPair, calculateCategoryWinners } from '../services/teamComparison';
 import { TeamComparisonStats, StatCategory } from '../types/teamStats';
 import StatComparisonRow from './StatComparisonRow';
 import { getH2HRecord , fetchGameResults } from '../services/gameResults';
@@ -86,10 +86,7 @@ export default function GameDeepDiveModal({
     async function fetchComparisonStats() {
       setLoadingStats(true);
       try {
-        const [homeStats, awayStats] = await Promise.all([
-          getTeamComparisonData(homeAbbrev),
-          getTeamComparisonData(awayAbbrev),
-        ]);
+        const [homeStats, awayStats] = await getTeamComparisonPair(homeAbbrev, awayAbbrev);
 
         setHomeComparisonStats(homeStats);
         setAwayComparisonStats(awayStats);

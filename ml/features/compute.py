@@ -14,7 +14,7 @@ WHAT IS DATA LEAKAGE? (tutorial)
   This is why EVERY feature computation takes an as_of_date parameter:
   - Standings: use snapshot_date < game_date (day before)
   - Rolling stats: only include games played BEFORE the game we're predicting
-  - Goalie stats: season aggregates (safe because they update slowly)
+  - Goalie stats: season aggregates; historical point-in-time coverage is incomplete
 
   If we skip this, our model will look amazing in backtesting (because it's
   cheating) but perform terribly in production. Leakage is the #1 cause of
@@ -60,7 +60,7 @@ class FeatureCache:
     All lookups still respect as_of_date to prevent data leakage:
     - standings: returns the latest snapshot_date <= requested date
     - recent games: returns only games with game_date < requested date
-    - goalie/team stats: season-level aggregates (no date filtering needed)
+    - goalie/team stats: season-scoped aggregates, not historical snapshots
 
     Usage:
         cache = FeatureCache.build(client, games_df)
@@ -105,7 +105,7 @@ class FeatureCache:
             seasons: List of seasons to load stats for. Defaults to [CURRENT_SEASON].
         """
         cache = cls()
-        cache.seasons = seasons or [CURRENT_SEASON]
+        cache.seasons = seasons or (sorted(int(v) for v in games_df["season"].dropna().unique()) if "season" in games_df else [CURRENT_SEASON])
 
         # Collect unique teams from the games
         teams = set()
@@ -259,7 +259,7 @@ class FeatureCache:
         except Exception as exc:
             logger.warning("FeatureCache: failed to load recent games: %s", exc)
 
-    def get_standings(self, team_abbrev: str, as_of_date: str) -> dict[str, Any] | None:
+    def get_standings(self, team_abbrev: str, as_of_date: str, season: int | None = None) -> dict[str, Any] | None:
         """
         Get the latest standings for a team on or before as_of_date.
         Preserves leakage prevention by filtering on snapshot_date.
@@ -270,20 +270,21 @@ class FeatureCache:
         """
         snapshots = self.standings_by_team.get(team_abbrev, [])
         for snapshot in snapshots:
-            if snapshot.get("snapshot_date", "") <= as_of_date:
+            if snapshot.get("snapshot_date", "") <= as_of_date and (season is None or snapshot.get("season") == season):
                 return snapshot
         # No DB snapshot — derive standings from games data
-        return self._derive_standings_from_games(team_abbrev, as_of_date)
+        return self._derive_standings_from_games(team_abbrev, as_of_date, season)
 
     def _derive_standings_from_games(
-        self, team_abbrev: str, as_of_date: str
+        self, team_abbrev: str, as_of_date: str, season: int | None = None
     ) -> dict[str, Any] | None:
         """Compute standings-equivalent stats from cached game results."""
         games = self.recent_games_by_team.get(team_abbrev, [])
         if not games:
             return None
         # Only include games played BEFORE as_of_date
-        eligible = [g for g in games if g.get("game_date", "") < as_of_date]
+        eligible = [g for g in games if g.get("game_date", "") < as_of_date
+                    and (season is None or (g.get("season") == season and g.get("game_type") == 2))]
         if not eligible:
             return None
         wins = 0
@@ -349,21 +350,17 @@ class FeatureCache:
         }
 
     def get_goalie_stats(self, team_abbrev: str, season: int | None = None) -> list[dict[str, Any]]:
-        """Get goalie season stats for a team. Falls back to legacy dict."""
+        """An explicit season never falls back to aggregates from another year."""
         if season is not None:
-            result = self.goalie_stats_by_team_season.get((team_abbrev, season), [])
-            if result:
-                return result
+            return self.goalie_stats_by_team_season.get((team_abbrev, season), [])
         return self.goalie_stats_by_team.get(team_abbrev, [])
 
     def get_team_stat_category(
         self, team_abbrev: str, category: str, season: int | None = None,
     ) -> dict | None:
-        """Get a team stat category's JSONB data. Falls back to legacy dict."""
+        """An explicit season never falls back to aggregates from another year."""
         if season is not None:
-            result = self.team_stat_categories_by_season.get((team_abbrev, season, category))
-            if result is not None:
-                return result
+            return self.team_stat_categories_by_season.get((team_abbrev, season, category))
         return self.team_stat_categories.get((team_abbrev, category))
 
     def _load_advanced_stats(self, client: Client, teams: list[str]) -> None:
@@ -398,6 +395,7 @@ class FeatureCache:
             # Group by (team_abbrev, game_id) and average Corsi%/Fenwick% across skaters
             # Extract team_abbrev from data.teamAbbrev since DB column may be NULL
             game_groups: dict[tuple[str, int], list[dict]] = defaultdict(list)
+            game_context = {g["id"]: g for games in self.recent_games_by_team.values() for g in games}
             game_dates: dict[tuple[str, int], str] = {}
             teams_set = set(teams)
             for row in rows:
@@ -430,6 +428,8 @@ class FeatureCache:
                 self.advanced_stats_by_team[team].append({
                     "game_id": gid,
                     "game_date": game_dates.get((team, gid), ""),
+                    "season": game_context.get(gid, {}).get("season"),
+                    "game_type": game_context.get(gid, {}).get("game_type"),
                     "corsi_pct": float(np.mean(corsi_vals)) if corsi_vals else None,
                     "fenwick_pct": float(np.mean(fenwick_vals)) if fenwick_vals else None,
                 })
@@ -448,22 +448,24 @@ class FeatureCache:
             logger.warning("FeatureCache: failed to load advanced stats: %s", exc)
 
     def get_team_advanced_stats(
-        self, team_abbrev: str, before_date: str = "", limit: int = 10
+        self, team_abbrev: str, before_date: str = "", limit: int = 10, season: int | None = None
     ) -> list[dict[str, Any]]:
         """Get team-game advanced stats (Corsi/Fenwick), most recent first.
         Filters by game_date < before_date to prevent data leakage."""
-        all_stats = self.advanced_stats_by_team.get(team_abbrev, [])
+        all_stats = [g for g in self.advanced_stats_by_team.get(team_abbrev, [])
+                     if season is None or (g.get("season") == season and g.get("game_type") in (2, 3))]
         if before_date:
             all_stats = [s for s in all_stats if s.get("game_date", "") < before_date]
         return all_stats[:limit]
 
-    def get_recent_games(self, team_abbrev: str, before_date: str, limit: int = 10) -> list[dict[str, Any]]:
+    def get_recent_games(self, team_abbrev: str, before_date: str, limit: int = 10, season: int | None = None) -> list[dict[str, Any]]:
         """
         Get recent completed games for a team before a date.
         Preserves leakage prevention by filtering on game_date < before_date.
         """
         all_team_games = self.recent_games_by_team.get(team_abbrev, [])
-        filtered = [g for g in all_team_games if g["game_date"] < before_date]
+        filtered = [g for g in all_team_games if g["game_date"] < before_date
+                    and (season is None or (g.get("season") == season and g.get("game_type") in (2, 3)))]
         return filtered[:limit]
 
     def _load_shots(self, client: Client) -> None:
@@ -647,11 +649,11 @@ def compute_all_features(
 
         # Pre-fetch shared data — from cache or from Supabase
         if cache is not None:
-            home_standings = cache.get_standings(home, standings_date)
-            away_standings = cache.get_standings(away, standings_date)
+            home_standings = cache.get_standings(home, standings_date, season=game_season)
+            away_standings = cache.get_standings(away, standings_date, season=game_season)
         else:
-            home_standings = read_standings(client, home, standings_date)
-            away_standings = read_standings(client, away, standings_date)
+            home_standings = read_standings(client, home, standings_date, season=game_season)
+            away_standings = read_standings(client, away, standings_date, season=game_season)
 
         home_recent = None
         away_recent = None
@@ -668,32 +670,32 @@ def compute_all_features(
                 elif feat_def.compute_type == "rolling_team":
                     if home_recent is None:
                         if cache is not None:
-                            home_recent = cache.get_recent_games(home, game_date, limit=10)
+                            home_recent = cache.get_recent_games(home, game_date, limit=10, season=game_season)
                         else:
-                            home_recent = read_recent_games(client, home, game_date, limit=10)
+                            home_recent = read_recent_games(client, home, game_date, limit=10, season=game_season)
                     if away_recent is None:
                         if cache is not None:
-                            away_recent = cache.get_recent_games(away, game_date, limit=10)
+                            away_recent = cache.get_recent_games(away, game_date, limit=10, season=game_season)
                         else:
-                            away_recent = read_recent_games(client, away, game_date, limit=10)
+                            away_recent = read_recent_games(client, away, game_date, limit=10, season=game_season)
                     row[feat_name] = _compute_rolling_team(
                         feat_def, home, away, home_recent, away_recent,
                     )
                 elif feat_def.compute_type == "rolling_team_advanced":
                     row[feat_name] = _compute_rolling_team_advanced(
-                        feat_def, home, away, as_of_date=game_date, cache=cache,
+                        feat_def, home, away, as_of_date=game_date, cache=cache, season=game_season,
                     )
                 elif feat_def.compute_type == "rolling_xg":
                     if home_recent is None:
                         if cache is not None:
-                            home_recent = cache.get_recent_games(home, game_date, limit=10)
+                            home_recent = cache.get_recent_games(home, game_date, limit=10, season=game_season)
                         else:
-                            home_recent = read_recent_games(client, home, game_date, limit=10)
+                            home_recent = read_recent_games(client, home, game_date, limit=10, season=game_season)
                     if away_recent is None:
                         if cache is not None:
-                            away_recent = cache.get_recent_games(away, game_date, limit=10)
+                            away_recent = cache.get_recent_games(away, game_date, limit=10, season=game_season)
                         else:
-                            away_recent = read_recent_games(client, away, game_date, limit=10)
+                            away_recent = read_recent_games(client, away, game_date, limit=10, season=game_season)
                     row[feat_name] = _compute_rolling_xg(
                         feat_def, home, away, home_recent, away_recent, cache=cache,
                     )
@@ -873,6 +875,7 @@ def _compute_rolling_team_advanced(
     away: str,
     as_of_date: str = "",
     cache: FeatureCache | None = None,
+    season: int | None = None,
 ) -> float:
     """Compute rolling Corsi% or Fenwick% from cached advanced stats."""
     if cache is None:
@@ -884,7 +887,7 @@ def _compute_rolling_team_advanced(
     window = config.get("window", 10)
 
     team_abbrev = home if team_key == "home_team" else away
-    games = cache.get_team_advanced_stats(team_abbrev, before_date=as_of_date, limit=window)
+    games = cache.get_team_advanced_stats(team_abbrev, before_date=as_of_date, limit=window, season=season)
 
     if not games:
         return np.nan
@@ -1030,7 +1033,7 @@ def _compute_rolling_goalie(
         recent_game_ids: list[int] = []
         if cache is not None:
             # Use cached recent games to get game IDs
-            team_games = cache.get_recent_games(team_abbrev, game_date)
+            team_games = cache.get_recent_games(team_abbrev, game_date, season=season)
             recent_game_ids = [g["id"] for g in team_games][:window * 2]
         if recent_game_ids:
             # Batch query goalie stats for these games

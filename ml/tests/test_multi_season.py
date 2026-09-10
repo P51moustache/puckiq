@@ -181,13 +181,11 @@ class TestFeatureCacheMultiSeason:
         assert len(result) == 1
         assert result[0]["save_pctg"] == 0.920
 
-    def test_goalie_stats_falls_back_to_legacy(self):
-        """When season not in season-keyed dict, falls back to legacy."""
+    def test_goalie_stats_missing_explicit_season_stays_missing(self):
+        """A missing historical season must not see current-year statistics."""
         cache = self._build_multi_season_cache()
         result = cache.get_goalie_stats("TOR", season=20242025)
-        # Not in season dict, should fall back to legacy
-        assert len(result) == 1
-        assert result[0]["save_pctg"] == 0.920
+        assert result == []
 
     def test_goalie_stats_no_season_uses_legacy(self):
         cache = self._build_multi_season_cache()
@@ -205,11 +203,10 @@ class TestFeatureCacheMultiSeason:
         assert result is not None
         assert result[0]["powerPlayPct"] == 22.5
 
-    def test_team_stat_category_falls_back_to_legacy(self):
+    def test_team_stat_category_missing_explicit_season_stays_missing(self):
         cache = self._build_multi_season_cache()
         result = cache.get_team_stat_category("TOR", "powerplay", season=20242025)
-        assert result is not None
-        assert result[0]["powerPlayPct"] == 25.0
+        assert result is None
 
     def test_team_stat_category_no_season_uses_legacy(self):
         cache = self._build_multi_season_cache()

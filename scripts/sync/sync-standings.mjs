@@ -9,20 +9,24 @@
  */
 
 import { supabase, logConnectionInfo } from './supabase-client.mjs';
-import { getCurrentSeason, formatDate, fetchWithRetry, endpoints, parseSeasonArg } from './nhl-api.mjs';
+import { getCurrentSeason, formatDate, fetchWithRetry, endpoints, parseSeasonArg, standingsSnapshotDate } from './nhl-api.mjs';
 
 async function syncStandings(seasonOverride) {
   const season = seasonOverride || getCurrentSeason();
   const today = formatDate(new Date());
   console.log(`[sync-standings] Fetching current standings for season ${season}, snapshot ${today}`);
 
-  const data = await fetchWithRetry(endpoints.standings());
+  // Historical overrides request the completed season's last calendar day.
+  // Current/offseason responses must still identify the requested season.
+  const historicalDate = `${String(season).slice(4)}-06-30`;
+  const data = await fetchWithRetry(endpoints.standings(historicalDate < today ? historicalDate : 'now'));
   const standings = data.standings ?? [];
 
   if (standings.length === 0) {
     console.warn('[sync-standings] No standings data returned');
     return { upserted: 0, errors: 0 };
   }
+  const sourceDate = standingsSnapshotDate(standings, season);
 
   // Look up team_id from teams table using team abbreviation
   const { data: teamsData, error: teamsErr } = await supabase
@@ -42,7 +46,7 @@ async function syncStandings(seasonOverride) {
     }
     return { team_id: teamId, team_abbrev: abbrev,
     season,
-    snapshot_date: today,
+    snapshot_date: sourceDate,
 
     // Record
     games_played: team.gamesPlayed ?? 0,

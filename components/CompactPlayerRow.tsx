@@ -61,13 +61,13 @@ export default React.memo(function CompactPlayerRow({
       <Text style={[styles.teamAbbrev, { color: p.muted }]}>{player.teamAbbrev}</Text>
       <Text style={[styles.goalsAssists, { color: p.link, fontFamily: arenaType.body }]}>{goalsAssists}</Text>
 
-      {player.trendLabel !== 'STEADY' && (
+      {player.recentAvailable !== false && player.trendLabel !== 'STEADY' && (
         <View style={[styles.trendPill, { borderColor: trendColor }]}>
           <Text style={[styles.trendText, { color: trendColor }]}>{player.trendLabel}</Text>
         </View>
       )}
 
-      <Text style={[styles.statValue, { color: p.ink, fontFamily: arenaType.display }]}>{player.seasonPoints}</Text>
+      <Text style={[styles.statValue, { color: p.ink, fontFamily: arenaType.display }]}>{{goals:player.seasonGoals, assists:player.seasonAssists, points:player.seasonPoints, shots:player.seasonShots}[statCategory] ?? '—'} {statCategory.toUpperCase()}</Text>
     </Pressable>
   );
 });

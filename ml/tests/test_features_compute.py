@@ -412,6 +412,7 @@ class TestFeatureCache:
     def test_lookup_uses_cache_for_goalie_stats(self):
         """_compute_lookup should use cache for goalie_season_stats when cache provided."""
         cache = self._build_cache_with_data()
+        cache.goalie_stats_by_team_season[("TOR", 20242025)] = cache.goalie_stats_by_team["TOR"]
         feat = FeatureDefinition(
             name="test_goalie",
             description="test",
@@ -419,7 +420,7 @@ class TestFeatureCache:
             config={"table": "goalie_season_stats", "column": "save_pctg", "team_key": "home_team"},
         )
         # client=None because cache should be used, no Supabase call needed
-        result = _compute_lookup(feat, "TOR", "BOS", None, None, None, "2025-01-15", cache=cache)
+        result = _compute_lookup(feat, "TOR", "BOS", None, None, None, "2025-01-15", cache=cache, season=20242025)
         assert abs(result - 0.915) < 1e-9  # TOR starter has 0.915
 
     def test_compute_all_features_accepts_cache_params(self):

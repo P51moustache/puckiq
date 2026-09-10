@@ -30,15 +30,17 @@ HOW THIS PIPELINE WORKS (tutorial):
 """
 
 import logging
+import os
 import sys
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
+from ml.season import resolve_season
 
 import httpx
 
 from ml.config import (
     CONFIDENCE_HIGH,
     CONFIDENCE_LOW,
-    CURRENT_SEASON,
     DISCORD_WEBHOOK_URL,
     HEALTHCHECK_URL,
     ModelType,
@@ -92,9 +94,18 @@ def _run() -> None:
 
     # 3. Get today's future (unplayed) games — include playoffs (game_type=3)
     #    so the daily slate isn't empty after the regular season ends.
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    games_df = read_games(client, CURRENT_SEASON, game_state="FUT", game_types=[2, 3])
-    todays_games = games_df[games_df["game_date"] == today] if not games_df.empty else games_df
+    now = datetime.now(timezone.utc)
+    today = now.astimezone(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
+    season = resolve_season(now, os.getenv("PUCKIQ_ML_SEASON"))
+    games_df = read_games(client, season, game_state="FUT", game_types=[2, 3])
+    required = {"game_date", "season", "game_type", "game_state"}
+    if not games_df.empty and required.issubset(games_df.columns):
+        todays_games = games_df[
+            (games_df["game_date"] == today) & (games_df["season"] == season)
+            & games_df["game_type"].isin([2, 3]) & (games_df["game_state"] == "FUT")
+        ].reset_index(drop=True)
+    else:
+        todays_games = games_df.iloc[:0]
 
     if todays_games.empty:
         logger.info("No games scheduled for today (%s)", today)
@@ -106,7 +117,7 @@ def _run() -> None:
         #    and rolling stats only include games played before today. This prevents
         #    "data leakage" — using information we wouldn't have at prediction time.
         registry = load_feature_registry()
-        cache = FeatureCache.build(client, todays_games)
+        cache = FeatureCache.build(client, todays_games, seasons=[season])
         features_df = compute_all_features(todays_games, today, client, registry, use_cache=True, cache=cache)
 
         # 5. Load active models from Supabase Storage
@@ -324,7 +335,11 @@ def _predict_player_props(
     model_version = manifest["active_version"] if manifest else "unknown"
 
     # Load season stats for feature computation
-    season_stats_df = read_player_season_stats(client, CURRENT_SEASON)
+    seasons = games_df["season"].dropna().unique() if "season" in games_df else []
+    if len(seasons) != 1:
+        logger.warning("Player props require one explicit game season")
+        return
+    season_stats_df = read_player_season_stats(client, int(seasons[0]))
     if season_stats_df.empty:
         logger.warning("No season stats available for player props")
         return

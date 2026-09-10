@@ -18,11 +18,10 @@ export const ALL_TEAMS = [
  * Returns the current NHL season as an integer (e.g., 20252026).
  * Matches backend-engineer's schema which uses INTEGER for season.
  */
-export function getCurrentSeason() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
-  if (month >= 10) return parseInt(`${year}${year + 1}`);
+export function getCurrentSeason(now = new Date()) {
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth() + 1;
+  if (month >= 7) return parseInt(`${year}${year + 1}`);
   return parseInt(`${year - 1}${year}`);
 }
 
@@ -49,7 +48,10 @@ export function parseSeasonArg(argv = process.argv) {
     const eqArg = argv.find(a => a.startsWith('--season='));
     if (eqArg) raw = eqArg.split('=')[1];
   }
-  if (raw && /^\d{8}$/.test(raw)) {
+  if (idx !== -1 || argv.some(a => a.startsWith('--season='))) {
+    if (!raw || !/^\d{8}$/.test(raw) || Number(raw.slice(4)) !== Number(raw.slice(0, 4)) + 1) {
+      throw new Error('Season must contain consecutive years, e.g. --season=20262027');
+    }
     const season = parseInt(raw);
     return { season, seasonStr: raw };
   }
@@ -61,6 +63,19 @@ export function parseSeasonArg(argv = process.argv) {
  */
 export function formatDate(d) {
   return d.toISOString().split('T')[0];
+}
+
+/** Never stamp an old/current endpoint response with the requested year or fetch time. */
+export function standingsSnapshotDate(rows, season) {
+  if (!rows.length || rows.some(row => Number(row.seasonId) !== season)) {
+    throw new Error(`Standings response does not match requested season ${season}`);
+  }
+  const dates = new Set(rows.map(row => row.date));
+  const date = rows[0].date;
+  if (dates.size !== 1 || typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(date))) {
+    throw new Error('Standings response has no single valid source snapshot date');
+  }
+  return date;
 }
 
 /**
@@ -96,12 +111,14 @@ export function sleep(ms) {
 // NHL API endpoints
 export const endpoints = {
   scores: (date) => `${NHL_API_BASE}/score/${date}`,
-  standings: () => `${NHL_API_BASE}/standings/now`,
+  standings: (date = 'now') => `${NHL_API_BASE}/standings/${date}`,
   teamScheduleSeason: (team, season) => `${NHL_API_BASE}/club-schedule-season/${team}/${season}`,
-  teamStats: (team) => `${NHL_API_BASE}/club-stats/${team}/now`,
+  teamStats: (team, season) => `${NHL_API_BASE}/club-stats/${team}/${season}/2`,
   roster: (team) => `${NHL_API_BASE}/roster/${team}/current`,
   playerLanding: (playerId) => `${NHL_API_BASE}/player/${playerId}/landing`,
   teamSummary: (seasonId) =>
     `${NHL_STATS_BASE}/team/summary?cayenneExp=seasonId=${seasonId}%20and%20gameTypeId=2`,
+  teamStatCategory: (category, seasonId) =>
+    `${NHL_STATS_BASE}/team/${category}?cayenneExp=seasonId=${seasonId}%20and%20gameTypeId=2`,
   skaterStatsLeaders: () => `${NHL_API_BASE}/skater-stats-leaders/current`,
 };

@@ -1,3 +1,4 @@
+import { formatSeasonLabel } from '../utils/season';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -208,8 +209,11 @@ export default function PlayerDetailModal({
 
             {/* Season Stats */}
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>2024-25 SEASON</Text>
-              {isGoalie
+              <Text style={styles.sectionLabel}>{detail.season ? `${formatSeasonLabel(detail.season)} REGULAR SEASON` : 'SEASON UNAVAILABLE'}</Text>
+              <Text style={styles.emptyText}>{detail.asOf ? `Updated ${detail.asOf.slice(0, 10)}` : 'Update time unavailable'}</Text>
+              {!detail.seasonStats ? <Text style={styles.emptyText}>{detail.seasonStatsIssue
+                ? 'Season totals conflict with game records and are unavailable.'
+                : 'Season statistics unavailable'}</Text> : isGoalie
                 ? renderGoalieStats(detail.seasonStats as GoalieSeasonStats)
                 : renderSkaterStats(detail.seasonStats as SkaterSeasonStats)}
             </View>
@@ -224,7 +228,7 @@ export default function PlayerDetailModal({
             {/* Last 5 Games */}
             {detail.recentGames.length > 0 && (
               <View style={styles.section}>
-                <Text style={styles.sectionLabel}>LAST {detail.recentGames.length} GAMES</Text>
+                <Text style={styles.sectionLabel}>LAST {detail.recentGames.length} REGULAR-SEASON GAMES</Text>
                 {isGoalie
                   ? renderGoalieGamesTable(detail.recentGames)
                   : renderSkaterGamesTable(detail.recentGames)}
@@ -240,7 +244,7 @@ export default function PlayerDetailModal({
             {/* Career */}
             {detail.career ? (
               <View style={styles.section}>
-                <Text style={styles.sectionLabel}>CAREER</Text>
+                <Text style={styles.sectionLabel}>NHL REGULAR-SEASON CAREER</Text>
                 {detail.career.careerTotals && Object.keys(detail.career.careerTotals).length > 0 ? (
                   <View style={styles.statGrid}>
                     {Object.entries(detail.career.careerTotals).slice(0, 8).map(([key, val]) => (
@@ -253,8 +257,8 @@ export default function PlayerDetailModal({
               </View>
             ) : (
               <View style={styles.section}>
-                <Text style={styles.sectionLabel}>CAREER</Text>
-                <Text style={styles.emptyText}>Career stats loading...</Text>
+                <Text style={styles.sectionLabel}>NHL REGULAR-SEASON CAREER</Text>
+                <Text style={styles.emptyText}>Career statistics unavailable</Text>
               </View>
             )}
 
@@ -295,19 +299,21 @@ function StatCell({ label, value, highlight }: { label: string; value: string; h
 // Render helpers — Season Stats
 // ---------------------------------------------------------------------------
 
+function displayStat(value: number | null): string { return value == null ? '—' : String(value); }
+
 function renderSkaterStats(stats: SkaterSeasonStats) {
   return (
     <View style={styles.statGrid}>
-      <StatCell label="GP" value={String(stats.gamesPlayed)} />
-      <StatCell label="G" value={String(stats.goals)} highlight />
-      <StatCell label="A" value={String(stats.assists)} highlight />
-      <StatCell label="P" value={String(stats.points)} highlight />
-      <StatCell label="+/-" value={stats.plusMinus > 0 ? `+${stats.plusMinus}` : String(stats.plusMinus)} />
-      <StatCell label="PIM" value={String(stats.pim)} />
-      <StatCell label="S" value={String(stats.shots)} />
-      <StatCell label="S%" value={stats.shootingPctg > 1 ? stats.shootingPctg.toFixed(1) : (stats.shootingPctg * 100).toFixed(1)} />
-      <StatCell label="PPG" value={String(stats.powerPlayGoals)} />
-      <StatCell label="TOI" value={formatToi(stats.avgToi)} />
+      <StatCell label="GP" value={displayStat(stats.gamesPlayed)} />
+      <StatCell label="G" value={displayStat(stats.goals)} highlight />
+      <StatCell label="A" value={displayStat(stats.assists)} highlight />
+      <StatCell label="P" value={displayStat(stats.points)} highlight />
+      <StatCell label="+/-" value={stats.plusMinus != null && stats.plusMinus > 0 ? `+${stats.plusMinus}` : displayStat(stats.plusMinus)} />
+      <StatCell label="PIM" value={displayStat(stats.pim)} />
+      <StatCell label="S" value={displayStat(stats.shots)} />
+      <StatCell label="S%" value={stats.shootingPctg == null ? '—' : (stats.shootingPctg * 100).toFixed(1)} />
+      <StatCell label="PPG" value={displayStat(stats.powerPlayGoals)} />
+      <StatCell label="TOI" value={stats.avgToi == null ? '—' : formatToi(stats.avgToi)} />
     </View>
   );
 }
@@ -315,14 +321,14 @@ function renderSkaterStats(stats: SkaterSeasonStats) {
 function renderGoalieStats(stats: GoalieSeasonStats) {
   return (
     <View style={styles.statGrid}>
-      <StatCell label="GP" value={String(stats.gamesPlayed)} />
-      <StatCell label="W" value={String(stats.wins)} highlight />
-      <StatCell label="L" value={String(stats.losses)} />
-      <StatCell label="OT" value={String(stats.otLosses)} />
-      <StatCell label="GAA" value={stats.goalsAgainstAvg.toFixed(2)} highlight />
-      <StatCell label="SV%" value={formatSvPctg(stats.savePctg)} highlight />
-      <StatCell label="SO" value={String(stats.shutouts)} />
-      <StatCell label="SA" value={String(stats.shotsAgainst)} />
+      <StatCell label="GP" value={displayStat(stats.gamesPlayed)} />
+      <StatCell label="W" value={displayStat(stats.wins)} highlight />
+      <StatCell label="L" value={displayStat(stats.losses)} />
+      <StatCell label="OT" value={displayStat(stats.otLosses)} />
+      <StatCell label="GAA" value={stats.goalsAgainstAvg?.toFixed(2) ?? '—'} highlight />
+      <StatCell label="SV%" value={stats.savePctg == null ? '—' : formatSvPctg(stats.savePctg)} highlight />
+      <StatCell label="SO" value={displayStat(stats.shutouts)} />
+      <StatCell label="SA" value={displayStat(stats.shotsAgainst)} />
     </View>
   );
 }
@@ -336,7 +342,7 @@ function renderSkaterGamesTable(games: RecentGame[]) {
     <View style={styles.gamesTable}>
       {/* Header */}
       <View style={styles.gamesHeaderRow}>
-        <Text style={[styles.gamesHeaderCell, { flex: 1.2 }]}>Game</Text>
+        <Text style={[styles.gamesHeaderCell, { flex: 2.2 }]}>Game</Text>
         <Text style={styles.gamesHeaderCell}>G</Text>
         <Text style={styles.gamesHeaderCell}>A</Text>
         <Text style={styles.gamesHeaderCell}>P</Text>
@@ -345,14 +351,14 @@ function renderSkaterGamesTable(games: RecentGame[]) {
       </View>
       {games.map((game, i) => (
         <View key={game.gameId} style={[styles.gamesRow, i % 2 === 1 && styles.gamesRowAlt]}>
-          <Text style={[styles.gamesCell, { flex: 1.2 }]} numberOfLines={1}>
-            {String(game.gameId).slice(-4)}
+          <Text style={[styles.gamesCell, { flex: 2.2 }]}>
+            {game.gameDate ?? 'Date unavailable'}{game.opponent ? `\n${game.opponent}` : ''}
           </Text>
-          <Text style={styles.gamesCell}>{game.goals}</Text>
-          <Text style={styles.gamesCell}>{game.assists}</Text>
-          <Text style={styles.gamesCell}>{game.points}</Text>
+          <Text style={styles.gamesCell}>{game.goals ?? '—'}</Text>
+          <Text style={styles.gamesCell}>{game.assists ?? '—'}</Text>
+          <Text style={styles.gamesCell}>{game.points ?? '—'}</Text>
           <Text style={styles.gamesCell}>
-            {game.plusMinus > 0 ? `+${game.plusMinus}` : game.plusMinus}
+            {game.plusMinus != null && game.plusMinus > 0 ? `+${game.plusMinus}` : game.plusMinus ?? '—'}
           </Text>
           <Text style={styles.gamesCell}>{game.shots ?? '-'}</Text>
         </View>
@@ -365,15 +371,15 @@ function renderGoalieGamesTable(games: RecentGame[]) {
   return (
     <View style={styles.gamesTable}>
       <View style={styles.gamesHeaderRow}>
-        <Text style={[styles.gamesHeaderCell, { flex: 1.2 }]}>Game</Text>
+        <Text style={[styles.gamesHeaderCell, { flex: 2.2 }]}>Game</Text>
         <Text style={styles.gamesHeaderCell}>Dec</Text>
         <Text style={styles.gamesHeaderCell}>SV</Text>
         <Text style={styles.gamesHeaderCell}>GA</Text>
       </View>
       {games.map((game, i) => (
         <View key={game.gameId} style={[styles.gamesRow, i % 2 === 1 && styles.gamesRowAlt]}>
-          <Text style={[styles.gamesCell, { flex: 1.2 }]} numberOfLines={1}>
-            {String(game.gameId).slice(-4)}
+          <Text style={[styles.gamesCell, { flex: 2.2 }]}>
+            {game.gameDate ?? 'Date unavailable'}{game.opponent ? `\n${game.opponent}` : ''}
           </Text>
           <Text style={styles.gamesCell}>{game.decision || '-'}</Text>
           <Text style={styles.gamesCell}>{game.saves ?? '-'}</Text>

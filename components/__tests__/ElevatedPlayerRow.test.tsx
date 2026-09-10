@@ -288,53 +288,10 @@ describe('ElevatedPlayerRow', () => {
     });
   });
 
-  describe('sparkline', () => {
-    it('renders a Sparkline component', () => {
-      const result = ElevatedPlayerRow({
-        player: makePlayer(),
-        rank: 2,
-        statCategory: 'goals',
-        onPress: mockOnPress,
-      });
-      const sparklines = findByType(result, 'Sparkline');
-      expect(sparklines.length).toBe(1);
-    });
-
-    it('passes width=50 and height=18 to Sparkline', () => {
-      const result = ElevatedPlayerRow({
-        player: makePlayer(),
-        rank: 2,
-        statCategory: 'goals',
-        onPress: mockOnPress,
-      });
-      const sparklines = findByType(result, 'Sparkline');
-      expect(sparklines[0].props.width).toBe(50);
-      expect(sparklines[0].props.height).toBe(18);
-    });
-
-    it('passes 5-element data array to Sparkline', () => {
-      const result = ElevatedPlayerRow({
-        player: makePlayer(),
-        rank: 2,
-        statCategory: 'goals',
-        onPress: mockOnPress,
-      });
-      const sparklines = findByType(result, 'Sparkline');
-      expect(sparklines[0].props.data).toHaveLength(5);
-    });
-
-    it('uses leaderTrend data for sparkline when provided', () => {
-      const trend = makeTrend({ seasonPpg: 1.3, recentPpg: 1.6, hotColdScore: 7.5 });
-      const result = ElevatedPlayerRow({
-        player: makePlayer(),
-        rank: 2,
-        leaderTrend: trend,
-        statCategory: 'goals',
-        onPress: mockOnPress,
-      });
-      const sparklines = findByType(result, 'Sparkline');
-      // First value should be seasonPpg
-      expect(sparklines[0].props.data[0]).toBe(1.3);
+  describe('trend integrity', () => {
+    it('does not synthesize a game sparkline from unrelated average values', () => {
+      const result = ElevatedPlayerRow({player:makePlayer(),rank:2,statCategory:'points',onPress:mockOnPress});
+      expect(findByType(result,'Sparkline')).toHaveLength(0);
     });
   });
 
@@ -413,4 +370,11 @@ describe('ElevatedPlayerRow', () => {
       expect(mockOnPress).toHaveBeenCalledWith(87);
     });
   });
+});
+
+test.each(['goals','assists','points','shots'] as const)('elevated row shows %s count and label', category=>{
+ const player=makePlayer({seasonGoals:10,seasonAssists:20,seasonPoints:30,seasonShots:100});
+ const texts=collectTexts(ElevatedPlayerRow({player,rank:2,statCategory:category,onPress:jest.fn()}));
+ expect(texts).toContain(String({goals:10,assists:20,points:30,shots:100}[category]));
+ expect(texts).toContain(category.toUpperCase());
 });

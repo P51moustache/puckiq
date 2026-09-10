@@ -338,3 +338,10 @@ describe('CompactPlayerRow', () => {
     });
   });
 });
+
+test.each(['goals','assists','points','shots'] as const)('compact row shows %s count and label',category=>{
+ const player=makePlayer({seasonGoals:10,seasonAssists:20,seasonPoints:30,seasonShots:100});
+ const texts=collectTexts(CompactPlayerRow({player,rank:6,statCategory:category,onPress:jest.fn()}));
+ expect(texts).toContain(String({goals:10,assists:20,points:30,shots:100}[category]));
+ expect(texts).toContain(category.toUpperCase());
+});

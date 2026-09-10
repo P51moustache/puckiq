@@ -59,10 +59,8 @@ describe('teamComparison bug fixes', () => {
       expect(stats.defense.goalsAgainstPerGame).toBeCloseTo(EXPECTED_TOR_GAPG, 1);
     });
 
-    it('should not throw when a legacy standingsData arg is passed', async () => {
-      const stats = await getTeamComparisonData('TOR', { standings: [] });
-
-      expect(stats.offense.goalsPerGame).toBeCloseTo(EXPECTED_TOR_GPG, 1);
+    it('rejects a team absent from the explicit snapshot', async () => {
+      await expect(getTeamComparisonData('TOR', [])).rejects.toThrow('unavailable');
     });
   });
 

@@ -44,15 +44,15 @@ describe('Category Winner Bug', () => {
     }
   });
 
-  it('should not count unavailable stats (0 values) in category winners', async () => {
+  it('does not count unavailable stats in category winners', async () => {
     const [tor, bos] = await Promise.all([
       getTeamComparisonData('TOR'),
       getTeamComparisonData('BOS'),
     ]);
 
-    // Advanced stats are all 0, so advanced category should be 'tie'
-    expect(tor.advanced.corsiForPct).toBe(0);
-    expect(bos.advanced.corsiForPct).toBe(0);
+    // Unknown advanced stats are distinct from measured zero.
+    expect(tor.advanced.corsiForPct).toBeNaN();
+    expect(bos.advanced.corsiForPct).toBeNaN();
 
     const winners = calculateCategoryWinners(tor, bos);
 

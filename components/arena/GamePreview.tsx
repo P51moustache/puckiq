@@ -6,10 +6,17 @@ import { ArenaButton, ArenaNote, arenaType } from "./ArenaPrimitives";
 import {
   fetchArenaPreview,
   forecastChange,
+  sourceFreshness,
+  isFinalGame,
+  isLiveGame,
   type ArenaPreviewData,
 } from "../../services/arenaData";
 import type { ArenaGame, SeasonEntry } from "../../types/arena";
 import { gameTime } from "./GamePoster";
+
+const sourceTime = (value: string | null | undefined) => value && Number.isFinite(Date.parse(value))
+  ? new Date(value).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+  : 'time unavailable';
 
 export function GamePreview({
   game,
@@ -164,8 +171,8 @@ export function GamePreview({
         </Text>
       </View>
       <ArenaNote>
-        Know the matchup before you make your call. These comparisons use{" "}
-        {season} season statistics; they are not a prediction.
+        These comparisons use the latest available {season} regular-season statistics.
+        {isFinalGame(game) || isLiveGame(game) ? ' Season summaries may include games played after this matchup.' : ' They are not a prediction.'}
       </ArenaNote>
       {!data && !error && (
         <ActivityIndicator color={p.ink} style={{ margin: 25 }} />
@@ -180,6 +187,8 @@ export function GamePreview({
           />
         </>
       )}
+      <ArenaNote>{isFinalGame(game) ? 'Completed game. ' : ''}Game source: {sourceFreshness(game.updated_at).status} · {sourceTime(game.updated_at)}. Prediction source: {sourceTime(game.freshness?.prediction.asOf ?? game.forecast?.predictedAt)}. {game.freshness?.forecastUnavailable ? 'No verified pregame forecast is available.' : ''}</ArenaNote>
+      {data?.sources && <ArenaNote>Goalie season statistics: {data.sources.goalies.status} · {sourceTime(data.sources.goalies.asOf)}. Special teams: {data.sources.specialTeams.status} · {sourceTime(data.sources.specialTeams.asOf)}.</ArenaNote>}
       {data?.notices.map((notice) => (
         <ArenaNote key={notice}>{notice}</ArenaNote>
       ))}
@@ -248,8 +257,8 @@ export function GamePreview({
           marginBottom: 13,
         }}
       >
-        Team goalie season numbers. Starting goalies are unconfirmed in this
-        feed.
+        Current-roster goalie profiles. Full-season player totals include all clubs.
+        Game lineups and starting goalies are unconfirmed in this feed.
       </Text>
       {[game.away_team_abbrev, game.home_team_abbrev].map((team) => (
         <View

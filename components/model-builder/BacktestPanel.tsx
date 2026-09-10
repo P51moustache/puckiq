@@ -16,30 +16,12 @@ import { theme } from '../../constants/theme';
 import type { PredictionModel, ModelBacktestResults } from '../../types/predictions';
 import {
   runBacktest,
+  getReplayWeightsKey,
+  isReplaySeasonAvailable,
   type BacktestResults,
   type BacktestProgressCallback,
 } from '../../services/backtesting';
-import { supabase } from '../../lib/supabase';
-
-async function isSeasonSeeded(seasonId: string): Promise<boolean> {
-  try {
-    const { count, error } = await supabase
-      .from('games')
-      .select('*', { count: 'exact', head: true })
-      .eq('season', parseInt(seasonId));
-    if (error) return false;
-    return (count ?? 0) > 0;
-  } catch {
-    return false;
-  }
-}
-function getCurrentSeasonId(): string {
-  const now = new Date();
-  const month = now.getMonth();
-  const year = now.getFullYear();
-  if (month >= 0 && month <= 5) return `${year - 1}${year}`;
-  return `${year}${year + 1}`;
-}
+import { getCurrentSeason, formatSeasonLabel } from '../../utils/season';
 
 /**
  * Date range options for backtesting
@@ -85,12 +67,12 @@ function getDateRange(option: DateRangeOption): DateRange {
       };
     }
     case 'season': {
-      const seasonId = getCurrentSeasonId();
+      const seasonId = String(getCurrentSeason());
       const startYear = parseInt(seasonId.substring(0, 4), 10);
       return {
         start: `${startYear}-10-01`,
         end: formatDate(today),
-        label: '2024-25 Season',
+        label: `${formatSeasonLabel(Number(seasonId))} season`,
       };
     }
   }
@@ -117,15 +99,26 @@ export default function BacktestPanel({
   // Track if weights have changed since last backtest to show "outdated" indicator
   const [lastTestedWeightsHash, setLastTestedWeightsHash] = useState<string | null>(null);
 
+  const checkSeeding = useCallback(async () => {
+    try {
+      const seasonId = String(getCurrentSeason());
+      const seeded = await isReplaySeasonAvailable(Number(seasonId));
+      setIsSeeded(seeded);
+    } catch (err) {
+      console.error('[BacktestPanel] Error checking seeding:', err);
+      setIsSeeded(false);
+    }
+  }, []);
+
   // Check if data is seeded on mount
   useEffect(() => {
     checkSeeding();
-  }, []);
+  }, [checkSeeding]);
 
   // Clear results when model weights change (so user knows to re-run backtest)
   useEffect(() => {
     // Create a simple hash of weights to detect changes
-    const weightsString = JSON.stringify(model.weights) + JSON.stringify(model.playerWeights);
+    const weightsString = getReplayWeightsKey(model.weights);
     const currentHash = weightsString;
 
     if (lastTestedWeightsHash !== null && lastTestedWeightsHash !== currentHash) {
@@ -136,16 +129,7 @@ export default function BacktestPanel({
     }
   }, [model.weights, model.playerWeights, lastTestedWeightsHash]);
 
-  const checkSeeding = useCallback(async () => {
-    try {
-      const seasonId = getCurrentSeasonId();
-      const seeded = await isSeasonSeeded(seasonId);
-      setIsSeeded(seeded);
-    } catch (err) {
-      console.error('[BacktestPanel] Error checking seeding:', err);
-      setIsSeeded(false);
-    }
-  }, []);
+
 
   // Handle running backtest
   const handleRunBacktest = useCallback(async () => {
@@ -177,12 +161,13 @@ export default function BacktestPanel({
       setResults(backtestResults);
 
       // Save the weights hash so we can detect if weights change later
-      const weightsString = JSON.stringify(model.weights) + JSON.stringify(model.playerWeights);
+      const weightsString = getReplayWeightsKey(model.weights);
       setLastTestedWeightsHash(weightsString);
 
       // Auto-save results when backtest completes (better UX than requiring manual save)
-      if (onSaveResults) {
+      if (onSaveResults && backtestResults.totalGames > 0) {
         const modelBacktestResults: ModelBacktestResults = {
+          replayVersion: backtestResults.replayVersion,
           period: {
             start: backtestResults.dateRange.start,
             end: backtestResults.dateRange.end,
@@ -272,6 +257,7 @@ export default function BacktestPanel({
 
   // Render results
   const renderResults = () => {
+    if (results?.totalGames === 0) return <Text style={styles.headerSubtitle}>No completed games have usable pregame standings in this period. Try another date range.</Text>;
     if (!results) return null;
 
     const improvement = results.improvement;
@@ -288,7 +274,7 @@ export default function BacktestPanel({
 
         {/* Model Accuracy */}
         <View style={styles.resultRow}>
-          <Text style={styles.resultLabel}>Your Model</Text>
+          <Text style={styles.resultLabel}>Your four-factor weights</Text>
           <Text style={[styles.resultValue, styles.resultValueHighlight]}>
             {results.accuracy}%
           </Text>
@@ -296,7 +282,7 @@ export default function BacktestPanel({
 
         {/* Classic Accuracy */}
         <View style={styles.resultRow}>
-          <Text style={styles.resultLabel}>Classic Baseline</Text>
+          <Text style={styles.resultLabel}>Classic four-factor weights</Text>
           <Text style={styles.resultValue}>{results.baselineAccuracy}%</Text>
         </View>
 
@@ -305,7 +291,7 @@ export default function BacktestPanel({
           <Text style={styles.resultLabel}>Difference</Text>
           <View style={styles.improvementContainer}>
             <Text style={[styles.resultValue, { color: improvementColor }]}>
-              {improvementPrefix}{improvement}%
+              {improvementPrefix}{improvement} pp
             </Text>
             {improvement !== 0 && (
               <Ionicons
@@ -378,10 +364,16 @@ export default function BacktestPanel({
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Ionicons name="analytics-outline" size={20} color={theme.accent} />
-          <Text style={styles.headerTitle}>Backtest</Text>
+          <Text style={styles.headerTitle}>Four-factor replay</Text>
         </View>
-        <Text style={styles.headerSubtitle}>Test against historical games</Text>
+        <Text style={styles.headerSubtitle}>Historical pick accuracy · limited replay</Text>
       </View>
+
+      <Text style={styles.headerSubtitle}>
+        Includes standings, home ice, streak, and goal differential. Recent form, rest,
+        back-to-back, special teams, shots, goalie and hot-player sliders do not affect
+        this replay. It does not validate the complete model or its probabilities.
+      </Text>
 
       {/* Date Range Selector */}
       <View style={styles.selectorContainer}>
@@ -415,7 +407,7 @@ export default function BacktestPanel({
           onPress={handleRunBacktest}
         >
           <Ionicons name="play-circle-outline" size={20} color="#fff" />
-          <Text style={styles.runButtonText}>Run Backtest</Text>
+          <Text style={styles.runButtonText}>Run replay</Text>
         </TouchableOpacity>
       )}
 

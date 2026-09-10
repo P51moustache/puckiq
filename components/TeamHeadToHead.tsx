@@ -1,3 +1,4 @@
+import { formatSeasonLabel } from '../utils/season';
 /**
  * TeamHeadToHead — pin two teams, see them side-by-side.
  *
@@ -12,10 +13,11 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { Image as ExpoImage } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { rinkGlass } from '../constants/theme';
+import { useArena } from './arena/ArenaProvider';
+import { arenaType } from './arena/ArenaPrimitives';
 import { getTeamLogoUrl } from '../utils/teamLogo';
 import { fetchAllTeams, type SimpleTeam } from '../services/teamList';
-import { getTeamComparisonData, formatStatValue, determineWinner } from '../services/teamComparison';
+import { getTeamComparisonPair, formatStatValue, determineWinner } from '../services/teamComparison';
 import type { TeamComparisonStats } from '../types/teamStats';
 
 interface TeamHeadToHeadProps {
@@ -29,15 +31,15 @@ interface StatRow {
   category: string;
   /** Higher is better unless inverted */
   inverted?: boolean;
-  format?: 'number' | 'percentage' | 'decimal';
+  format?: 'number' | 'percentage' | 'decimal' | 'saveFraction';
   decimals?: number;
   homeValue: number;
   awayValue: number;
 }
 
-/** True if a metric has real data on this team. NaN, null, undefined, or 0 are treated as missing. */
+/** True if a metric has real data on this team. NaN, null, undefined are treated as missing. */
 function hasReal(v: number | null | undefined): boolean {
-  return typeof v === 'number' && Number.isFinite(v) && v > 0;
+  return typeof v === 'number' && Number.isFinite(v);
 }
 
 function buildStatRows(home: TeamComparisonStats, away: TeamComparisonStats): { section: string; rows: StatRow[] }[] {
@@ -69,10 +71,8 @@ function buildStatRows(home: TeamComparisonStats, away: TeamComparisonStats): { 
     {
       section: 'GOALTENDING',
       rows: [
-        { label: 'Save %', category: 'goaltending', format: 'percentage', decimals: 2,
+        { label: 'Save %', category: 'goaltending', format: 'saveFraction', decimals: 3,
           homeValue: home.goaltending.savePct, awayValue: away.goaltending.savePct },
-        { label: 'GAA', category: 'goaltending', format: 'decimal', decimals: 2, inverted: true,
-          homeValue: home.goaltending.goalsAgainstAverage, awayValue: away.goaltending.goalsAgainstAverage },
         { label: 'Shutouts', category: 'goaltending', format: 'number',
           homeValue: home.goaltending.shutouts, awayValue: away.goaltending.shutouts },
       ],
@@ -98,7 +98,8 @@ function buildStatRows(home: TeamComparisonStats, away: TeamComparisonStats): { 
 }
 
 function StatBar({ value, max, color, alignRight }: { value: number; max: number; color: string; alignRight?: boolean }) {
-  const pct = Math.min(1, max > 0 ? value / max : 0);
+  const styles = useComparisonStyles();
+  const pct = Number.isFinite(value) && Number.isFinite(max) ? Math.min(1, max > 0 ? value / max : 0) : 0;
   return (
     <View style={[styles.barTrack, alignRight && { flexDirection: 'row-reverse' }]}>
       <View style={[styles.barFill, { width: `${pct * 100}%`, backgroundColor: color }]} />
@@ -108,6 +109,8 @@ function StatBar({ value, max, color, alignRight }: { value: number; max: number
 
 /* ===== PinSlot ===== */
 function PinSlot({ team, onClear, side }: { team: SimpleTeam | null; onClear: () => void; side: 'A' | 'B' }) {
+  const styles = useComparisonStyles();
+  const { palette: p } = useArena();
   if (!team) {
     return (
       <View style={styles.pinSlotEmpty}>
@@ -120,19 +123,22 @@ function PinSlot({ team, onClear, side }: { team: SimpleTeam | null; onClear: ()
       <ExpoImage source={{ uri: getTeamLogoUrl(team.abbrev) }} style={styles.pinLogo} contentFit="contain" />
       <Text style={styles.pinAbbrev}>{team.abbrev}</Text>
       <Pressable onPress={onClear} hitSlop={8} style={styles.pinClear}>
-        <Ionicons name="close" size={12} color={rinkGlass.textSecondary} />
+        <Ionicons name="close" size={12} color={p.ink} />
       </Pressable>
     </View>
   );
 }
 
 export default function TeamHeadToHead({ initialA, initialB }: TeamHeadToHeadProps) {
+  const styles = useComparisonStyles();
+  const { palette: p } = useArena();
   const [allTeams, setAllTeams] = useState<SimpleTeam[]>([]);
   const [loading, setLoading] = useState(true);
   const [pinA, setPinA] = useState<SimpleTeam | null>(null);
   const [pinB, setPinB] = useState<SimpleTeam | null>(null);
   const [statsA, setStatsA] = useState<TeamComparisonStats | null>(null);
   const [statsB, setStatsB] = useState<TeamComparisonStats | null>(null);
+  const [statsError, setStatsError] = useState<string | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
 
   // Load teams
@@ -167,7 +173,8 @@ export default function TeamHeadToHead({ initialA, initialB }: TeamHeadToHeadPro
     }
     let cancelled = false;
     setStatsLoading(true);
-    Promise.all([getTeamComparisonData(pinA.abbrev), getTeamComparisonData(pinB.abbrev)])
+    setStatsA(null); setStatsB(null); setStatsError(null);
+    getTeamComparisonPair(pinA.abbrev, pinB.abbrev)
       .then(([a, b]) => {
         if (cancelled) return;
         setStatsA(a);
@@ -176,6 +183,7 @@ export default function TeamHeadToHead({ initialA, initialB }: TeamHeadToHeadPro
       })
       .catch(() => {
         if (cancelled) return;
+        setStatsError('Comparable statistics are unavailable for this snapshot. Choose another team or try again.');
         setStatsLoading(false);
       });
     return () => { cancelled = true; };
@@ -236,10 +244,15 @@ export default function TeamHeadToHead({ initialA, initialB }: TeamHeadToHeadPro
 
           {statsLoading && (
             <View style={{ paddingVertical: 28, alignItems: 'center' }}>
-              <ActivityIndicator size="small" color={rinkGlass.textMuted} />
+              <ActivityIndicator size="small" color={p.muted} />
             </View>
           )}
 
+          {statsError && <Text style={styles.explainer}>{statsError}</Text>}
+          {statsA?.period && <Text style={styles.explainer}>{formatSeasonLabel(statsA.period.season)} regular season · Standings {statsA.period.snapshotDate}
+            {'\n'}{pinA.abbrev}: summary {statsA.period.summaryAsOf?.slice(0, 10) ?? 'unavailable'} · penalties {statsA.period.penaltiesAsOf?.slice(0, 10) ?? 'unavailable'}
+            {'\n'}{pinB.abbrev}: summary {statsB?.period?.summaryAsOf?.slice(0, 10) ?? 'unavailable'} · penalties {statsB?.period?.penaltiesAsOf?.slice(0, 10) ?? 'unavailable'}
+          </Text>}
           {!statsLoading && sections.map((sec) => (
             <View key={sec.section} style={styles.sectionBlock}>
               <View style={styles.sectionHeaderRow}>
@@ -257,7 +270,7 @@ export default function TeamHeadToHead({ initialA, initialB }: TeamHeadToHeadPro
                       <Text style={[styles.statValue, aWin && styles.statValueWin]}>
                         {formatStatValue(row.homeValue, row.format, row.decimals)}
                       </Text>
-                      <StatBar value={Math.abs(row.homeValue)} max={max} color={aWin ? rinkGlass.blueLight : rinkGlass.textMuted} alignRight />
+                      <StatBar value={Math.abs(row.homeValue)} max={max} color={aWin ? p.link : p.muted} alignRight />
                     </View>
                     <View style={styles.statLabelCol}>
                       <Text style={styles.statLabel}>{row.label}</Text>
@@ -266,7 +279,7 @@ export default function TeamHeadToHead({ initialA, initialB }: TeamHeadToHeadPro
                       <Text style={[styles.statValue, bWin && styles.statValueWin]}>
                         {formatStatValue(row.awayValue, row.format, row.decimals)}
                       </Text>
-                      <StatBar value={Math.abs(row.awayValue)} max={max} color={bWin ? rinkGlass.blueLight : rinkGlass.textMuted} />
+                      <StatBar value={Math.abs(row.awayValue)} max={max} color={bWin ? p.link : p.muted} />
                     </View>
                   </View>
                 );
@@ -278,7 +291,7 @@ export default function TeamHeadToHead({ initialA, initialB }: TeamHeadToHeadPro
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
           {loading ? (
             <View style={{ paddingTop: 40, alignItems: 'center' }}>
-              <ActivityIndicator size="small" color={rinkGlass.textMuted} />
+              <ActivityIndicator size="small" color={p.muted} />
             </View>
           ) : (
             <View style={styles.gridWrap}>
@@ -300,7 +313,9 @@ export default function TeamHeadToHead({ initialA, initialB }: TeamHeadToHeadPro
   );
 }
 
-const styles = StyleSheet.create({
+function useComparisonStyles() {
+  const { palette: p } = useArena();
+  return useMemo(() => StyleSheet.create({
   container: { flex: 1 },
 
   // Pin tray
@@ -313,8 +328,8 @@ const styles = StyleSheet.create({
   },
   pinTrayVs: {
     fontSize: 12,
-    color: rinkGlass.textMuted,
-    fontFamily: rinkGlass.fonts.mono,
+    color: p.muted,
+    fontFamily: arenaType.body,
     fontWeight: '700',
     letterSpacing: 1,
   },
@@ -324,24 +339,24 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: rinkGlass.glassBorder,
+    borderColor: p.edge,
     alignItems: 'center',
     justifyContent: 'center',
   },
   pinSlotEmptyLabel: {
     fontSize: 10,
-    color: rinkGlass.textMuted,
+    color: p.muted,
     letterSpacing: 1.5,
     fontWeight: '700',
-    fontFamily: rinkGlass.fonts.mono,
+    fontFamily: arenaType.body,
   },
   pinSlotFull: {
     flex: 1,
     height: 56,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: rinkGlass.blueLight,
-    backgroundColor: 'rgba(76, 201, 240, 0.06)',
+    borderColor: p.link,
+    backgroundColor: p.soft,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
@@ -352,22 +367,22 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: '700',
-    color: rinkGlass.textPrimary,
-    fontFamily: rinkGlass.fonts.mono,
+    color: p.ink,
+    fontFamily: arenaType.body,
     letterSpacing: 0.5,
   },
   pinClear: {
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: rinkGlass.zamboni,
+    backgroundColor: p.soft,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   explainer: {
     fontSize: 11,
-    color: rinkGlass.textMuted,
+    color: p.muted,
     paddingHorizontal: 16,
     marginBottom: 10,
     lineHeight: 15,
@@ -383,10 +398,10 @@ const styles = StyleSheet.create({
   gridCell: {
     width: '23%',
     aspectRatio: 1,
-    backgroundColor: rinkGlass.boards,
+    backgroundColor: p.paper,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: rinkGlass.glassBorder,
+    borderColor: p.edge,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
@@ -395,8 +410,8 @@ const styles = StyleSheet.create({
   gridAbbrev: {
     fontSize: 10,
     fontWeight: '700',
-    color: rinkGlass.textSecondary,
-    fontFamily: rinkGlass.fonts.mono,
+    color: p.muted,
+    fontFamily: arenaType.body,
     letterSpacing: 0.5,
   },
 
@@ -415,14 +430,14 @@ const styles = StyleSheet.create({
   h2hAbbrev: {
     fontSize: 16,
     fontWeight: '700',
-    color: rinkGlass.textPrimary,
-    fontFamily: rinkGlass.fonts.mono,
+    color: p.ink,
+    fontFamily: arenaType.body,
     letterSpacing: 1,
   },
   h2hAt: {
     fontSize: 14,
-    color: rinkGlass.textMuted,
-    fontFamily: rinkGlass.fonts.mono,
+    color: p.muted,
+    fontFamily: arenaType.body,
   },
   sectionBlock: {
     paddingHorizontal: 16,
@@ -436,13 +451,13 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 11,
     fontWeight: '800',
-    color: rinkGlass.textPrimary,
+    color: p.ink,
     letterSpacing: 1.5,
   },
   sectionUnderline: {
     width: 24,
     height: 2,
-    backgroundColor: rinkGlass.blueLight,
+    backgroundColor: p.link,
     borderRadius: 1,
     marginTop: 4,
   },
@@ -457,12 +472,12 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   statValue: {
-    fontFamily: rinkGlass.fonts.display,
+    fontFamily: arenaType.display,
     fontSize: 16,
-    color: rinkGlass.textSecondary,
+    color: p.muted,
   },
   statValueWin: {
-    color: rinkGlass.textPrimary,
+    color: p.ink,
   },
   statLabelCol: {
     width: 110,
@@ -470,7 +485,7 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 9,
-    color: rinkGlass.textMuted,
+    color: p.muted,
     letterSpacing: 1,
     fontWeight: '700',
     textAlign: 'center',
@@ -480,7 +495,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 3,
     borderRadius: 1.5,
-    backgroundColor: rinkGlass.glassBorder,
+    backgroundColor: p.edge,
     overflow: 'hidden',
     flexDirection: 'row',
   },
@@ -488,4 +503,5 @@ const styles = StyleSheet.create({
     height: 3,
     borderRadius: 1.5,
   },
-});
+}), [p]);
+}

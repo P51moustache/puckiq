@@ -8,13 +8,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type {
   PredictionModel,
-  StandingsData,
   TeamStandings,
   ConfidenceWeights,
   PlayerWeights,
 } from '../types/predictions';
 import { createDefaultModel } from './modelStorage';
 import { supabase } from '../lib/supabase';
+import { getCurrentSeason } from '../utils/season';
 
 interface HistoricalGame {
   id: number;
@@ -78,7 +78,7 @@ export async function getGamesInRange(startDate: string, endDate: string): Promi
 }
 
 // Storage keys
-const STANDINGS_CACHE_PREFIX = 'puckiq_standings_cache_';
+const STANDINGS_CACHE_PREFIX = 'puckiq_standings_cache_v2_';
 const BACKTEST_CACHE_KEY = 'puckiq_backtest_cache';
 
 // Cache TTL for standings (1 week - historical standings don't change)
@@ -102,6 +102,7 @@ export interface BacktestGameResult {
  * Complete backtest results
  */
 export interface BacktestResults {
+  replayVersion?: 'four-factor-pregame-v1';
   modelId: string;
   modelName: string;
   dateRange: {
@@ -151,23 +152,19 @@ interface BacktestCache {
  * Generate a hash from weights to include in cache key
  * This ensures different weight configurations get different cache entries
  */
-function hashWeights(weights: ConfidenceWeights, playerWeights: PlayerWeights): string {
-  const weightValues = [
-    weights.standingsDifferential,
-    weights.homeIceAdvantage,
-    weights.streakImpact,
-    weights.goalDifferentialImpact,
-    weights.recentFormImpact,
-    weights.backToBackPenalty,
-    weights.restAdvantage,
-    weights.specialTeamsImpact,
-    weights.shotDifferentialImpact,
-    playerWeights.goalieMatchupImpact,
-    playerWeights.hotPlayersImpact,
-  ];
-  // Simple hash: join values and take first 8 chars of base36 representation
-  const sum = weightValues.reduce((acc, val) => acc + val * 1000, 0);
-  return Math.abs(sum).toString(36).substring(0, 8);
+export function getReplayWeightsKey(weights: ConfidenceWeights): string {
+  // Ordered values avoid collisions when two different configurations have the same sum.
+  return 'four-factor-pregame-v3:' + JSON.stringify([
+    weights.standingsDifferential, weights.homeIceAdvantage,
+    weights.streakImpact, weights.goalDifferentialImpact,
+  ]);
+}
+
+export async function isReplaySeasonAvailable(season: number): Promise<boolean> {
+  const { count, error } = await supabase.from('games')
+    .select('*', { count: 'exact', head: true }).eq('season', season)
+    .eq('game_type', 2).in('game_state', ['FINAL', 'OFF']);
+  return !error && (count ?? 0) > 0;
 }
 
 /**
@@ -226,52 +223,25 @@ async function cacheStandings(date: string, standings: TeamStandings[]): Promise
   }
 }
 
-/**
- * Fetch standings as of a specific date
- * Primary: Supabase (exact date match, then closest prior date)
- * Fallback: NHL API
- */
-async function fetchStandingsForDate(date: string): Promise<TeamStandings[] | null> {
+/** One complete snapshot strictly before puck-drop date, in the game's season. */
+export async function fetchStandingsForDate(date: string): Promise<TeamStandings[] | null> {
   try {
-    // First check AsyncStorage cache
     const cached = await getCachedStandings(date);
-    if (cached) {
-      return cached;
-    }
-
-    // Try Supabase — exact date match
-    const { data: exactData, error: exactError } = await supabase
-      .from('standings')
-      .select('*')
-      .eq('snapshot_date', date);
-
-    if (!exactError && exactData && exactData.length > 0) {
-      const standings = mapSupabaseStandings(exactData);
-      if (standings.length > 0) {
-        await cacheStandings(date, standings);
-        return standings;
-      }
-    }
-
-    // Supabase — closest prior date (up to 32 teams)
-    const { data: nearData, error: nearError } = await supabase
-      .from('standings')
-      .select('*')
-      .lte('snapshot_date', date)
-      .order('snapshot_date', { ascending: false })
-      .limit(32);
-
-    if (!nearError && nearData && nearData.length > 0) {
-      const standings = mapSupabaseStandings(nearData);
-      if (standings.length > 0) {
-        await cacheStandings(date, standings);
-        return standings;
-      }
-    }
-
-    // Supabase-only: no NHL API fallback (deprecated service)
-    console.warn(`[BACKTEST] No Supabase standings data for ${date}`);
-    return null;
+    if (cached) return cached;
+    const season = getCurrentSeason(new Date(`${date}T12:00:00Z`));
+    const latest = await supabase.from('standings').select('season,snapshot_date')
+      .eq('season', season).lt('snapshot_date', date)
+      .order('snapshot_date', { ascending: false }).limit(1);
+    const snapshot = latest.data?.[0];
+    if (latest.error || !snapshot || snapshot.season !== season || typeof snapshot.snapshot_date !== 'string' || snapshot.snapshot_date >= date) return null;
+    const response = await supabase.from('standings').select('*')
+      .eq('season', season).eq('snapshot_date', snapshot.snapshot_date);
+    if (response.error || !response.data?.length) return null;
+    const rows = response.data.filter(r => r.season === season && r.snapshot_date === snapshot.snapshot_date);
+    const standings = mapSupabaseStandings(rows);
+    if (!standings.length) return null;
+    await cacheStandings(date, standings);
+    return standings;
   } catch (error) {
     console.error(`[BACKTEST] Error fetching standings for ${date}:`, error);
     return null;
@@ -499,7 +469,7 @@ export async function runBacktest(
   const startTime = Date.now();
 
   // Generate weights hash for cache key (ensures different weights = different cache entries)
-  const weightsHash = hashWeights(model.weights, model.playerWeights);
+  const weightsHash = getReplayWeightsKey(model.weights);
 
   console.log(`[BACKTEST] Starting backtest for model "${model.name}" from ${dateRange.start} to ${dateRange.end}`);
   console.log(`[BACKTEST] Weights hash: ${weightsHash}, Home Ice: ${model.weights.homeIceAdvantage}, Standings: ${model.weights.standingsDifferential}, skipCache: ${skipCache}`);
@@ -521,6 +491,7 @@ export async function runBacktest(
   if (games.length === 0) {
     console.warn('[BACKTEST] No games found in date range');
     return {
+      replayVersion: 'four-factor-pregame-v1',
       modelId: model.id,
       modelName: model.name,
       dateRange,
@@ -636,6 +607,7 @@ export async function runBacktest(
   const improvement = Math.round((accuracy - baselineAccuracy) * 10) / 10;
 
   const backtestResults: BacktestResults = {
+    replayVersion: 'four-factor-pregame-v1',
     modelId: model.id,
     modelName: model.name,
     dateRange,

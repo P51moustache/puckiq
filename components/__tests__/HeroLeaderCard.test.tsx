@@ -233,7 +233,7 @@ describe('HeroLeaderCard', () => {
         onPress: mockOnPress,
       });
       const texts = collectTexts(result);
-      expect(texts).toContain('RECENT 5 GAMES');
+      expect(texts.join('')).toContain('RECENT 5 GAMES');
       expect(texts).toContain('0.80');
     });
 
@@ -373,7 +373,7 @@ describe('HeroLeaderCard', () => {
       const texts = collectTexts(result);
       // Redesigned card labels the streak block "GAME STREAK" with the
       // raw streak count rendered as its own value.
-      expect(texts).toContain('GAME STREAK');
+      expect(texts).toContain('POINT STREAK');
       expect(texts).toContain('5');
     });
 
@@ -404,9 +404,9 @@ describe('HeroLeaderCard', () => {
       expect(texts.join('')).toContain('SEASON 15.2%');
     });
 
-    it('does not render the shooting % block when seasonShootingPct is 0', () => {
+    it('does not render the shooting % block when seasonShootingPct is missing', () => {
       const result = HeroLeaderCard({
-        player: makePlayer({ seasonShootingPct: 0 }),
+        player: makePlayer({ seasonShootingPct: null }),
         statCategory: 'goals',
         onPress: mockOnPress,
       });
@@ -483,4 +483,18 @@ describe('HeroLeaderCard', () => {
       expect(mockOnPress).toHaveBeenCalledWith(97);
     });
   });
+});
+
+test('shots card labels the actual season total, never the recent rate', () => {
+ const texts = collectTexts(HeroLeaderCard({player:makePlayer({...({seasonShots:175} as any)}),statCategory:'shots',onPress:jest.fn()}));
+ expect(texts).toContain('175'); expect(texts).toContain('SHOTS');
+});
+
+test.each(['goals','assists','points','shots'] as const)('hero labels %s and honors real zero',category=>{
+ const texts=collectTexts(HeroLeaderCard({player:makePlayer({seasonGoals:0,seasonAssists:0,seasonPoints:0,seasonShots:0,avgGoals5g:0,avgAssists5g:0,avgPoints5g:0,avgShots5g:0,recentAvailable:true}),statCategory:category,onPress:jest.fn()}));
+ expect(texts).toContain(category.toUpperCase());expect(texts).toContain('0.00');
+});
+test('hero suppresses unknown recent values and shows actual source season',()=>{
+ const texts=collectTexts(HeroLeaderCard({player:makePlayer({recentAvailable:false,recentSampleSize:0,season:20252026}),statCategory:'points',onPress:jest.fn()}));
+ expect(texts).toContain('—');expect(texts.join('')).toContain('2025–26');expect(texts).not.toContain('1.80');
 });

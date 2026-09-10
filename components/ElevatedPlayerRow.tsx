@@ -10,7 +10,6 @@ import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-nativ
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { Sparkline } from './Sparkline';
 import { rinkGlass } from '../constants/theme';
 import { arenaType } from '../constants/arenaTypography';
 import { getArenaPalette, type ArenaPalette } from '../constants/arenaTheme';
@@ -25,27 +24,6 @@ const TREND_ICONS: Record<string, { name: keyof typeof Ionicons.glyphMap; color:
   COLD: { name: 'arrow-down', color: rinkGlass.blueLight },
 };
 
-/** Build a simple 5-value sparkline array from available trend data. */
-function buildSparklineData(player: TrendingPlayer, trend?: LeaderTrend): number[] {
-  if (trend) {
-    return [
-      trend.seasonPpg,
-      Math.max(trend.recentPpg * 0.8, trend.seasonPpg * 0.9),
-      trend.recentPpg,
-      trend.recentPpg * (1 + trend.hotColdScore * 0.05),
-      trend.recentPpg * (1 + trend.hotColdScore * 0.1),
-    ].map(v => Math.max(v, 0));
-  }
-  // Fallback from player data
-  return [
-    player.seasonPpg,
-    (player.seasonPpg + player.avgPoints5g) / 2,
-    player.avgPoints5g,
-    player.avgPoints10g,
-    player.recentPpg,
-  ].map(v => Math.max(v, 0));
-}
-
 interface ElevatedPlayerRowProps {
   player: TrendingPlayer;
   rank: number;
@@ -59,14 +37,14 @@ interface ElevatedPlayerRowProps {
 export default React.memo(function ElevatedPlayerRow({
   player,
   rank,
-  leaderTrend,
+  statCategory,
   onPress,
   palette,
 }: ElevatedPlayerRowProps) {
   const p = palette ?? getArenaPalette();
   const handlePress = useCallback(() => onPress(player.playerId), [onPress, player.playerId]);
-  const trendIcon = TREND_ICONS[player.trendLabel];
-  const sparklineData = buildSparklineData(player, leaderTrend);
+  const trendIcon = player.recentAvailable !== false ? TREND_ICONS[player.trendLabel] : undefined;
+  const total = {goals:player.seasonGoals, assists:player.seasonAssists, points:player.seasonPoints, shots:player.seasonShots}[statCategory];
 
   // Watchlist state
   const [isWatched, setIsWatched] = useState(false);
@@ -134,16 +112,9 @@ export default React.memo(function ElevatedPlayerRow({
         </Text>
       </View>
 
-      <Sparkline
-        data={sparklineData}
-        width={50}
-        height={18}
-        color={p.link}
-      />
-
       <View style={styles.statContainer}>
-        <Text style={[styles.pointsTotal, { color: p.ink, fontFamily: arenaType.display }]}>{player.seasonPoints}</Text>
-        <Text style={[styles.ppgLabel, { color: p.muted, fontFamily: arenaType.body }]}>{player.gamesPlayed} GP</Text>
+        <Text style={[styles.pointsTotal, { color: p.ink, fontFamily: arenaType.display }]}>{total ?? '—'}</Text>
+        <Text style={[styles.ppgLabel, { color: p.muted, fontFamily: arenaType.body }]}>{statCategory.toUpperCase()} · {player.gamesPlayed} GP</Text>
       </View>
 
       <TouchableOpacity

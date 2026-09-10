@@ -4,8 +4,10 @@ import type {
   ArenaGame,
   ArenaGoalie,
   ArenaStanding,
+  SourceFreshness,
 } from "../types/arena";
 import { getArenaTeam } from "../constants/arenaTheme";
+import { getPlayerDetail, type GoalieSeasonStats } from './playerDetail';
 
 const GAME_COLUMNS =
   "id,season,game_date,start_time_utc,game_type,game_state,home_team_abbrev,away_team_abbrev,home_score,away_score,venue,updated_at";
@@ -163,7 +165,7 @@ export async function fetchArenaGames(
   return {
     games: rows.map(
       (row) =>
-        ({ ...row, forecast: forecasts.get(row.id) ?? null }) as ArenaGame,
+        applyGameFreshness({ ...row, forecast: forecasts.get(row.id) ?? null } as ArenaGame),
     ),
     notice: predictions.error
       ? "Forecasts are temporarily unavailable. The schedule is still available."
@@ -198,6 +200,7 @@ export async function fetchArenaStandings(
 }
 
 export interface ArenaPreviewData {
+  sources?: { goalies: SourceFreshness; specialTeams: SourceFreshness };
   standings: ArenaStanding[];
   goalies: ArenaGoalie[];
   specialTeams: {
@@ -218,17 +221,17 @@ export async function fetchArenaPreview(
       supabase
         .from("goalie_season_stats")
         .select(
-          "player_id,team_abbrev,games_played,save_pctg,goals_against_avg",
+          "player_id,team_abbrev,games_played,save_pctg,goals_against_avg,updated_at",
         )
         .eq("season", game.season)
         .in("team_abbrev", teams)
         .order("games_played", { ascending: false }),
       supabase
         .from("team_stat_categories")
-        .select("team_abbrev,data")
+        .select("team_abbrev,data,fetched_at")
         .eq("season", game.season)
         .eq("stat_category", "summary")
-        .in("team_abbrev", teams),
+        .in("team_abbrev", teams).order("fetched_at", { ascending: false }),
     ]);
   const notices: string[] = [];
   const standings =
@@ -245,22 +248,26 @@ export async function fetchArenaPreview(
     notices.push("Goalie statistics could not be refreshed.");
   let goalies: ArenaGoalie[] = [];
   if (goalieRows.length) {
-    const players = await supabase
-      .from("players")
-      .select("id,full_name,headshot_url")
-      .in(
-        "id",
-        goalieRows.map((g) => g.player_id),
-      );
-    if (players.error) notices.push("Goalie names could not be refreshed.");
-    goalies = goalieRows.map((g) => {
-      const person = players.data?.find((p) => p.id === g.player_id);
+    const checked = await Promise.all(goalieRows.map(async (g): Promise<ArenaGoalie | null> => {
+      const detail = await getPlayerDetail(g.player_id);
+      if (!detail || detail.season !== game.season || !detail.seasonStats) return null;
+      // Full-player totals belong to the current roster club, never both sides
+      // of a matchup when historical team splits exist for a traded goalie.
+      if (detail.bio.position !== 'G' || detail.bio.teamAbbrev !== g.team_abbrev) return null;
+      const stats = detail.seasonStats as GoalieSeasonStats;
+      if (stats.gamesPlayed === null) return null;
       return {
         ...g,
-        name: person?.full_name ?? "Name unavailable",
-        headshot: person?.headshot_url ?? null,
+        games_played: stats.gamesPlayed,
+        save_pctg: stats.savePctg,
+        goals_against_avg: stats.goalsAgainstAvg,
+        updated_at: detail.asOf,
+        name: detail.bio.fullName,
+        headshot: detail.bio.headshotUrl ?? null,
       };
-    });
+    }));
+    goalies = checked.filter((g): g is ArenaGoalie => g !== null);
+    if (goalies.length < goalieRows.length) notices.push('Some goalie season totals are unavailable or conflict with game records.');
   }
   const rate = (value: unknown) =>
     typeof value === "number" &&
@@ -271,11 +278,16 @@ export async function fetchArenaPreview(
       : null;
   const specialRows =
     specialResult.status === "fulfilled" && !specialResult.value.error
-      ? (specialResult.value.data ?? [])
+      ? (specialResult.value.data ?? []).filter(row => standings.some(s => s.team_abbrev === row.team_abbrev && s.games_played === row.data?.gamesPlayed))
       : [];
   if (specialResult.status === "rejected" || specialResult.value.error)
     notices.push("Special-teams statistics could not be refreshed.");
+  const oldest = (rows: Record<string, unknown>[], field: string): string | null => {
+    if (!rows.length || rows.some(row => typeof row[field] !== 'string' || !Number.isFinite(Date.parse(row[field] as string)))) return null;
+    return new Date(Math.min(...rows.map(row => Date.parse(row[field] as string)))).toISOString();
+  };
   return {
+    sources: { goalies: sourceFreshness(oldest(goalies.map(g => ({updated_at:g.updated_at})), 'updated_at')), specialTeams: sourceFreshness(oldest(specialRows, 'fetched_at')) },
     standings,
     goalies,
     specialTeams: specialRows.map((row) => ({
@@ -298,4 +310,31 @@ export async function fetchArenaResults(ids: number[]): Promise<ArenaGame[]> {
       "Saved-game results could not be refreshed. Your saved cards are safe.",
     );
   return (data ?? []).map((row) => ({ ...row, forecast: null }) as ArenaGame);
+}
+
+/** Source age is measured from the stored timestamp, never the fetch completion. */
+export function sourceFreshness(asOf: string | null | undefined, now = new Date(), maxAgeHours = 36): SourceFreshness {
+  const timestamp = asOf ? Date.parse(asOf) : NaN;
+  if (!Number.isFinite(timestamp) || timestamp > now.getTime() + 300_000) return { asOf: asOf ?? null, ageHours: null, status: 'unknown' };
+  const ageHours = Math.max(0, (now.getTime() - timestamp) / 3_600_000);
+  return { asOf: asOf!, ageHours, status: ageHours > maxAgeHours ? 'stale' : 'fresh' };
+}
+export function applyGameFreshness(game: ArenaGame, now = new Date()): ArenaGame {
+  const source = sourceFreshness(game.updated_at, now);
+  const prediction = sourceFreshness(game.forecast?.predictedAt, now);
+  const historical = isFinalGame(game) || isLiveGame(game);
+  const pregame = game.forecast && Date.parse(game.forecast.predictedAt) <= Date.parse(game.start_time_utc);
+  const available = game.game_type !== 1 && !!pregame && (historical || (prediction.status === 'fresh' && source.status === 'fresh'));
+  return { ...game, forecast: available ? game.forecast : null, freshness: { source, prediction, forecastUnavailable: !available } };
+}
+export async function fetchArenaGameById(id: number): Promise<ArenaGame | null> {
+  if (!Number.isSafeInteger(id) || id <= 0) return null;
+  const result = await supabase.from('games').select(GAME_COLUMNS).eq('id', id).limit(1);
+  if (result.error) throw new Error('This game could not be loaded. Please try again.');
+  const game = result.data?.[0];
+  if (!game) return null;
+  const predictions = await supabase.from('ml_predictions')
+    .select('game_id,home_win_prob,away_win_prob,model_type,model_version,predicted_at,data_quality')
+    .eq('game_id', id).eq('model_type', 'game_winner').order('predicted_at', { ascending: false }).limit(1);
+  return applyGameFreshness({ ...game, forecast: predictions.error ? null : normalizeArenaForecast(predictions.data?.[0] ?? null) } as ArenaGame);
 }

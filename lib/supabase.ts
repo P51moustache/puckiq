@@ -35,6 +35,7 @@ const safeStorage = {
 
 export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '', {
   auth: {
+    flowType: 'pkce',
     storage: safeStorage,
     autoRefreshToken: true,
     persistSession: true,

@@ -176,7 +176,7 @@ export default React.memo(function PlayerEdgeCard({
         </Text>
         {player.pointStreak > 0 && (
           <Text style={styles.streakText}>
-            {player.pointStreak}G streak
+            {player.pointStreak}{player.pointStreakIsMinimum ? "+" : ""}G point streak
           </Text>
         )}
         {isOverSeason && (

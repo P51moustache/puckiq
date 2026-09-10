@@ -13,152 +13,43 @@ import {
 } from '../types/teamStats';
 import { supabase } from '../lib/supabase';
 
-/**
- * Current NHL season encoded as start-end years (e.g. 20252026).
- * Derived from today's date — Aug→Dec uses next-year suffix; Jan→Jul uses
- * current calendar year as the END year. Matches scripts/sync naming.
- */
-function currentSeasonId(): number {
-  const now = new Date();
-  const y = now.getUTCFullYear();
-  const m = now.getUTCMonth(); // 0-indexed
-  // NHL season starts in October; treat July (month 6) onward as the "next" season starting.
-  if (m >= 6) return Number(`${y}${y + 1}`);
-  return Number(`${y - 1}${y}`);
+import { fetchArenaStandings } from './arenaData';
+import type { ArenaStanding } from '../types/arena';
+
+export async function getTeamComparisonPair(a: string, b: string): Promise<[TeamComparisonStats, TeamComparisonStats]> {
+  const snapshot = await fetchArenaStandings();
+  return Promise.all([getTeamComparisonData(a, snapshot), getTeamComparisonData(b, snapshot)]);
 }
 
-/**
- * Fetch comprehensive team statistics for comparison
- */
-export async function getTeamComparisonData(
-  teamAbbrev: string,
-  standingsData?: any
-): Promise<TeamComparisonStats> {
-  // --- Supabase-first: standings + team summary + skater/goalie aggregates ---
-  try {
-    const season = currentSeasonId();
-    const [standingsRes, summaryRes, penaltiesRes, skatersRes, goaliesRes] = await Promise.all([
-      supabase
-        .from('standings')
-        .select('*')
-        .order('snapshot_date', { ascending: false })
-        .limit(32),
-      supabase
-        .from('team_stat_categories')
-        .select('data')
-        .eq('team_abbrev', teamAbbrev)
-        .eq('stat_category', 'summary')
-        .limit(1),
-      // Authoritative penalty stats from NHL /team/penalties endpoint.
-      // Populated by the daily sync-stat-categories job.
-      supabase
-        .from('team_stat_categories')
-        .select('data')
-        .eq('team_abbrev', teamAbbrev)
-        .eq('stat_category', 'penalties')
-        .limit(1),
-      // Skater/goalie aggregates only used as a fallback when the
-      // penalties category isn't populated yet.
-      supabase
-        .from('skater_season_stats')
-        .select('power_play_goals, pim, games_played')
-        .eq('team_abbrev', teamAbbrev)
-        .eq('season', season),
-      supabase
-        .from('goalie_season_stats')
-        .select('shutouts, pim')
-        .eq('team_abbrev', teamAbbrev)
-        .eq('season', season),
-    ]);
-
-    if (!standingsRes.error && standingsRes.data && standingsRes.data.length > 0) {
-      const allStandings = standingsRes.data;
-      const teamStanding = allStandings.find((t: any) => t.team_abbrev === teamAbbrev);
-
-      if (teamStanding) {
-        // Extract team summary from team_stat_categories JSONB
-        let teamSummary: any = null;
-        if (!summaryRes.error && summaryRes.data && summaryRes.data.length > 0) {
-          teamSummary = summaryRes.data[0].data;
-        }
-
-        // Authoritative penalty stats from NHL /team/penalties endpoint.
-        // Keys per the API response:
-        //   penalties      — total penalty count this season
-        //   penaltyMinutes — total PIM this season
-        //   gamesPlayed    — denominator for per-game rates
-        // (No timesShortHanded here — that's on /team/penaltykill, which
-        // counts opponent PP opportunities, slightly different concept.)
-        let realPenaltyCountPerGame: number | null = null;
-        let realPenaltyMinutesTotal: number | null = null;
-        if (!penaltiesRes.error && penaltiesRes.data && penaltiesRes.data.length > 0) {
-          const pData = (penaltiesRes.data[0] as any).data ?? {};
-          const count = pData.penalties;
-          const gp = pData.gamesPlayed;
-          const pim = pData.penaltyMinutes;
-          if (typeof count === 'number' && typeof gp === 'number' && gp > 0) {
-            realPenaltyCountPerGame = count / gp;
-          }
-          if (typeof pim === 'number' && pim > 0) {
-            realPenaltyMinutesTotal = pim;
-          }
-        }
-
-        // Aggregate skater + goalie season totals (used for PP goals and
-        // as a fallback for PIM if the penalties category isn't synced).
-        let clubStats: any = null;
-        if (!skatersRes.error && skatersRes.data && skatersRes.data.length > 0) {
-          let totalPpGoals = 0;
-          let totalSkaterPim = 0;
-          for (const s of skatersRes.data as any[]) {
-            totalPpGoals += s.power_play_goals || 0;
-            totalSkaterPim += s.pim || 0;
-          }
-          let totalGoaliePim = 0;
-          let totalShutouts = 0;
-          if (!goaliesRes.error && goaliesRes.data) {
-            for (const g of goaliesRes.data as any[]) {
-              totalGoaliePim += g.pim || 0;
-              totalShutouts += g.shutouts || 0;
-            }
-          }
-          clubStats = {
-            powerPlayGoals: totalPpGoals,
-            penaltyMinutes: totalSkaterPim + totalGoaliePim,
-            shutouts: totalShutouts,
-            realPenaltyCountPerGame,
-            realPenaltyMinutesTotal,
-          };
-        }
-
-        // Transform Supabase standings row to NHL API-like shape for buildTeamStats
-        const standingsForBuilder = allStandings.map((s: any) => ({
-          teamAbbrev: s.team_abbrev,
-          teamId: s.team_id,
-          gamesPlayed: s.games_played,
-          wins: s.wins,
-          losses: s.losses,
-          otLosses: s.ot_losses,
-          points: s.points,
-          goalFor: s.goals_for,
-          goalAgainst: s.goals_against,
-        }));
-
-        const teamStandingMapped = standingsForBuilder.find((t: any) => t.teamAbbrev === teamAbbrev);
-        if (teamStandingMapped) {
-          const teamId = teamSummary?.teamId ?? teamStanding.team_id ?? 0;
-          console.log(`[TEAM COMPARISON] [SUPABASE] Loaded stats for ${teamAbbrev}`);
-          return buildTeamStats(teamId, teamAbbrev, standingsForBuilder, teamStandingMapped, clubStats, teamSummary);
-        }
-      }
-    }
-    console.warn(`[TEAM COMPARISON] [SUPABASE] No data for ${teamAbbrev}`);
-  } catch (sbErr) {
-    console.warn(`[TEAM COMPARISON] [SUPABASE] Error querying data`, sbErr);
+/** Every compared team uses the same exact standings snapshot and regular season. */
+export async function getTeamComparisonData(teamAbbrev: string, context?: ArenaStanding[]): Promise<TeamComparisonStats> {
+  const snapshot = context ?? await fetchArenaStandings();
+  const standing = snapshot.find(row => row.team_abbrev === teamAbbrev);
+  if (!standing) throw new Error(`Statistics unavailable for ${teamAbbrev} in this snapshot.`);
+  const season = standing.season;
+  if (snapshot.some(row => row.season !== season || row.snapshot_date !== standing.snapshot_date)) {
+    throw new Error('Team statistics do not share a coherent snapshot.');
   }
-
-  // Supabase-only: no NHL API fallback (deprecated service)
-  throw new Error(`[TEAM COMPARISON] No Supabase data available for ${teamAbbrev}`);
+  const categories = await supabase.from('team_stat_categories').select('stat_category,data,fetched_at')
+    .eq('team_abbrev', teamAbbrev).eq('season', season)
+    .in('stat_category', ['summary', 'penalties']).order('fetched_at', { ascending: false });
+  // Category tables are regular-season feeds. Require matching games played so a
+  // later rolling category snapshot cannot silently enrich an older standing.
+  const rows = categories.error ? [] : categories.data ?? [];
+  const compatible = (category: string) => rows.find((row: any) => row.stat_category === category && row.data?.gamesPlayed === standing.games_played);
+  const summary = compatible('summary');
+  const penalties = compatible('penalties');
+  const finite = (value: unknown) => typeof value === 'number' && Number.isFinite(value) ? value : NaN;
+  const mapped = snapshot.map(row => ({ teamAbbrev: row.team_abbrev, gamesPlayed: row.games_played, goalFor: row.goals_for, goalAgainst: row.goals_against, wins: row.wins, losses: row.losses, otLosses: row.ot_losses, points: row.points }));
+  const stats = buildTeamStats(summary?.data?.teamId ?? 0, teamAbbrev, mapped,
+    mapped.find(row => row.teamAbbrev === teamAbbrev), {
+      powerPlayGoals: finite(summary?.data?.powerPlayGoals),
+      shutouts: finite(summary?.data?.shutouts),
+      realPenaltyCountPerGame: standing.games_played > 0 ? finite(penalties?.data?.penalties) / standing.games_played : NaN,
+      realPenaltyMinutesTotal: finite(penalties?.data?.penaltyMinutes),
+    }, summary?.data);
+  stats.period = { season, snapshotDate: standing.snapshot_date, gameType: 2, summaryAsOf: summary?.fetched_at ?? null, penaltiesAsOf: penalties?.fetched_at ?? null };
+  return stats;
 }
 
 /**
@@ -172,18 +63,12 @@ function buildTeamStats(
   clubStats: any = null,
   teamSummary: any = null
 ): TeamComparisonStats {
-  const gamesPlayed = standingData?.gamesPlayed || 1;
-  const goalsFor = standingData?.goalFor || standingData?.goalsFor || 0;
-  const goalsAgainst = standingData?.goalAgainst || standingData?.goalsAgainst || 0;
-  const wins = standingData?.wins || 0;
-  const losses = standingData?.losses || 0;
-  const otLosses = standingData?.otLosses || 0;
-  const points = standingData?.points || 0;
-  const pointsPct = points / (gamesPlayed * 2);
+  const gamesPlayed = standingData?.gamesPlayed > 0 ? standingData.gamesPlayed : NaN;
+  const goalsFor = standingData?.goalFor ?? standingData?.goalsFor ?? NaN;
+  const goalsAgainst = standingData?.goalAgainst ?? standingData?.goalsAgainst ?? NaN;
 
   // Aggregated club stats (computed by the caller from skater + goalie season tables)
   const totalPowerPlayGoals = clubStats?.powerPlayGoals ?? 0;
-  const totalPenaltyMinutes = clubStats?.penaltyMinutes ?? 0;
   const totalShutouts = clubStats?.shutouts ?? 0;
 
   // Authoritative real penalty count + PIM season total from NHL API.
@@ -192,14 +77,14 @@ function buildTeamStats(
   const realPenaltyMinutesTotal: number | null = clubStats?.realPenaltyMinutesTotal ?? null;
 
   // Use REAL team-level stats from team summary API (not estimates!)
-  const shotsPerGame = teamSummary?.shotsForPerGame || 0;
-  const shotsAgainstPerGame = teamSummary?.shotsAgainstPerGame || 0;
-  const shootingPct = shotsPerGame > 0 ? (goalsFor / (shotsPerGame * gamesPlayed)) * 100 : 0;
-  const savePct = shotsAgainstPerGame > 0 ? 1 - (goalsAgainst / (shotsAgainstPerGame * gamesPlayed)) : 0;
+  const shotsPerGame = teamSummary?.shotsForPerGame ?? NaN;
+  const shotsAgainstPerGame = teamSummary?.shotsAgainstPerGame ?? NaN;
+  const shootingPct = shotsPerGame > 0 ? (goalsFor / (shotsPerGame * gamesPlayed)) * 100 : NaN;
+  const savePct = shotsAgainstPerGame > 0 ? 1 - (goalsAgainst / (shotsAgainstPerGame * gamesPlayed)) : NaN;
 
   // Use REAL PP% and PK% from team summary (not estimated!)
-  const powerPlayPct = (teamSummary?.powerPlayPct || 0) * 100;
-  const penaltyKillPct = (teamSummary?.penaltyKillPct || 0) * 100;
+  const powerPlayPct = (teamSummary?.powerPlayPct ?? NaN) * 100;
+  const penaltyKillPct = (teamSummary?.penaltyKillPct ?? NaN) * 100;
 
   // Calculate rankings across all teams
   const teamRankings = calculateAllRankings(allTeamsStandings, teamAbbrev, clubStats);
@@ -207,8 +92,6 @@ function buildTeamStats(
   // Real data from NHL API
   const goalsForPerGame = goalsFor / gamesPlayed;
   const goalsAgainstPerGame = goalsAgainst / gamesPlayed;
-  const winPct = (wins / gamesPlayed) * 100;
-  const goalDifferential = goalsFor - goalsAgainst;
 
   // Offense stats (real data from standings + aggregated player stats)
   const offense: OffenseStats = {
@@ -222,7 +105,7 @@ function buildTeamStats(
     powerPlayGoalsRank: teamRankings.powerPlayGoalsRank,
     powerPlayPct: powerPlayPct,
     powerPlayPctRank: teamRankings.powerPlayPctRank,
-    scoringFirst: 0, // Not available from API
+    scoringFirst: NaN, // Not available from API
     scoringFirstRank: undefined,
   };
 
@@ -234,47 +117,47 @@ function buildTeamStats(
     shotsAgainstPerGameRank: teamRankings.shotsAgainstPerGameRank,
     penaltyKillPct: penaltyKillPct,
     penaltyKillPctRank: teamRankings.penaltyKillPctRank,
-    blockedShots: 0, // Not available from player stats
+    blockedShots: NaN, // Not available from player stats
     blockedShotsRank: undefined,
-    takeaways: 0, // Not available from player stats
+    takeaways: NaN, // Not available from player stats
     takeawaysRank: undefined,
-    hits: 0, // Not available from player stats
+    hits: NaN, // Not available from player stats
     hitsRank: undefined,
   };
 
   // Special Teams stats (using real NHL data)
   const specialTeams: SpecialTeamsStats = {
-    powerPlayOpportunities: 0, // Not available from API
+    powerPlayOpportunities: NaN, // Not available from API
     powerPlayOpportunitiesRank: undefined,
     powerPlayPct: powerPlayPct,
     powerPlayPctRank: teamRankings.powerPlayPctRank,
     penaltyKillPct: penaltyKillPct,
     penaltyKillPctRank: teamRankings.penaltyKillPctRank,
-    shorthandedGoals: 0, // Not available from API
+    shorthandedGoals: NaN, // Not available from API
     shorthandedGoalsRank: undefined,
     powerPlayGoalsFor: totalPowerPlayGoals,
     powerPlayGoalsForRank: teamRankings.powerPlayGoalsRank,
-    powerPlayGoalsAgainst: 0, // Not available from API
+    powerPlayGoalsAgainst: NaN, // Not available from API
     powerPlayGoalsAgainstRank: undefined,
   };
 
   // Advanced stats - not available from standings API
   const advanced: AdvancedStats = {
-    corsiForPct: 0,
+    corsiForPct: NaN,
     corsiForPctRank: undefined,
-    fenwickForPct: 0,
+    fenwickForPct: NaN,
     fenwickForPctRank: undefined,
-    pdo: 0,
+    pdo: NaN,
     pdoRank: undefined,
-    expectedGoalsFor: 0,
+    expectedGoalsFor: NaN,
     expectedGoalsForRank: undefined,
-    expectedGoalsAgainst: 0,
+    expectedGoalsAgainst: NaN,
     expectedGoalsAgainstRank: undefined,
-    highDangerChancesFor: 0,
+    highDangerChancesFor: NaN,
     highDangerChancesForRank: undefined,
-    highDangerChancesAgainst: 0,
+    highDangerChancesAgainst: NaN,
     highDangerChancesAgainstRank: undefined,
-    shotQuality: 0,
+    shotQuality: NaN,
     shotQualityRank: undefined,
   };
 
@@ -286,11 +169,11 @@ function buildTeamStats(
     goalsAgainstAverageRank: teamRankings.goalsAgainstPerGameRank,
     shutouts: totalShutouts,
     shutoutsRank: undefined,
-    qualityStarts: 0, // Not available
+    qualityStarts: NaN, // Not available
     qualityStartsRank: undefined,
-    highDangerSavePct: 0, // Not available
+    highDangerSavePct: NaN, // Not available
     highDangerSavePctRank: undefined,
-    reboundControl: 0, // Not available
+    reboundControl: NaN, // Not available
     reboundControlRank: undefined,
   };
 
@@ -303,9 +186,9 @@ function buildTeamStats(
     penaltiesPerGameRank: undefined,
     penaltyMinutes: penaltyMinutesValue,
     penaltyMinutesRank: undefined,
-    minorPenalties: 0,
+    minorPenalties: NaN,
     minorPenaltiesRank: undefined,
-    majorPenalties: 0,
+    majorPenalties: NaN,
     majorPenaltiesRank: undefined,
   };
 
@@ -327,9 +210,9 @@ function buildTeamStats(
 function calculateAllRankings(allTeamsStandings: any[], teamAbbrev: string, clubStats: any = null): any {
   // Calculate metrics for all teams
   const allTeamsMetrics = allTeamsStandings.map((team: any) => {
-    const gp = team.gamesPlayed || 1;
-    const gf = team.goalFor || team.goalsFor || 0;
-    const ga = team.goalAgainst || team.goalsAgainst || 0;
+    const gp = team.gamesPlayed > 0 ? team.gamesPlayed : NaN;
+    const gf = team.goalFor ?? team.goalsFor ?? NaN;
+    const ga = team.goalAgainst ?? team.goalsAgainst ?? NaN;
 
     return {
       teamAbbrev: team.teamAbbrev?.default || team.teamAbbrev,
@@ -341,7 +224,7 @@ function calculateAllRankings(allTeamsStandings: any[], teamAbbrev: string, club
   // Helper to get rank
   const getRank = (metric: string, higherIsBetter: boolean = true) => {
     const sorted = [...allTeamsMetrics]
-      .filter((t: any) => t[metric] !== undefined)
+      .filter((t: any) => Number.isFinite(t[metric]))
       .sort((a: any, b: any) => higherIsBetter ? b[metric] - a[metric] : a[metric] - b[metric]);
 
     const teamIndex = sorted.findIndex((t: any) => t.teamAbbrev === teamAbbrev);
@@ -404,6 +287,8 @@ export function calculateCategoryWinners(
     goaltending: 'tie',
     discipline: 'tie',
   };
+
+  if (homeStats.period && awayStats.period && (homeStats.period.season !== awayStats.period.season || homeStats.period.snapshotDate !== awayStats.period.snapshotDate)) return categories;
 
   // Offense: count wins for key stats
   let offenseHome = 0;
@@ -486,12 +371,14 @@ export function calculateCategoryWinners(
  */
 export function formatStatValue(
   value: number,
-  format: 'number' | 'percentage' | 'decimal' = 'number',
+  format: 'number' | 'percentage' | 'decimal' | 'saveFraction' = 'number',
   decimals: number = 1
 ): string {
-  if (value === undefined || value === null || isNaN(value)) return 'N/A';
+  if (value === undefined || value === null || !Number.isFinite(value)) return 'N/A';
 
   switch (format) {
+    case 'saveFraction':
+      return value.toFixed(3).replace(/^0\./, '.');
     case 'percentage':
       return `${value.toFixed(decimals)}%`;
     case 'decimal':

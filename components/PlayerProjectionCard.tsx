@@ -152,7 +152,7 @@ export default React.memo(function PlayerProjectionCard({
           <View style={styles.streakRow}>
             <Ionicons name="flame" size={14} color="#f97316" />
             <Text style={[styles.streakText, { color: p.muted }]}>
-              {projection.pointStreak}-game point streak
+              {projection.pointStreak}{projection.pointStreakIsMinimum ? "+" : ""}-game point streak
             </Text>
           </View>
         )}

@@ -6,8 +6,17 @@ import { Alert, Platform } from 'react-native';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../../lib/supabase';
 import AnalyticsService from '../../services/analytics/AnalyticsService';
+import { createGoogleSignIn } from '../../services/googleAuth';
 
 WebBrowser.maybeCompleteAuthSession();
+
+const runGoogleSignIn = createGoogleSignIn({
+  start: (redirectTo) => supabase.auth.signInWithOAuth({
+    provider: 'google', options: { redirectTo, skipBrowserRedirect: true },
+  }),
+  open: (url, redirectTo) => WebBrowser.openAuthSessionAsync(url, redirectTo),
+  exchange: (code) => supabase.auth.exchangeCodeForSession(code),
+});
 
 type AuthContextValue = {
   session: Session | null;
@@ -53,9 +62,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    let mounted = true;
+    supabase.auth.getSession().then(({ data, error: sessionError }) => {
+      if (!mounted) return;
+      if (sessionError) setError(sessionError.message);
       handleAuthChange(data.session);
-      setInitializing(false);
+    }).catch(() => {
+      if (mounted) setError('Could not restore your session. Please sign in again.');
+    }).finally(() => {
+      if (mounted) setInitializing(false);
     });
 
     const {
@@ -64,7 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       handleAuthChange(nextSession);
     });
 
-    return () => subscription.unsubscribe();
+    return () => { mounted = false; subscription.unsubscribe(); };
   }, [handleAuthChange]);
 
   const signInWithEmail = useCallback(async (email: string, password: string) => {
@@ -138,41 +153,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       path: 'auth/callback',
     });
 
-    const { data, error: authError } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo,
-        skipBrowserRedirect: true,
-      },
-    });
-
-    if (authError) {
-      setError(authError.message);
-      return false;
-    }
-
-    if (data?.url) {
-      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
-      if (result.type === 'success' && result.url) {
-        // Extract the authorization code from the callback URL
-        const url = new URL(result.url);
-        const code = url.searchParams.get('code');
-
-        if (!code) {
-          setError('No authorization code received from Google');
-          return false;
-        }
-
-        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-        if (exchangeError) {
-          setError(exchangeError.message);
-          return false;
-        }
-        return true;
-      }
-    }
-
-    return false;
+    const result = await runGoogleSignIn(redirectTo);
+    setError(result.error);
+    return result.ok;
   }, []);
 
   const refreshSession = useCallback(async () => {

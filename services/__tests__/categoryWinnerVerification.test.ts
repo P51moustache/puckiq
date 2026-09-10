@@ -89,8 +89,8 @@ describe('Category Winner Verification', () => {
 
     // Defense should be based on 3 real stats, not including blockedShots
     // Verify blockedShots is not affecting the result
-    expect(tor.defense.blockedShots).toBe(0);
-    expect(bos.defense.blockedShots).toBe(0);
+    expect(tor.defense.blockedShots).toBeNaN();
+    expect(bos.defense.blockedShots).toBeNaN();
 
     // Winners should be deterministic with our mock data
     expect(gaWinner).toBeDefined();

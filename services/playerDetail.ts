@@ -13,7 +13,7 @@
  */
 
 import { supabase } from '../lib/supabase';
-import { computeSavePct } from './goalieRates';
+import { aggregateSeasonRows, latestSeason, normalizeCareerTotals, numberOrNull, scopedGames, seasonTotalsConflict } from '../utils/playerStats';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -41,37 +41,37 @@ export interface PlayerBio {
 }
 
 export interface SkaterSeasonStats {
-  gamesPlayed: number;
-  goals: number;
-  assists: number;
-  points: number;
-  plusMinus: number;
-  pim: number;
-  powerPlayGoals: number;
-  shorthandedGoals: number;
-  gameWinningGoals: number;
-  shots: number;
-  shootingPctg: number;
-  avgToi: number;
-  faceoffWinPctg: number;
+  gamesPlayed: number | null;
+  goals: number | null;
+  assists: number | null;
+  points: number | null;
+  plusMinus: number | null;
+  pim: number | null;
+  powerPlayGoals: number | null;
+  shorthandedGoals: number | null;
+  gameWinningGoals: number | null;
+  shots: number | null;
+  shootingPctg: number | null;
+  avgToi: number | null;
+  faceoffWinPctg: number | null;
 }
 
 export interface GoalieSeasonStats {
-  gamesPlayed: number;
-  gamesStarted: number;
-  wins: number;
-  losses: number;
-  otLosses: number;
-  goalsAgainstAvg: number;
-  savePctg: number;
-  shotsAgainst: number;
-  saves: number;
-  shutouts: number;
+  gamesPlayed: number | null;
+  gamesStarted: number | null;
+  wins: number | null;
+  losses: number | null;
+  otLosses: number | null;
+  goalsAgainstAvg: number | null;
+  savePctg: number | null;
+  shotsAgainst: number | null;
+  saves: number | null;
+  shutouts: number | null;
 }
 
 export interface PlayerCareer {
   seasonTotals: any[];
-  careerTotals: any;
+  careerTotals: Record<string, number>;
   awards: any[];
 }
 
@@ -90,18 +90,20 @@ export interface PlayerEdgeStats {
 }
 
 export interface RecentGame {
+  gameDate?: string;
+  opponent?: string;
   gameId: number;
-  goals: number;
-  assists: number;
-  points: number;
-  plusMinus: number;
+  goals: number | null;
+  assists: number | null;
+  points: number | null;
+  plusMinus: number | null;
   toi?: string;
-  shots?: number;
-  hits?: number;
-  blockedShots?: number;
+  shots?: number | null;
+  hits?: number | null;
+  blockedShots?: number | null;
   // Goalie-specific
-  saves?: number;
-  goalsAgainst?: number;
+  saves?: number | null;
+  goalsAgainst?: number | null;
   decision?: string;
 }
 
@@ -191,6 +193,11 @@ export interface SkaterTrends {
 }
 
 export interface PlayerDetail {
+  seasonStatsIssue?: 'conflicting_game_records';
+  season?: number;
+  gameType?: number;
+  asOf?: string;
+  recentSampleSize?: number;
   bio: PlayerBio;
   seasonStats: any; // SkaterSeasonStats | GoalieSeasonStats depending on position
   career: PlayerCareer | null;
@@ -244,22 +251,24 @@ export async function getPlayerDetail(playerId: number): Promise<PlayerDetail | 
     const bio = mapBio(playerRow);
     const isGoalie = bio.position === 'G';
 
-    // 2. Fetch all supplementary data in parallel
-    const [seasonStats, career, edgeStats, recentGames, trends] = await Promise.all([
-      fetchSeasonStats(playerId, isGoalie),
+    // Season rows are club-stats regular-season totals; the schema has no game_type.
+    const seasonStats = await fetchSeasonStats(playerId, isGoalie);
+    const season = (seasonStats as any)?.season as number | undefined;
+    const cutoff = new Date().toISOString().slice(0, 10);
+    const [career, edgeStats, recentGames] = await Promise.all([
       fetchCareerData(playerId),
-      isGoalie ? Promise.resolve(null) : fetchEdgeStats(playerId),
-      fetchRecentGames(playerId, isGoalie),
-      isGoalie ? fetchGoalieTrends(playerId) : fetchSkaterTrends(playerId),
+      !isGoalie && season ? fetchEdgeStats(playerId, season) : Promise.resolve(null),
+      season ? fetchRecentGames(playerId, isGoalie, season, cutoff) : Promise.resolve([]),
     ]);
-
+    const inconsistentTotals = seasonStats !== null && seasonTotalsConflict(seasonStats, recentGames);
     const detail: PlayerDetail = {
-      bio,
-      seasonStats: seasonStats ?? (isGoalie ? defaultGoalieStats() : defaultSkaterStats()),
-      career,
-      edgeStats,
-      recentGames,
-      trends,
+      bio, seasonStats: inconsistentTotals ? null : seasonStats, career, edgeStats, recentGames,
+      seasonStatsIssue: inconsistentTotals ? 'conflicting_game_records' : undefined,
+      // Existing rolling/advanced views do not expose a trustworthy period.
+      trends: null,
+      season, gameType: season ? 2 : undefined,
+      asOf: (seasonStats as any)?.asOf,
+      recentSampleSize: recentGames.length,
     };
 
     detailCache.set(playerId, { data: detail, timestamp: Date.now() });
@@ -280,56 +289,28 @@ async function fetchSeasonStats(
   isGoalie: boolean,
 ): Promise<SkaterSeasonStats | GoalieSeasonStats | null> {
   try {
+    const { data, error } = await supabase.from(isGoalie ? 'goalie_season_stats' : 'skater_season_stats')
+      .select('*').eq('player_id', playerId).order('season', { ascending: false });
+    if (error || !data) return null;
+    const season = latestSeason(data);
+    if (!season) return null;
+    const row = aggregateSeasonRows(data, season)[0];
+    if (!row) return null;
+    const fields = isGoalie ? {
+      gamesPlayed:'games_played', gamesStarted:'games_started', wins:'wins', losses:'losses',
+      otLosses:'ot_losses', shotsAgainst:'shots_against', saves:'saves', shutouts:'shutouts',
+    } : {
+      gamesPlayed:'games_played', goals:'goals', assists:'assists', points:'points', plusMinus:'plus_minus',
+      pim:'pim', powerPlayGoals:'power_play_goals', shorthandedGoals:'shorthanded_goals', gameWinningGoals:'game_winning_goals',
+      shots:'shots', shootingPctg:'shooting_pctg', avgToi:'avg_toi_per_game', faceoffWinPctg:'faceoff_win_pctg',
+    };
+    const stats: any = Object.fromEntries(Object.entries(fields).map(([key, column]) => [key, numberOrNull(row[column!])]));
     if (isGoalie) {
-      const { data: rows, error } = await supabase
-        .from('goalie_season_stats')
-        .select('*')
-        .eq('player_id', playerId)
-        .order('season', { ascending: false })
-        .limit(1);
-
-      if (error || !rows || rows.length === 0) return null;
-      const row = rows[0];
-      return {
-        gamesPlayed: row.games_played || 0,
-        gamesStarted: row.games_started || 0,
-        wins: row.wins || 0,
-        losses: row.losses || 0,
-        otLosses: row.ot_losses || 0,
-        goalsAgainstAvg: row.goals_against_avg || 0,
-        savePctg: computeSavePct(row) ?? 0,
-        shotsAgainst: row.shots_against || 0,
-        saves: row.saves || 0,
-        shutouts: row.shutouts || 0,
-      } as GoalieSeasonStats;
+      stats.savePctg = numberOrNull(row.save_pctg) ?? (row.saves != null && row.shots_against > 0 ? row.saves / row.shots_against : null);
+      stats.goalsAgainstAvg = numberOrNull(row.goals_against_avg) ?? (row.goals_against != null && row.toi_seconds > 0 ? row.goals_against * 3600 / row.toi_seconds : null);
     }
-
-    const { data: rows, error } = await supabase
-      .from('skater_season_stats')
-      .select('*')
-      .eq('player_id', playerId)
-      .order('season', { ascending: false })
-      .limit(1);
-
-    if (error || !rows || rows.length === 0) return null;
-    const row = rows[0];
-    return {
-      gamesPlayed: row.games_played || 0,
-      goals: row.goals || 0,
-      assists: row.assists || 0,
-      points: row.points || 0,
-      plusMinus: row.plus_minus || 0,
-      pim: row.pim || 0,
-      powerPlayGoals: row.power_play_goals || 0,
-      shorthandedGoals: row.shorthanded_goals || 0,
-      gameWinningGoals: row.game_winning_goals || 0,
-      shots: row.shots || 0,
-      shootingPctg: row.shooting_pctg || 0,
-      avgToi: row.avg_toi_per_game || 0,
-      faceoffWinPctg: row.faceoff_win_pctg || 0,
-    } as SkaterSeasonStats;
-  } catch (err) {
-    console.warn(`[PLAYER DETAIL] Season stats error for ${playerId}:`, err);
+    return { ...stats, season, asOf: row.updated_at ?? undefined };
+  } catch {
     return null;
   }
 }
@@ -345,21 +326,22 @@ async function fetchCareerData(playerId: number): Promise<PlayerCareer | null> {
     if (error || !row) return null;
 
     return {
-      seasonTotals: row.season_totals || [],
-      careerTotals: row.career_totals || {},
-      awards: row.awards || [],
+      seasonTotals: Array.isArray(row.season_totals) ? row.season_totals : [],
+      careerTotals: normalizeCareerTotals(row.career_totals),
+      awards: Array.isArray(row.awards) ? row.awards : [],
     };
   } catch {
     return null;
   }
 }
 
-async function fetchEdgeStats(playerId: number): Promise<PlayerEdgeStats | null> {
+async function fetchEdgeStats(playerId: number, season?: number): Promise<PlayerEdgeStats | null> {
   try {
     const { data: rows, error } = await supabase
       .from('edge_skater_stats')
       .select('*')
       .eq('player_id', playerId)
+      .eq('season', season ?? -1)
       .limit(1);
 
     if (error || !rows || rows.length === 0) return null;
@@ -384,245 +366,35 @@ async function fetchEdgeStats(playerId: number): Promise<PlayerEdgeStats | null>
 }
 
 async function fetchRecentGames(
-  playerId: number,
-  isGoalie: boolean,
+  playerId: number, isGoalie: boolean, season?: number,
+  cutoff = new Date().toISOString().slice(0, 10),
 ): Promise<RecentGame[]> {
+  if (!season) return [];
   try {
-    if (isGoalie) {
-      const { data: rows, error } = await supabase
-        .from('game_goalie_stats')
-        .select('*')
-        .eq('player_id', playerId)
-        .order('game_id', { ascending: false })
-        .limit(5);
-
-      if (error || !rows) return [];
-      return rows.map((row: any) => ({
-        gameId: row.game_id,
-        goals: 0,
-        assists: 0,
-        points: 0,
-        plusMinus: 0,
-        saves: row.saves || 0,
-        goalsAgainst: row.goals_against || 0,
-        decision: row.decision ?? undefined,
-        toi: row.toi ?? undefined,
-      }));
-    }
-
-    const { data: rows, error } = await supabase
-      .from('game_skater_stats')
-      .select('*')
-      .eq('player_id', playerId)
-      .order('game_id', { ascending: false })
-      .limit(5);
-
-    if (error || !rows) return [];
-    return rows.map((row: any) => ({
-      gameId: row.game_id,
-      goals: row.goals || 0,
-      assists: row.assists || 0,
-      points: row.points || 0,
-      plusMinus: row.plus_minus || 0,
-      toi: row.toi ?? undefined,
-      shots: row.shots_on_goal ?? undefined,
-      hits: row.hits ?? undefined,
-      blockedShots: row.blocked_shots ?? undefined,
+    const {data, error} = await supabase.from(isGoalie ? 'game_goalie_stats' : 'game_skater_stats')
+      .select('*, games!inner(game_date, season, game_type, game_state, home_team_abbrev, away_team_abbrev)')
+      .eq('player_id', playerId).eq('games.season', season).eq('games.game_type', 2)
+      .lte('games.game_date', cutoff).in('games.game_state', ['OFF', 'FINAL'])
+      .order('games(game_date)', {ascending: false}).order('game_id', {ascending: false}).limit(isGoalie ? 120 : 5);
+    if (error || !data) return [];
+    const appearances = scopedGames(data, season, cutoff).filter(row => {
+      if (!isGoalie) return true;
+      // Boxscores also include dressed backups who never entered the game.
+      const playedTime = typeof row.toi === 'string' && /^\d+:\d{2}$/.test(row.toi)
+        && row.toi.split(':').some((part: string) => Number(part) > 0);
+      return playedTime || row.starter === true || (numberOrNull(row.saves) ?? 0) > 0
+        || (numberOrNull(row.goals_against) ?? 0) > 0;
+    });
+    return appearances.slice(0,5).map(row => ({
+      gameId: row.game_id, gameDate: row.games.game_date,
+      opponent: row.team_abbrev === row.games.home_team_abbrev ? row.games.away_team_abbrev
+        : row.team_abbrev === row.games.away_team_abbrev ? row.games.home_team_abbrev : undefined,
+      goals: numberOrNull(row.goals), assists:numberOrNull(row.assists), points:numberOrNull(row.points),
+      plusMinus:numberOrNull(row.plus_minus), toi:row.toi ?? undefined,
+      shots:numberOrNull(row.shots_on_goal), hits:numberOrNull(row.hits), blockedShots:numberOrNull(row.blocked_shots),
+      saves:numberOrNull(row.saves), goalsAgainst:numberOrNull(row.goals_against), decision:row.decision ?? undefined,
     }));
-  } catch {
-    return [];
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Trend fetchers (SQL views)
-// ---------------------------------------------------------------------------
-
-async function fetchSkaterTrends(playerId: number): Promise<SkaterTrends | null> {
-  try {
-    const [hotCold, pace, rolling, advanced, threeStarCount] = await Promise.all([
-      fetchHotCold(playerId),
-      fetchPaceProjections(playerId),
-      fetchRollingStats(playerId),
-      fetchAdvancedTrends(playerId),
-      fetchThreeStarCount(playerId),
-    ]);
-
-    // Return null only if all sub-sections are empty
-    if (!hotCold && !pace && !rolling && !advanced && threeStarCount === 0) {
-      return null;
-    }
-
-    return { hotCold, pace, rolling, advanced, threeStarCount };
-  } catch {
-    return null;
-  }
-}
-
-async function fetchGoalieTrends(playerId: number): Promise<GoalieTrends | null> {
-  try {
-    const { data: rows, error } = await supabase
-      .from('goalie_rolling_stats')
-      .select('*')
-      .eq('player_id', playerId)
-      .limit(1);
-
-    if (error || !rows || rows.length === 0) return null;
-    const row = rows[0];
-
-    return {
-      avgGa5g: row.avg_ga_5g ?? 0,
-      savePct5g: row.save_pct_5g ?? undefined,
-      wins5g: row.wins_5g ?? 0,
-      avgGa10g: row.avg_ga_10g ?? 0,
-      savePct10g: row.save_pct_10g ?? undefined,
-      wins10g: row.wins_10g ?? 0,
-      starts: row.starts ?? 0,
-      seasonSavePct: row.season_save_pct ?? undefined,
-      seasonAvgGa: row.season_avg_ga ?? 0,
-      seasonWins: row.season_wins ?? 0,
-      seasonShutouts: row.season_shutouts ?? 0,
-      lastStartDate: row.last_start_date ?? undefined,
-    };
-  } catch {
-    return null;
-  }
-}
-
-async function fetchHotCold(playerId: number): Promise<HotColdData | null> {
-  try {
-    const { data: rows, error } = await supabase
-      .from('skater_hot_cold')
-      .select('*')
-      .eq('player_id', playerId)
-      .limit(1);
-
-    if (error || !rows || rows.length === 0) return null;
-    const row = rows[0];
-
-    return {
-      gamesPlayed: row.games_played ?? 0,
-      seasonPpg: row.season_ppg ?? 0,
-      recentPpg: row.recent_ppg ?? 0,
-      seasonGpg: row.season_gpg ?? 0,
-      recentGpg: row.recent_gpg ?? 0,
-      pointStreak: row.point_streak ?? 0,
-      hotColdScore: row.hot_cold_score ?? 0,
-      trendLabel: row.trend_label ?? 'STEADY',
-      recentShootingPct: row.recent_shooting_pct ?? 0,
-      seasonShootingPct: row.season_shooting_pct ?? 0,
-    };
-  } catch {
-    return null;
-  }
-}
-
-async function fetchPaceProjections(playerId: number): Promise<PaceProjections | null> {
-  try {
-    const { data: rows, error } = await supabase
-      .from('skater_pace_projections')
-      .select('*')
-      .eq('player_id', playerId)
-      .limit(1);
-
-    if (error || !rows || rows.length === 0) return null;
-    const row = rows[0];
-
-    return {
-      gamesPlayed: row.games_played ?? 0,
-      goals: row.goals ?? 0,
-      assists: row.assists ?? 0,
-      points: row.points ?? 0,
-      projectedGoals82: row.projected_goals_82 ?? 0,
-      projectedAssists82: row.projected_assists_82 ?? 0,
-      projectedPoints82: row.projected_points_82 ?? 0,
-      projectedShots82: row.projected_shots_82 ?? 0,
-      projectedPpg82: row.projected_ppg_82 ?? 0,
-      goalsPerGame: row.goals_per_game ?? 0,
-      pointsPerGame: row.points_per_game ?? 0,
-      shootingPctg: row.shooting_pctg ?? 0,
-    };
-  } catch {
-    return null;
-  }
-}
-
-async function fetchRollingStats(playerId: number): Promise<RollingStats | null> {
-  try {
-    const { data: rows, error } = await supabase
-      .from('skater_rolling_stats')
-      .select('*')
-      .eq('player_id', playerId)
-      .limit(1);
-
-    if (error || !rows || rows.length === 0) return null;
-    const row = rows[0];
-
-    return {
-      avgGoals5g: row.avg_goals_5g ?? 0,
-      avgAssists5g: row.avg_assists_5g ?? 0,
-      avgPoints5g: row.avg_points_5g ?? 0,
-      avgShots5g: row.avg_shots_5g ?? 0,
-      avgHits5g: row.avg_hits_5g ?? 0,
-      avgPm5g: row.avg_pm_5g ?? 0,
-      totalGoals5g: row.total_goals_5g ?? 0,
-      totalPoints5g: row.total_points_5g ?? 0,
-      avgGoals10g: row.avg_goals_10g ?? 0,
-      avgAssists10g: row.avg_assists_10g ?? 0,
-      avgPoints10g: row.avg_points_10g ?? 0,
-      avgShots10g: row.avg_shots_10g ?? 0,
-      avgGoals20g: row.avg_goals_20g ?? 0,
-      avgPoints20g: row.avg_points_20g ?? 0,
-      seasonAvgGoals: row.season_avg_goals ?? 0,
-      seasonAvgPoints: row.season_avg_points ?? 0,
-      lastGameDate: row.last_game_date ?? undefined,
-    };
-  } catch {
-    return null;
-  }
-}
-
-async function fetchAdvancedTrends(playerId: number): Promise<AdvancedTrends | null> {
-  try {
-    const { data: rows, error } = await supabase
-      .from('skater_advanced_trends')
-      .select('*')
-      .eq('player_id', playerId)
-      .limit(1);
-
-    if (error || !rows || rows.length === 0) return null;
-    const row = rows[0];
-
-    return {
-      avgCorsiPct5g: row.avg_corsi_pct_5g ?? undefined,
-      avgFenwickPct5g: row.avg_fenwick_pct_5g ?? undefined,
-      avgOzStart5g: row.avg_oz_start_5g ?? undefined,
-      avgPdo5g: row.avg_pdo_5g ?? undefined,
-      avgCorsiPct10g: row.avg_corsi_pct_10g ?? undefined,
-      avgFenwickPct10g: row.avg_fenwick_pct_10g ?? undefined,
-      avgPdo10g: row.avg_pdo_10g ?? undefined,
-      seasonCorsiPct: row.season_corsi_pct ?? undefined,
-      seasonFenwickPct: row.season_fenwick_pct ?? undefined,
-      seasonPdo: row.season_pdo ?? undefined,
-      gamesWithAdvanced: row.games_with_advanced ?? 0,
-    };
-  } catch {
-    return null;
-  }
-}
-
-async function fetchThreeStarCount(playerId: number): Promise<number> {
-  try {
-    const { data: rows, error } = await supabase
-      .from('game_three_stars')
-      .select('star_number')
-      .eq('player_id', playerId);
-
-    if (error || !rows) return 0;
-    return rows.length;
-  } catch {
-    return 0;
-  }
+  } catch { return []; }
 }
 
 // ---------------------------------------------------------------------------
@@ -652,21 +424,6 @@ function mapBio(row: any): PlayerBio {
   };
 }
 
-function defaultSkaterStats(): SkaterSeasonStats {
-  return {
-    gamesPlayed: 0, goals: 0, assists: 0, points: 0, plusMinus: 0,
-    pim: 0, powerPlayGoals: 0, shorthandedGoals: 0, gameWinningGoals: 0,
-    shots: 0, shootingPctg: 0, avgToi: 0, faceoffWinPctg: 0,
-  };
-}
-
-function defaultGoalieStats(): GoalieSeasonStats {
-  return {
-    gamesPlayed: 0, gamesStarted: 0, wins: 0, losses: 0, otLosses: 0,
-    goalsAgainstAvg: 0, savePctg: 0, shotsAgainst: 0, saves: 0, shutouts: 0,
-  };
-}
-
 /** Visible for testing */
 export const _internals = {
   detailCache,
@@ -676,11 +433,5 @@ export const _internals = {
   fetchCareerData,
   fetchEdgeStats,
   fetchRecentGames,
-  fetchSkaterTrends,
-  fetchGoalieTrends,
-  fetchHotCold,
-  fetchPaceProjections,
-  fetchRollingStats,
-  fetchAdvancedTrends,
-  fetchThreeStarCount,
+
 };

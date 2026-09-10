@@ -1,3 +1,6 @@
+import { useLocalSearchParams } from 'expo-router';
+import { parseEntityId } from '../../utils/entityRoutes';
+import { formatSeasonLabel } from '../../utils/season';
 import { Image } from 'expo-image';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -64,6 +67,11 @@ const SEARCH_ROW_HEIGHT = 64;
 // Component
 // ---------------------------------------------------------------------------
 
+function oldestSourceLabel(rows: { asOf?: string }[]): string {
+  if (!rows.length || rows.some(row => !row.asOf || !Number.isFinite(Date.parse(row.asOf)))) return 'time unavailable';
+  return new Date(Math.min(...rows.map(row => Date.parse(row.asOf!)))).toLocaleDateString();
+}
+
 export default function PlayersScreen() {
   const analytics = useAnalytics('PlayersTab');
   const { palette: p } = useArena();
@@ -118,7 +126,7 @@ export default function PlayersScreen() {
 
   const loadTrendingData = useCallback(async () => {
     try {
-      // Step 1: Leaders first (most visible, queries skater_trend_summary VIEW)
+      // Load season-scoped leaders before the secondary sections.
       const rawLeaders = await getLeagueLeaders(statCategory, 10);
       // Deduplicate: keep first (highest-stat) occurrence per player
       const seenIds = new Set<number>();
@@ -205,6 +213,14 @@ export default function PlayersScreen() {
     setDetailModalVisible(true);
     analytics.trackCustomEvent('players_player_tap', { playerId });
   }, [analytics]);
+
+  const routeParams = useLocalSearchParams<{ player?: string | string[] }>();
+  useEffect(() => {
+    if (routeParams.player === undefined) return;
+    const id = parseEntityId(routeParams.player);
+    setSelectedPlayerId(id);
+    setDetailModalVisible(id !== null);
+  }, [routeParams.player]);
 
   const handleDetailModalClose = useCallback(() => {
     setDetailModalVisible(false);
@@ -364,6 +380,7 @@ export default function PlayersScreen() {
         <ArenaHeader title="PLAYERS" subtitle={`Leaders, trends, goalies and ${statCategory.toLowerCase()}.`} />
       </View>
 
+      {routeParams.player !== undefined && !parseEntityId(routeParams.player) && <Text style={{color:p.ink, paddingHorizontal:20, marginBottom:12}}>Player unavailable: this link has an invalid player ID. Search by name below.</Text>}
       {/* Always-visible compact search bar */}
       <Pressable
         onPress={() => setIsSearchActive(true)}
@@ -489,7 +506,7 @@ export default function PlayersScreen() {
               <View style={styles.section}>
                 {renderSectionHeader('SPOTLIGHT')}
                 <Text style={[styles.sectionExplainer, { color: p.muted, fontFamily: arenaType.body }]}>
-                  Players whose recent 5-game pace is well above their season average. Tap a card for details.
+                  {trendingUp[0]?.season ? formatSeasonLabel(trendingUp[0].season) : 'Season unavailable'} regular season · Stored source {oldestSourceLabel(trendingUp.slice(0, 8))}. Recent 5-game pace versus that season average.
                 </Text>
                 <FlatList
                   horizontal
@@ -535,7 +552,7 @@ export default function PlayersScreen() {
                               <View style={styles.spotlightAboveAvg}>
                                 <Ionicons name="trending-up" size={10} color={theme.semantic.positive} />
                                 <Text style={styles.spotlightAboveAvgText}>
-                                  +{aboveAvgPct > 99 ? '99' : aboveAvgPct}% vs avg
+                                  +{aboveAvgPct}% vs avg
                                 </Text>
                               </View>
                             )}
@@ -545,7 +562,7 @@ export default function PlayersScreen() {
                               </View>
                             ) : item.pointStreak >= 3 ? (
                               <View style={styles.spotlightTrendPill}>
-                                <Text style={styles.spotlightStreak}>W{item.pointStreak} STREAK</Text>
+                                <Text style={styles.spotlightStreak}>{item.pointStreak}{item.pointStreakIsMinimum ? '+' : ''} GAME POINT STREAK</Text>
                               </View>
                             ) : null}
                           </View>
@@ -597,7 +614,7 @@ export default function PlayersScreen() {
               <View style={styles.section}>
                 {renderSectionHeader('LEAGUE LEADERS')}
                 <Text style={[styles.sectionExplainer, { color: p.muted, fontFamily: arenaType.body }]}>
-                  Top 10 in {statCategory.toUpperCase()} this season. Tap any player for the full stat line.
+                  Available {statCategory.toUpperCase()} leaders · {leagueLeaders[0]?.season ? formatSeasonLabel(leagueLeaders[0].season) : 'Season unavailable'} regular season · Stored source {oldestSourceLabel(leagueLeaders)}. Inconsistent totals are excluded; coverage may be incomplete.
                 </Text>
                 {/* Hero card: #1 player */}
                 <HeroLeaderCard

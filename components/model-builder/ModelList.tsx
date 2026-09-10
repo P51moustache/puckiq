@@ -141,7 +141,7 @@ export default function ModelList({ onEditModel, onNewModel }: ModelListProps) {
   // Render model card
   const renderModelCard = useCallback(({ item: model }: { item: PredictionModel }) => {
     const isClassic = isClassicModel(model);
-    const hasBacktest = !!model.backtestResults;
+    const hasBacktest = model.backtestResults?.replayVersion === 'four-factor-pregame-v1';
 
     return (
       <TouchableOpacity
@@ -173,13 +173,13 @@ export default function ModelList({ onEditModel, onNewModel }: ModelListProps) {
         {hasBacktest && model.backtestResults && (
           <View style={styles.accuracyContainer}>
             <View style={styles.accuracyStat}>
-              <Text style={styles.accuracyLabel}>Accuracy</Text>
+              <Text style={styles.accuracyLabel}>4-factor replay</Text>
               <Text style={styles.accuracyValue}>
                 {model.backtestResults.accuracy.toFixed(1)}%
               </Text>
             </View>
             <View style={styles.accuracyStat}>
-              <Text style={styles.accuracyLabel}>vs Classic</Text>
+              <Text style={styles.accuracyLabel}>vs Classic replay</Text>
               <Text
                 style={[
                   styles.accuracyValue,
@@ -191,7 +191,7 @@ export default function ModelList({ onEditModel, onNewModel }: ModelListProps) {
                 ]}
               >
                 {model.backtestResults.accuracy > model.backtestResults.baselineAccuracy ? '+' : ''}
-                {(model.backtestResults.accuracy - model.backtestResults.baselineAccuracy).toFixed(1)}%
+                {(model.backtestResults.accuracy - model.backtestResults.baselineAccuracy).toFixed(1)} pp
               </Text>
             </View>
             <View style={styles.accuracyStat}>
@@ -204,7 +204,7 @@ export default function ModelList({ onEditModel, onNewModel }: ModelListProps) {
         )}
 
         {!hasBacktest && (
-          <Text style={styles.noBacktest}>Not backtested yet</Text>
+          <Text style={styles.noBacktest}>No four-factor replay yet</Text>
         )}
 
         {/* Real-World Accuracy */}

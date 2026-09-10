@@ -299,6 +299,7 @@ export interface PlayerWeights {
  * Results from backtesting a prediction model against historical data
  */
 export interface ModelBacktestResults {
+  replayVersion?: 'four-factor-pregame-v1';
   period: {
     start: string;  // ISO date string (YYYY-MM-DD)
     end: string;    // ISO date string (YYYY-MM-DD)
