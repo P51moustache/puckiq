@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,16 +9,26 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { rinkGlass } from '../constants/theme';
+import { rinkGlass as baseRinkGlass } from '../constants/theme';
+import { useArena } from './arena/ArenaProvider';
+import type { ArenaPalette } from '../constants/arenaTheme';
+import { arenaType } from './arena/ArenaPrimitives';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { useAuthContext } from './auth/AuthProvider';
 import { useSubscription } from './SubscriptionProvider';
-import PageHeader from './PageHeader';
+
 import {
   FantasyNotificationPreferences,
   DEFAULT_FANTASY_PREFS,
   loadFantasyNotificationPrefs,
   saveFantasyNotificationPrefs,
 } from '../services/notificationSettings';
+
+function arenaSettingsTheme(p: ArenaPalette) {
+  return { ...baseRinkGlass, ice: p.page, boards: p.paper, glass: p.paper, zamboni: p.soft, glassBorder: p.edge, textPrimary: p.ink, textSecondary: p.muted, textMuted: p.muted, blueLight: p.link, blueLine: p.hero, fonts: { ...baseRinkGlass.fonts, display: arenaType.display } };
+}
+const rinkGlass = baseRinkGlass;
 
 type PrefKey = keyof FantasyNotificationPreferences;
 
@@ -39,6 +48,9 @@ const NOTIFICATION_TOGGLES: {
 
 /* ── Section Header ────────────────────────────────────── */
 function SectionHeader({ icon, title }: { icon: keyof typeof Ionicons.glyphMap; title: string }) {
+  const { palette } = useArena();
+  const rinkGlass = arenaSettingsTheme(palette);
+  const s = createStyles(rinkGlass);
   return (
     <View style={s.sectionHeader}>
       <View style={s.sectionHeaderLeft}>
@@ -57,6 +69,9 @@ function SectionHeader({ icon, title }: { icon: keyof typeof Ionicons.glyphMap; 
 
 /* ── Main Component ────────────────────────────────────── */
 export default function HubScreen() {
+  const { palette } = useArena();
+  const rinkGlass = arenaSettingsTheme(palette);
+  const s = createStyles(rinkGlass);
   const { user, signInWithApple, signInWithGoogle, signOut } = useAuthContext();
   const { isPremium } = useSubscription();
   const [notificationPrefs, setNotificationPrefs] = useState<FantasyNotificationPreferences>({
@@ -110,8 +125,8 @@ export default function HubScreen() {
   const canToggle = !!user && isPremium;
 
   return (
-    <View style={s.container}>
-      <PageHeader title="Settings" subtitle="Notifications · Account · About" />
+    <SafeAreaView edges={['top']} style={s.container}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', padding: 16, gap: 13 }}><Pressable accessibilityRole="button" accessibilityLabel="Back to Tonight" onPress={() => router.push('/(tabs)')} style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center' }}><Ionicons name="arrow-back" color={palette.ink} size={25} /></Pressable><Text style={{ fontFamily: arenaType.display, color: palette.ink, fontSize: 40 }}>SETTINGS</Text></View>
       <ScrollView
         style={s.scroll}
         contentContainerStyle={s.scrollContent}
@@ -208,16 +223,15 @@ export default function HubScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
 /* ── Styles ────────────────────────────────────────────── */
-const s = StyleSheet.create({
+const createStyles = (rinkGlass: ReturnType<typeof arenaSettingsTheme>) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: rinkGlass.ice,
-    paddingTop: Platform.OS === 'ios' ? 56 : 26,
   },
   scroll: {
     flex: 1,

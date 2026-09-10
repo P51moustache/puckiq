@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
     opacity: 0.55,
   },
   gradientOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,

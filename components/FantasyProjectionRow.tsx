@@ -2,6 +2,8 @@ import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { rinkGlass } from '../constants/theme';
+import { arenaType } from '../constants/arenaTypography';
+import { getArenaPalette, type ArenaPalette } from '../constants/arenaTheme';
 import type { PlayerProjection } from '../types/fantasy';
 
 // ---------------------------------------------------------------------------
@@ -11,6 +13,7 @@ import type { PlayerProjection } from '../types/fantasy';
 interface FantasyProjectionRowProps {
   projection: PlayerProjection;
   onPress?: (playerId: number) => void;
+  palette?: ArenaPalette;
 }
 
 // ---------------------------------------------------------------------------
@@ -28,7 +31,8 @@ const REC_COLORS: Record<string, { bg: string; text: string }> = {
 // Component
 // ---------------------------------------------------------------------------
 
-export default function FantasyProjectionRow({ projection, onPress }: FantasyProjectionRowProps) {
+export default function FantasyProjectionRow({ projection, onPress, palette }: FantasyProjectionRowProps) {
+  const p = palette ?? getArenaPalette();
   const recColor = REC_COLORS[projection.recommendation] || REC_COLORS.FLEX;
   const opponentLabel = projection.opponentAbbrev
     ? `${projection.isHome ? 'vs' : '@'} ${projection.opponentAbbrev}`
@@ -36,7 +40,7 @@ export default function FantasyProjectionRow({ projection, onPress }: FantasyPro
 
   return (
     <TouchableOpacity
-      style={styles.container}
+      style={[styles.container, { backgroundColor: p.paper, borderColor: p.edge }]}
       onPress={() => onPress?.(projection.playerId)}
       activeOpacity={0.7}
       testID={`fantasy-projection-row-${projection.playerId}`}
@@ -44,17 +48,17 @@ export default function FantasyProjectionRow({ projection, onPress }: FantasyPro
       {/* Left: Name, team, position, opponent */}
       <View style={styles.info}>
         <View style={styles.nameRow}>
-          <Text style={styles.playerName} numberOfLines={1}>
+          <Text style={[styles.playerName, { color: p.ink, fontFamily: arenaType.body }]} numberOfLines={1}>
             {projection.playerName}
           </Text>
-          <View style={styles.positionBadge}>
-            <Text style={styles.positionText}>{projection.position}</Text>
+          <View style={[styles.positionBadge, { backgroundColor: p.soft }]}>
+            <Text style={[styles.positionText, { color: p.link }]}>{projection.position}</Text>
           </View>
         </View>
         <View style={styles.metaRow}>
-          <Text style={styles.teamText}>{projection.teamAbbrev}</Text>
+          <Text style={[styles.teamText, { color: p.muted }]}>{projection.teamAbbrev}</Text>
           {opponentLabel !== '' && (
-            <Text style={styles.opponentText}>{opponentLabel}</Text>
+            <Text style={[styles.opponentText, { color: p.muted }]}>{opponentLabel}</Text>
           )}
           {projection.recommendation && (
             <View style={[styles.recBadge, { backgroundColor: recColor.bg }]}>
@@ -64,18 +68,18 @@ export default function FantasyProjectionRow({ projection, onPress }: FantasyPro
             </View>
           )}
         </View>
-        <Text style={styles.rangeText}>
+        <Text style={[styles.rangeText, { color: p.muted, fontFamily: arenaType.body }]}>
           Floor: {projection.floor.toFixed(1)} — Ceil: {projection.ceiling.toFixed(1)}
         </Text>
       </View>
 
       {/* Right: Projected points */}
       <View style={styles.pointsContainer}>
-        <Text style={styles.pointsValue}>{projection.fantasyPoints.toFixed(1)}</Text>
-        <Text style={styles.pointsLabel}>FPts</Text>
+        <Text style={[styles.pointsValue, { color: p.ink, fontFamily: arenaType.display }]}>{projection.fantasyPoints.toFixed(1)}</Text>
+        <Text style={[styles.pointsLabel, { color: p.muted }]}>FPts</Text>
       </View>
 
-      <Ionicons name="chevron-forward" size={14} color={rinkGlass.textSecondary} />
+      <Ionicons name="chevron-forward" size={14} color={p.link} />
     </TouchableOpacity>
   );
 }

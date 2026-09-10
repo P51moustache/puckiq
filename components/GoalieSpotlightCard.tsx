@@ -7,6 +7,8 @@ import React, { useCallback, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { rinkGlass } from '../constants/theme';
+import { arenaType } from '../constants/arenaTypography';
+import { getArenaPalette, type ArenaPalette } from '../constants/arenaTheme';
 import type { TrendingGoalie } from '../services/playerTrends';
 
 const TREND_COLORS: Record<string, string> = {
@@ -20,12 +22,15 @@ const TREND_COLORS: Record<string, string> = {
 interface GoalieSpotlightCardProps {
   goalie: TrendingGoalie;
   onPress: (playerId: number) => void;
+  palette?: ArenaPalette;
 }
 
 export default React.memo(function GoalieSpotlightCard({
   goalie,
   onPress,
+  palette,
 }: GoalieSpotlightCardProps) {
+  const p = palette ?? getArenaPalette();
   const trendColor = TREND_COLORS[goalie.trendLabel] || rinkGlass.blueLight;
   const handlePress = useCallback(() => onPress(goalie.playerId), [onPress, goalie.playerId]);
 
@@ -42,7 +47,7 @@ export default React.memo(function GoalieSpotlightCard({
 
   return (
     <Pressable
-      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      style={({ pressed }) => [styles.card, { backgroundColor: p.paper, borderColor: p.edge }, pressed && styles.cardPressed]}
       onPress={handlePress}
       testID={`goalie-spotlight-${goalie.playerId}`}
     >
@@ -56,8 +61,8 @@ export default React.memo(function GoalieSpotlightCard({
           accessibilityLabel={`${goalie.playerName} headshot`}
         />
         <View style={styles.nameContainer}>
-          <Text style={styles.playerName} numberOfLines={1}>{goalie.playerName}</Text>
-          <Text style={styles.playerMeta}>G · {goalie.teamAbbrev}</Text>
+          <Text style={[styles.playerName, { color: p.ink, fontFamily: arenaType.body }]} numberOfLines={1}>{goalie.playerName}</Text>
+          <Text style={[styles.playerMeta, { color: p.muted }]}>G · {goalie.teamAbbrev}</Text>
         </View>
         {goalie.trendLabel !== 'STEADY' && (
           <View style={[styles.trendBadge, { borderColor: trendColor }]}>
@@ -68,9 +73,9 @@ export default React.memo(function GoalieSpotlightCard({
 
       <View style={styles.statsRow}>
         <View style={styles.statItem}>
-          <Text style={styles.statLabel}>LAST 5 SV%</Text>
+          <Text style={[styles.statLabel, { color: p.muted }]}>LAST 5 SV%</Text>
           <Text style={[
-            styles.statValue,
+            styles.statValue, { color: p.ink, fontFamily: arenaType.display },
             svPctDiff != null && svPctDiff > 0 && styles.statValueGreen,
             svPctDiff != null && svPctDiff < -0.01 && styles.statValueRed,
           ]}>
@@ -78,16 +83,16 @@ export default React.memo(function GoalieSpotlightCard({
           </Text>
         </View>
         <View style={styles.statItem}>
-          <Text style={styles.statLabel}>SEASON SV%</Text>
-          <Text style={styles.statValue}>{formatPct(goalie.seasonSavePct)}</Text>
+          <Text style={[styles.statLabel, { color: p.muted }]}>SEASON SV%</Text>
+          <Text style={[styles.statValue, { color: p.ink, fontFamily: arenaType.display }]}>{formatPct(goalie.seasonSavePct)}</Text>
         </View>
         <View style={styles.statItem}>
-          <Text style={styles.statLabel}>LAST 5 GAA</Text>
-          <Text style={styles.statValue}>{goalie.avgGa5g.toFixed(2)}</Text>
+          <Text style={[styles.statLabel, { color: p.muted }]}>LAST 5 GAA</Text>
+          <Text style={[styles.statValue, { color: p.ink, fontFamily: arenaType.display }]}>{goalie.avgGa5g.toFixed(2)}</Text>
         </View>
         <View style={styles.statItem}>
-          <Text style={styles.statLabel}>RECORD</Text>
-          <Text style={styles.statValue}>{goalie.wins}-{goalie.losses}-{goalie.otLosses}</Text>
+          <Text style={[styles.statLabel, { color: p.muted }]}>RECORD</Text>
+          <Text style={[styles.statValue, { color: p.ink, fontFamily: arenaType.display }]}>{goalie.wins}-{goalie.losses}-{goalie.otLosses}</Text>
         </View>
       </View>
     </Pressable>

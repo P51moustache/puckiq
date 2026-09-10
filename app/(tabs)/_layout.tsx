@@ -1,112 +1,25 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { Platform, View } from 'react-native';
+import { View, type ColorValue } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { HapticTab } from '../../components/HapticTab';
-import { IconSymbol } from '../../components/ui/IconSymbol';
-import TabBarBackground from '../../components/ui/TabBarBackground';
-import { rinkGlass } from '../../constants/theme';
+import { useArena } from '../../components/arena/ArenaProvider';
 
-/** Force the Upcoming tab as the initial route on every app load */
-export const unstable_settings = {
-  initialRouteName: 'index',
-};
-
-/** Small glowing dot rendered beneath the active tab icon */
-const GlowDot = () => (
-  <View style={{
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: rinkGlass.blueLight,
-    marginTop: 3,
-    shadowColor: rinkGlass.blueLight,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 4,
-    elevation: 4,
-  }} />
-);
+export const unstable_settings = { initialRouteName: 'index' };
 
 export default function TabLayout() {
-  return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: rinkGlass.blueLight,
-        tabBarInactiveTintColor: rinkGlass.textMuted,
-        headerShown: false,
-        tabBarButton: HapticTab,
-        tabBarBackground: TabBarBackground,
-        tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: '600',
-        },
-        tabBarStyle: Platform.select({
-          ios: {
-            position: 'absolute',
-            backgroundColor: rinkGlass.ice,
-            borderTopColor: rinkGlass.glassBorder,
-          },
-          default: {
-            backgroundColor: rinkGlass.ice,
-            borderTopColor: rinkGlass.glassBorder,
-          },
-        }),
-      }}>
-      {/* 4-tab layout: Today, Players, Compare, Hub.
-          MyTeam is hidden — fantasy product is paused; the route stays so
-          deep links don't 404 if anyone has them bookmarked. */}
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Today',
-          tabBarIcon: ({ color, focused }) => (
-            <View style={{ alignItems: 'center' }}>
-              <IconSymbol size={24} name="hockey.puck.fill" color={color} />
-              {focused && <GlowDot />}
-            </View>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="players"
-        options={{
-          title: 'Players',
-          tabBarIcon: ({ color, focused }) => (
-            <View style={{ alignItems: 'center' }}>
-              <IconSymbol size={24} name="person.2.fill" color={color} />
-              {focused && <GlowDot />}
-            </View>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="stats"
-        options={{
-          title: 'Compare',
-          tabBarIcon: ({ color, focused }) => (
-            <View style={{ alignItems: 'center' }}>
-              <IconSymbol size={24} name="chart.bar.fill" color={color} />
-              {focused && <GlowDot />}
-            </View>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="hub"
-        options={{
-          title: 'Settings',
-          tabBarIcon: ({ color, focused }) => (
-            <View style={{ alignItems: 'center' }}>
-              <IconSymbol size={24} name="person.crop.circle.fill" color={color} />
-              {focused && <GlowDot />}
-            </View>
-          ),
-        }}
-      />
-      {/* Hidden screens — reachable via deep link or lazy import, not in tab bar */}
-      <Tabs.Screen name="myteam" options={{ href: null }} />
-      <Tabs.Screen name="models" options={{ href: null }} />
-      <Tabs.Screen name="teams" options={{ href: null }} />
-    </Tabs>
-  );
+  const { palette: p } = useArena();
+  const icon = (name: React.ComponentProps<typeof Ionicons>['name']) => function TabIcon({ color, focused }: { color: ColorValue; focused: boolean }) {
+    return <View style={{ minWidth: 48, alignItems: 'center', paddingVertical: 4, borderRadius: 9, backgroundColor: focused ? p.soft : 'transparent' }}><Ionicons name={name} size={23} color={color} /></View>;
+  };
+  return <Tabs screenOptions={{ headerShown: false, tabBarButton: HapticTab, tabBarActiveTintColor: p.link, tabBarInactiveTintColor: p.muted, tabBarLabelStyle: { fontFamily: 'Arena-Sans', fontSize: 10, fontWeight: '700' }, tabBarStyle: { backgroundColor: p.paper, borderTopColor: p.edge, borderTopWidth: 1.5, paddingTop: 7 } }}>
+    <Tabs.Screen name="index" options={{ title: 'Tonight', tabBarIcon: icon('ticket-outline') }} />
+    <Tabs.Screen name="following" options={{ title: 'Following', tabBarIcon: icon('flag-outline') }} />
+    <Tabs.Screen name="players" options={{ title: 'Players', tabBarIcon: icon('people-outline') }} />
+    <Tabs.Screen name="stats" options={{ title: 'League', tabBarIcon: icon('podium-outline') }} />
+    <Tabs.Screen name="hub" options={{ href: null }} />
+    <Tabs.Screen name="myteam" options={{ href: null }} />
+    <Tabs.Screen name="models" options={{ href: null }} />
+    <Tabs.Screen name="teams" options={{ href: null }} />
+  </Tabs>;
 }

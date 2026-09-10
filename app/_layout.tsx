@@ -1,4 +1,4 @@
-import { DarkTheme, ThemeProvider } from '@react-navigation/native';
+import { DefaultTheme, ThemeProvider } from 'expo-router/react-navigation';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -9,8 +9,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AnalyticsProvider } from '../components/analytics/AnalyticsProvider';
 import { AuthProvider, useAuthContext } from '../components/auth/AuthProvider';
 import { SubscriptionProvider } from '../components/SubscriptionProvider';
-import { OnboardingFlow } from '../components/onboarding/OnboardingFlow';
+import { ArenaOnboarding } from '../components/arena/ArenaOnboarding';
 import { initializeNotifications } from '../services/notifications';
+import { ArenaProvider, useArena } from '../components/arena/ArenaProvider';
 
 const ONBOARDING_KEY = 'puckiq_onboarding_complete';
 
@@ -39,10 +40,10 @@ function AppContent() {
 
   if (!onboardingComplete) {
     return (
-      <OnboardingFlow
+      <ArenaOnboarding
         onComplete={handleOnboardingComplete}
-        onSignInWithApple={signInWithApple}
-        onSignInWithGoogle={signInWithGoogle}
+        onApple={signInWithApple}
+        onGoogle={signInWithGoogle}
       />
     );
   }
@@ -53,15 +54,23 @@ function AppContent() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
       </Stack>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
     </>
   );
+}
+
+function ArenaNavigation() {
+  const { palette } = useArena();
+  const navigationTheme = useMemo(() => ({ ...DefaultTheme, colors: { ...DefaultTheme.colors, background: palette.page, card: palette.paper, text: palette.ink, primary: palette.link, border: palette.edge } }), [palette]);
+  return <ThemeProvider value={navigationTheme}><AppContent /></ThemeProvider>;
 }
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
     'Display-Bold': require('../assets/fonts/Oswald-Bold.ttf'),
+    'Arena-Display': require('../assets/fonts/Teko-SemiBold.ttf'),
+    'Arena-Sans': require('../assets/fonts/DMSans.ttf'),
   });
 
   const analyticsConfig = useMemo(() => ({ enabled: true, debug: __DEV__ }), []);
@@ -89,9 +98,7 @@ export default function RootLayout() {
     <AuthProvider>
       <SubscriptionProvider>
         <AnalyticsProvider config={analyticsConfig}>
-          <ThemeProvider value={DarkTheme}>
-            <AppContent />
-          </ThemeProvider>
+          <ArenaProvider><ArenaNavigation /></ArenaProvider>
         </AnalyticsProvider>
       </SubscriptionProvider>
     </AuthProvider>

@@ -8,6 +8,8 @@ import React, { useCallback, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { rinkGlass } from '../constants/theme';
+import { arenaType } from '../constants/arenaTypography';
+import { getArenaPalette, type ArenaPalette } from '../constants/arenaTheme';
 import type { TrendingPlayer, StatCategory, LeaderTrend } from '../services/playerTrends';
 
 interface HeroLeaderCardProps {
@@ -15,6 +17,7 @@ interface HeroLeaderCardProps {
   leaderTrend?: LeaderTrend;
   statCategory: StatCategory;
   onPress: (playerId: number) => void;
+  palette?: ArenaPalette;
 }
 
 export default React.memo(function HeroLeaderCard({
@@ -22,7 +25,9 @@ export default React.memo(function HeroLeaderCard({
   leaderTrend,
   statCategory,
   onPress,
+  palette,
 }: HeroLeaderCardProps) {
+  const p = palette ?? getArenaPalette();
   const handlePress = useCallback(() => onPress(player.playerId), [onPress, player.playerId]);
 
   // Season total
@@ -87,24 +92,24 @@ export default React.memo(function HeroLeaderCard({
 
   return (
     <Pressable
-      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      style={({ pressed }) => [styles.card, { backgroundColor: p.paper, borderColor: p.frame, shadowColor: p.frame }, pressed && styles.cardPressed]}
       onPress={handlePress}
       testID={`hero-card-${player.playerId}`}
     >
       {/* Header: rank + player info */}
       <View style={styles.headerRow}>
-        <Text style={styles.rankNumber}>1</Text>
+        <Text style={[styles.rankNumber, { color: p.link, fontFamily: arenaType.display }]}>1</Text>
         <Image
           source={{ uri: player.headshotUrl }}
-          style={styles.headshot}
+          style={[styles.headshot, { backgroundColor: p.soft, borderColor: p.edge }]}
           contentFit="cover"
           cachePolicy="memory-disk"
           recyclingKey={`hero-${player.playerId}`}
           accessibilityLabel={`${player.playerName} headshot`}
         />
         <View style={styles.nameContainer}>
-          <Text style={styles.playerName} numberOfLines={1}>{player.playerName}</Text>
-          <Text style={styles.playerMeta}>
+          <Text style={[styles.playerName, { color: p.ink, fontFamily: arenaType.body }]} numberOfLines={1}>{player.playerName}</Text>
+          <Text style={[styles.playerMeta, { color: p.muted, fontFamily: arenaType.body }]}>
             {player.position} · {player.teamAbbrev}
             {player.matchup ? ` · vs ${player.matchup.opponent}` : ''}
           </Text>
@@ -114,46 +119,46 @@ export default React.memo(function HeroLeaderCard({
       {/* Big season stat + projection */}
       <View style={styles.bigStatRow}>
         <View style={styles.bigStatContainer}>
-          <Text style={styles.bigStatNumber}>{seasonTotal}</Text>
+          <Text style={[styles.bigStatNumber, { color: p.ink, fontFamily: arenaType.display }]}>{seasonTotal}</Text>
           <View>
-            <Text style={styles.bigStatLabel}>POINTS</Text>
-            <Text style={styles.gamesPlayedLabel}>{player.gamesPlayed} GP</Text>
+            <Text style={[styles.bigStatLabel, { color: p.muted }]}>POINTS</Text>
+            <Text style={[styles.gamesPlayedLabel, { color: p.muted, fontFamily: arenaType.body }]}>{player.gamesPlayed} GP</Text>
           </View>
         </View>
 
         {projectionValue != null && (
           <View style={styles.paceBlock}>
-            <Text style={styles.paceValue}>{projectionValue}</Text>
-            <Text style={styles.paceLabel}>82-GP PACE</Text>
+            <Text style={[styles.paceValue, { color: p.link, fontFamily: arenaType.display }]}>{projectionValue}</Text>
+            <Text style={[styles.paceLabel, { color: p.muted, fontFamily: arenaType.body }]}>82-GP PACE</Text>
           </View>
         )}
 
         {player.pointStreak >= 3 && (
           <View style={styles.streakBlock}>
             <Text style={styles.streakValue}>{player.pointStreak}</Text>
-            <Text style={styles.streakLabel}>GAME STREAK</Text>
+            <Text style={[styles.streakLabel, { color: p.muted, fontFamily: arenaType.body }]}>GAME STREAK</Text>
           </View>
         )}
       </View>
 
       {/* Per-game averages: Recent 5 vs Season */}
-      <View style={styles.formRow}>
+      <View style={[styles.formRow, { backgroundColor: p.soft }]}>
         <View style={styles.formItem}>
-          <Text style={styles.formLabel}>RECENT 5 GAMES</Text>
+          <Text style={[styles.formLabel, { color: p.muted }]}>RECENT 5 GAMES</Text>
           <Text style={[
-            styles.formValue,
+            styles.formValue, { color: p.ink, fontFamily: arenaType.display },
             recentIsUp && { color: rinkGlass.faceoffDot },
             recentIsDown && { color: rinkGlass.redLine },
           ]}>
             {recentAvg > 0 ? recentAvg.toFixed(2) : '—'}
           </Text>
-          <Text style={styles.formSubLabel}>per game</Text>
+          <Text style={[styles.formSubLabel, { color: p.muted }]}>per game</Text>
         </View>
-        <View style={styles.formDivider} />
+        <View style={[styles.formDivider, { backgroundColor: p.edge }]} />
         <View style={styles.formItem}>
-          <Text style={styles.formLabel}>SEASON AVG</Text>
-          <Text style={styles.formValue}>{seasonAvg.toFixed(2)}</Text>
-          <Text style={styles.formSubLabel}>per game</Text>
+          <Text style={[styles.formLabel, { color: p.muted }]}>SEASON AVG</Text>
+          <Text style={[styles.formValue, { color: p.ink, fontFamily: arenaType.display }]}>{seasonAvg.toFixed(2)}</Text>
+          <Text style={[styles.formSubLabel, { color: p.muted }]}>per game</Text>
         </View>
       </View>
 
@@ -161,7 +166,7 @@ export default React.memo(function HeroLeaderCard({
       {hasShootingData && (
         <View style={styles.shootingContainer}>
           <View style={styles.shootingHeader}>
-            <Text style={styles.shootingLabel}>SHOOTING %</Text>
+            <Text style={[styles.shootingLabel, { color: p.muted }]}>SHOOTING %</Text>
             <Text style={[
               styles.shootingValue,
               shootingPctRecent > shootingPctSeason && { color: rinkGlass.faceoffDot },
@@ -169,16 +174,16 @@ export default React.memo(function HeroLeaderCard({
             ]}>
               {shootingPctRecent.toFixed(1)}%
             </Text>
-            <Text style={styles.shootingSeasonRef}>
+            <Text style={[styles.shootingSeasonRef, { color: p.muted }]}>
               SEASON {shootingPctSeason.toFixed(1)}%
             </Text>
           </View>
-          <View style={styles.shootingBarBg}>
+          <View style={[styles.shootingBarBg, { backgroundColor: p.soft }]}>
             <View style={[
               styles.shootingBarFill,
               {
                 width: `${shootingBarWidth * 100}%`,
-                backgroundColor: rinkGlass.blueLight,
+                backgroundColor: p.action,
               },
             ]} />
           </View>
@@ -187,7 +192,7 @@ export default React.memo(function HeroLeaderCard({
 
       {/* Season breakdown */}
       <View style={styles.seasonLineRow}>
-        <Text style={styles.seasonLineText}>
+        <Text style={[styles.seasonLineText, { color: p.muted, fontFamily: arenaType.body }]}>
           {player.seasonGoals} Goals · {player.seasonAssists} Assists
         </Text>
       </View>
@@ -198,14 +203,14 @@ export default React.memo(function HeroLeaderCard({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: rinkGlass.boards,
-    borderRadius: 10,
+    borderRadius: 16,
     padding: 14,
     marginBottom: 8,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: rinkGlass.glassBorder,
   },
   cardPressed: {
-    transform: [{ scale: 0.97 }],
+    transform: [{ translateY: 3 }],
     opacity: 0.9,
   },
   headerRow: {

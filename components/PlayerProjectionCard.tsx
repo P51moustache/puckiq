@@ -10,6 +10,8 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { rinkGlass } from '../constants/theme';
 import { getTeamColors } from '../constants/teamColors';
+import { arenaType } from '../constants/arenaTypography';
+import { getArenaPalette, type ArenaPalette } from '../constants/arenaTheme';
 import type {
   PlayerProjection,
   StatProjection,
@@ -51,6 +53,7 @@ interface PlayerProjectionCardProps {
   /** Which stat categories to feature (defaults to top 3 projections) */
   featuredStats?: StatCategory[];
   onPress: (playerId: number) => void;
+  palette?: ArenaPalette;
 }
 
 // ---------------------------------------------------------------------------
@@ -61,7 +64,9 @@ export default React.memo(function PlayerProjectionCard({
   projection,
   featuredStats,
   onPress,
+  palette,
 }: PlayerProjectionCardProps) {
+  const p = palette ?? getArenaPalette();
   const teamColors = getTeamColors(projection.teamAbbrev);
   const trendColor = TREND_COLORS[projection.trendLabel] || rinkGlass.blueLight;
   const confColor = CONFIDENCE_COLORS[projection.confidence];
@@ -86,7 +91,7 @@ export default React.memo(function PlayerProjectionCard({
 
   return (
     <Pressable
-      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      style={({ pressed }) => [styles.card, { backgroundColor: p.paper, borderColor: p.edge }, pressed && styles.cardPressed]}
       onPress={handlePress}
       testID={`projection-card-${projection.playerId}`}
     >
@@ -105,15 +110,15 @@ export default React.memo(function PlayerProjectionCard({
             accessibilityLabel={`${projection.playerName} headshot`}
           />
           <View style={styles.nameContainer}>
-            <Text style={styles.playerName} numberOfLines={1}>
+            <Text style={[styles.playerName, { color: p.ink, fontFamily: arenaType.body }]} numberOfLines={1}>
               {projection.firstName} {projection.lastName}
             </Text>
-            <Text style={styles.matchupText}>
+            <Text style={[styles.matchupText, { color: p.muted, fontFamily: arenaType.body }]}>
               {projection.position} · {projection.teamAbbrev}
               {' vs '}{projection.matchup.opponent}
             </Text>
             {gameTimeStr && (
-              <Text style={styles.gameTimeText}>
+              <Text style={[styles.gameTimeText, { color: p.link, fontFamily: arenaType.body }]}>
                 {gameTimeStr}
                 {projection.matchup.isHome ? ' · HOME' : ' · AWAY'}
               </Text>
@@ -136,9 +141,9 @@ export default React.memo(function PlayerProjectionCard({
         </View>
 
         {/* Projection rows */}
-        <View style={styles.projectionsContainer}>
+        <View style={[styles.projectionsContainer, { backgroundColor: p.soft }]}>
           {displayProjections.map((proj) => (
-            <ProjectionRow key={proj.stat} projection={proj} />
+            <ProjectionRow key={proj.stat} projection={proj} palette={p} />
           ))}
         </View>
 
@@ -146,7 +151,7 @@ export default React.memo(function PlayerProjectionCard({
         {projection.pointStreak > 0 && (
           <View style={styles.streakRow}>
             <Ionicons name="flame" size={14} color="#f97316" />
-            <Text style={styles.streakText}>
+            <Text style={[styles.streakText, { color: p.muted }]}>
               {projection.pointStreak}-game point streak
             </Text>
           </View>
@@ -160,14 +165,14 @@ export default React.memo(function PlayerProjectionCard({
 // ProjectionRow sub-component
 // ---------------------------------------------------------------------------
 
-function ProjectionRow({ projection }: { projection: StatProjection }) {
+function ProjectionRow({ projection, palette: p }: { projection: StatProjection; palette: ArenaPalette }) {
   const isOver = projection.direction === 'OVER';
   const arrowColor = isOver ? rinkGlass.faceoffDot : rinkGlass.redLine;
   const arrowIcon = isOver ? 'arrow-up' : 'arrow-down';
 
   return (
     <View style={styles.projRow}>
-      <Text style={styles.projStatLabel}>{STAT_LABELS[projection.stat]}</Text>
+      <Text style={[styles.projStatLabel, { color: p.muted }]}>{STAT_LABELS[projection.stat]}</Text>
       <View style={styles.projValues}>
         <View style={styles.projectedContainer}>
           <Text style={[styles.projectedValue, { color: arrowColor }]}>
@@ -180,7 +185,7 @@ function ProjectionRow({ projection }: { projection: StatProjection }) {
             style={styles.projArrow}
           />
         </View>
-        <Text style={styles.projSeasonAvg}>
+        <Text style={[styles.projSeasonAvg, { color: p.muted }]}>
           avg {projection.seasonAvg.toFixed(2)}
         </Text>
       </View>

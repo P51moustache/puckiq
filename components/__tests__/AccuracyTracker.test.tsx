@@ -2,7 +2,6 @@
  * Tests for components/AccuracyTracker.tsx
  */
 
-// @ts-expect-error no types for react-test-renderer
 import { create, act } from 'react-test-renderer';
 import React from 'react';
 import AccuracyTracker from '../AccuracyTracker';

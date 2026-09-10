@@ -3,10 +3,12 @@
  * Covers: authenticated vs unauthenticated states, subscription, notifications, about
  */
 
-// @ts-expect-error no types for react-test-renderer
 import { create, act } from 'react-test-renderer';
 import React from 'react';
 import HubScreen from '../HubScreen';
+
+jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
+jest.mock('react-native-safe-area-context', () => ({ SafeAreaView: 'SafeAreaView' }));
 
 jest.mock('react-native', () => {
   const React = require('react');
@@ -139,9 +141,8 @@ describe('HubScreen', () => {
     it('renders the Settings header', () => {
       const tree = renderHub();
       const texts = getAllText(tree);
-      expect(texts).toContain('Settings');
-      // PageHeader uppercases the subtitle
-      expect(texts).toContain('NOTIFICATIONS · ACCOUNT · ABOUT');
+      expect(texts).toContain('SETTINGS');
+      expect(tree.root.findByProps({ accessibilityLabel: 'Back to Tonight' })).toBeTruthy();
     });
 
     it('shows sign-in buttons', () => {

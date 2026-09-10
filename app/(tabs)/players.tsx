@@ -15,9 +15,9 @@ import {
 } from 'react-native';
 import { getTeamColors } from '../../constants/teamColors';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CompactPlayerRow from '../../components/CompactPlayerRow';
 import ElevatedPlayerRow from '../../components/ElevatedPlayerRow';
-import PageHeader from '../../components/PageHeader';
 import FantasyProjectionRow from '../../components/FantasyProjectionRow';
 import GoalieSpotlightCard from '../../components/GoalieSpotlightCard';
 import HeroLeaderCard from '../../components/HeroLeaderCard';
@@ -26,6 +26,8 @@ import PlayerProjectionCard from '../../components/PlayerProjectionCard';
 import PremiumGate from '../../components/PremiumGate';
 import { Skeleton } from '../../components/ui/SkeletonLoader';
 import { ThemedView } from '../../components/ThemedView';
+import { ArenaHeader, arenaType } from '../../components/arena/ArenaPrimitives';
+import { useArena } from '../../components/arena/ArenaProvider';
 import { theme, rinkGlass } from '../../constants/theme';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import { getWaiverWireRecommendations } from '../../services/fantasyProjections';
@@ -64,6 +66,8 @@ const SEARCH_ROW_HEIGHT = 64;
 
 export default function PlayersScreen() {
   const analytics = useAnalytics('PlayersTab');
+  const { palette: p } = useArena();
+  const insets = useSafeAreaInsets();
 
   // Stat category — chip switcher
   const [statCategory, setStatCategory] = useState<StatCategory>(DEFAULT_STAT_CATEGORY);
@@ -248,29 +252,29 @@ export default function PlayersScreen() {
 
   const renderSearchResult = useCallback(({ item }: { item: PlayerSearchResult }) => (
     <TouchableOpacity
-      style={styles.searchRow}
+      style={[styles.searchRow, { backgroundColor: p.paper, borderColor: p.edge }]}
       onPress={() => handlePlayerTap(item.playerId)}
       testID={`search-result-${item.playerId}`}
     >
       <Image
         source={{ uri: item.headshotUrl }}
-        style={styles.searchHeadshot}
+        style={[styles.searchHeadshot, { backgroundColor: p.soft }]}
         contentFit="cover"
         cachePolicy="memory-disk"
         recyclingKey={`search-${item.playerId}`}
         accessibilityLabel={`${item.firstName} ${item.lastName} headshot`}
       />
       <View style={styles.searchInfo}>
-        <Text style={styles.searchName} numberOfLines={1}>
+        <Text style={[styles.searchName, { color: p.ink, fontFamily: arenaType.body }]} numberOfLines={1}>
           {item.firstName} {item.lastName}
         </Text>
-        <Text style={styles.searchMeta}>
+        <Text style={[styles.searchMeta, { color: p.muted, fontFamily: arenaType.body }]}>
           {item.teamAbbrev} / {item.position}{item.sweaterNumber ? ` / #${item.sweaterNumber}` : ''}
         </Text>
       </View>
-      <Ionicons name="chevron-forward" size={16} color={rinkGlass.textSecondary} />
+      <Ionicons name="chevron-forward" size={16} color={p.link} />
     </TouchableOpacity>
-  ), [handlePlayerTap]);
+  ), [handlePlayerTap, p.edge, p.ink, p.link, p.muted, p.paper, p.soft]);
 
   // ---------------------------------------------------------------------------
   // Render: Section header
@@ -278,8 +282,8 @@ export default function PlayersScreen() {
 
   const renderSectionHeader = (label: string) => (
     <View style={styles.sectionHeader}>
-      <Text style={styles.sectionLabel}>{label}</Text>
-      <View style={styles.accentBar} />
+      <Text style={[styles.sectionLabel, { color: p.ink }]}>{label}</Text>
+      <View style={[styles.accentBar, { backgroundColor: p.action }]} />
     </View>
   );
 
@@ -289,16 +293,16 @@ export default function PlayersScreen() {
 
   if (isSearchActive) {
     return (
-      <ThemedView style={styles.container} testID="players-tab">
-        <PageHeader title="Players" subtitle="Search · Leaders · Trends" />
+      <ThemedView style={[styles.container, { backgroundColor: p.page, paddingTop: insets.top }]} testID="players-tab">
+        <View style={styles.arenaHeader}><ArenaHeader title="PLAYERS" subtitle="Search every skater and goalie." /></View>
 
         <View style={styles.searchContainerActive}>
-          <View style={styles.searchBarRow}>
-            <Ionicons name="search" size={18} color={rinkGlass.textSecondary} style={styles.searchIcon} />
+          <View style={[styles.searchBarRow, { backgroundColor: p.paper, borderColor: p.focus }]}>
+            <Ionicons name="search" size={18} color={p.link} style={styles.searchIcon} />
             <TextInput
-              style={styles.searchInput}
+              style={[styles.searchInput, { color: p.ink, fontFamily: arenaType.body }]}
               placeholder="Search players..."
-              placeholderTextColor={rinkGlass.textMuted}
+              placeholderTextColor={p.muted}
               value={searchQuery}
               onChangeText={handleSearchChange}
               returnKeyType="search"
@@ -308,14 +312,14 @@ export default function PlayersScreen() {
               testID="player-search-input-active"
             />
             <TouchableOpacity onPress={clearSearch} testID="search-clear-button" style={styles.clearButton}>
-              <Ionicons name="close-circle" size={20} color={rinkGlass.textSecondary} />
+              <Ionicons name="close-circle" size={20} color={p.muted} />
             </TouchableOpacity>
           </View>
         </View>
 
         {searchLoading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={rinkGlass.blueLight} />
+            <ActivityIndicator size="large" color={p.action} />
           </View>
         ) : (
           <FlatList
@@ -332,7 +336,7 @@ export default function PlayersScreen() {
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>
+                <Text style={[styles.emptyText, { color: p.muted, fontFamily: arenaType.body }]}>
                   {searchQuery.length < 2 ? 'Type at least 2 characters to search' : 'No players found'}
                 </Text>
               </View>
@@ -355,20 +359,19 @@ export default function PlayersScreen() {
   // ---------------------------------------------------------------------------
 
   return (
-    <ThemedView style={styles.container} testID="players-tab">
-      <PageHeader
-        title="Players"
-        subtitle={`Leaders · Trends · Goalies · ${statCategory.toUpperCase()}`}
-      />
+    <ThemedView style={[styles.container, { backgroundColor: p.page, paddingTop: insets.top }]} testID="players-tab">
+      <View style={styles.arenaHeader}>
+        <ArenaHeader title="PLAYERS" subtitle={`Leaders, trends, goalies and ${statCategory.toLowerCase()}.`} />
+      </View>
 
       {/* Always-visible compact search bar */}
       <Pressable
         onPress={() => setIsSearchActive(true)}
-        style={styles.searchBarStatic}
+        style={[styles.searchBarStatic, { backgroundColor: p.paper, borderColor: p.edge }]}
         testID="search-toggle"
       >
-        <Ionicons name="search" size={14} color={rinkGlass.textMuted} style={{ marginRight: 8 }} />
-        <Text style={styles.searchBarStaticText}>Search any player...</Text>
+        <Ionicons name="search" size={16} color={p.link} style={{ marginRight: 8 }} />
+        <Text style={[styles.searchBarStaticText, { color: p.muted, fontFamily: arenaType.body }]}>Search any player</Text>
       </Pressable>
 
       {/* Category chip switcher */}
@@ -384,10 +387,13 @@ export default function PlayersScreen() {
             <TouchableOpacity
               key={cat.key}
               onPress={() => handleCategoryChange(cat.key)}
-              style={[styles.categoryChip, active && styles.categoryChipActive]}
+              style={[
+                styles.categoryChip,
+                { backgroundColor: active ? p.action : p.paper, borderColor: active ? p.frame : p.edge },
+              ]}
               testID={`category-chip-${cat.key}`}
             >
-              <Text style={[styles.categoryChipText, active && styles.categoryChipTextActive]}>
+              <Text style={[styles.categoryChipText, { color: active ? p.actionInk : p.muted, fontFamily: arenaType.body }]}>
                 {cat.label}
               </Text>
             </TouchableOpacity>
@@ -403,7 +409,7 @@ export default function PlayersScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor={rinkGlass.blueLight}
+            tintColor={p.action}
           />
         }
       >
@@ -480,9 +486,9 @@ export default function PlayersScreen() {
           <>
             {/* SPOTLIGHT — players outperforming their season averages */}
             {trendingUp.length > 0 && (
-              <View>
+              <View style={styles.section}>
                 {renderSectionHeader('SPOTLIGHT')}
-                <Text style={styles.sectionExplainer}>
+                <Text style={[styles.sectionExplainer, { color: p.muted, fontFamily: arenaType.body }]}>
                   Players whose recent 5-game pace is well above their season average. Tap a card for details.
                 </Text>
                 <FlatList
@@ -503,7 +509,7 @@ export default function PlayersScreen() {
                           onPress={() => handlePlayerTap(item.playerId)}
                           style={({ pressed }) => [
                             styles.spotlightCard,
-                            { borderTopColor: tc.primary, borderTopWidth: 3 },
+                            { backgroundColor: p.paper, borderColor: p.edge, borderTopColor: tc.primary, borderTopWidth: 4 },
                             pressed && { transform: [{ scale: 0.95 }], opacity: 0.9 },
                           ]}
                         >
@@ -511,20 +517,20 @@ export default function PlayersScreen() {
                             <View style={styles.spotlightHeader}>
                               <Image
                                 source={{ uri: item.headshotUrl }}
-                                style={[styles.spotlightHeadshot, { borderColor: tc.primary + '66' }]}
+                                style={[styles.spotlightHeadshot, { backgroundColor: p.soft, borderColor: tc.primary + '66' }]}
                                 contentFit="cover"
                                 cachePolicy="memory-disk"
                                 recyclingKey={`spot-${item.playerId}`}
                               />
                             </View>
-                            <Text style={styles.spotlightName} numberOfLines={1}>
+                            <Text style={[styles.spotlightName, { color: p.ink, fontFamily: arenaType.body }]} numberOfLines={1}>
                               {item.firstName.charAt(0)}. {item.lastName}
                             </Text>
                             <Text style={[styles.spotlightTeam, { color: tc.primary }]}>
                               {item.teamAbbrev} · {item.position}
                             </Text>
-                            <Text style={styles.spotlightBigStat}>{item.seasonPoints}</Text>
-                            <Text style={styles.spotlightStatLabel}>Points</Text>
+                            <Text style={[styles.spotlightBigStat, { color: p.ink, fontFamily: arenaType.display }]}>{item.seasonPoints}</Text>
+                            <Text style={[styles.spotlightStatLabel, { color: p.muted }]}>Points</Text>
                             {aboveAvgPct > 15 && (
                               <View style={styles.spotlightAboveAvg}>
                                 <Ionicons name="trending-up" size={10} color={theme.semantic.positive} />
@@ -561,6 +567,7 @@ export default function PlayersScreen() {
                     projection={proj}
                     featuredStats={[statCategory]}
                     onPress={handlePlayerTap}
+                    palette={p}
                   />
                 ))}
               </View>
@@ -577,6 +584,7 @@ export default function PlayersScreen() {
                         key={proj.playerId}
                         projection={proj}
                         onPress={handlePlayerTap}
+                        palette={p}
                       />
                     ))}
                   </View>
@@ -588,7 +596,7 @@ export default function PlayersScreen() {
             {leagueLeaders.length > 0 && (
               <View style={styles.section}>
                 {renderSectionHeader('LEAGUE LEADERS')}
-                <Text style={styles.sectionExplainer}>
+                <Text style={[styles.sectionExplainer, { color: p.muted, fontFamily: arenaType.body }]}>
                   Top 10 in {statCategory.toUpperCase()} this season. Tap any player for the full stat line.
                 </Text>
                 {/* Hero card: #1 player */}
@@ -597,6 +605,7 @@ export default function PlayersScreen() {
                   leaderTrend={leaderTrends.get(leagueLeaders[0].playerId)}
                   statCategory={statCategory}
                   onPress={handlePlayerTap}
+                  palette={p}
                 />
                 {/* Elevated rows: #2-5 */}
                 {leagueLeaders.slice(1, 5).map((player, i) => (
@@ -608,11 +617,12 @@ export default function PlayersScreen() {
                     leaderTrend={leaderTrends.get(player.playerId)}
                     statCategory={statCategory}
                     onPress={handlePlayerTap}
+                    palette={p}
                   />
                 ))}
                 {/* Compact rows: #6-10 */}
                 {leagueLeaders.length > 5 && (
-                  <View style={styles.compactContainer}>
+                  <View style={[styles.compactContainer, { backgroundColor: p.paper, borderColor: p.edge }]}>
                     {leagueLeaders.slice(5, 10).map((player, i) => (
                       <CompactPlayerRow
                         key={player.playerId}
@@ -620,6 +630,7 @@ export default function PlayersScreen() {
                         rank={i + 6}
                         statCategory={statCategory}
                         onPress={handlePlayerTap}
+                        palette={p}
                       />
                     ))}
                   </View>
@@ -633,7 +644,7 @@ export default function PlayersScreen() {
             {trendingGoalies.length > 0 && (
               <View style={styles.section}>
                 {renderSectionHeader('GOALIE WALL')}
-                <Text style={styles.sectionExplainer}>
+                <Text style={[styles.sectionExplainer, { color: p.muted, fontFamily: arenaType.body }]}>
                   Top 3 goalies by recent save percentage. SV% L5 = save % over their last 5 starts.
                 </Text>
                 {trendingGoalies.slice(0, 3).map((g, idx) => (
@@ -641,6 +652,7 @@ export default function PlayersScreen() {
                     key={g.playerId ?? idx}
                     goalie={g}
                     onPress={handlePlayerTap}
+                    palette={p}
                   />
                 ))}
               </View>
@@ -650,7 +662,7 @@ export default function PlayersScreen() {
             {trendingDown.length > 0 && (
               <View style={styles.section}>
                 {renderSectionHeader('COOLING DOWN')}
-                <View style={styles.compactContainer}>
+                <View style={[styles.compactContainer, { backgroundColor: p.paper, borderColor: p.edge }]}>
                   {trendingDown.slice(0, 5).map((player, i) => (
                     <CompactPlayerRow
                       key={player.playerId}
@@ -658,6 +670,7 @@ export default function PlayersScreen() {
                       rank={i + 1}
                       statCategory={statCategory}
                       onPress={handlePlayerTap}
+                      palette={p}
                     />
                   ))}
                 </View>
@@ -667,9 +680,9 @@ export default function PlayersScreen() {
             {/* Empty state */}
             {leagueLeaders.length === 0 && trendingUp.length === 0 && projections.length === 0 && (
               <View style={styles.emptyContainer}>
-                <Ionicons name="trending-up" size={48} color={rinkGlass.textSecondary} />
-                <Text style={styles.emptyTitle}>No Trend Data Available</Text>
-                <Text style={styles.emptyText}>
+                <Ionicons name="podium-outline" size={48} color={p.link} />
+                <Text style={[styles.emptyTitle, { color: p.ink, fontFamily: arenaType.display }]}>NO PLAYER DATA</Text>
+                <Text style={[styles.emptyText, { color: p.muted, fontFamily: arenaType.body }]}>
                   Player trend data requires at least 10 games played.
                   Check back once more games have been completed.
                 </Text>
@@ -699,7 +712,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: rinkGlass.ice,
-    paddingTop: Platform.OS === 'ios' ? 56 : 26,
+  },
+  arenaHeader: {
+    paddingHorizontal: 18,
   },
   header: {
     paddingTop: Platform.OS === 'ios' ? 60 : 30,
@@ -739,15 +754,14 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   sectionLabel: {
-    fontSize: 13,
-    fontWeight: '800',
+    fontSize: 28,
+    lineHeight: 30,
     color: rinkGlass.blueLight,
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
+    fontFamily: arenaType.display,
   },
   accentBar: {
-    width: 32,
-    height: 2,
+    width: 48,
+    height: 4,
     backgroundColor: rinkGlass.blueLight,
     borderRadius: 1,
     marginTop: 4,
@@ -766,7 +780,7 @@ const styles = StyleSheet.create({
   },
   spotlightCard: {
     width: 140,
-    height: 210,
+    height: 224,
     backgroundColor: rinkGlass.glass,
     borderRadius: 14,
     overflow: 'hidden',
@@ -879,10 +893,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: 16,
     marginBottom: 10,
-    paddingVertical: 9,
+    minHeight: 48,
+    paddingVertical: 10,
     paddingHorizontal: 12,
-    borderRadius: 8,
-    borderWidth: 1,
+    borderRadius: 12,
+    borderWidth: 1.5,
     borderColor: rinkGlass.glassBorder,
     backgroundColor: rinkGlass.boards,
   },
@@ -899,9 +914,10 @@ const styles = StyleSheet.create({
   },
   categoryChip: {
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    borderWidth: 1,
+    minHeight: 42,
+    paddingVertical: 9,
+    borderRadius: 10,
+    borderWidth: 1.5,
     borderColor: rinkGlass.glassBorder,
     backgroundColor: 'transparent',
     flex: 1,
@@ -923,10 +939,10 @@ const styles = StyleSheet.create({
   },
   // Section explainer (matches Today)
   sectionExplainer: {
-    fontSize: 11,
-    lineHeight: 15,
+    fontSize: 12,
+    lineHeight: 18,
     color: rinkGlass.textMuted,
-    paddingHorizontal: 16,
+    paddingHorizontal: 0,
     marginTop: -2,
     marginBottom: 4,
   },

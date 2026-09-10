@@ -380,7 +380,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   bgImage: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     opacity: 0.35,
   },
 

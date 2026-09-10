@@ -1,6 +1,6 @@
 /**
  * Tests for ElevatedPlayerRow component
- * Verifies rendering of ranks #2-5: headshot, name, trend/flames,
+ * Verifies rendering of ranks #2-5: headshot, name, trend state,
  * sparkline, watch button, stat value, and onPress.
  */
 
@@ -8,7 +8,7 @@
 import React from 'react';
 
 import ElevatedPlayerRowMemo from '../ElevatedPlayerRow';
-import type { TrendingPlayer, HitRateResult, LeaderTrend, StatCategory } from '../../services/playerTrends';
+import type { TrendingPlayer, LeaderTrend } from '../../services/playerTrends';
 
 jest.mock('react-native', () => ({
   View: 'View',
@@ -216,8 +216,8 @@ describe('ElevatedPlayerRow', () => {
     });
   });
 
-  describe('flame badges and trend arrows', () => {
-    it('renders flame badge for HOT trend (5 flames)', () => {
+  describe('trend arrows', () => {
+    it('renders an upward icon for a HOT trend without decorative emoji', () => {
       const result = ElevatedPlayerRow({
         player: makePlayer({ trendLabel: 'HOT' }),
         rank: 2,
@@ -225,13 +225,12 @@ describe('ElevatedPlayerRow', () => {
         onPress: mockOnPress,
       });
       const texts = collectTexts(result);
-      const flameText = texts.find(t => t.includes('\uD83D\uDD25'));
-      expect(flameText).toBeTruthy();
-      // HOT = 5 flames
-      expect(flameText!.split('\uD83D\uDD25').length - 1).toBe(5);
+      expect(texts.some(t => t.includes('\uD83D\uDD25'))).toBe(false);
+      const icons = findByType(result, 'Ionicons');
+      expect(icons.some((icon: any) => icon.props.name === 'arrow-up')).toBe(true);
     });
 
-    it('renders flame badge for WARM trend (4 flames)', () => {
+    it('renders an upward icon for a WARM trend without decorative emoji', () => {
       const result = ElevatedPlayerRow({
         player: makePlayer({ trendLabel: 'WARM' }),
         rank: 2,
@@ -239,10 +238,9 @@ describe('ElevatedPlayerRow', () => {
         onPress: mockOnPress,
       });
       const texts = collectTexts(result);
-      const flameText = texts.find(t => t.includes('\uD83D\uDD25'));
-      expect(flameText).toBeTruthy();
-      // WARM = 4 flames
-      expect(flameText!.split('\uD83D\uDD25').length - 1).toBe(4);
+      expect(texts.some(t => t.includes('\uD83D\uDD25'))).toBe(false);
+      const icons = findByType(result, 'Ionicons');
+      expect(icons.some((icon: any) => icon.props.name === 'arrow-up')).toBe(true);
     });
 
     it('renders trend arrow icon for COOL trend (no flames)', () => {

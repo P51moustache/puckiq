@@ -3,7 +3,6 @@
  * Verifies empty state (no roster) vs roster state rendering.
  */
 
-// @ts-expect-error no types for react-test-renderer
 import { create, act } from 'react-test-renderer';
 import React from 'react';
 import MyTeamScreen from '../MyTeamScreen';

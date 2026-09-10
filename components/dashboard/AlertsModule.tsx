@@ -332,7 +332,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   actionBackground: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,

@@ -1,31 +1,44 @@
-# PuckIQ Design Vision — "Stat Sheet"
+# PuckIQ Design Vision — Arena Club
 
-**Picked**: 2026-04-26
-**Replaces**: "Rink Glass" (atmospheric arena-glass metaphor) — too abstract to drive concrete decisions, ~70/30 adoption with 30% of the app on legacy navy theme tokens
-**Reason**: Owner feedback — "the app is honestly all over the place" + "I don't want there to be articles, I want it to be stats focused for the hockey enthusiast"
+**Selected:** 2026-09-09, after the owner approved the illustrated Arena Club concept and requested team-dependent colors.
+**Replaces:** [Stat Sheet](archive/2026-04-26-stat-sheet.md), which was too restrained for the desired personality.
+**Implementation status:** implemented in the native Expo app: Tonight, Following, Players, League, Settings, and onboarding. Verified in Expo Go 57 on iOS; see the [implementation verification](2026-09-09-arena-club-verification.md).
 
-## The vibe
+## The experience
 
-A daily briefing for someone who takes hockey seriously. The press box, not the broadcast booth. Calm, confident, terse, information-dense. Trust the reader.
+A personal hockey-season companion with the visual character of a game poster and a collectible trading card. Lead with identifiable hockey imagery, expressive jersey typography, team colors, and tactile controls. Keep the information useful before puck drop and worth revisiting after the game.
 
-Nearest reference: The Athletic dataroom × Linear × the back of a baseball card.
+The core questions are who is starting, how the teams compare, what changed, and how the forecast compares with the final result. Preserve the stats focus; the product is not an article feed.
 
-## The rules
+## Team identity
 
-1. **One surface system.** `rinkGlass.boards` (#141829) as the single card background. Optional 1px hairline border at `rinkGlass.glassBorder` for emphasis. No glass-on-glass. No blue-tinted Explore panels. No red-shadowed goalie cards.
+Use the person's **home team** to select the whole UI palette: game-poster background, headline treatment, primary buttons, navigation, highlights, tinted surfaces, and borders. A tiny team-colored stripe is insufficient.
 
-2. **One accent color.** Cyan `#4cc9f0` (`rinkGlass.blueLight`) is the only decorative accent — used for active segments, primary CTAs, section underlines, sparklines. Semantic green `#06d6a0` / red `#e63946` / amber `#ffd60a` are reserved strictly for **data direction** (positive / negative / warn), never for section decoration.
+- The first followed team becomes the default home team. Following more teams does not silently change the palette.
+- Let people select a different home team from their followed teams. This choice controls appearance without changing what they follow.
+- For existing users without a home-team choice, use the earliest followed team as the deterministic initial default.
+- If the home team is unfollowed, use the earliest remaining followed team. With no followed teams, use a neutral PuckIQ palette and invite the first selection.
+- Keep the app's home-team identity stable while browsing other teams. Opponent logos, jerseys, and comparison marks retain their own identities.
 
-3. **No emojis. Ever.** Fire 🔥 → small chart-up icon or numeric heat. The original "Rink Glass" spec said this; we now actually enforce it.
+The [32-team palette catalog](arena-team-palettes.json) defines the concept's token sets. The current team list follows the [NHL team directory](https://www.nhl.com/info/teams/). The catalog uses the existing project colors plus role-specific UI treatments; it is not a certified official brand-color specification. Legacy team colors remain available for historical data but do not add defunct teams to the active selector.
 
-4. **Real headshots or dropped.** No letter circles. No abbreviation-text "logos." Where we lack a headshot, fall back to position + number in a neutral monogram, not a colored circle.
+## Visual rules
 
-5. **Display-Bold is rationed.** Oswald-Bold is reserved for page titles + key stat numbers (the giant "8.2 PROJ PTS"). Body text is system. Tabular records use SF Mono.
+1. **Art is part of the identity.** Use hockey photography, player cutouts, or deliberately commissioned illustrations in the primary game card. Production player portraits must depict the identified player. Never label a fictional concept skater as a real NHL player.
+2. **Legibility survives the collage.** Essential text sits above artwork when needed. Keep GAME NIGHT, team names, probabilities, and controls clear of bodies, badges, and crop edges at narrow widths. Decorative layering must not hide words.
+3. **Use a complete palette.** Consume shared color roles rather than scattering team hex values through screens. Each theme needs hero and action colors, their text colors, frame colors, neutral surfaces, readable links, and focus treatment.
+4. **Separate team identity from data meaning.** Positive, negative, warning, and confirmation states retain consistent semantics across all teams. Pair status colors with text or symbols. Charts must label opponents and remain distinguishable when team colors are similar.
+5. **Make controls tactile.** Raised buttons, shaped corners, stamped saves, and a game-card flip are signature interactions. Use the same control grammar across teams.
+6. **Typography carries hierarchy.** Use expressive condensed display type for short hockey headlines and major numbers, with a readable sans serif for controls and explanations. Align numerical comparisons with tabular figures. Avoid turning every label into a display headline.
+7. **Keep useful information readable.** Neutral surfaces support comparisons, lists, and explanations. The dominant art belongs to the game card; secondary screens should not become competing posters.
+8. **Preserve trust.** Show freshness, source/model context, sample sizes where useful, and honest empty, stale, or unavailable states. Do not fabricate confirmations, player portraits, forecasts, model attribution, or shot-quality measures.
+9. **Premium stays understandable.** Show the actual feature and a clear upgrade path. Do not black out entire tabs or substitute decorative effects for recurring value.
+10. **No decorative emoji system.** Use intentional artwork and a coherent icon family.
 
-6. **Premium stays subtle.** Replace the impenetrable scrim with a thin `PRO` lock badge on the gated card. Don't black out a whole tab.
+## Motion and feature boundaries
 
-7. **Section headers unify.** All-caps label + thin cyan underline (or a 4×20 cyan stripe). No more vertical pink + green + orange + yellow accent stripes per module.
+The game card can tilt gently and flip into its analysis. Saving can stamp the card and add it to the season book. Native transitions and restrained haptics should preserve context and respond to deliberate actions. Respect reduced motion and equivalent accessible controls.
 
-8. **No editorial copy.** "Home teams winning 58% of games this week — ride the home ice edge" → out. "Be the first on the leaderboard!" → "NO RESULTS YET". "Factor accuracy tracking coming soon. Make picks to build data!" → "NO PICK HISTORY · Corsi · Fenwick · xG · PDO · SV%". The reader is a hockey enthusiast who can interpret raw data; don't pep-talk them.
+**Shot Lab was removed.** A draggable puck that only reports geometry does not justify a standalone feature. **Game Preview** replaces it, focusing on starting goalies, team comparisons, and saved forecast changes. Real shot maps can be explored inside the relevant game when the data supports them.
 
-9. **Data integrity first.** No "0th in Atlantic". No raw ISO timestamps. No floating-point artifacts. No empty section headers with nothing under them.
+The original HTML concept uses illustrative data. The native implementation reads the existing Supabase feed and labels missing schedules, forecasts, and unconfirmed starters. Expo Go verification does not establish production data quality, working native purchases/push delivery, or store readiness.

@@ -380,7 +380,7 @@ const styles = StyleSheet.create({
     width: 160,
   },
   hintOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',

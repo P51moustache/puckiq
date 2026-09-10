@@ -119,6 +119,12 @@ jest.mock('react-native-purchases', () => ({
 }), { virtual: true });
 
 // Silence console.logs in tests
+jest.mock('react-native-worklets', () => ({
+  scheduleOnRN: (fn, ...args) => fn(...args),
+  runOnJS: (fn) => fn,
+  runOnUI: (fn) => fn,
+}));
+
 global.console = {
   ...console,
   log: jest.fn(),

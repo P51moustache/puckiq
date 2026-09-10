@@ -12,6 +12,8 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Sparkline } from './Sparkline';
 import { rinkGlass } from '../constants/theme';
+import { arenaType } from '../constants/arenaTypography';
+import { getArenaPalette, type ArenaPalette } from '../constants/arenaTheme';
 import type { TrendingPlayer, HitRateResult, LeaderTrend, StatCategory } from '../services/playerTrends';
 
 const WATCHLIST_KEY = 'puckiq_watchlist';
@@ -44,13 +46,6 @@ function buildSparklineData(player: TrendingPlayer, trend?: LeaderTrend): number
   ].map(v => Math.max(v, 0));
 }
 
-/** Get flame string for HOT / WARM players. */
-function getFlames(trendLabel: string): string {
-  if (trendLabel === 'HOT') return '\uD83D\uDD25\uD83D\uDD25\uD83D\uDD25\uD83D\uDD25\uD83D\uDD25';
-  if (trendLabel === 'WARM') return '\uD83D\uDD25\uD83D\uDD25\uD83D\uDD25\uD83D\uDD25';
-  return '';
-}
-
 interface ElevatedPlayerRowProps {
   player: TrendingPlayer;
   rank: number;
@@ -58,6 +53,7 @@ interface ElevatedPlayerRowProps {
   leaderTrend?: LeaderTrend;
   statCategory: StatCategory;
   onPress: (playerId: number) => void;
+  palette?: ArenaPalette;
 }
 
 export default React.memo(function ElevatedPlayerRow({
@@ -65,11 +61,12 @@ export default React.memo(function ElevatedPlayerRow({
   rank,
   leaderTrend,
   onPress,
+  palette,
 }: ElevatedPlayerRowProps) {
+  const p = palette ?? getArenaPalette();
   const handlePress = useCallback(() => onPress(player.playerId), [onPress, player.playerId]);
   const trendIcon = TREND_ICONS[player.trendLabel];
   const sparklineData = buildSparklineData(player, leaderTrend);
-  const flames = getFlames(player.trendLabel);
 
   // Watchlist state
   const [isWatched, setIsWatched] = useState(false);
@@ -105,11 +102,11 @@ export default React.memo(function ElevatedPlayerRow({
 
   return (
     <Pressable
-      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+      style={({ pressed }) => [styles.row, { backgroundColor: p.paper, borderColor: p.edge }, pressed && styles.rowPressed]}
       onPress={handlePress}
       testID={`elevated-row-${player.playerId}`}
     >
-      <Text style={styles.rankNumber}>{rank}</Text>
+      <Text style={[styles.rankNumber, { color: p.link, fontFamily: arenaType.display }]}>{rank}</Text>
 
       <Image
         source={{ uri: player.headshotUrl }}
@@ -122,10 +119,8 @@ export default React.memo(function ElevatedPlayerRow({
 
       <View style={styles.infoContainer}>
         <View style={styles.nameRow}>
-          <Text style={styles.playerName} numberOfLines={1}>{player.playerName}</Text>
-          {flames ? (
-            <Text style={styles.flamesBadge}>{flames}</Text>
-          ) : trendIcon ? (
+          <Text style={[styles.playerName, { color: p.ink, fontFamily: arenaType.body }]} numberOfLines={1}>{player.playerName}</Text>
+          {trendIcon ? (
             <Ionicons
               name={trendIcon.name}
               size={14}
@@ -134,7 +129,7 @@ export default React.memo(function ElevatedPlayerRow({
             />
           ) : null}
         </View>
-        <Text style={styles.playerMeta}>
+        <Text style={[styles.playerMeta, { color: p.muted, fontFamily: arenaType.body }]}>
           {player.position} · {player.teamAbbrev}  {player.seasonGoals}G · {player.seasonAssists}A
         </Text>
       </View>
@@ -143,12 +138,12 @@ export default React.memo(function ElevatedPlayerRow({
         data={sparklineData}
         width={50}
         height={18}
-        color={rinkGlass.blueLight}
+        color={p.link}
       />
 
       <View style={styles.statContainer}>
-        <Text style={styles.pointsTotal}>{player.seasonPoints}</Text>
-        <Text style={styles.ppgLabel}>{player.gamesPlayed} GP</Text>
+        <Text style={[styles.pointsTotal, { color: p.ink, fontFamily: arenaType.display }]}>{player.seasonPoints}</Text>
+        <Text style={[styles.ppgLabel, { color: p.muted, fontFamily: arenaType.body }]}>{player.gamesPlayed} GP</Text>
       </View>
 
       <TouchableOpacity
@@ -160,7 +155,7 @@ export default React.memo(function ElevatedPlayerRow({
         <Ionicons
           name={isWatched ? 'eye' : 'eye-outline'}
           size={16}
-          color={isWatched ? rinkGlass.blueLight : rinkGlass.textMuted}
+          color={isWatched ? p.action : p.muted}
         />
       </TouchableOpacity>
     </Pressable>

@@ -7,6 +7,8 @@ import React, { useCallback } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { rinkGlass } from '../constants/theme';
+import { arenaType } from '../constants/arenaTypography';
+import { getArenaPalette, type ArenaPalette } from '../constants/arenaTheme';
 import type { TrendingPlayer, StatCategory } from '../services/playerTrends';
 
 const TREND_COLORS: Record<string, string> = {
@@ -22,6 +24,7 @@ interface CompactPlayerRowProps {
   rank: number;
   statCategory: StatCategory;
   onPress: (playerId: number) => void;
+  palette?: ArenaPalette;
 }
 
 export default React.memo(function CompactPlayerRow({
@@ -29,7 +32,9 @@ export default React.memo(function CompactPlayerRow({
   rank,
   statCategory,
   onPress,
+  palette,
 }: CompactPlayerRowProps) {
+  const p = palette ?? getArenaPalette();
   const handlePress = useCallback(() => onPress(player.playerId), [onPress, player.playerId]);
   const trendColor = TREND_COLORS[player.trendLabel] || rinkGlass.blueLight;
 
@@ -38,11 +43,11 @@ export default React.memo(function CompactPlayerRow({
 
   return (
     <Pressable
-      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+      style={({ pressed }) => [styles.row, { borderBottomColor: p.edge }, pressed && styles.rowPressed]}
       onPress={handlePress}
       testID={`compact-row-${player.playerId}`}
     >
-      <Text style={styles.rankNumber}>{rank}</Text>
+      <Text style={[styles.rankNumber, { color: p.link, fontFamily: arenaType.display }]}>{rank}</Text>
 
       <Image
         source={{ uri: player.headshotUrl }}
@@ -52,9 +57,9 @@ export default React.memo(function CompactPlayerRow({
         recyclingKey={`compact-${player.playerId}`}
       />
 
-      <Text style={styles.playerName} numberOfLines={1}>{player.lastName}</Text>
-      <Text style={styles.teamAbbrev}>{player.teamAbbrev}</Text>
-      <Text style={styles.goalsAssists}>{goalsAssists}</Text>
+      <Text style={[styles.playerName, { color: p.ink, fontFamily: arenaType.body }]} numberOfLines={1}>{player.lastName}</Text>
+      <Text style={[styles.teamAbbrev, { color: p.muted }]}>{player.teamAbbrev}</Text>
+      <Text style={[styles.goalsAssists, { color: p.link, fontFamily: arenaType.body }]}>{goalsAssists}</Text>
 
       {player.trendLabel !== 'STEADY' && (
         <View style={[styles.trendPill, { borderColor: trendColor }]}>
@@ -62,7 +67,7 @@ export default React.memo(function CompactPlayerRow({
         </View>
       )}
 
-      <Text style={styles.statValue}>{player.seasonPoints}</Text>
+      <Text style={[styles.statValue, { color: p.ink, fontFamily: arenaType.display }]}>{player.seasonPoints}</Text>
     </Pressable>
   );
 });

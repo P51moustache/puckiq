@@ -7,11 +7,6 @@ export default {
     icon: "./assets/images/icon.png",
     scheme: "learningproject",
     userInterfaceStyle: "automatic",
-    newArchEnabled: true,
-    notification: {
-      icon: "./assets/images/icon.png",
-      color: "#60a5fa"
-    },
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.zlce.hockeystats",
@@ -32,7 +27,6 @@ export default {
         "RECEIVE_BOOT_COMPLETED",
         "POST_NOTIFICATIONS"
       ],
-      edgeToEdgeEnabled: true,
       package: "com.zlce.hockeystats"
     },
     web: {
@@ -42,6 +36,11 @@ export default {
     },
     plugins: [
       "expo-router",
+      "expo-font",
+      "expo-image",
+      "expo-status-bar",
+      "expo-web-browser",
+      ["expo-build-properties", { ios: { deploymentTarget: "16.4" } }],
       [
         "expo-splash-screen",
         {

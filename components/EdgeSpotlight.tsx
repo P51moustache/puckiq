@@ -171,7 +171,7 @@ export default function Spotlight({
           <View testID={`spotlight-card-${item.key}`} style={styles.playerCard}>
             <LinearGradient
               colors={[`${colors.primary}26`, 'transparent']}
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
             />
             {headshotUri && (
               <Image
