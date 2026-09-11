@@ -1,160 +1,171 @@
 /**
- * Sync NHL player stats to Supabase.
- *
- * Fetches each team's current roster stats from the NHL API
- * and upserts into `skater_season_stats` and `goalie_season_stats` tables.
- * Schema matches backend-engineer's comprehensive migration.
+ * Sync exact-period NHL club player stats to Supabase.
  *
  * Usage:
  *   node scripts/sync/sync-players.mjs
+ *   node scripts/sync/sync-players.mjs --season 20252026
  */
+
+import { pathToFileURL } from 'node:url';
 
 import { supabase, logConnectionInfo } from './supabase-client.mjs';
 import { ALL_TEAMS, getCurrentSeason, fetchWithRetry, sleep, endpoints, parseSeasonArg } from './nhl-api.mjs';
+import {
+  clubTeamsForSeason,
+  normalizeClubStats,
+  upsertBatches,
+  writeSyncLog,
+} from './ingestion-contracts.mjs';
 
-async function syncPlayerStats(seasonOverride) {
+async function recordPlayerSync({ season, startedAt, status, upserted, errors, metadata, errorMessage }) {
+  try {
+    await writeSyncLog(supabase, {
+      sync_type: 'player_stats',
+      status,
+      started_at: startedAt,
+      completed_at: new Date().toISOString(),
+      records_processed: upserted,
+      error_message: errorMessage ?? null,
+      metadata: { season, game_type: 2, ...metadata },
+    });
+    return errors;
+  } catch (error) {
+    console.error(`[sync-players] ${error.message}`);
+    return errors + 1;
+  }
+}
+
+export async function syncPlayerStats(seasonOverride) {
+  const startedAt = new Date().toISOString();
   const season = seasonOverride || getCurrentSeason();
+  let teams;
+  try {
+    teams = clubTeamsForSeason(season, ALL_TEAMS);
+  } catch (error) {
+    const errors = await recordPlayerSync({
+      season,
+      startedAt,
+      status: 'failed',
+      upserted: 0,
+      errors: 1,
+      metadata: { teams_expected: 0, teams_fetched: 0, failed_teams: [], skaters_fetched: 0, goalies_fetched: 0, skaters_upserted: 0, goalies_upserted: 0 },
+      errorMessage: error.message,
+    });
+    console.error(`[sync-players] ${error.message}`);
+    return { upserted: 0, errors };
+  }
   console.log(`[sync-players] Fetching player stats for season ${season}`);
 
   const skaterRows = [];
   const goalieRows = [];
-  let teamsDone = 0;
+  const failedTeams = [];
 
-  for (const team of ALL_TEAMS) {
+  for (let index = 0; index < teams.length; index++) {
+    const team = teams[index];
     try {
-      const data = await fetchWithRetry(endpoints.teamStats(team, season));
-      if (Number(data.season) !== season || Number(data.gameType) !== 2) {
-        throw new Error(`Unexpected player-stat period for ${team}; refusing to relabel rows`);
-      }
-      const skaters = data.skaters ?? [];
-      const goalies = data.goalies ?? [];
-
-      for (const s of skaters) {
-        skaterRows.push({
-          player_id: s.playerId,
-          season,
-          team_abbrev: team,
-          position: s.positionCode ?? null,
-          games_played: s.gamesPlayed ?? 0,
-          goals: s.goals ?? 0,
-          assists: s.assists ?? 0,
-          points: s.points ?? 0,
-          plus_minus: s.plusMinus ?? 0,
-          pim: s.penaltyMinutes ?? 0,
-          power_play_goals: s.powerPlayGoals ?? 0,
-          shorthanded_goals: s.shorthandedGoals ?? 0,
-          game_winning_goals: s.gameWinningGoals ?? 0,
-          overtime_goals: s.overtimeGoals ?? 0,
-          shots: s.shots ?? 0,
-          shooting_pctg: s.shootingPctg ?? null,
-          avg_toi_per_game: s.avgTimeOnIce ?? null,
-          faceoff_win_pctg: s.faceoffWinPctg ?? null,
-        });
-      }
-
-      for (const g of goalies) {
-        goalieRows.push({
-          player_id: g.playerId,
-          season,
-          team_abbrev: team,
-          games_played: g.gamesPlayed ?? 0,
-          games_started: g.gamesStarted ?? 0,
-          wins: g.wins ?? 0,
-          losses: g.losses ?? 0,
-          ot_losses: g.otLosses ?? 0,
-          goals_against_avg: g.goalsAgainstAverage ?? null,
-          save_pctg: g.savePctg ?? null,
-          shots_against: g.shotsAgainst ?? 0,
-          saves: g.saves ?? 0,
-          goals_against: g.goalsAgainst ?? 0,
-          shutouts: g.shutouts ?? 0,
-          goals: g.goals ?? 0,
-          assists: g.assists ?? 0,
-          pim: g.penaltyMinutes ?? 0,
-        });
-      }
-    } catch (err) {
-      console.warn(`  [sync-players] Failed to fetch ${team}: ${err.message}`);
+      const payload = await fetchWithRetry(endpoints.teamStats(team, season));
+      const normalized = normalizeClubStats(payload, team, season);
+      skaterRows.push(...normalized.skaters);
+      goalieRows.push(...normalized.goalies);
+    } catch (error) {
+      failedTeams.push(team);
+      console.warn(`  [sync-players] Failed ${team}: ${error.message}`);
     }
 
-    teamsDone++;
-    if (teamsDone % 8 === 0) {
-      console.log(`  Fetched ${teamsDone}/${ALL_TEAMS.length} teams (${skaterRows.length} skaters, ${goalieRows.length} goalies)`);
+    const teamsAttempted = index + 1;
+    if (teamsAttempted % 8 === 0) {
+      console.log(`  Fetched ${teamsAttempted}/${teams.length} teams (${skaterRows.length} skaters, ${goalieRows.length} goalies)`);
     }
     await sleep(100);
   }
 
-  let errors = 0;
+  const sourceRows = skaterRows.length + goalieRows.length;
+  const coverage = {
+    teams_expected: teams.length,
+    teams_fetched: teams.length - failedTeams.length,
+    failed_teams: failedTeams,
+    skaters_fetched: skaterRows.length,
+    goalies_fetched: goalieRows.length,
+  };
 
-  // Upsert skaters
-  if (skaterRows.length > 0) {
-    const batchSize = 200;
-    let upserted = 0;
-    for (let i = 0; i < skaterRows.length; i += batchSize) {
-      const batch = skaterRows.slice(i, i + batchSize);
-      const { error } = await supabase
-        .from('skater_season_stats')
-        .upsert(batch, { onConflict: 'player_id,season,team_abbrev' });
-      if (error) {
-        if (error.message.includes('does not exist')) {
-          console.warn('  [sync-players] `skater_season_stats` table not yet created — run migrations first');
-          break;
-        }
-        console.error(`  [sync-players] skater batch error at ${i}: ${error.message}`);
-        errors++;
-      } else {
-        upserted += batch.length;
-      }
-    }
-    console.log(`  skater_season_stats: ${upserted} upserted`);
-  }
-
-  // Upsert goalies
-  if (goalieRows.length > 0) {
-    const { error } = await supabase
-      .from('goalie_season_stats')
-      .upsert(goalieRows, { onConflict: 'player_id,season,team_abbrev' });
-    if (error) {
-      if (error.message.includes('does not exist')) {
-        console.warn('  [sync-players] `goalie_season_stats` table not yet created — run migrations first');
-      } else {
-        console.error(`  [sync-players] goalie upsert error: ${error.message}`);
-        errors++;
-      }
-    } else {
-      console.log(`  goalie_season_stats: ${goalieRows.length} upserted`);
-    }
-  }
-
-  // Log to sync_log
-  try {
-    await supabase.from('sync_log').insert({
-      sync_type: 'player_stats',
-      status: errors > 0 ? 'failed' : 'completed',
-      completed_at: new Date().toISOString(),
-      records_processed: skaterRows.length + goalieRows.length,
-      error_message: errors > 0 ? `${errors} batch errors` : null,
+  if (failedTeams.length > 0 || sourceRows === 0) {
+    const sourceErrors = Math.max(failedTeams.length, 1);
+    const errorMessage = failedTeams.length > 0
+      ? `${failedTeams.length} of ${teams.length} club snapshots failed; no season rows published`
+      : 'Club snapshots contained no players; no season rows published';
+    const errors = await recordPlayerSync({
+      season,
+      startedAt,
+      status: 'failed',
+      upserted: 0,
+      errors: sourceErrors,
+      metadata: { ...coverage, skaters_upserted: 0, goalies_upserted: 0 },
+      errorMessage,
     });
-  } catch { /* sync_log may not exist yet */ }
+    console.error(`[sync-players] Failed: ${errorMessage}`);
+    return { upserted: 0, errors };
+  }
 
-  console.log(`[sync-players] Done: ${skaterRows.length} skaters, ${goalieRows.length} goalies, ${errors} errors`);
-  return { upserted: skaterRows.length + goalieRows.length, errors };
+  let errors = 0;
+  let skatersUpserted = 0;
+  let goaliesUpserted = 0;
+
+  try {
+    skatersUpserted = await upsertBatches(
+      supabase,
+      'skater_season_stats',
+      skaterRows,
+      'player_id,season,team_abbrev',
+    );
+  } catch (error) {
+    skatersUpserted = error.rowsUpserted ?? 0;
+    errors += 1;
+    console.error(`  [sync-players] ${error.message}`);
+  }
+
+  try {
+    goaliesUpserted = await upsertBatches(
+      supabase,
+      'goalie_season_stats',
+      goalieRows,
+      'player_id,season,team_abbrev',
+    );
+  } catch (error) {
+    goaliesUpserted = error.rowsUpserted ?? 0;
+    errors += 1;
+    console.error(`  [sync-players] ${error.message}`);
+  }
+
+  const upserted = skatersUpserted + goaliesUpserted;
+  errors = await recordPlayerSync({
+    season,
+    startedAt,
+    status: errors === 0 ? 'completed' : 'failed',
+    upserted,
+    errors,
+    metadata: { ...coverage, skaters_upserted: skatersUpserted, goalies_upserted: goaliesUpserted },
+    errorMessage: errors > 0 ? `${errors} player-stat write errors` : null,
+  });
+
+  console.log(`[sync-players] Done: ${upserted}/${sourceRows} rows upserted, ${errors} errors`);
+  return { upserted, errors };
 }
 
-// Main
-const { season: parsedSeason } = parseSeasonArg();
-const hasSeasonFlag = process.argv.includes('--season') || process.argv.find(a => a.startsWith('--season='));
-const seasonOverride = hasSeasonFlag ? parsedSeason : null;
+async function main() {
+  const { season: parsedSeason } = parseSeasonArg();
+  const hasSeasonFlag = process.argv.includes('--season') || process.argv.some(argument => argument.startsWith('--season='));
+  const seasonOverride = hasSeasonFlag ? parsedSeason : null;
 
-logConnectionInfo();
-if (seasonOverride) {
-  console.log(`[sync-players] Using season override: ${seasonOverride}`);
-}
+  logConnectionInfo();
+  if (seasonOverride) console.log(`[sync-players] Using season override: ${seasonOverride}`);
 
-try {
   const result = await syncPlayerStats(seasonOverride);
-  if (result.errors > 0) process.exit(1);
-} catch (err) {
-  console.error('[sync-players] Fatal error:', err);
-  process.exit(1);
+  if (result.errors > 0) process.exitCode = 1;
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch(error => {
+    console.error('[sync-players] Fatal error:', error);
+    process.exitCode = 1;
+  });
 }

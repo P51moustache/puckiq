@@ -24,6 +24,10 @@ on:
           - full
           - weekly
 
+concurrency:
+  group: nhl-data-sync
+  cancel-in-progress: false
+
 jobs:
   sync:
     name: Sync NHL Data
@@ -40,9 +44,11 @@ jobs:
           node-version: '22'
 
       - name: Install dependencies
-        # Pin supabase-js to the app's version for parity; ws provides a WebSocket
-        # transport so the realtime client constructs cleanly on any Node version.
-        run: npm install @supabase/supabase-js@^2.83.0 dotenv ws
+        # Isolated lockfile: ingestion does not resolve Expo/React Native dependencies.
+        run: npm ci --prefix scripts --ignore-scripts
+
+      - name: Validate ingestion contracts
+        run: npm test --prefix scripts
 
       - name: Determine sync mode
         id: mode
@@ -66,7 +72,6 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
           MODE="${{ steps.mode.outputs.mode }}"
           if [ "$MODE" = "full" ]; then
@@ -78,11 +83,11 @@ jobs:
           fi
 
       - name: Health check
+        if: ${{ !cancelled() }}
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: node scripts/sync/sync-health.mjs
 
       - name: Post failure notification

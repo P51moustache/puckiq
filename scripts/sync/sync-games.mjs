@@ -1,182 +1,210 @@
 /**
- * Sync game data from NHL API to Supabase `games` table.
- *
- * Two modes:
- * - Full: Fetch all 32 team schedules, upsert all games (initial seed / recovery)
- * - Incremental: Fetch yesterday + today scores only (daily sync)
+ * Sync NHL game data to Supabase with exact source-period validation.
  *
  * Usage:
- *   node scripts/sync/sync-games.mjs          # Incremental (default)
- *   node scripts/sync/sync-games.mjs --full   # Full season sync
+ *   node scripts/sync/sync-games.mjs
+ *   node scripts/sync/sync-games.mjs --full
+ *   node scripts/sync/sync-games.mjs --full --season 20252026
  */
+
+import { pathToFileURL } from 'node:url';
 
 import { supabase, logConnectionInfo } from './supabase-client.mjs';
 import { ALL_TEAMS, getCurrentSeason, getCurrentSeasonStr, formatDate, fetchWithRetry, sleep, endpoints, parseSeasonArg } from './nhl-api.mjs';
+import { clubTeamsForSeason, normalizeFullSeasonGames, normalizeGames, upsertBatches, writeSyncLog } from './ingestion-contracts.mjs';
 
-/**
- * Full season sync: fetch all team schedules, upsert all games.
- */
-async function syncFullSeason(seasonOverride) {
-  const { season, seasonStr } = seasonOverride || { season: getCurrentSeason(), seasonStr: getCurrentSeasonStr() };
-  console.log(`[sync-games] Full season sync for ${season}`);
-
-  const gameMap = new Map();
-  let teamsDone = 0;
-
-  for (const team of ALL_TEAMS) {
-    try {
-      const data = await fetchWithRetry(endpoints.teamScheduleSeason(team, seasonStr));
-      const games = data.games ?? [];
-
-      for (const game of games) {
-        gameMap.set(game.id, game);
-      }
-    } catch (err) {
-      console.warn(`  [sync-games] Failed to fetch ${team}: ${err.message}`);
-    }
-
-    teamsDone++;
-    if (teamsDone % 8 === 0) {
-      console.log(`  Fetched ${teamsDone}/${ALL_TEAMS.length} teams (${gameMap.size} unique games)`);
-    }
-
-    await sleep(100);
+async function recordGameSync({ season, startedAt, status, upserted, errors, metadata, errorMessage }) {
+  try {
+    await writeSyncLog(supabase, {
+      sync_type: 'games',
+      status,
+      started_at: startedAt,
+      completed_at: new Date().toISOString(),
+      records_processed: upserted,
+      error_message: errorMessage ?? null,
+      metadata: { season, ...metadata },
+    });
+    return errors;
+  } catch (error) {
+    console.error(`[sync-games] ${error.message}`);
+    return errors + 1;
   }
-
-  return upsertGames(Array.from(gameMap.values()), season, seasonStr);
 }
 
-/**
- * Incremental sync: fetch yesterday + today scores only.
- */
-async function syncIncremental(seasonOverride) {
-  const { season, seasonStr } = seasonOverride || { season: getCurrentSeason(), seasonStr: getCurrentSeasonStr() };
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-
-  const dates = [formatDate(yesterday), formatDate(today)];
-  console.log(`[sync-games] Incremental sync for dates: ${dates.join(', ')}`);
-
-  const allGames = [];
-
-  for (const date of dates) {
-    try {
-      const data = await fetchWithRetry(endpoints.scores(date));
-      const games = data.games ?? [];
-      allGames.push(...games);
-      console.log(`  ${date}: ${games.length} games found`);
-    } catch (err) {
-      console.warn(`  [sync-games] Failed to fetch scores for ${date}: ${err.message}`);
-    }
+async function publishGames(rawGames, season, startedAt, coverage, sourceErrors = 0) {
+  if (sourceErrors > 0) {
+    const errorMessage = `${sourceErrors} source fetches failed; no game rows published`;
+    const errors = await recordGameSync({
+      season,
+      startedAt,
+      status: 'failed',
+      upserted: 0,
+      errors: sourceErrors,
+      metadata: { ...coverage, raw_games: rawGames.length, normalized_games: 0, game_types: [] },
+      errorMessage,
+    });
+    console.error(`[sync-games] Failed: ${errorMessage}`);
+    return { upserted: 0, errors, totalRows: null };
   }
 
-  return upsertGames(allGames, season, seasonStr);
-}
-
-/**
- * Upsert raw NHL game data into the games table.
- */
-async function upsertGames(rawGames, season, seasonStr) {
-  if (rawGames.length === 0) {
-    console.log('[sync-games] No games to upsert');
-    return { upserted: 0, errors: 0 };
+  let rows;
+  try {
+    rows = coverage.source_mode === 'full'
+      ? normalizeFullSeasonGames(rawGames, season)
+      : normalizeGames(rawGames, season);
+  } catch (error) {
+    const errors = await recordGameSync({
+      season,
+      startedAt,
+      status: 'failed',
+      upserted: 0,
+      errors: 1,
+      metadata: { ...coverage, raw_games: rawGames.length, normalized_games: 0, game_types: [] },
+      errorMessage: error.message,
+    });
+    console.error(`[sync-games] Validation failed: ${error.message}`);
+    return { upserted: 0, errors, totalRows: null };
   }
 
   let errors = 0;
-
-  // Upsert into games table (all games including future)
-  const gamesRows = rawGames.map(game => ({
-    id: game.id,
-    season,
-    game_type: game.gameType ?? 2,
-    game_date: game.gameDate,
-    start_time_utc: game.startTimeUTC,
-    venue: game.venue?.default ?? null,
-    game_state: game.gameState,
-    game_schedule_state: game.gameScheduleState ?? 'OK',
-    away_team_abbrev: game.awayTeam.abbrev,
-    away_score: game.awayTeam.score ?? 0,
-    away_sog: game.awayTeam.sog ?? null,
-    home_team_abbrev: game.homeTeam.abbrev,
-    home_score: game.homeTeam.score ?? 0,
-    home_sog: game.homeTeam.sog ?? null,
-    period: game.periodDescriptor?.number ?? null,
-    period_type: game.periodDescriptor?.periodType ?? null,
-  }));
-
-  if (gamesRows.length > 0) {
-    const batchSize = 200;
-    let gamesUpserted = 0;
-    for (let i = 0; i < gamesRows.length; i += batchSize) {
-      const batch = gamesRows.slice(i, i + batchSize);
-      const { error } = await supabase
-        .from('games')
-        .upsert(batch, { onConflict: 'id' });
-      if (error) {
-        // Table might not exist yet if backend-engineer's migration hasn't been applied
-        if (error.message.includes('relation "games" does not exist')) {
-          console.warn('  [sync-games] `games` table not yet created — skipping (run migrations first)');
-          break;
-        }
-        console.error(`  [sync-games] games batch error: ${error.message}`);
-        errors++;
-      } else {
-        gamesUpserted += batch.length;
-      }
-    }
-    if (gamesUpserted > 0) {
-      console.log(`  games: ${gamesUpserted} upserted`);
-    }
+  let upserted = 0;
+  try {
+    upserted = await upsertBatches(supabase, 'games', rows, 'id');
+  } catch (error) {
+    upserted = error.rowsUpserted ?? 0;
+    errors += 1;
+    console.error(`[sync-games] ${error.message}`);
   }
 
-  // Log to sync_log
-  await logSync('games', gamesRows.length, errors);
-
-  // Verify
-  const { count } = await supabase
+  let totalRows = null;
+  const { count, error: countError } = await supabase
     .from('games')
     .select('id', { count: 'exact', head: true })
     .eq('season', season);
+  if (countError) {
+    errors += 1;
+    console.error(`[sync-games] Verification query failed: ${countError.message}`);
+  } else {
+    totalRows = count;
+  }
 
-  console.log(`[sync-games] Done: ${rawGames.length} total, ${count} in games, ${errors} errors`);
-  return { upserted: gamesRows.length, errors, totalRows: count };
+  const gameTypes = [...new Set(rows.map(row => row.game_type))].sort();
+  errors = await recordGameSync({
+    season,
+    startedAt,
+    status: errors === 0 ? 'completed' : 'failed',
+    upserted,
+    errors,
+    metadata: {
+      ...coverage,
+      raw_games: rawGames.length,
+      normalized_games: rows.length,
+      game_types: gameTypes,
+      rows_upserted: upserted,
+    },
+    errorMessage: errors > 0 ? `${errors} game write or verification errors` : null,
+  });
+
+  console.log(`[sync-games] Done: ${upserted}/${rows.length} games upserted, ${totalRows ?? 'unknown'} stored for season, ${errors} errors`);
+  return { upserted, errors, totalRows };
 }
 
-/**
- * Write a record to sync_log (if table exists).
- */
-async function logSync(syncType, recordsProcessed, errorCount) {
+export async function syncFullSeason(seasonOverride) {
+  const startedAt = new Date().toISOString();
+  const { season, seasonStr } = seasonOverride || { season: getCurrentSeason(), seasonStr: getCurrentSeasonStr() };
+  let teams;
   try {
-    await supabase.from('sync_log').insert({
-      sync_type: syncType,
-      status: errorCount > 0 ? 'failed' : 'completed',
-      completed_at: new Date().toISOString(),
-      records_processed: recordsProcessed,
-      error_message: errorCount > 0 ? `${errorCount} batch errors` : null,
+    teams = clubTeamsForSeason(season, ALL_TEAMS);
+  } catch (error) {
+    const errors = await recordGameSync({
+      season,
+      startedAt,
+      status: 'failed',
+      upserted: 0,
+      errors: 1,
+      metadata: { source_mode: 'full', sources_expected: 0, sources_fetched: 0, failed_sources: [], raw_games: 0, normalized_games: 0, game_types: [] },
+      errorMessage: error.message,
     });
-  } catch {
-    // sync_log table may not exist yet
+    console.error(`[sync-games] ${error.message}`);
+    return { upserted: 0, errors, totalRows: null };
   }
+  console.log(`[sync-games] Full season sync for ${season}`);
+
+  const rawGames = [];
+  const failedTeams = [];
+  for (let index = 0; index < teams.length; index++) {
+    const team = teams[index];
+    try {
+      const payload = await fetchWithRetry(endpoints.teamScheduleSeason(team, seasonStr));
+      if (!Array.isArray(payload?.games)) throw new Error('schedule response has no games array');
+      rawGames.push(...payload.games);
+    } catch (error) {
+      failedTeams.push(team);
+      console.warn(`  [sync-games] Failed ${team}: ${error.message}`);
+    }
+
+    const teamsAttempted = index + 1;
+    if (teamsAttempted % 8 === 0) {
+      console.log(`  Fetched ${teamsAttempted}/${teams.length} teams (${rawGames.length} source game rows)`);
+    }
+    await sleep(100);
+  }
+
+  return publishGames(rawGames, season, startedAt, {
+    source_mode: 'full',
+    sources_expected: teams.length,
+    sources_fetched: teams.length - failedTeams.length,
+    failed_sources: failedTeams,
+  }, failedTeams.length);
 }
 
-// Main
-const isFullSync = process.argv.includes('--full');
-const parsedSeason = parseSeasonArg();
-const seasonOverride = process.argv.includes('--season') || process.argv.find(a => a.startsWith('--season='))
-  ? parsedSeason : null;
+export async function syncIncremental(seasonOverride) {
+  const startedAt = new Date().toISOString();
+  const { season } = seasonOverride || { season: getCurrentSeason() };
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const dates = [formatDate(yesterday), formatDate(today)];
+  console.log(`[sync-games] Incremental sync for dates: ${dates.join(', ')}`);
 
-logConnectionInfo();
-if (seasonOverride) {
-  console.log(`[sync-games] Using season override: ${seasonOverride.seasonStr}`);
+  const rawGames = [];
+  const failedDates = [];
+  for (const date of dates) {
+    try {
+      const payload = await fetchWithRetry(endpoints.scores(date));
+      if (!Array.isArray(payload?.games)) throw new Error('score response has no games array');
+      rawGames.push(...payload.games);
+      console.log(`  ${date}: ${payload.games.length} games found`);
+    } catch (error) {
+      failedDates.push(date);
+      console.warn(`  [sync-games] Failed ${date}: ${error.message}`);
+    }
+  }
+
+  return publishGames(rawGames, season, startedAt, {
+    source_mode: 'incremental',
+    sources_expected: dates.length,
+    sources_fetched: dates.length - failedDates.length,
+    failed_sources: failedDates,
+  }, failedDates.length);
 }
 
-try {
+async function main() {
+  const isFullSync = process.argv.includes('--full');
+  const parsedSeason = parseSeasonArg();
+  const hasSeasonFlag = process.argv.includes('--season') || process.argv.some(argument => argument.startsWith('--season='));
+  const seasonOverride = hasSeasonFlag ? parsedSeason : null;
+
+  logConnectionInfo();
+  if (seasonOverride) console.log(`[sync-games] Using season override: ${seasonOverride.seasonStr}`);
+
   const result = isFullSync ? await syncFullSeason(seasonOverride) : await syncIncremental(seasonOverride);
-  if (result.errors > 0) {
-    process.exit(1);
-  }
-} catch (err) {
-  console.error('[sync-games] Fatal error:', err);
-  process.exit(1);
+  if (result.errors > 0) process.exitCode = 1;
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch(error => {
+    console.error('[sync-games] Fatal error:', error);
+    process.exitCode = 1;
+  });
 }

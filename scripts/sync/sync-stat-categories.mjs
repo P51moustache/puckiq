@@ -1,121 +1,124 @@
 /**
- * Sync team stat categories (powerplay, penaltykill, summary) from NHL Stats API.
- *
- * Lightweight daily sync — only 3 categories × 1 API call each.
- * The ML pipeline's jsonb_lookup features need powerplay and penaltykill data
- * in the team_stat_categories table to compute pp% and pk%.
+ * Sync exact regular-season team stat categories from the NHL Stats API.
  *
  * Usage:
  *   node scripts/sync/sync-stat-categories.mjs
- *   node scripts/sync/sync-stat-categories.mjs --season 20242025
+ *   node scripts/sync/sync-stat-categories.mjs --season 20252026
  */
 
-import { supabase, logConnectionInfo } from './supabase-client.mjs';
-import { fetchWithRetry, sleep, getCurrentSeason, parseSeasonArg, endpoints } from './nhl-api.mjs';
+import { pathToFileURL } from 'node:url';
 
-const STATS_API = 'https://api.nhle.com/stats/rest/en';
-// `penalties` gives us authoritative timesShorthanded (real penalty count) +
-// penaltyMinutesPerGame, replacing the rough skater+goalie PIM aggregation.
+import { supabase, logConnectionInfo } from './supabase-client.mjs';
+import { fetchWithRetry, sleep, parseSeasonArg, endpoints } from './nhl-api.mjs';
+import { normalizeTeamCategory, upsertBatches, writeSyncLog } from './ingestion-contracts.mjs';
+
 const CATEGORIES = ['powerplay', 'penaltykill', 'summary', 'penalties'];
 const DELAY_MS = 1500;
 
-// Parse season from args or use current
-const { season } = parseSeasonArg();
+async function recordCategorySync({ season, startedAt, status, upserted, errors, metadata, errorMessage }) {
+  try {
+    await writeSyncLog(supabase, {
+      sync_type: 'stat_categories',
+      status,
+      started_at: startedAt,
+      completed_at: new Date().toISOString(),
+      records_processed: upserted,
+      error_message: errorMessage ?? null,
+      metadata: { season, game_type: 2, ...metadata },
+    });
+    return errors;
+  } catch (error) {
+    console.error(`[sync-stat-categories] ${error.message}`);
+    return errors + 1;
+  }
+}
 
-async function syncStatCategories() {
+export async function syncStatCategories(season) {
+  const startedAt = new Date().toISOString();
   console.log(`[sync-stat-categories] Syncing ${CATEGORIES.length} categories for season ${season}`);
+  const { data: teams, error: teamError } = await supabase.from('teams').select('id, abbrev');
 
-  // Build team ID -> abbreviation mapping from Supabase
-  const { data: teams, error: teamErr } = await supabase
-    .from('teams')
-    .select('id, abbrev');
-
-  if (teamErr || !teams || teams.length === 0) {
-    console.error('[sync-stat-categories] Failed to load team mapping:', teamErr?.message);
-    return { upserted: 0, errors: 1 };
+  if (teamError || !Array.isArray(teams) || teams.length === 0) {
+    const errorMessage = `Failed to load team mapping: ${teamError?.message ?? 'no teams returned'}`;
+    const errors = await recordCategorySync({
+      season,
+      startedAt,
+      status: 'failed',
+      upserted: 0,
+      errors: 1,
+      metadata: { categories_expected: CATEGORIES.length, categories_fetched: 0, rows_fetched: 0, rows_upserted: 0 },
+      errorMessage,
+    });
+    console.error(`[sync-stat-categories] ${errorMessage}`);
+    return { upserted: 0, errors };
   }
 
-  const idToAbbrev = new Map(teams.map(t => [t.id, t.abbrev]));
-  console.log(`[sync-stat-categories] Loaded ${idToAbbrev.size} team abbreviations`);
-
+  const teamMap = new Map(teams.map(team => [team.id, team.abbrev]));
+  let totalFetched = 0;
   let totalUpserted = 0;
+  let categoriesFetched = 0;
   let errors = 0;
 
   for (const category of CATEGORIES) {
     try {
-      const url = endpoints.teamStatCategory(category, season);
-      const result = await fetchWithRetry(url);
-      const apiData = result?.data || [];
+      const payload = await fetchWithRetry(endpoints.teamStatCategory(category, season));
+      const rows = normalizeTeamCategory(payload, category, season, teamMap, new Date().toISOString());
+      if (rows.length === 0) throw new Error(`No ${category} rows returned`);
+      categoriesFetched += 1;
+      totalFetched += rows.length;
 
-      if (apiData.length === 0) {
-        console.log(`  [${category}] No data returned`);
-        continue;
+      try {
+        const count = await upsertBatches(
+          supabase,
+          'team_stat_categories',
+          rows,
+          'team_abbrev,season,stat_category',
+          50,
+        );
+        totalUpserted += count;
+        console.log(`  [${category}] ${count} teams synced`);
+      } catch (error) {
+        totalUpserted += error.rowsUpserted ?? 0;
+        errors += 1;
+        console.error(`  [${category}] ${error.message}`);
       }
-
-      // Map API rows to our table format
-      const rows = [];
-      for (const row of apiData) {
-        const abbrev = idToAbbrev.get(row.teamId);
-        if (!abbrev) continue;
-
-        rows.push({
-          team_abbrev: abbrev,
-          season: season,
-          stat_category: category,
-          data: row,
-          fetched_at: new Date().toISOString(),
-        });
-      }
-
-      // Deduplicate by team_abbrev (keep last occurrence)
-      const deduped = [...new Map(rows.map(r => [r.team_abbrev, r])).values()];
-
-      // Upsert in batches
-      const BATCH_SIZE = 50;
-      for (let i = 0; i < deduped.length; i += BATCH_SIZE) {
-        const batch = deduped.slice(i, i + BATCH_SIZE);
-        const { error } = await supabase
-          .from('team_stat_categories')
-          .upsert(batch, { onConflict: 'team_abbrev,season,stat_category' });
-
-        if (error) {
-          console.error(`  [${category}] upsert error: ${error.message}`);
-          errors++;
-        }
-      }
-
-      totalUpserted += deduped.length;
-      console.log(`  [${category}] ${deduped.length} teams synced`);
-
-      await sleep(DELAY_MS);
-    } catch (err) {
-      console.error(`  [${category}] FAILED: ${err.message}`);
-      errors++;
+    } catch (error) {
+      errors += 1;
+      console.error(`  [${category}] FAILED: ${error.message}`);
     }
+    await sleep(DELAY_MS);
   }
 
-  // Log to sync_log
-  try {
-    await supabase.from('sync_log').insert({
-      sync_type: 'stat_categories',
-      status: errors > 0 ? 'failed' : 'completed',
-      completed_at: new Date().toISOString(),
-      records_processed: totalUpserted,
-      error_message: errors > 0 ? `${errors} errors` : null,
-    });
-  } catch { /* sync_log may not exist yet */ }
+  errors = await recordCategorySync({
+    season,
+    startedAt,
+    status: errors === 0 && categoriesFetched === CATEGORIES.length ? 'completed' : 'failed',
+    upserted: totalUpserted,
+    errors,
+    metadata: {
+      categories_expected: CATEGORIES.length,
+      categories_fetched: categoriesFetched,
+      team_map_size: teamMap.size,
+      rows_fetched: totalFetched,
+      rows_upserted: totalUpserted,
+    },
+    errorMessage: errors > 0 ? `${errors} category fetch, validation, or write errors` : null,
+  });
 
-  console.log(`[sync-stat-categories] Done: ${totalUpserted} upserted, ${errors} errors`);
+  console.log(`[sync-stat-categories] Done: ${totalUpserted}/${totalFetched} upserted, ${errors} errors`);
   return { upserted: totalUpserted, errors };
 }
 
-// Main
-logConnectionInfo();
+async function main() {
+  const { season } = parseSeasonArg();
+  logConnectionInfo();
+  const result = await syncStatCategories(season);
+  if (result.errors > 0) process.exitCode = 1;
+}
 
-try {
-  const result = await syncStatCategories();
-  if (result.errors > 0) process.exit(1);
-} catch (err) {
-  console.error('[sync-stat-categories] Fatal error:', err);
-  process.exit(1);
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch(error => {
+    console.error('[sync-stat-categories] Fatal error:', error);
+    process.exitCode = 1;
+  });
 }

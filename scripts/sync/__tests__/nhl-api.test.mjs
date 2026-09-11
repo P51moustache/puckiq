@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { getCurrentSeason, parseSeasonArg, endpoints, standingsSnapshotDate } from '../nhl-api.mjs';
+import { getCurrentSeason, parseSeasonArg, endpoints, fetchWithRetry, standingsSnapshotDate } from '../nhl-api.mjs';
 
 test('season rolls on July 1 UTC including opening night', () => {
   assert.equal(getCurrentSeason(new Date('2026-06-30T23:59:59Z')), 20252026);
@@ -24,4 +24,13 @@ test('standings cannot relabel a prior season or invent a fresh snapshot', () =>
 });
 test('team categories request regular season separately from playoffs', () => {
   assert.match(endpoints.teamStatCategory('summary', 20252026), /seasonId=20252026%20and%20gameTypeId=2$/);
+});
+test('an HTTP error remains an unsuccessful fetch', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: false, status: 503, statusText: 'Unavailable' });
+  try {
+    await assert.rejects(() => fetchWithRetry('https://example.invalid', 0, 0), /HTTP 503/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });

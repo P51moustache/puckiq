@@ -1,0 +1,11 @@
+{
+  "name": "puckiq-ingestion",
+  "version": "1.0.0",
+  "private": true,
+  "engines": { "node": ">=22" },
+  "scripts": { "test": "node --test sync/__tests__/*.test.mjs" },
+  "dependencies": {
+    "@supabase/supabase-js": "2.83.0",
+    "ws": "8.18.3"
+  }
+}

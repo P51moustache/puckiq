@@ -3,36 +3,20 @@
  * Provides Supabase client, rate-limited fetch, progress logging, and batch upsert.
  */
 
-import 'dotenv/config';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from './sync/supabase-client.mjs';
+import { parseSeasonArg } from './sync/nhl-api.mjs';
 
 // ============================================
 // Supabase Client
 // ============================================
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
-
-// Prefer service role key for write operations in seed scripts
-const supabaseKey = supabaseServiceKey || supabaseAnonKey;
-
-if (!supabaseUrl || !supabaseKey) {
-  console.error('Missing Supabase credentials. Set SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY (or EXPO_PUBLIC_SUPABASE_URL + EXPO_PUBLIC_SUPABASE_ANON_KEY)');
-  process.exit(1);
-}
-
-const keyType = supabaseServiceKey ? 'service_role' : 'anon';
-console.log(`[Seed Utils] Supabase key type: ${keyType}`);
-
-export const supabase = createClient(supabaseUrl, supabaseKey);
+export { supabase };
 
 // ============================================
 // Constants
 // ============================================
 
-export const SEASON = 20252026;
-export const SEASON_STR = '20252026';
+export const {season:SEASON,seasonStr:SEASON_STR} = parseSeasonArg();
 
 export const ALL_TEAMS = [
   'ANA', 'BOS', 'BUF', 'CAR', 'CBJ', 'CGY', 'CHI', 'COL',
@@ -98,7 +82,7 @@ export async function batchUpsert(table, rows, conflictColumns, batchSize = 200)
       .upsert(batch, { onConflict: conflictColumns });
 
     if (error) {
-      console.error(`  [${table}] Batch upsert error at index ${i}:`, error.message);
+      throw new Error(`[${table}] Batch at ${i} failed: ${error.message}`);
     } else {
       totalUpserted += batch.length;
     }
@@ -118,15 +102,15 @@ export async function startSync(syncType) {
     .single();
 
   if (error) {
-    console.warn(`[SYNC LOG] Failed to create log entry:`, error.message);
-    return null;
+    throw new Error(`Failed to create sync log: ${error.message}`);
   }
+  if (!data?.id) throw new Error('Sync log did not return an ID.');
   return data.id;
 }
 
 export async function completeSync(syncId, recordsProcessed) {
-  if (!syncId) return;
-  await supabase
+  if (!syncId) throw new Error('Cannot complete a sync without its log ID.');
+  const {error} = await supabase
     .from('sync_log')
     .update({
       status: 'completed',
@@ -134,11 +118,12 @@ export async function completeSync(syncId, recordsProcessed) {
       records_processed: recordsProcessed,
     })
     .eq('id', syncId);
+  if (error) throw new Error(`Failed to complete sync log: ${error.message}`);
 }
 
 export async function failSync(syncId, errorMessage) {
-  if (!syncId) return;
-  await supabase
+  if (!syncId) throw new Error('Cannot fail a sync without its log ID.');
+  const {error} = await supabase
     .from('sync_log')
     .update({
       status: 'failed',
@@ -146,6 +131,7 @@ export async function failSync(syncId, errorMessage) {
       error_message: errorMessage,
     })
     .eq('id', syncId);
+  if (error) throw new Error(`Failed to update failed sync log: ${error.message}`);
 }
 
 // ============================================

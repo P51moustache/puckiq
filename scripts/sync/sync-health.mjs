@@ -1,172 +1,45 @@
-/**
- * Sync health check — verifies data freshness and completeness.
- *
- * Checks all tables from the comprehensive schema:
- * - games
- * - standings
- * - teams / players
- * - skater_season_stats / goalie_season_stats
- * - sync_log (last sync times)
- *
- * Usage:
- *   node scripts/sync/sync-health.mjs
- *   node scripts/sync/sync-health.mjs --json    # Machine-readable output
- */
+/** Read-only ingestion health. Nonzero exit means the feed is not verified. */
+import { getCurrentSeason, parseSeasonArg } from './nhl-api.mjs';
+import { evaluateHealth, resolveDataSeason } from './health-contract.mjs';
 
-import { supabase, logConnectionInfo } from './supabase-client.mjs';
-import { getCurrentSeason, getCurrentSeasonStr } from './nhl-api.mjs';
-
-const jsonOutput = process.argv.includes('--json');
-
-async function checkTable(table, filterColumn, filterValue, label) {
-  const result = { table, label, status: 'UNKNOWN', details: {} };
-
-  try {
-    let query = supabase.from(table).select('*', { count: 'exact', head: true });
-    if (filterColumn && filterValue !== undefined) {
-      query = query.eq(filterColumn, filterValue);
-    }
-    const { count, error } = await query;
-
-    if (error) {
-      if (error.message.includes('does not exist') || error.code === '42P01') {
-        result.status = 'NOT_CREATED';
-        result.details.error = 'Table does not exist — run migrations';
-        return result;
-      }
-      result.status = 'ERROR';
-      result.details.error = error.message;
-      return result;
-    }
-
-    result.details.rowCount = count ?? 0;
-
-    if ((count ?? 0) === 0) {
-      result.status = 'EMPTY';
-      return result;
-    }
-
-    result.status = 'OK';
-    return result;
-  } catch (err) {
-    result.status = 'ERROR';
-    result.details.error = err.message;
-    return result;
-  }
-}
-
-async function checkSyncLog() {
-  const result = { table: 'sync_log', label: 'Last Syncs', status: 'UNKNOWN', details: {} };
-
-  try {
-    const { data, error } = await supabase
-      .from('sync_log')
-      .select('sync_type, status, completed_at, records_processed')
-      .order('completed_at', { ascending: false })
-      .limit(10);
-
-    if (error) {
-      if (error.message.includes('does not exist')) {
-        result.status = 'NOT_CREATED';
-        return result;
-      }
-      result.status = 'ERROR';
-      result.details.error = error.message;
-      return result;
-    }
-
-    if (!data || data.length === 0) {
-      result.status = 'EMPTY';
-      result.details.message = 'No sync runs recorded yet';
-      return result;
-    }
-
-    // Group by sync_type, show most recent
-    const byType = {};
-    for (const row of data) {
-      if (!byType[row.sync_type]) {
-        byType[row.sync_type] = row;
-      }
-    }
-    result.details.lastSyncs = byType;
-    result.status = 'OK';
-    return result;
-  } catch (err) {
-    result.status = 'ERROR';
-    result.details.error = err.message;
-    return result;
-  }
-}
-
+const json = process.argv.includes('--json');
 async function main() {
-  logConnectionInfo();
-  const season = getCurrentSeason();
-  const seasonStr = getCurrentSeasonStr();
-  console.log(`\n[Health Check] Season: ${season}\n`);
-
-  const checks = [
-    await checkTable('games', 'season', season, 'Games'),
-    await checkTable('teams', null, undefined, 'Teams'),
-    await checkTable('players', null, undefined, 'Players'),
-    await checkTable('standings', 'season', season, 'Standings'),
-    await checkTable('skater_season_stats', 'season', season, 'Skater Season Stats'),
-    await checkTable('goalie_season_stats', 'season', season, 'Goalie Season Stats'),
-    await checkSyncLog(),
-  ];
-
-  if (jsonOutput) {
-    console.log(JSON.stringify({ season, timestamp: new Date().toISOString(), checks }, null, 2));
-    return;
+  const {supabase} = await import('./supabase-client.mjs');
+  const calendarSeason = getCurrentSeason();
+  const requested = process.argv.some(arg => arg === '--season' || arg.startsWith('--season='));
+  const parsed = parseSeasonArg();
+  const [latest, latestGames] = await Promise.all(['skater_season_stats','games'].map(table => supabase.from(table).select('season').lte('season',calendarSeason).order('season',{ascending:false}).limit(1)));
+  const dataSeason = requested ? parsed.season : resolveDataSeason(calendarSeason,latest.data ?? []);
+  const storedGameSeason = requested ? parsed.season : resolveDataSeason(calendarSeason,latestGames.data ?? []);
+  const tables = await Promise.all(['games','standings','skater_season_stats','goalie_season_stats','team_stat_categories','teams','players'].map(async table => {
+    let query = supabase.from(table).select('id',{count:'exact',head:true});
+    const season = table === 'games' ? storedGameSeason : dataSeason;
+    if (!['teams','players'].includes(table)) query = query.eq('season',season ?? -1);
+    const {count,error} = await query;
+    return {table,count,season,error:error?.message};
+  }));
+  const now = new Date();
+  const activeGames = await supabase.from('games').select('id').eq('season',calendarSeason).eq('game_type',2)
+    .gte('game_date',new Date(now.getTime() - 2 * 86400000).toISOString().slice(0,10))
+    .lte('game_date',new Date(now.getTime() + 2 * 86400000).toISOString().slice(0,10)).limit(1);
+  const runResults = await Promise.all(['games','standings','player_stats','stat_categories'].map(type => supabase.from('sync_log')
+    .select('sync_type,status,started_at,completed_at,records_processed,metadata').eq('sync_type',type)
+    .order('started_at',{ascending:false,nullsFirst:false}).limit(1)));
+  const report = evaluateHealth({calendarSeason,dataSeason,gameSyncSeason:requested ? parsed.season : calendarSeason,activeRegularSeason:(activeGames.data?.length ?? 0) > 0,tables,runs:runResults.flatMap(r=>r.data ?? [])});
+  if (activeGames.error || latest.error || latestGames.error || runResults.some(r=>r.error)) {
+    report.ok = false;
+    report.checks.push({name:'source_queries',status:'ERROR',detail:'Period or sync metadata could not be read.'});
   }
-
-  const statusIcons = {
-    OK: 'OK  ',
-    EMPTY: 'EMPTY',
-    NOT_CREATED: 'SKIP',
-    ERROR: 'FAIL',
-    UNKNOWN: '??  ',
-  };
-
-  for (const check of checks) {
-    const icon = statusIcons[check.status] || '??  ';
-    const rows = check.details.rowCount !== undefined ? ` (${check.details.rowCount} rows)` : '';
-    const errMsg = check.details.error ? ` — ${check.details.error}` : '';
-
-    if (check.table === 'sync_log' && check.details.lastSyncs) {
-      console.log(`  [${icon}] ${check.label}:`);
-      for (const [type, info] of Object.entries(check.details.lastSyncs)) {
-        const age = info.completed_at
-          ? `${Math.round((Date.now() - new Date(info.completed_at).getTime()) / (1000 * 60 * 60) * 10) / 10}h ago`
-          : 'unknown';
-        console.log(`         ${type}: ${info.status} (${info.records_processed} records, ${age})`);
-      }
-    } else {
-      console.log(`  [${icon}] ${check.label}: ${check.status}${rows}${errMsg}`);
-    }
+  if (json) console.log(JSON.stringify(report,null,2));
+  else {
+    console.log(`Calendar season ${calendarSeason}; checked stored season ${dataSeason ?? 'unavailable'}.`);
+    for (const check of report.checks) console.log(`[${check.status}] ${check.name}: ${check.detail}`);
+    console.log(report.ok ? 'Ingestion checks passed.' : 'Feed is not verified; inspect failed checks before serving current analytical claims.');
   }
-
-  const notCreated = checks.filter(c => c.status === 'NOT_CREATED');
-  const empty = checks.filter(c => c.status === 'EMPTY');
-  const errors = checks.filter(c => c.status === 'ERROR');
-
-  console.log('');
-  if (notCreated.length > 0) {
-    console.log(`  Tables not created: ${notCreated.map(c => c.table).join(', ')}`);
-    console.log('  Run the comprehensive migration first.');
-  }
-  if (empty.length > 0) {
-    console.log(`  Empty tables: ${empty.map(c => c.table).join(', ')}`);
-    console.log('  Run: npm run seed:all');
-  }
-  if (errors.length > 0) {
-    console.log(`  Errors: ${errors.map(c => c.table).join(', ')}`);
-  }
-  if (notCreated.length === 0 && empty.length === 0 && errors.length === 0) {
-    console.log('  All tables healthy.');
-  }
+  process.exitCode = report.ok ? 0 : 1;
 }
-
-main().catch(err => {
-  console.error('[Health Check] Fatal error:', err);
-  process.exit(1);
+main().catch(error => {
+  const report = {ok:false,error:error.message};
+  console.log(json ? JSON.stringify(report) : `Health check failed: ${error.message}`);
+  process.exitCode = 1;
 });

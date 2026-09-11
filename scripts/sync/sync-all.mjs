@@ -5,45 +5,48 @@
  *   node scripts/sync/sync-all.mjs                          # Incremental sync (default, current season)
  *   node scripts/sync/sync-all.mjs --full                   # Full season sync (current season)
  *   node scripts/sync/sync-all.mjs --full --season 20242025 # Full sync for 2024-25 season (backfill)
- *   node scripts/sync/sync-all.mjs --season 20242025        # Incremental sync for 2024-25 season
+ *   node scripts/sync/sync-all.mjs --season 20242025        # Full schedule refresh for 2024-25 season
  *
  * Exit codes:
  *   0 = all modules succeeded
  *   1 = one or more modules failed
  */
 
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+import { parseSeasonArg, fetchWithRetry, endpoints } from './nhl-api.mjs';
+import { childInvocation, loadSyncEnv, writerConfig, syncPeriods } from './runtime-config.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const isFullSync = process.argv.includes('--full');
 const isWeekly = process.argv.includes('--weekly');
 
-// Parse --season flag (e.g., --season 20242025) to backfill historical data
-const seasonIdx = process.argv.indexOf('--season');
-const seasonEqArg = process.argv.find(a => a.startsWith('--season='));
-const seasonArg = seasonIdx !== -1 && seasonIdx + 1 < process.argv.length
-  ? process.argv[seasonIdx + 1]
-  : seasonEqArg ? seasonEqArg.split('=')[1] : null;
-const seasonArgs = seasonArg ? ['--season', seasonArg] : [];
+loadSyncEnv();
+writerConfig(process.env);
+const {seasonStr:seasonArg} = parseSeasonArg();
+const seasonArgs = ['--season', seasonArg];
+const explicitSeason = process.argv.some(arg => arg === '--season' || arg.startsWith('--season='));
+const periods = explicitSeason ? {games:Number(seasonArg),stats:Number(seasonArg)}
+  : syncPeriods(Number(seasonArg),(await fetchWithRetry(endpoints.standings())).standings ?? []);
+const statsArgs = ['--season',String(periods.stats)];
 
 const modules = [
   // Core: games, standings, teams, player season stats
-  { name: 'games', script: 'sync-games.mjs', args: [...(isFullSync ? ['--full'] : []), ...seasonArgs] },
-  { name: 'standings', script: 'sync-standings.mjs', args: [...seasonArgs] },
-  { name: 'stat-categories', script: 'sync-stat-categories.mjs', args: [...seasonArgs] },
+  { name: 'games', script: 'sync-games.mjs', args: [...(isFullSync || isWeekly || explicitSeason ? ['--full'] : []), ...seasonArgs] },
+  { name: 'standings', script: 'sync-standings.mjs', args: [...statsArgs] },
+  { name: 'stat-categories', script: 'sync-stat-categories.mjs', args: [...statsArgs] },
   { name: 'teams', script: 'sync-teams.mjs', args: [] },
-  { name: 'players', script: 'sync-players.mjs', args: [...seasonArgs] },
+  { name: 'players', script: 'sync-players.mjs', args: [...statsArgs] },
 
   // Game extras: play-by-play, right-rail, boxscores for new games only
   { name: 'game-extras', script: 'sync-game-extras.mjs', args: [...(isFullSync ? ['--full'] : []), ...seasonArgs] },
 
   // Aggregates: Edge IQ landing pages, top-10 lists, stat leaders (lightweight)
-  { name: 'aggregates', script: 'sync-aggregates.mjs', args: [...seasonArgs] },
+  { name: 'aggregates', script: 'sync-aggregates.mjs', args: [...statsArgs] },
 
   // Player trends: game logs daily, advanced stats weekly (Corsi, Fenwick, PDO)
-  { name: 'player-trends', script: 'sync-player-trends.mjs', args: [...(isWeekly ? ['--weekly'] : []), ...seasonArgs] },
+  { name: 'player-trends', script: 'sync-player-trends.mjs', args: [...(isWeekly ? ['--weekly'] : []), ...statsArgs] },
 
   // Player career: incremental daily (recently-active players — can be 400-600 if busy schedule)
   // Non-fatal: its timeout shouldn't kill the entire sync
@@ -53,11 +56,11 @@ const modules = [
   ...(isWeekly || isFullSync ? [{ name: 'player-career', script: 'sync-player-career.mjs', args: [] }] : []),
 
   // Edge IQ detailed stats: per-entity endpoints (weekly only — ~900+ API calls)
-  ...(isWeekly || isFullSync ? [{ name: 'edge-details', script: 'sync-edge-details.mjs', args: [...seasonArgs] }] : []),
+  ...(isWeekly || isFullSync ? [{ name: 'edge-details', script: 'sync-edge-details.mjs', args: [...statsArgs] }] : []),
 ];
 
 const modeLabel = isFullSync ? 'FULL' : isWeekly ? 'WEEKLY' : 'INCREMENTAL';
-const seasonLabel = seasonArg ? ` | Season: ${seasonArg}` : '';
+const seasonLabel = ` | Games: ${periods.games} | Statistics: ${periods.stats}`;
 console.log(`=== PuckIQ NHL Data Sync (${modeLabel}${seasonLabel}) ===`);
 console.log(`Started: ${new Date().toISOString()}\n`);
 
@@ -73,7 +76,8 @@ for (const mod of modules) {
     // Player-career gets 10 min (fetches 400-600 players); others get 5 min daily / 15 min weekly
     const isCareerModule = mod.name.startsWith('player-career');
     const timeoutMs = isCareerModule ? 10 * 60 * 1000 : (isWeekly ? 15 : 5) * 60 * 1000;
-    execSync(`node "${scriptPath}" ${args}`, {
+    const child = childInvocation(process.execPath, scriptPath, mod.args);
+    execFileSync(child.command, child.args, {
       stdio: 'inherit',
       env: process.env,
       timeout: timeoutMs,

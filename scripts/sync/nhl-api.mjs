@@ -110,6 +110,7 @@ export function sleep(ms) {
 
 // NHL API endpoints
 export const endpoints = {
+  standingsSeasons: () => `${NHL_API_BASE}/standings-season`,
   scores: (date) => `${NHL_API_BASE}/score/${date}`,
   standings: (date = 'now') => `${NHL_API_BASE}/standings/${date}`,
   teamScheduleSeason: (team, season) => `${NHL_API_BASE}/club-schedule-season/${team}/${season}`,
