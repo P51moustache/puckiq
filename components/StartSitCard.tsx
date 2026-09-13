@@ -41,8 +41,12 @@ function formatGameTime(startTimeUTC?: string): string {
 }
 
 export default function StartSitCard({ projection, gameTime, index = 0 }: StartSitCardProps) {
-  const badge = BADGE_CONFIG[projection.recommendation] ?? BADGE_CONFIG.FLEX;
-  const stripeColor = STRIPE_COLORS[projection.recommendation] ?? STRIPE_COLORS.FLEX;
+  const badge = projection.recommendation
+    ? BADGE_CONFIG[projection.recommendation]
+    : { color: rinkGlass.blueLight, label: 'Forecast only / recommendation unavailable' };
+  const stripeColor = projection.recommendation
+    ? STRIPE_COLORS[projection.recommendation]
+    : rinkGlass.blueLight;
 
   const matchupText = projection.opponentAbbrev
     ? `${projection.isHome ? 'vs' : '@'} ${projection.opponentAbbrev}`

@@ -665,8 +665,8 @@ function renderFantasySection(projection: PlayerProjection | null) {
               <Text style={styles.trendCardLabel}>Projected FPts</Text>
             </View>
             <View style={styles.fantasyRecBox}>
-              {(() => {
-                const rc = REC_COLORS[projection.recommendation] || REC_COLORS.FLEX;
+              {projection.recommendation ? (() => {
+                const rc = REC_COLORS[projection.recommendation];
                 return (
                   <View style={[styles.fantasyRecBadge, { backgroundColor: rc.bg, borderColor: rc.text }]}>
                     <Text style={[styles.fantasyRecText, { color: rc.text }]}>
@@ -674,7 +674,9 @@ function renderFantasySection(projection: PlayerProjection | null) {
                     </Text>
                   </View>
                 );
-              })()}
+              })() : (
+                <Text style={styles.fantasyUnavailableText}>Forecast only / recommendation unavailable</Text>
+              )}
               {projection.reason ? (
                 <Text style={styles.fantasyReasonText} numberOfLines={2}>{projection.reason}</Text>
               ) : null}
@@ -737,7 +739,7 @@ function renderFantasySection(projection: PlayerProjection | null) {
         <View style={styles.trendCard}>
           <View style={styles.fantasyEmptyContainer}>
             <Ionicons name="calendar-outline" size={24} color={rinkGlass.textSecondary} />
-            <Text style={styles.emptyText}>No projection available — player may not be playing today</Text>
+            <Text style={styles.emptyText}>Projection unavailable</Text>
           </View>
         </View>
       )}
@@ -1110,6 +1112,11 @@ const styles = StyleSheet.create({
   fantasyReasonText: {
     fontSize: 12,
     fontWeight: '500',
+    color: rinkGlass.textSecondary,
+  },
+  fantasyUnavailableText: {
+    fontSize: 12,
+    fontWeight: '600',
     color: rinkGlass.textSecondary,
   },
   fantasyBarContainer: {

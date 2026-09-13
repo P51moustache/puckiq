@@ -57,6 +57,7 @@ from ml.io.supabase_client import (
     check_data_freshness,
     create_supabase_client,
     read_games,
+    read_player_identities,
     read_player_season_stats,
     write_fantasy_projections,
     write_predictions,
@@ -487,11 +488,20 @@ def _predict_fantasy_points(
     proj_rows = []
     for row in player_pred_rows:
         pp = row.get("player_predictions", {})
+        if not isinstance(pp, dict):
+            continue
+        team_abbrev = str(pp.get("team_abbrev") or row.get("team_abbrev") or "").strip()
+        position = str(pp.get("position") or row.get("position") or "").strip()
+        player_name = str(pp.get("player_name") or row.get("player_name") or "").strip()
+        if not team_abbrev or not position:
+            logger.warning("Skipping fantasy projection with incomplete team/position for player %s", row.get("player_id"))
+            continue
         proj_rows.append({
             "player_id": row["player_id"],
             "game_id": row["game_id"],
-            "team_abbrev": row.get("team_abbrev", ""),
-            "position": row.get("position", "C"),  # Default to center if unknown
+            "team_abbrev": team_abbrev,
+            "position": position,
+            "player_name": player_name,
             "model_version": row.get("model_version", "unknown"),
             "pred_goals": pp.get("expected_goals", 0.0),
             "pred_assists": pp.get("expected_assists", 0.0),
@@ -501,6 +511,35 @@ def _predict_fantasy_points(
         })
 
     pred_df = pd.DataFrame(proj_rows)
+    if pred_df.empty:
+        return []
+
+    missing_name_ids = [
+        int(player_id)
+        for player_id, name in zip(pred_df["player_id"], pred_df["player_name"])
+        if not name
+    ]
+    identities: dict[int, str] = {}
+    if missing_name_ids:
+        try:
+            identity_rows = read_player_identities(client, sorted(set(missing_name_ids)))
+            for identity in identity_rows:
+                player_id = identity.get("id")
+                name = identity.get("full_name") or " ".join(
+                    part for part in (identity.get("first_name"), identity.get("last_name")) if part
+                )
+                if isinstance(player_id, int) and isinstance(name, str) and name.strip():
+                    identities[player_id] = name.strip()
+        except Exception as exc:
+            logger.warning("Unable to enrich fantasy projection identities: %s", exc)
+
+    pred_df["player_name"] = pred_df.apply(
+        lambda source: source["player_name"] or identities.get(int(source["player_id"]), ""),
+        axis=1,
+    )
+    pred_df = pred_df[pred_df["player_name"] != ""]
+    if pred_df.empty:
+        return []
 
     # Run projections for each scoring format, processing per-game to keep game_id association
     all_projections: list[dict] = []
@@ -519,7 +558,7 @@ def _predict_fantasy_points(
                 all_projections.append({
                     "game_id": int(game_id),
                     "player_id": int(frow["player_id"]),
-                    "player_name": "",  # Not available from player_props; enrich downstream
+                    "player_name": str(source["player_name"]),
                     "team_abbrev": str(source.get("team_abbrev", "")),
                     "position": str(source.get("position", "")),
                     "format": format_name,

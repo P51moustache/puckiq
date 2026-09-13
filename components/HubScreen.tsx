@@ -46,6 +46,8 @@ const NOTIFICATION_TOGGLES: {
   { key: 'waiverAlerts', label: 'Waiver Alerts', testID: 'toggle-waiver-alerts', icon: 'trending-up-outline', color: rinkGlass.moduleAccents.waiverWire },
 ];
 
+const REMOTE_ALERTS_AVAILABLE = false;
+
 /* ── Section Header ────────────────────────────────────── */
 function SectionHeader({ icon, title }: { icon: keyof typeof Ionicons.glyphMap; title: string }) {
   const { palette } = useArena();
@@ -73,7 +75,13 @@ export default function HubScreen() {
   const rinkGlass = arenaSettingsTheme(palette);
   const s = createStyles(rinkGlass);
   const { user, signInWithApple, signInWithGoogle, signOut } = useAuthContext();
-  const { isPremium } = useSubscription();
+  const {
+    isPremium,
+    loading: subscriptionLoading,
+    showPaywall,
+    subscriptionUnavailableReason,
+    retrySubscription,
+  } = useSubscription();
   const [notificationPrefs, setNotificationPrefs] = useState<FantasyNotificationPreferences>({
     ...DEFAULT_FANTASY_PREFS,
     morningBrief: false,
@@ -109,7 +117,7 @@ export default function HubScreen() {
 
   const togglePref = useCallback(
     (key: PrefKey) => {
-      if (!user?.id || !isPremium) return;
+      if (!user?.id || !isPremium || !REMOTE_ALERTS_AVAILABLE) return;
 
       setNotificationPrefs((prev) => {
         const updated = { ...prev, [key]: !prev[key] };
@@ -122,7 +130,23 @@ export default function HubScreen() {
     [user?.id, isPremium]
   );
 
-  const canToggle = !!user && isPremium;
+  const canToggle = !!user && isPremium && REMOTE_ALERTS_AVAILABLE;
+  const handleSubscriptionPress = useCallback(() => {
+    if (subscriptionLoading) return;
+    if (subscriptionUnavailableReason) {
+      void retrySubscription();
+      return;
+    }
+    showPaywall('Subscription options and restore');
+  }, [retrySubscription, showPaywall, subscriptionLoading, subscriptionUnavailableReason]);
+
+  const subscriptionStatus = subscriptionLoading
+    ? 'Checking subscription…'
+    : subscriptionUnavailableReason
+      ? 'Subscriptions unavailable'
+      : isPremium
+        ? 'PuckIQ Pro active'
+        : 'No active subscription';
 
   return (
     <SafeAreaView edges={['top']} style={s.container}>
@@ -132,6 +156,37 @@ export default function HubScreen() {
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        <View style={s.section} testID="subscription-section">
+          <SectionHeader icon="card-outline" title="Subscription" />
+          <View style={s.card}>
+            <View style={s.subscriptionRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.planLabel}>{subscriptionStatus}</Text>
+                {subscriptionUnavailableReason && (
+                  <Text style={s.toggleHelper}>{subscriptionUnavailableReason}</Text>
+                )}
+              </View>
+              {!subscriptionLoading && !subscriptionUnavailableReason && (
+                <View style={s.freeBadge}>
+                  <Text style={s.freeBadgeText}>{isPremium ? 'PRO' : 'FREE'}</Text>
+                </View>
+              )}
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              style={s.authButton}
+              onPress={handleSubscriptionPress}
+              disabled={subscriptionLoading}
+              testID="subscription-options-button"
+            >
+              <Ionicons name="card-outline" size={18} color={rinkGlass.textPrimary} style={s.authIcon} />
+              <Text style={s.authButtonText}>
+                {subscriptionUnavailableReason ? 'Retry subscription setup' : 'Subscription options and restore'}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+
         {/* ── Notifications (the actual settings) ───────── */}
         <View style={s.section}>
           <SectionHeader icon="notifications-outline" title="Notifications" />
@@ -162,9 +217,7 @@ export default function HubScreen() {
                 />
               </View>
             ))}
-            {!user && (
-              <Text style={s.toggleHelper}>Sign in below to enable notifications.</Text>
-            )}
+            <Text style={s.toggleHelper}>Remote alerts are unavailable in this build.</Text>
           </View>
         </View>
 

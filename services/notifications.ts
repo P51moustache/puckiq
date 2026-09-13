@@ -1,5 +1,6 @@
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { getNotificationSettings } from './notificationSettings';
 import { getAllPicks, getYesterdaysResults, Pick } from './pickTracking';
@@ -91,10 +92,13 @@ async function createNotificationContent(): Promise<{
     }
 
     if (settings.notifyUserPickResults) {
-      // Get yesterday's user picks
       const allPicks = await getAllPicks();
+      const resultsDate =
+        yesterdayResults.lock?.date ??
+        yesterdayResults.smartPicks[0]?.date ??
+        yesterdayResults.userPicks[0]?.date;
       const yesterdaysPicks = allPicks.filter(
-        p => p.type === 'user-pick' && p.date === yesterdayResults.lock?.date
+        p => p.type === 'user-pick' && p.date === resultsDate
       );
       picksToInclude.push(...yesterdaysPicks);
     }
@@ -107,6 +111,8 @@ async function createNotificationContent(): Promise<{
       return null;
     }
 
+    const resultsDate = completedPicks[0].date;
+
     // Calculate results
     const wins = completedPicks.filter(p => p.outcome === 'win').length;
     const losses = completedPicks.filter(p => p.outcome === 'loss').length;
@@ -118,9 +124,9 @@ async function createNotificationContent(): Promise<{
     // Format body text
     let body: string;
     if (pushes > 0) {
-      body = `Yesterday: ${wins}-${losses}-${pushes} (${accuracy}%)`;
+      body = `Results for ${resultsDate}: ${wins}-${losses}-${pushes} (${accuracy}%)`;
     } else {
-      body = `Yesterday: ${wins}-${losses} (${accuracy}%)`;
+      body = `Results for ${resultsDate}: ${wins}-${losses} (${accuracy}%)`;
     }
 
     // Add suffix for perfect or terrible days
@@ -131,9 +137,9 @@ async function createNotificationContent(): Promise<{
     }
 
     return {
-      title: 'Your Pick Results',
+      title: `Your Pick Results — ${resultsDate}`,
       body,
-      data: { screen: 'pickHistory' },
+      data: { screen: 'pickHistory', resultsDate },
     };
   } catch (error) {
     console.error('Error creating notification content:', error);
@@ -141,11 +147,121 @@ async function createNotificationContent(): Promise<{
   }
 }
 
+const PUSH_TOKEN_STORAGE_KEY_PREFIX = 'puckiq_push_token_';
+const PENDING_PUSH_TOKEN_STORAGE_KEY_PREFIX = 'puckiq_pending_push_tokens_';
+const DAILY_NOTIFICATION_STORAGE_KEY = 'puckiq_daily_notification_id';
+
+function getPushTokenStorageKey(userId: string): string {
+  return `${PUSH_TOKEN_STORAGE_KEY_PREFIX}${userId}`;
+}
+
+function getPendingPushTokenStorageKey(userId: string): string {
+  return `${PENDING_PUSH_TOKEN_STORAGE_KEY_PREFIX}${userId}`;
+}
+
+async function getStoredPushToken(userId: string): Promise<string | null> {
+  const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+  return await AsyncStorage.getItem(getPushTokenStorageKey(userId));
+}
+
+async function storePushToken(userId: string, token: string): Promise<void> {
+  const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+  await AsyncStorage.setItem(getPushTokenStorageKey(userId), token);
+}
+
+async function getPendingPushTokens(userId: string): Promise<string[]> {
+  const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+  const json = await AsyncStorage.getItem(getPendingPushTokenStorageKey(userId));
+  if (!json) {
+    return [];
+  }
+
+  const parsed: unknown = JSON.parse(json);
+  if (!Array.isArray(parsed) || parsed.some(token => typeof token !== 'string')) {
+    throw new Error('Invalid pending push token record');
+  }
+  return parsed;
+}
+
+async function addPendingPushTokens(userId: string, tokens: string[]): Promise<void> {
+  const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+  const pendingTokens = await getPendingPushTokens(userId);
+  const nextPendingTokens = Array.from(new Set([...pendingTokens, ...tokens]));
+  if (nextPendingTokens.length !== pendingTokens.length) {
+    await AsyncStorage.setItem(
+      getPendingPushTokenStorageKey(userId),
+      JSON.stringify(nextPendingTokens)
+    );
+  }
+}
+
+async function removePendingPushToken(userId: string, token: string): Promise<void> {
+  const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+  const remainingTokens = (await getPendingPushTokens(userId)).filter(
+    pendingToken => pendingToken !== token
+  );
+  if (remainingTokens.length === 0) {
+    await AsyncStorage.removeItem(getPendingPushTokenStorageKey(userId));
+  } else {
+    await AsyncStorage.setItem(
+      getPendingPushTokenStorageKey(userId),
+      JSON.stringify(remainingTokens)
+    );
+  }
+}
+
+async function clearStoredPushToken(userId: string, token: string): Promise<void> {
+  try {
+    const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+    const storedToken = await AsyncStorage.getItem(getPushTokenStorageKey(userId));
+    if (storedToken === token) {
+      await AsyncStorage.removeItem(getPushTokenStorageKey(userId));
+    }
+  } catch (error) {
+    console.error('[Push Token] Error clearing local token:', error);
+  }
+}
+
+async function getStoredDailyNotificationId(): Promise<string | null> {
+  const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+  return await AsyncStorage.getItem(DAILY_NOTIFICATION_STORAGE_KEY);
+}
+
+async function storeDailyNotificationId(notificationId: string): Promise<void> {
+  const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+  await AsyncStorage.setItem(DAILY_NOTIFICATION_STORAGE_KEY, notificationId);
+}
+
+async function cancelScheduledDailyNotification(): Promise<void> {
+  const notificationId = await getStoredDailyNotificationId();
+  if (!notificationId) {
+    return;
+  }
+
+  await Notifications.cancelScheduledNotificationAsync(notificationId);
+  const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+  await AsyncStorage.removeItem(DAILY_NOTIFICATION_STORAGE_KEY);
+}
+
+async function deletePushToken(userId: string, token: string): Promise<{ message?: string } | null> {
+  const { supabase } = await import('../lib/supabase');
+  const { error } = await supabase
+    .from('push_tokens')
+    .delete()
+    .eq('user_id', userId)
+    .eq('token', token);
+  return error;
+}
+
+function getExpoProjectId(): string | null {
+  const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+  return typeof projectId === 'string' && projectId.length > 0 ? projectId : null;
+}
+
 // Schedule daily notification at specified time
 export async function scheduleDailyNotification(time: string = '09:00'): Promise<void> {
   try {
-    // Cancel any existing notifications
-    await cancelAllNotifications();
+    await cancelScheduledDailyNotification();
 
     // Parse time (format: "HH:MM")
     const [hours, minutes] = time.split(':').map(Number);
@@ -163,25 +279,32 @@ export async function scheduleDailyNotification(time: string = '09:00'): Promise
     // Create notification content
     const content = await createNotificationContent();
 
-    // Only schedule if we have content to show
-    // Note: For daily notifications, we'll create content dynamically each day
-    // So we schedule a repeating notification and generate content on trigger
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: 'Your Pick Results',
-        body: 'Check how you did yesterday!',
-        data: { screen: 'pickHistory' },
-        sound: 'default',
-      },
+    if (!content) {
+      console.log('[Notification] No daily results content; skipping schedule');
+      return;
+    }
+
+    const notificationId = await Notifications.scheduleNotificationAsync({
+      content,
       trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
-        hour: hours,
-        minute: minutes,
-        repeats: true,
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: scheduledTime,
       },
     });
 
-    console.log(`Notification scheduled for ${time} daily`);
+    try {
+      await storeDailyNotificationId(notificationId);
+    } catch (storageError) {
+      console.error('[Notification] Error storing daily notification ID:', storageError);
+      try {
+        await Notifications.cancelScheduledNotificationAsync(notificationId);
+      } catch (cleanupError) {
+        console.error('[Notification] Error cancelling unowned daily notification:', cleanupError);
+      }
+      throw storageError;
+    }
+
+    console.log(`Notification scheduled for ${scheduledTime.toISOString()}`);
   } catch (error) {
     console.error('Error scheduling notification:', error);
     throw error;
@@ -264,7 +387,7 @@ export async function scheduleGameStartNotification(
     }
 
     const settings = await getNotificationSettings();
-    if (!settings.notifyGameStart) {
+    if (!settings.enabled || !settings.notifyGameStart) {
       console.log('[Game Notification] Game start notifications disabled');
       return null;
     }
@@ -372,18 +495,31 @@ async function saveGameNotifications(notifications: Record<string, string>): Pro
 // Register push token for a user and save to Supabase
 export async function registerPushToken(userId: string): Promise<string | null> {
   try {
-    // Request permissions first
     const hasPermission = await requestNotificationPermissions();
     if (!hasPermission) {
       console.log('[Push Token] Permission not granted');
       return null;
     }
 
-    // Get the Expo push token
-    const tokenData = await Notifications.getExpoPushTokenAsync();
-    const token = tokenData.data;
+    const projectId = getExpoProjectId();
+    if (!projectId) {
+      console.error('[Push Token] EAS project ID is not configured');
+      return null;
+    }
 
-    // Save to Supabase push_tokens table
+    const previousToken = await getStoredPushToken(userId);
+    const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
+    const token = tokenData.data;
+    if (!token) {
+      console.error('[Push Token] Expo returned an empty token');
+      return null;
+    }
+
+    await addPendingPushTokens(
+      userId,
+      previousToken && previousToken !== token ? [token, previousToken] : [token]
+    );
+
     const { supabase } = await import('../lib/supabase');
     const { error } = await supabase
       .from('push_tokens')
@@ -393,7 +529,7 @@ export async function registerPushToken(userId: string): Promise<string | null> 
           token,
           platform: Platform.OS,
         },
-        { onConflict: 'user_id' }
+        { onConflict: 'user_id,token' }
       );
 
     if (error) {
@@ -401,7 +537,67 @@ export async function registerPushToken(userId: string): Promise<string | null> 
       return null;
     }
 
-    console.log('[Push Token] Registered successfully');
+    try {
+      await storePushToken(userId, token);
+    } catch (storageError) {
+      console.error('[Push Token] Error storing local token:', storageError);
+      if (previousToken === token) {
+        console.error('[Push Token] Preserving existing server token after local tracking failure');
+        return null;
+      }
+      try {
+        const cleanupError = await deletePushToken(userId, token);
+        if (cleanupError) {
+          console.error(
+            '[Push Token] Error removing token after local tracking failure:',
+            cleanupError.message
+          );
+        }
+      } catch (cleanupError) {
+        console.error(
+          '[Push Token] Error removing token after local tracking failure:',
+          cleanupError
+        );
+      }
+      return null;
+    }
+
+    try {
+      await removePendingPushToken(userId, token);
+    } catch (pendingStorageError) {
+      console.error('[Push Token] Error clearing current token journal:', pendingStorageError);
+    }
+
+    let rotatedTokenCleanupFailed = false;
+    if (previousToken && previousToken !== token) {
+      try {
+        const cleanupError = await deletePushToken(userId, previousToken);
+        if (cleanupError) {
+          rotatedTokenCleanupFailed = true;
+          console.error(
+            '[Push Token] Error removing rotated token from Supabase:',
+            cleanupError.message
+          );
+        }
+      } catch (cleanupError) {
+        rotatedTokenCleanupFailed = true;
+        console.error('[Push Token] Error removing rotated token from Supabase:', cleanupError);
+      }
+
+      if (!rotatedTokenCleanupFailed) {
+        try {
+          await removePendingPushToken(userId, previousToken);
+        } catch (pendingStorageError) {
+          console.error('[Push Token] Error clearing rotated token record:', pendingStorageError);
+        }
+      }
+    }
+
+    if (rotatedTokenCleanupFailed) {
+      console.error('[Push Token] New token registered; previous token cleanup failed');
+    } else {
+      console.log('[Push Token] Registered successfully');
+    }
     return token;
   } catch (error) {
     console.error('[Push Token] Error registering:', error);
@@ -410,20 +606,41 @@ export async function registerPushToken(userId: string): Promise<string | null> 
 }
 
 // Unregister push token for a user
-export async function unregisterPushToken(userId: string): Promise<void> {
+export async function unregisterPushToken(userId: string, token?: string): Promise<void> {
   try {
-    const { supabase } = await import('../lib/supabase');
-    const { error } = await supabase
-      .from('push_tokens')
-      .delete()
-      .eq('user_id', userId);
-
-    if (error) {
-      console.error('[Push Token] Error removing token from Supabase:', error.message);
+    const storedToken = token ?? await getStoredPushToken(userId);
+    const pendingTokens = await getPendingPushTokens(userId);
+    const deviceTokens = Array.from(
+      new Set([storedToken, ...pendingTokens].filter((value): value is string => Boolean(value)))
+    );
+    if (deviceTokens.length === 0) {
+      console.log('[Push Token] No device token found; skipping unregister');
       return;
     }
 
-    console.log('[Push Token] Unregistered successfully');
+    let hasErrors = false;
+    for (const deviceToken of deviceTokens) {
+      const error = await deletePushToken(userId, deviceToken);
+      if (error) {
+        hasErrors = true;
+        console.error('[Push Token] Error removing token from Supabase:', error.message);
+        continue;
+      }
+
+      await clearStoredPushToken(userId, deviceToken);
+      if (pendingTokens.includes(deviceToken)) {
+        try {
+          await removePendingPushToken(userId, deviceToken);
+        } catch (pendingStorageError) {
+          hasErrors = true;
+          console.error('[Push Token] Error clearing pending token:', pendingStorageError);
+        }
+      }
+    }
+
+    if (!hasErrors) {
+      console.log('[Push Token] Unregistered successfully');
+    }
   } catch (error) {
     console.error('[Push Token] Error unregistering:', error);
   }

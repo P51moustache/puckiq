@@ -25,6 +25,20 @@ jest.mock('expo-device', () => ({
   isDevice: true,
 }));
 
+jest.mock('expo-constants', () => ({
+  __esModule: true,
+  default: {
+    expoConfig: {
+      extra: {
+        eas: {
+          projectId: 'b8956511-618d-4670-90a8-035892a7d4c0',
+        },
+      },
+    },
+    easConfig: null,
+  },
+}));
+
 // Mock other modules
 jest.mock('expo-notifications', () => ({
   setNotificationHandler: jest.fn(),
@@ -210,9 +224,14 @@ describe('notifications', () => {
     });
 
     it('should cancel existing notifications before scheduling', async () => {
+      mockAsyncStorage.getItem.mockResolvedValue('daily-notification-id');
+
       await scheduleDailyNotification('09:00');
 
-      expect(mockNotifications.cancelAllScheduledNotificationsAsync).toHaveBeenCalled();
+      expect(mockNotifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith(
+        'daily-notification-id'
+      );
+      expect(mockNotifications.cancelAllScheduledNotificationsAsync).not.toHaveBeenCalled();
     });
 
     it('should schedule notification for correct time', async () => {
@@ -221,13 +240,14 @@ describe('notifications', () => {
       expect(mockNotifications.scheduleNotificationAsync).toHaveBeenCalledWith(
         expect.objectContaining({
           trigger: expect.objectContaining({
-            type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
-            hour: 9,
-            minute: 30,
-            repeats: true,
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: expect.any(Date),
           }),
         })
       );
+      const trigger = mockNotifications.scheduleNotificationAsync.mock.calls[0][0].trigger;
+      expect(trigger && 'repeats' in trigger ? trigger.repeats : undefined).toBeUndefined();
+      expect(trigger && 'date' in trigger ? trigger.date : null).toEqual(expect.any(Date));
     });
 
     it('should schedule notification with default time', async () => {
@@ -236,9 +256,8 @@ describe('notifications', () => {
       expect(mockNotifications.scheduleNotificationAsync).toHaveBeenCalledWith(
         expect.objectContaining({
           trigger: expect.objectContaining({
-            type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
-            hour: 9,
-            minute: 0,
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: expect.any(Date),
           }),
         })
       );
@@ -250,12 +269,123 @@ describe('notifications', () => {
       expect(mockNotifications.scheduleNotificationAsync).toHaveBeenCalledWith(
         expect.objectContaining({
           trigger: expect.objectContaining({
-            type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
-            hour: 23,
-            minute: 45,
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: expect.any(Date),
           }),
         })
       );
+    });
+
+    it('should date the snapshot and use a new one-shot for each scheduled day', async () => {
+      mockAsyncStorage.getItem
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce('daily-notification-day-one');
+      mockNotifications.scheduleNotificationAsync
+        .mockResolvedValueOnce('daily-notification-day-one')
+        .mockResolvedValueOnce('daily-notification-day-two');
+      mockGetYesterdaysResults
+        .mockResolvedValueOnce({
+          lock: createWinningPick({ type: 'lock', date: '2026-09-10' }),
+          smartPicks: [],
+          userPicks: [],
+          lockStats: { total: 1, wins: 1, losses: 0, pushes: 0, accuracy: 100 },
+          smartPickStats: { total: 0, wins: 0, losses: 0, pushes: 0, accuracy: 0 },
+          userPickStats: { total: 0, wins: 0, losses: 0, pushes: 0, accuracy: 0 },
+        })
+        .mockResolvedValueOnce({
+          lock: createWinningPick({ type: 'lock', date: '2026-09-11' }),
+          smartPicks: [],
+          userPicks: [],
+          lockStats: { total: 1, wins: 1, losses: 0, pushes: 0, accuracy: 100 },
+          smartPickStats: { total: 0, wins: 0, losses: 0, pushes: 0, accuracy: 0 },
+          userPickStats: { total: 0, wins: 0, losses: 0, pushes: 0, accuracy: 0 },
+        });
+
+      await scheduleDailyNotification('09:00');
+      await scheduleDailyNotification('09:00');
+
+      const firstRequest = mockNotifications.scheduleNotificationAsync.mock.calls[0][0];
+      const secondRequest = mockNotifications.scheduleNotificationAsync.mock.calls[1][0];
+      expect(firstRequest.content).toEqual(
+        expect.objectContaining({ title: 'Your Pick Results — 2026-09-10' })
+      );
+      expect(secondRequest.content).toEqual(
+        expect.objectContaining({ title: 'Your Pick Results — 2026-09-11' })
+      );
+      expect(firstRequest.trigger).toEqual({
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: expect.any(Date),
+      });
+      expect(secondRequest.trigger).toEqual({
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: expect.any(Date),
+      });
+      expect(mockNotifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith(
+        'daily-notification-day-one'
+      );
+    });
+
+    it('should keep dated content when the configured time has already passed', async () => {
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      const passedTime = `${String(oneHourAgo.getHours()).padStart(2, '0')}:${String(
+        oneHourAgo.getMinutes()
+      ).padStart(2, '0')}`;
+      mockGetYesterdaysResults.mockResolvedValue({
+        lock: createWinningPick({ type: 'lock', date: '2026-09-11' }),
+        smartPicks: [],
+        userPicks: [],
+        lockStats: { total: 1, wins: 1, losses: 0, pushes: 0, accuracy: 100 },
+        smartPickStats: { total: 0, wins: 0, losses: 0, pushes: 0, accuracy: 0 },
+        userPickStats: { total: 0, wins: 0, losses: 0, pushes: 0, accuracy: 0 },
+      });
+
+      await scheduleDailyNotification(passedTime);
+
+      const request = mockNotifications.scheduleNotificationAsync.mock.calls[0][0];
+      expect(request.content).toEqual(
+        expect.objectContaining({
+          body: expect.stringContaining('Results for 2026-09-11:'),
+        })
+      );
+      expect(request.content.body).not.toContain('Yesterday');
+      expect(request.trigger).toEqual({
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: expect.any(Date),
+      });
+      expect(request.trigger && 'date' in request.trigger ? request.trigger.date : null).toEqual(
+        expect.any(Date)
+      );
+      const triggerDate = request.trigger && 'date' in request.trigger ? request.trigger.date : 0;
+      expect(new Date(triggerDate).getTime()).toBeGreaterThan(Date.now());
+    });
+
+    it('should cancel only its owned daily notification and preserve game notifications', async () => {
+      mockAsyncStorage.getItem.mockImplementation(async key => {
+        if (key === 'puckiq_daily_notification_id') return 'daily-notification-id';
+        if (key === 'puckiq_scheduled_game_notifications') {
+          return JSON.stringify({ 'game-123': 'game-notification-id' });
+        }
+        return null;
+      });
+
+      await scheduleDailyNotification('09:00');
+
+      expect(mockNotifications.cancelAllScheduledNotificationsAsync).not.toHaveBeenCalled();
+      expect(mockNotifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith(
+        'daily-notification-id'
+      );
+      expect(mockNotifications.cancelScheduledNotificationAsync).not.toHaveBeenCalledWith(
+        'game-notification-id'
+      );
+    });
+
+    it('should not schedule a phantom notification when there is no content', async () => {
+      mockGetYesterdaysResults.mockResolvedValue(null);
+
+      await scheduleDailyNotification('09:00');
+
+      expect(mockNotifications.cancelAllScheduledNotificationsAsync).not.toHaveBeenCalled();
+      expect(mockNotifications.scheduleNotificationAsync).not.toHaveBeenCalled();
     });
 
     it('should throw error when scheduling fails', async () => {
@@ -320,15 +450,22 @@ describe('notifications', () => {
         notifyGameStart: true,
         gameStartMinutesBefore: 30,
       });
+      mockGetYesterdaysResults.mockResolvedValue({
+        lock: createWinningPick({ type: 'lock' }),
+        smartPicks: [],
+        userPicks: [],
+        lockStats: { total: 1, wins: 1, losses: 0, pushes: 0, accuracy: 100 },
+        smartPickStats: { total: 0, wins: 0, losses: 0, pushes: 0, accuracy: 0 },
+        userPickStats: { total: 0, wins: 0, losses: 0, pushes: 0, accuracy: 0 },
+      });
 
       await initializeNotifications();
 
       expect(mockNotifications.scheduleNotificationAsync).toHaveBeenCalledWith(
         expect.objectContaining({
           trigger: expect.objectContaining({
-            type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
-            hour: 14,
-            minute: 30,
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: expect.any(Date),
           }),
         })
       );
@@ -466,6 +603,40 @@ describe('notifications', () => {
       expect(mockNotifications.scheduleNotificationAsync).toHaveBeenCalled();
     });
 
+    it('should include dated user-only results when no lock exists', async () => {
+      mockGetNotificationSettings.mockResolvedValue({
+        enabled: true,
+        time: '09:00',
+        notifyLockResults: false,
+        notifySmartPickResults: false,
+        notifyUserPickResults: true,
+        notifyGameStart: true,
+        gameStartMinutesBefore: 30,
+      });
+      const userPick = createWinningPick({ type: 'user-pick', date: '2026-09-11' });
+      mockGetYesterdaysResults.mockResolvedValue({
+        lock: undefined,
+        smartPicks: [],
+        userPicks: [userPick],
+        lockStats: { total: 0, wins: 0, losses: 0, pushes: 0, accuracy: 0 },
+        smartPickStats: { total: 0, wins: 0, losses: 0, pushes: 0, accuracy: 0 },
+        userPickStats: { total: 1, wins: 1, losses: 0, pushes: 0, accuracy: 100 },
+      });
+      mockGetAllPicks.mockResolvedValue([userPick]);
+
+      await triggerTestNotification();
+
+      expect(mockNotifications.scheduleNotificationAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          content: expect.objectContaining({
+            title: 'Your Pick Results — 2026-09-11',
+            body: expect.stringContaining('Results for 2026-09-11:'),
+            data: { screen: 'pickHistory', resultsDate: '2026-09-11' },
+          }),
+        })
+      );
+    });
+
     it('should calculate correct accuracy with wins and losses', async () => {
       mockGetYesterdaysResults.mockResolvedValue({
         lock: createWinningPick({ type: 'lock' }),
@@ -592,6 +763,30 @@ describe('notifications', () => {
         notifySmartPickResults: true,
         notifyUserPickResults: true,
         notifyGameStart: false,
+        gameStartMinutesBefore: 30,
+      });
+
+      const result = await scheduleGameStartNotification(
+        'game-123',
+        'TOR',
+        'MTL',
+        futureGameTime,
+        30,
+        'TOR'
+      );
+
+      expect(result).toBeNull();
+      expect(mockNotifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+    });
+
+    it('should return null when notifications are globally disabled', async () => {
+      mockGetNotificationSettings.mockResolvedValue({
+        enabled: false,
+        time: '09:00',
+        notifyLockResults: true,
+        notifySmartPickResults: true,
+        notifyUserPickResults: true,
+        notifyGameStart: true,
         gameStartMinutesBefore: 30,
       });
 

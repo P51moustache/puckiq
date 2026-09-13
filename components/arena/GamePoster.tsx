@@ -16,6 +16,8 @@ import {
   isFinalGame,
   isLiveGame,
 } from "../../services/arenaData";
+import type { SeasonPhase } from '../../utils/seasonContext';
+import { formatFinalScore, getSourceFreshnessStatus } from '../../utils/arenaSlate';
 import type { ArenaGame } from "../../types/arena";
 import { ArenaSkater } from "./ArenaSkater";
 import { ArenaHeadline } from "./ArenaHeadline";
@@ -31,11 +33,13 @@ export function gameTime(game: ArenaGame) {
 
 export function GamePoster({
   game,
+  phase,
   saved,
   onSave,
   onPreview,
 }: {
   game: ArenaGame | null;
+  phase?: SeasonPhase;
   saved: boolean;
   onSave: () => void;
   onPreview: () => void;
@@ -79,7 +83,9 @@ export function GamePoster({
   };
   const final = game && isFinalGame(game);
   const live = game && isLiveGame(game);
-  const header = arenaGameHeadline(game);
+  const finalScore = final && game ? formatFinalScore(game) : null;
+  const scheduleUnverified = Boolean(game && !final && !live && getSourceFreshnessStatus(game) === 'unknown');
+  const header = !game && phase === 'regular' ? 'GAME\nDESK' : !game && phase === 'playoffs' ? 'CUP\nCHASE' : arenaGameHeadline(game);
   const forecast = game?.forecast;
   const favoriteIsAway = homeTeam?.abbrev === game?.away_team_abbrev;
   const probability = forecast
@@ -175,10 +181,12 @@ export function GamePoster({
                 ? "FROM THE LAST SLATE"
                 : live
                   ? "IN PROGRESS"
+                  : scheduleUnverified
+                    ? "SCHEDULE UNVERIFIED"
                   : game
                     ? game.game_type === 1
                       ? "PRESEASON"
-                      : "THE MATCHUP"
+                      : game.game_type === 3 ? "PLAYOFFS" : "THE MATCHUP"
                     : "YOUR HOME ICE"}
             </Text>
           </View>
@@ -243,7 +251,7 @@ export function GamePoster({
               }}
             >
               {final
-                ? `${game.away_score}–${game.home_score}`
+                ? finalScore
                 : probability !== null
                   ? `${Math.round(probability * 100)}%`
                   : (homeTeam?.abbrev ?? "NHL")}

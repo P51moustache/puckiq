@@ -144,6 +144,13 @@ const mockProjections: PlayerProjection[] = [
   },
 ];
 
+const mockForecastOnly: PlayerProjection = {
+  ...mockProjections[0],
+  recommendation: null,
+  confidence: null,
+  reason: null,
+};
+
 const mockWaiverPicks: PlayerProjection[] = [
   {
     playerId: 300, playerName: 'Waiver Pickup', teamAbbrev: 'NYR', position: 'LW',
@@ -223,12 +230,31 @@ describe('MyTeamScreen', () => {
       expect(cards.length).toBeGreaterThanOrEqual(1);
     });
 
+    it('keeps a numeric forecast neutral when recommendation metadata is unavailable', () => {
+      mockUseMyTeamData.mockReturnValue({
+        isLoading: false,
+        roster: mockRoster,
+        projections: [mockForecastOnly],
+        waiverPicks: [],
+        hasRoster: true,
+        onRefresh: jest.fn(),
+      });
+
+      const tree = render();
+      const texts = getAllText(tree);
+
+      expect(texts).toContain('Forecast only / recommendation unavailable');
+      expect(texts).not.toContain('SIT');
+      expect(texts).not.toContain('No game today');
+      expect(texts).toContain('8.5');
+    });
+
     it('renders WeeklyOutlook', () => {
       const tree = render();
       expect(findByTestId(tree, 'weekly-outlook')).toHaveLength(1);
     });
 
-    it('shows no projections message when no games', () => {
+    it('shows identity-only unavailable rows when all projections are missing', () => {
       mockUseMyTeamData.mockReturnValue({
         isLoading: false,
         roster: mockRoster,
@@ -240,8 +266,13 @@ describe('MyTeamScreen', () => {
 
       const tree = render();
       expect(findByTestId(tree, 'my-team-roster')).toHaveLength(1);
+      expect(findByTestId(tree, 'my-team-unavailable-roster')).toHaveLength(1);
+      expect(findByTestId(tree, 'unavailable-roster-player-100')).toHaveLength(1);
       const texts = getAllText(tree);
-      expect(texts.some(t => t.includes('No projections available'))).toBe(true);
+      expect(texts).toContain('Projection unavailable');
+      expect(texts).not.toContain('SIT');
+      expect(texts).not.toContain('No game today');
+      expect(texts).not.toContain('0.0');
     });
   });
 

@@ -27,6 +27,13 @@ import RosterBuilder from './RosterBuilder';
 import { useMyTeamData } from '../hooks/useMyTeamData';
 import type { PlayerProjection } from '../types/fantasy';
 
+interface UnavailableRosterPlayer {
+  playerId: number;
+  playerName: string;
+  teamAbbrev: string;
+  position: string;
+}
+
 function getWeekNumber(): number {
   const now = new Date();
   const start = new Date(now.getFullYear(), 0, 1);
@@ -57,9 +64,13 @@ export default function MyTeamScreen() {
   }, [onRefresh]);
 
   // Split projections into active lineup (has game today) vs bench
-  const { lineup, bench } = useMemo(() => {
-    if (!roster || projections.length === 0) {
-      return { lineup: [] as PlayerProjection[], bench: [] as PlayerProjection[] };
+  const { lineup, bench, unavailable } = useMemo(() => {
+    if (!roster) {
+      return {
+        lineup: [] as PlayerProjection[],
+        bench: [] as PlayerProjection[],
+        unavailable: [] as UnavailableRosterPlayer[],
+      };
     }
 
     const projectedPlayerIds = new Set(projections.map(p => p.playerId));
@@ -70,33 +81,19 @@ export default function MyTeamScreen() {
       .filter(p => p.recommendation === 'SIT')
       .sort((a, b) => b.fantasyPoints - a.fantasyPoints);
 
-    // Players on roster without projections go to bench
-    const rosterWithoutProjections = roster.players
+    const unavailablePlayers = roster.players
       .filter(p => !projectedPlayerIds.has(p.playerId))
       .map(p => ({
         playerId: p.playerId,
         playerName: p.playerName,
         teamAbbrev: p.teamAbbrev,
         position: p.position,
-        fantasyPoints: 0,
-        floor: 0,
-        ceiling: 0,
-        predGoals: 0,
-        predAssists: 0,
-        predSog: 0,
-        predHits: 0,
-        predBlocks: 0,
-        recommendation: 'SIT' as const,
-        confidence: 'low',
-        reason: 'No game today',
-        gameId: 0,
-        opponentAbbrev: '',
-        isHome: false,
       }));
 
     return {
       lineup: lineupPlayers,
-      bench: [...benchPlayers, ...rosterWithoutProjections],
+      bench: benchPlayers,
+      unavailable: unavailablePlayers,
     };
   }, [roster, projections]);
 
@@ -248,8 +245,26 @@ export default function MyTeamScreen() {
               </View>
             )}
 
+            {unavailable.length > 0 && (
+              <View style={styles.section} testID="my-team-unavailable-roster">
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>FORECAST UNAVAILABLE</Text>
+                  <View style={[styles.sectionUnderline, { backgroundColor: rinkGlass.textSecondary }]} />
+                </View>
+                {unavailable.map((player) => (
+                  <View key={player.playerId} style={styles.unavailablePlayer} testID={`unavailable-roster-player-${player.playerId}`}>
+                    <Text style={styles.unavailablePlayerName}>{player.playerName}</Text>
+                    <Text style={styles.unavailablePlayerMeta}>
+                      {player.position} · {player.teamAbbrev}
+                    </Text>
+                    <Text style={styles.unavailablePlayerReason}>Projection unavailable</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
             {/* No projections at all */}
-            {lineup.length === 0 && bench.length === 0 && (
+            {lineup.length === 0 && bench.length === 0 && unavailable.length === 0 && (
               <Animated.View
                 entering={FadeIn.duration(300)}
                 style={styles.noProjections}
@@ -464,6 +479,30 @@ const styles = StyleSheet.create({
     width: 32,
     borderRadius: 1,
     backgroundColor: rinkGlass.blueLight,
+  },
+  unavailablePlayer: {
+    backgroundColor: rinkGlass.glass,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: rinkGlass.glassBorder,
+  },
+  unavailablePlayerName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: rinkGlass.textPrimary,
+    marginBottom: 4,
+  },
+  unavailablePlayerMeta: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: rinkGlass.textSecondary,
+    marginBottom: 6,
+  },
+  unavailablePlayerReason: {
+    fontSize: 12,
+    color: rinkGlass.textSecondary,
   },
   noProjections: {
     backgroundColor: rinkGlass.glass,

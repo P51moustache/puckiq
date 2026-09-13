@@ -49,10 +49,22 @@ jest.mock('react-native-reanimated', () => {
   };
 });
 
-const mockUseSubscription = jest.fn(() => ({
+type SubscriptionMock = {
+  isPremium: boolean;
+  loading: boolean;
+  refresh: jest.Mock;
+  showPaywall: jest.Mock;
+  subscriptionUnavailableReason?: string | null;
+  retrySubscription?: jest.Mock;
+};
+
+const mockUseSubscription = jest.fn((): SubscriptionMock => ({
   isPremium: false,
   loading: false,
   refresh: jest.fn(),
+  showPaywall: jest.fn(),
+  subscriptionUnavailableReason: null,
+  retrySubscription: jest.fn(),
 }));
 
 jest.mock('../SubscriptionProvider', () => ({
@@ -103,6 +115,9 @@ describe('PremiumGate', () => {
       isPremium: false,
       loading: false,
       refresh: jest.fn(),
+      showPaywall: jest.fn(),
+      subscriptionUnavailableReason: null,
+      retrySubscription: jest.fn(),
     });
   });
 
@@ -115,9 +130,8 @@ describe('PremiumGate', () => {
     expect(findByTestID(element, 'premium-gate')).not.toBeNull();
     expect(findByTestID(element, 'premium-gate-overlay')).not.toBeNull();
     expect(findByText(element, 'ML Predictions')).not.toBeNull();
-    // Redesigned subhead copy (was "Unlock with PuckIQ Pro").
     expect(
-      findByText(element, 'Pro unlocks lineup, projections, and waiver intel.'),
+      findByText(element, 'Pro adds forecast and player-analysis tools.'),
     ).not.toBeNull();
   });
 
@@ -126,6 +140,7 @@ describe('PremiumGate', () => {
       isPremium: true,
       loading: false,
       refresh: jest.fn(),
+      showPaywall: jest.fn(),
     });
 
     const element = PremiumGate({
@@ -136,6 +151,47 @@ describe('PremiumGate', () => {
     // Should not have the gate wrapper
     expect(findByTestID(element, 'premium-gate')).toBeNull();
     expect(findByTestID(element, 'premium-gate-overlay')).toBeNull();
+  });
+
+  it('fails closed while entitlement state is loading', () => {
+    mockUseSubscription.mockReturnValue({
+      isPremium: true,
+      loading: true,
+      refresh: jest.fn(),
+      showPaywall: jest.fn(),
+    });
+
+    const element = PremiumGate({
+      feature: 'ML Predictions',
+      children: React.createElement('Text', null, 'Secret content'),
+    });
+
+    expect(findByTestID(element, 'premium-gate')).not.toBeNull();
+  });
+
+  it('shows a retry state instead of silently dead-ending when subscriptions are unavailable', () => {
+    const retrySubscription = jest.fn();
+    const showPaywall = jest.fn();
+    mockUseSubscription.mockReturnValue({
+      isPremium: false,
+      loading: false,
+      refresh: jest.fn(),
+      showPaywall,
+      subscriptionUnavailableReason: 'RevenueCat is not configured for this platform.',
+      retrySubscription,
+    });
+
+    const element = PremiumGate({
+      feature: 'ML Predictions',
+      children: React.createElement('Text', null, 'Secret content'),
+    });
+
+    expect(findByText(element, 'Subscriptions unavailable')).not.toBeNull();
+    expect(findByText(element, 'RevenueCat is not configured for this platform.')).not.toBeNull();
+    const retryButton = findByTestID(element, 'premium-gate-upgrade');
+    retryButton.props.onPress();
+    expect(retrySubscription).toHaveBeenCalledTimes(1);
+    expect(showPaywall).not.toHaveBeenCalled();
   });
 
   it('still renders children (dimmed) behind overlay for free users', () => {
@@ -159,6 +215,26 @@ describe('PremiumGate', () => {
     const upgradeButton = findByTestID(element, 'premium-gate-upgrade');
     expect(upgradeButton).not.toBeNull();
     expect(upgradeButton.props.onPress).toBe(onUpgrade);
+  });
+
+  it('opens the provider-owned paywall when no upgrade callback is supplied', () => {
+    const showPaywall = jest.fn();
+    mockUseSubscription.mockReturnValue({
+      isPremium: false,
+      loading: false,
+      refresh: jest.fn(),
+      showPaywall,
+    });
+
+    const element = PremiumGate({
+      feature: 'ML Predictions',
+      children: React.createElement('Text', null, 'Content'),
+    });
+
+    const upgradeButton = findByTestID(element, 'premium-gate-upgrade');
+    upgradeButton.props.onPress();
+
+    expect(showPaywall).toHaveBeenCalledWith('ML Predictions');
   });
 
   it('displays the feature name in the overlay', () => {

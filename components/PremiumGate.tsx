@@ -19,7 +19,13 @@ export interface PremiumGateProps {
 }
 
 export default function PremiumGate({ children, feature, onUpgrade }: PremiumGateProps) {
-  const { isPremium } = useSubscription();
+  const {
+    isPremium,
+    loading,
+    showPaywall,
+    subscriptionUnavailableReason,
+    retrySubscription,
+  } = useSubscription();
   const glowScale = useSharedValue(1);
   const glowOpacity = useSharedValue(0.4);
 
@@ -42,7 +48,16 @@ export default function PremiumGate({ children, feature, onUpgrade }: PremiumGat
     );
   }, [glowScale, glowOpacity]);
 
-  if (isPremium) return <>{children}</>;
+  if (isPremium && !loading) return <>{children}</>;
+
+  const handleUpgrade = onUpgrade ?? (() => {
+    if (subscriptionUnavailableReason) {
+      void retrySubscription();
+      return;
+    }
+    showPaywall(feature);
+  });
+  const unavailable = Boolean(subscriptionUnavailableReason);
 
   return (
     <View style={styles.wrapper} testID="premium-gate">
@@ -58,7 +73,6 @@ export default function PremiumGate({ children, feature, onUpgrade }: PremiumGat
         style={styles.gradientOverlay}
         testID="premium-gate-overlay"
       >
-        {/* Stat-Sheet card: tighter, calmer, no pulsing glow ring */}
         <Animated.View entering={FadeInUp.duration(500)} style={styles.glassCard}>
           <View style={styles.lockBadge}>
             <Ionicons name="lock-closed" size={16} color="#0a0e1a" />
@@ -66,20 +80,25 @@ export default function PremiumGate({ children, feature, onUpgrade }: PremiumGat
           </View>
 
           {/* Headline — the feature name leads, no marketing copy */}
-          <Text style={styles.headline}>{feature}</Text>
-          <Text style={styles.subhead}>Pro unlocks lineup, projections, and waiver intel.</Text>
+          <Text style={styles.headline}>{unavailable ? 'Subscriptions unavailable' : feature}</Text>
+          <Text style={styles.subhead}>
+            {unavailable ? subscriptionUnavailableReason : 'Pro adds forecast and player-analysis tools.'}
+          </Text>
 
           {/* CTA Button — single solid cyan, no rainbow gradient */}
           <TouchableOpacity
-            onPress={onUpgrade}
+            onPress={handleUpgrade}
             testID="premium-gate-upgrade"
             activeOpacity={0.85}
+            disabled={loading && !unavailable}
             style={styles.ctaButton}
           >
-            <Text style={styles.ctaText}>Start 7-day trial</Text>
+            <Text style={styles.ctaText}>
+              {unavailable ? 'Retry subscription setup' : loading ? 'Checking subscription…' : 'View subscription options'}
+            </Text>
           </TouchableOpacity>
 
-          <Text style={styles.trialSubtext}>$6.99 / mo after trial · cancel anytime</Text>
+          <Text style={styles.trialSubtext}>Store pricing and terms apply.</Text>
         </Animated.View>
       </LinearGradient>
     </View>
