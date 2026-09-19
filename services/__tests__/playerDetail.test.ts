@@ -12,7 +12,7 @@
  */
 
 import { supabase } from '../../lib/supabase';
-import { getPlayerDetail, clearDetailCache } from '../playerDetail';
+import { getPlayerDetail, getPlayerDetailStrict, clearDetailCache } from '../playerDetail';
 
 // ---------------------------------------------------------------------------
 // Mock data — matches Supabase column naming
@@ -447,6 +447,14 @@ describe('getPlayerDetail — graceful fallbacks', () => {
     mockSingleResults['players'] = { data: null, error: { message: 'not found' } };
     const result = await getPlayerDetail(99999);
     expect(result).toBeNull();
+  });
+
+  it('strict detail distinguishes backend failure from player not found', async () => {
+    mockSingleResults['players'] = { data: null, error: { message: 'offline', code: 'NETWORK' } };
+    await expect(getPlayerDetailStrict(99999)).rejects.toThrow('offline');
+    clearDetailCache();
+    mockSingleResults['players'] = { data: null, error: { message: 'no rows', code: 'PGRST116' } };
+    await expect(getPlayerDetailStrict(99999)).resolves.toBeNull();
   });
 
   it('returns detail without career when player_career_data is empty', async () => {

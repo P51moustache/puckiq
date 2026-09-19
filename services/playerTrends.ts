@@ -154,7 +154,7 @@ async function seasonRows(table = 'skater_season_stats'): Promise<{
     return cached;
   const latest = await supabase.from(table).select('season').order('season', { ascending: false }).limit(1);
   if (latest.error)
-    return null;
+    throw new Error(latest.error.message || 'Player season data unavailable');
   const season = latestSeason(latest.data ?? []);
   if (!season)
     return null;
@@ -162,7 +162,7 @@ async function seasonRows(table = 'skater_season_stats'): Promise<{
   for (let offset = 0;; offset += 1000) {
     const response = await supabase.from(table).select('*').eq('season', season).order('id').range(offset, offset + 999);
     if (response.error || !response.data)
-      return null;
+      throw new Error(response.error?.message || 'Player season data unavailable');
     rows.push(...response.data);
     if (response.data.length < 1000)
       break;
@@ -182,7 +182,7 @@ async function recentRows(playerId: number, season: number, cutoff: string, coun
     .lte('games.game_date', cutoff).in('games.game_state', ['OFF', 'FINAL'])
     .order('games(game_date)', { ascending: false }).order('game_id', { ascending: false }).limit(count);
   if (response.error)
-    return [];
+    throw new Error(response.error.message || 'Recent player data unavailable');
   const rows = scopedGames(response.data ?? [], season, cutoff).slice(0, count);
   setCache(key, rows);
   return rows;
@@ -223,6 +223,7 @@ async function playersFromRows(rows: StatRow[], season: number, roster?: StatRow
   if (!rows.length)
     return [];
   const response = roster ? { data: roster } : await supabase.from('players').select('id, first_name, last_name, headshot_url, current_team_abbrev, position').in('id', rows.map(r => r.player_id));
+  if ('error' in response && response.error) throw new Error(response.error.message || 'Player roster unavailable');
   const names = new Map<number, StatRow>((response.data ?? []).map((r: StatRow) => [r.id, r]));
   const cutoff = new Date().toISOString().slice(0, 10);
   // Limit concurrency so a full league pool does not overwhelm the data API.
@@ -259,6 +260,13 @@ export async function getLeagueLeaders(statCategory: StatCategory, limit = 10): 
     return [];
   }
 }
+export async function getLeagueLeadersStrict(statCategory: StatCategory, limit = 10): Promise<TrendingPlayer[]> {
+  const dataset = await seasonRows();
+  if (!dataset) return [];
+  const selected = dataset.rows.filter(r => r.games_played > 0 && ['goals', 'assists', 'points', statCategory].every(k => numberOrNull(r[k]) !== null))
+    .sort((a, b) => b[statCategory] - a[statCategory] || a.player_id - b.player_id).slice(0, limit);
+  return playersFromRows(selected, dataset.season);
+}
 let pendingTrendPool: Promise<TrendingPlayer[]> | null = null;
 async function loadTrendPool(): Promise<TrendingPlayer[]> {
   const cached = getCached<TrendingPlayer[]>('trend-pool');
@@ -292,6 +300,11 @@ export async function getTrendingPlayers(direction: 'up' | 'down', limit = 10): 
     return [];
   }
 }
+export async function getTrendingPlayersStrict(direction: 'up' | 'down', limit = 10): Promise<TrendingPlayer[]> {
+  const players = await loadTrendPool();
+  return players.filter(p => p.recentAvailable && p.recentSampleSize === 5 && (direction === 'up' ? ['HOT', 'WARM'] : ['COLD', 'COOL']).includes(p.trendLabel))
+    .sort((a, b) => direction === 'up' ? b.hotColdScore - a.hotColdScore : a.hotColdScore - b.hotColdScore).slice(0, limit);
+}
 export async function getLeaderTrends(playerIds: number[]): Promise<Map<number, LeaderTrend>> {
   const result = new Map<number, LeaderTrend>();
   if (!playerIds.length)
@@ -313,18 +326,17 @@ export async function getLeaderTrends(playerIds: number[]): Promise<Map<number, 
   catch { /* no verified trend */ }
   return result;
 }
-export async function getPlayersPlayingTonight(limit = 20): Promise<TrendingPlayer[]> {
-  try {
+async function loadPlayersPlayingTonight(limit = 20): Promise<TrendingPlayer[]> {
     const today = new Date().toISOString().slice(0, 10);
     const games = await supabase.from('games').select('id, season, game_type, home_team_abbrev, away_team_abbrev, start_time_utc').eq('game_date', today).in('game_state', ['FUT', 'PRE', 'LIVE', 'CRIT']);
     const dataset = await seasonRows();
-    if (!dataset || games.error)
-      return [];
+    if (games.error) throw new Error(games.error.message || 'Tonight schedule unavailable');
+    if (!dataset) return [];
     const currentGames = (games.data ?? []).filter(g => g.season === dataset.season && g.game_type === 2);
     if (!currentGames.length) return [];
     const teams = new Set(currentGames.flatMap(g => [g.home_team_abbrev, g.away_team_abbrev]));
     const roster = await supabase.from('players').select('id, first_name, last_name, headshot_url, current_team_abbrev, position').in('current_team_abbrev', [...teams]);
-    if (roster.error) return [];
+    if (roster.error) throw new Error(roster.error.message || 'Tonight roster unavailable');
     const activeRoster = (roster.data ?? []).filter(r => teams.has(r.current_team_abbrev));
     const eligibleIds = new Set(activeRoster.map(r => r.id));
     const players = await playersFromRows(dataset.rows.filter(r => r.games_played > 0 && r.points != null && r.goals != null && r.assists != null && eligibleIds.has(r.player_id)), dataset.season, activeRoster);
@@ -334,10 +346,10 @@ export async function getPlayersPlayingTonight(limit = 20): Promise<TrendingPlay
         return [];
       return [{ ...p, matchup: { opponent: g.home_team_abbrev === p.teamAbbrev ? g.away_team_abbrev : g.home_team_abbrev, isHome: g.home_team_abbrev === p.teamAbbrev, gameTime: g.start_time_utc, gameId: g.id } }];
     }).sort((a, b) => b.hotColdScore - a.hotColdScore).slice(0, limit);
-  }
-  catch {
-    return [];
-  }
+}
+export function getPlayersPlayingTonightStrict(limit = 20): Promise<TrendingPlayer[]> { return loadPlayersPlayingTonight(limit); }
+export async function getPlayersPlayingTonight(limit = 20): Promise<TrendingPlayer[]> {
+  try { return await loadPlayersPlayingTonight(limit); } catch { return []; }
 }
 /** Goalie rolling views do not expose season/type; suppress until a scoped source is available. */
 export async function getTrendingGoalies(_direction: 'up' | 'down', _limit = 5): Promise<TrendingGoalie[]> { return []; }

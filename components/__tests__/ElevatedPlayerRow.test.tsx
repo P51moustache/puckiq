@@ -39,6 +39,10 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   },
 }));
 
+jest.mock('../../hooks/useWatchlist', () => ({
+  useWatchlist: () => ({ isWatched: () => false, toggle: jest.fn() }),
+}));
+
 // Override React hooks to work outside render cycle
 (React as any).useCallback = (fn: any) => fn;
 (React as any).useMemo = (fn: any) => fn();

@@ -11,6 +11,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
+import { useArena } from './arena/ArenaProvider';
+import { arenaType } from './arena/ArenaPrimitives';
+import { proBenefits, proSummary } from '../utils/accountFlowPolicy';
 import {
   getIntroductoryPriceEligibility,
   getOfferings,
@@ -26,30 +29,10 @@ interface PaywallModalProps {
   onClose: () => void;
   refresh: () => Promise<void>;
   featureHeadline?: string;
+  onHelp?: () => void;
 }
 
-const FEATURES = [
-  {
-    title: 'ML-powered game predictions',
-    subtitle: 'Model-backed probabilities for followed games',
-    icon: 'analytics' as const,
-  },
-  {
-    title: 'Advanced player analytics',
-    subtitle: 'Compare player performance and role context',
-    icon: 'swap-horizontal' as const,
-  },
-  {
-    title: 'Custom model builder',
-    subtitle: 'Tune factors and review your model',
-    icon: 'stats-chart' as const,
-  },
-  {
-    title: 'Forecast history',
-    subtitle: 'Compare saved forecasts over time',
-    icon: 'time' as const,
-  },
-];
+const FEATURES = proBenefits;
 
 type Plan = 'annual' | 'monthly';
 type OfferingState = 'loading' | 'available' | 'unavailable' | 'error';
@@ -86,7 +69,9 @@ export default function PaywallModal({
   onClose,
   refresh,
   featureHeadline = 'Unlock Premium Analytics',
+  onHelp,
 }: PaywallModalProps) {
+  const { palette } = useArena();
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<'annual' | 'monthly'>('annual');
@@ -94,6 +79,8 @@ export default function PaywallModal({
   const [offeringState, setOfferingState] = useState<OfferingState>('loading');
   const [feedback, setFeedback] = useState<string | null>(null);
   const [introEligibility, setIntroEligibility] = useState<Record<string, boolean>>({});
+  const [offeringAttempt, setOfferingAttempt] = useState(0);
+  const [helpVisible, setHelpVisible] = useState(false);
 
   useEffect(() => {
     if (!visible) return undefined;
@@ -141,7 +128,7 @@ export default function PaywallModal({
     });
 
     return () => { mounted = false; };
-  }, [visible]);
+  }, [visible, offeringAttempt]);
 
   const handlePurchase = async (packageType: Plan) => {
     const pkg = packageForPlan(currentOffering, packageType);
@@ -190,22 +177,25 @@ export default function PaywallModal({
       visible={visible}
       animationType="slide"
       transparent={false}
-      onRequestClose={onClose}
+      onRequestClose={() => { if (!isLoading) onClose(); }}
     >
       <LinearGradient
-        colors={['#0a0e1a', '#141829']}
-        style={styles.fullScreen}
+        colors={[palette.page, palette.soft]}
+        style={[styles.fullScreen, { backgroundColor: palette.page }]}
       >
         {/* Close button */}
         <TouchableOpacity
-          style={styles.closeButton}
+          accessibilityRole="button"
+          accessibilityLabel="Close subscription options"
+          accessibilityState={{ disabled: isLoading }}
+          style={[styles.closeButton, { minWidth: 48, minHeight: 48 }]}
           onPress={onClose}
           testID="paywall-close"
           disabled={isLoading}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
-          <View style={styles.closeCircle}>
-            <Ionicons name="close" size={20} color="#f0f4ff" />
+          <View style={[styles.closeCircle, { backgroundColor: palette.paper, borderColor: palette.edge }]}>
+            <Ionicons name="close" size={20} color={palette.ink} />
           </View>
         </TouchableOpacity>
 
@@ -218,31 +208,31 @@ export default function PaywallModal({
           <Animated.View entering={FadeInUp.duration(600).delay(100)} style={styles.headerSection}>
             <View style={styles.proIconContainer}>
               <LinearGradient
-                colors={['#4cc9f0', '#141829']}
+                colors={[palette.hero, palette.hero]}
                 style={styles.proIconGradient}
               >
-                <Ionicons name="diamond" size={28} color="#fff" />
+                <Ionicons name="diamond" size={28} color={palette.heroInk} />
               </LinearGradient>
-              <View style={styles.proIconGlow} />
+              <View style={[styles.proIconGlow, { backgroundColor: palette.soft }]} />
             </View>
 
-            <Text style={styles.proTitle}>PuckIQ Pro</Text>
-            <Text style={styles.headline}>{featureHeadline}</Text>
-            <Text style={styles.subheadline}>
-              Explore model-backed probabilities and player-analysis tools.
+            <Text style={[styles.proTitle, { color: palette.link, fontFamily: arenaType.body }]}>PuckIQ Pro</Text>
+            <Text style={[styles.headline, { color: palette.ink, fontFamily: arenaType.display }]}>{featureHeadline}</Text>
+            <Text style={[styles.subheadline, { color: palette.muted, fontFamily: arenaType.body }]}>
+              {proSummary}
             </Text>
           </Animated.View>
 
           {/* Feature cards */}
           <Animated.View entering={FadeInUp.duration(600).delay(250)} style={styles.featuresSection}>
             {FEATURES.map((feat) => (
-              <View key={feat.title} style={styles.featureCard}>
-                <View style={styles.featureIconWrap}>
-                  <Ionicons name={feat.icon} size={20} color="#4cc9f0" />
+              <View key={feat.title} style={[styles.featureCard, { backgroundColor: palette.paper, borderColor: palette.edge }]}>
+                <View style={[styles.featureIconWrap, { backgroundColor: palette.soft }]}>
+                  <Ionicons name={feat.icon} size={20} color={palette.link} />
                 </View>
                 <View style={styles.featureTextWrap}>
-                  <Text style={styles.featureTitle}>{feat.title}</Text>
-                  <Text style={styles.featureSubtitle}>{feat.subtitle}</Text>
+                  <Text style={[styles.featureTitle, { color: palette.ink, fontFamily: arenaType.body }]}>{feat.title}</Text>
+                  <Text style={[styles.featureSubtitle, { color: palette.muted, fontFamily: arenaType.body }]}>{feat.subtitle}</Text>
                 </View>
               </View>
             ))}
@@ -250,11 +240,16 @@ export default function PaywallModal({
 
           {/* Pricing cards */}
           <Animated.View entering={FadeInUp.duration(600).delay(400)} style={styles.pricingSection}>
-            <Text style={styles.pricingLabel}>Store subscription options</Text>
+            <Text style={[styles.pricingLabel, { color: palette.muted, fontFamily: arenaType.body }]}>Store subscription options</Text>
 
-            {offeringState === 'loading' && <Text style={styles.statusText}>Loading store prices…</Text>}
-            {offeringState === 'unavailable' && <Text style={styles.statusText}>Subscriptions are currently unavailable.</Text>}
-            {offeringState === 'error' && <Text style={styles.statusText}>Subscription options could not be loaded.</Text>}
+            {offeringState === 'loading' && <Text style={[styles.statusText, { color: palette.muted }]}>Loading store prices…</Text>}
+            {offeringState === 'unavailable' && <Text style={[styles.statusText, { color: palette.muted }]}>Subscriptions are currently unavailable.</Text>}
+            {(offeringState === 'unavailable' || offeringState === 'error') && <>
+              {offeringState === 'error' && <Text style={[styles.statusText, { color: palette.muted }]}>Subscription options could not be loaded.</Text>}
+              <TouchableOpacity accessibilityRole="button" testID="paywall-retry-offering" onPress={() => setOfferingAttempt((attempt) => attempt + 1)} style={[styles.retryButton, { borderColor: palette.action }]}>
+                <Text style={[styles.restoreText, { color: palette.link }]}>Retry store connection</Text>
+              </TouchableOpacity>
+            </>}
 
             {currentOffering && (
               <View style={styles.pricingRow}>
@@ -267,17 +262,21 @@ export default function PaywallModal({
                       key={plan}
                       style={[
                         styles.pricingCard,
-                        selectedPlan === plan && styles.pricingCardSelected,
+                        { backgroundColor: selectedPlan === plan ? palette.soft : palette.paper, borderColor: selectedPlan === plan ? palette.action : palette.edge },
                       ]}
+                      accessibilityRole="radio"
+                      accessibilityLabel={`${plan === 'annual' ? 'Annual' : 'Monthly'} plan, ${pkg.product?.priceString}`}
+                      accessibilityState={{ selected: selectedPlan === plan, disabled: isLoading }}
+                      disabled={isLoading}
                       onPress={() => setSelectedPlan(plan)}
                       testID={`paywall-${plan}-plan`}
                       activeOpacity={0.8}
                     >
-                      <Text style={styles.planName}>{plan === 'annual' ? 'Annual' : 'Monthly'}</Text>
-                      <Text style={styles.planPrice}>{pkg.product?.priceString || 'Price unavailable'}</Text>
+                      <Text style={[styles.planName, { color: palette.muted, fontFamily: arenaType.body }]}>{plan === 'annual' ? 'Annual' : 'Monthly'}</Text>
+                      <Text style={[styles.planPrice, { color: palette.ink, fontFamily: arenaType.display }]}>{pkg.product?.priceString || 'Price unavailable'}</Text>
                       {introPrice
                         && introEligibility[pkg.product?.identifier || pkg.identifier] === true && (
-                        <Text style={styles.planMonthly}>Intro offer: {introPrice.priceString}</Text>
+                        <Text style={[styles.planMonthly, { color: palette.link }]}>Intro offer: {introPrice.priceString}</Text>
                       )}
                     </TouchableOpacity>
                   );
@@ -294,24 +293,24 @@ export default function PaywallModal({
               disabled={isLoading || offeringState !== 'available' || !hasStorePrice(packageForPlan(currentOffering, selectedPlan))}
               activeOpacity={0.85}
               style={styles.ctaTouchable}
+              accessibilityRole="button"
+              accessibilityLabel={`Subscribe with ${selectedPlan} plan`}
+              accessibilityState={{ disabled: isLoading || offeringState !== 'available', busy: purchasing }}
             >
-              <LinearGradient
-                colors={['#4cc9f0', '#f72585']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.ctaGradient}
-              >
+              <View style={[styles.ctaGradient, { backgroundColor: palette.action }]}>
                 {purchasing ? (
-                  <ActivityIndicator color="#fff" size="small" />
+                  <ActivityIndicator color={palette.actionInk} size="small" />
                 ) : (
-                  <Text style={styles.ctaText}>Subscribe</Text>
+                  <Text style={[styles.ctaText, { color: palette.actionInk }]}>Subscribe</Text>
                 )}
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
+            <TouchableOpacity accessibilityRole="button" style={styles.restoreButton} onPress={onHelp ?? (() => setHelpVisible((value) => !value))} testID="paywall-help"><Text style={[styles.restoreText, { color: palette.link }]}>Purchase help</Text></TouchableOpacity>
+            {helpVisible && <Text style={[styles.statusText, { color: palette.muted }]}>Retry store connection for missing prices. Use Restore Purchases for an existing subscription. A cancelled purchase does not activate Pro.</Text>}
 
-            {feedback && <Text style={styles.feedbackText} accessibilityRole="alert">{feedback}</Text>}
+            {feedback && <Text style={[styles.feedbackText, { color: palette.ink }]} accessibilityRole="alert">{feedback}</Text>}
 
-            <Text style={styles.trialSubtext}>Store terms apply.</Text>
+            <Text style={[styles.trialSubtext, { color: palette.muted }]}>Store terms apply.</Text>
 
             {/* Restore */}
             <TouchableOpacity
@@ -319,11 +318,14 @@ export default function PaywallModal({
               onPress={handleRestore}
               testID="paywall-restore"
               disabled={isLoading}
+              accessibilityRole="button"
+              accessibilityLabel="Restore purchases"
+              accessibilityState={{ disabled: isLoading, busy: restoring }}
             >
               {restoring ? (
-                <ActivityIndicator color="#8b95b0" size="small" />
+                <ActivityIndicator color={palette.muted} size="small" />
               ) : (
-                <Text style={styles.restoreText}>Restore Purchases</Text>
+                <Text style={[styles.restoreText, { color: palette.link }]}>Restore Purchases</Text>
               )}
             </TouchableOpacity>
           </Animated.View>
@@ -470,6 +472,7 @@ const styles = StyleSheet.create({
   },
   pricingCard: {
     flex: 1,
+    minHeight: 96,
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: 16,
     borderWidth: 1.5,
@@ -510,6 +513,7 @@ const styles = StyleSheet.create({
   },
   ctaTouchable: {
     width: '100%',
+    minHeight: 48,
     borderRadius: 16,
     overflow: 'hidden',
     shadowColor: '#4cc9f0',
@@ -551,6 +555,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   restoreButton: {
+    minHeight: 48,
+    justifyContent: 'center',
     paddingVertical: 12,
     marginTop: 4,
   },
@@ -559,4 +565,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textDecorationLine: 'underline',
   },
+  retryButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderRadius: 10, marginTop: 12, paddingHorizontal: 18 },
 });

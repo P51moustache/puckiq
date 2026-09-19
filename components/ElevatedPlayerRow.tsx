@@ -5,17 +5,15 @@
  * and a watch-list toggle.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { rinkGlass } from '../constants/theme';
 import { arenaType } from '../constants/arenaTypography';
 import { getArenaPalette, type ArenaPalette } from '../constants/arenaTheme';
 import type { TrendingPlayer, HitRateResult, LeaderTrend, StatCategory } from '../services/playerTrends';
-
-const WATCHLIST_KEY = 'puckiq_watchlist';
+import { useWatchlist } from '../hooks/useWatchlist';
 
 const TREND_ICONS: Record<string, { name: keyof typeof Ionicons.glyphMap; color: string }> = {
   HOT: { name: 'arrow-up', color: rinkGlass.goalLight },
@@ -47,42 +45,26 @@ export default React.memo(function ElevatedPlayerRow({
   const total = {goals:player.seasonGoals, assists:player.seasonAssists, points:player.seasonPoints, shots:player.seasonShots}[statCategory];
 
   // Watchlist state
-  const [isWatched, setIsWatched] = useState(false);
-
-  useEffect(() => {
-    AsyncStorage.getItem(WATCHLIST_KEY).then(raw => {
-      if (raw) {
-        try {
-          const ids: number[] = JSON.parse(raw);
-          setIsWatched(ids.includes(player.playerId));
-        } catch { /* ignore */ }
-      }
-    });
-  }, [player.playerId]);
+  const { isWatched: containsPlayer, toggle } = useWatchlist();
+  const isWatched = containsPlayer(player.playerId);
+  const [watchBusy, setWatchBusy] = useState(false);
+  const [watchError, setWatchError] = useState(false);
 
   const toggleWatch = useCallback(async () => {
-    try {
-      const raw = await AsyncStorage.getItem(WATCHLIST_KEY);
-      const ids: number[] = raw ? JSON.parse(raw) : [];
-      let updated: number[];
-      if (ids.includes(player.playerId)) {
-        updated = ids.filter(id => id !== player.playerId);
-        setIsWatched(false);
-      } else {
-        updated = [...ids, player.playerId];
-        setIsWatched(true);
-      }
-      await AsyncStorage.setItem(WATCHLIST_KEY, JSON.stringify(updated));
-    } catch (err) {
-      console.warn('[WATCHLIST] Error toggling watch:', err);
-    }
-  }, [player.playerId]);
+    setWatchBusy(true);
+    setWatchError(false);
+    try { await toggle({ playerId: player.playerId, fullName: player.playerName, teamAbbrev: player.teamAbbrev, position: player.position, headshotUrl: player.headshotUrl }); }
+    catch { setWatchError(true); }
+    finally { setWatchBusy(false); }
+  }, [player, toggle]);
 
   return (
     <Pressable
       style={({ pressed }) => [styles.row, { backgroundColor: p.paper, borderColor: p.edge }, pressed && styles.rowPressed]}
       onPress={handlePress}
       testID={`elevated-row-${player.playerId}`}
+      accessibilityRole="button"
+      accessibilityLabel={`Open ${player.playerName} player detail`}
     >
       <Text style={[styles.rankNumber, { color: p.link, fontFamily: arenaType.display }]}>{rank}</Text>
 
@@ -118,8 +100,12 @@ export default React.memo(function ElevatedPlayerRow({
       </View>
 
       <TouchableOpacity
-        onPress={toggleWatch}
+        onPress={(event) => { event.stopPropagation(); void toggleWatch(); }}
         style={styles.watchButton}
+        disabled={watchBusy}
+        accessibilityRole="button"
+        accessibilityLabel={`${watchError ? 'Retry updating watchlist for' : isWatched ? 'Unwatch' : 'Watch'} ${player.playerName}`}
+        accessibilityState={{ selected: isWatched, busy: watchBusy, disabled: watchBusy }}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         testID={`watch-btn-${player.playerId}`}
       >
@@ -128,6 +114,7 @@ export default React.memo(function ElevatedPlayerRow({
           size={16}
           color={isWatched ? p.action : p.muted}
         />
+        {watchError ? <Text style={[styles.watchError, { color: rinkGlass.goalLight }]}>Retry</Text> : null}
       </TouchableOpacity>
     </Pressable>
   );
@@ -211,6 +198,10 @@ const styles = StyleSheet.create({
   },
   watchButton: {
     marginLeft: 8,
-    padding: 4,
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  watchError: { fontSize: 9, fontFamily: arenaType.body, fontWeight: '700' },
 });

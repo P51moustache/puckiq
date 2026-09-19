@@ -7,7 +7,10 @@ import { create, act } from 'react-test-renderer';
 import React from 'react';
 import HubScreen from '../HubScreen';
 
-jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
+jest.mock('expo-router', () => ({
+  router: { push: jest.fn(), back: jest.fn(), canGoBack: jest.fn(() => false) },
+  useLocalSearchParams: () => ({ origin: 'following' }),
+}));
 jest.mock('react-native-safe-area-context', () => ({ SafeAreaView: 'SafeAreaView' }));
 
 jest.mock('react-native', () => {
@@ -18,7 +21,11 @@ jest.mock('react-native', () => {
     ScrollView: ({ children, ...props }: any) => React.createElement('ScrollView', props, children),
     Pressable: ({ children, ...props }: any) => React.createElement('Pressable', props, children),
     Switch: (props: any) => React.createElement('Switch', props),
+    ActivityIndicator: (props: any) => React.createElement('ActivityIndicator', props),
     Platform: { OS: 'ios' },
+    Modal: ({ children, ...props }: any) => React.createElement('Modal', props, children),
+    Linking: { openURL: jest.fn() },
+    Alert: { alert: jest.fn() },
     StyleSheet: { create: (s: any) => s, hairlineWidth: 1 },
   };
 });
@@ -140,6 +147,7 @@ describe('HubScreen', () => {
     mockSubscription.isPremium = false;
     mockSubscription.loading = false;
     mockSubscription.subscriptionUnavailableReason = null;
+    mockAuthContext.error = null;
   });
 
   describe('when user is NOT authenticated', () => {
@@ -147,7 +155,7 @@ describe('HubScreen', () => {
       const tree = renderHub();
       const texts = getAllText(tree);
       expect(texts).toContain('SETTINGS');
-      expect(tree.root.findByProps({ accessibilityLabel: 'Back to Tonight' })).toBeTruthy();
+      expect(tree.root.findByProps({ accessibilityLabel: 'Back' })).toBeTruthy();
     });
 
     it('shows sign-in buttons', () => {
@@ -181,6 +189,17 @@ describe('HubScreen', () => {
       act(() => { btn.props.onPress(); });
       expect(mockSignInWithGoogle).toHaveBeenCalledTimes(1);
     });
+
+    it('shows a provider-specific accessible busy state while sign-in is pending', async () => {
+      let resolve!: (ok: boolean) => void;
+      mockSignInWithGoogle.mockReturnValueOnce(new Promise((done) => { resolve = done; }));
+      const tree = renderHub();
+      act(() => { findByTestId(tree, 'sign-in-google')[0].props.onPress(); });
+      const button = findByTestId(tree, 'sign-in-google')[0];
+      expect(button.props.accessibilityState).toEqual({ disabled: true, busy: true });
+      expect(getAllText(tree)).toContain('Opening Google…');
+      await act(async () => { resolve(false); await Promise.resolve(); });
+    });
   });
 
   describe('when user IS authenticated', () => {
@@ -205,11 +224,13 @@ describe('HubScreen', () => {
       expect(findByTestId(tree, 'sign-in-email')).toHaveLength(0);
     });
 
-    it('calls signOut when sign-out button pressed', () => {
+    it('explains retained device data before sign out', () => {
       const tree = renderHub();
       const btn = findByTestId(tree, 'sign-out-button')[0];
       act(() => { btn.props.onPress(); });
-      expect(mockSignOut).toHaveBeenCalledTimes(1);
+      expect(mockSignOut).not.toHaveBeenCalled();
+      expect(findByTestId(tree, 'sign-out-confirm')).toHaveLength(1);
+      expect(getAllText(tree)).toContain('Saved cards, watched players, and team preferences stay on this device.');
     });
 
     it('loads notification prefs from Supabase', async () => {
@@ -350,6 +371,16 @@ describe('HubScreen', () => {
       const tree = renderHub();
       expect(findByTestId(tree, 'support-link')).toHaveLength(1);
       expect(getAllText(tree)).toContain('Support');
+    });
+
+    it('opens actionable in-app help without requiring a configured contact', () => {
+      const tree = renderHub();
+      act(() => { findByTestId(tree, 'support-link')[0].props.onPress(); });
+      expect(findByTestId(tree, 'support-modal')).toHaveLength(1);
+      expect(getAllText(tree)).toContain('Subscription recovery');
+      expect(getAllText(tree)).toContain('Feed and schedule recovery');
+      expect(findByTestId(tree, 'help-subscription-options')).toHaveLength(1);
+      expect(findByTestId(tree, 'help-go-tonight')).toHaveLength(1);
     });
   });
 });

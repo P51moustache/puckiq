@@ -8,8 +8,8 @@ import { formatSeasonLabel } from '../utils/season';
  * winner highlight and a horizontal bar showing the magnitude of each gap.
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { AccessibilityInfo, ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -113,16 +113,16 @@ function PinSlot({ team, onClear, side }: { team: SimpleTeam | null; onClear: ()
   const { palette: p } = useArena();
   if (!team) {
     return (
-      <View style={styles.pinSlotEmpty}>
+      <Pressable accessibilityRole="button" accessibilityLabel={`Choose team ${side}`} onPress={() => AccessibilityInfo.announceForAccessibility(`Choose team ${side} from the clubs below`)} style={styles.pinSlotEmpty}>
         <Text style={styles.pinSlotEmptyLabel}>+ PICK TEAM {side}</Text>
-      </View>
+      </Pressable>
     );
   }
   return (
     <View style={styles.pinSlotFull}>
       <ExpoImage source={{ uri: getTeamLogoUrl(team.abbrev) }} style={styles.pinLogo} contentFit="contain" />
       <Text style={styles.pinAbbrev}>{team.abbrev}</Text>
-      <Pressable onPress={onClear} hitSlop={8} style={styles.pinClear}>
+      <Pressable accessibilityRole="button" accessibilityLabel={`Clear ${team.abbrev} from team ${side}`} onPress={onClear} style={styles.pinClear}>
         <Ionicons name="close" size={12} color={p.ink} />
       </Pressable>
     </View>
@@ -134,16 +134,22 @@ export default function TeamHeadToHead({ initialA, initialB }: TeamHeadToHeadPro
   const { palette: p } = useArena();
   const [allTeams, setAllTeams] = useState<SimpleTeam[]>([]);
   const [loading, setLoading] = useState(true);
+  const [teamsError, setTeamsError] = useState<string | null>(null);
+  const [teamsAttempt, setTeamsAttempt] = useState(0);
   const [pinA, setPinA] = useState<SimpleTeam | null>(null);
   const [pinB, setPinB] = useState<SimpleTeam | null>(null);
   const [statsA, setStatsA] = useState<TeamComparisonStats | null>(null);
   const [statsB, setStatsB] = useState<TeamComparisonStats | null>(null);
   const [statsError, setStatsError] = useState<string | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
+  const [statsAttempt, setStatsAttempt] = useState(0);
+  const statsRequest = useRef(0);
 
   // Load teams
   useEffect(() => {
     let mounted = true;
+    setLoading(true);
+    setTeamsError(null);
     fetchAllTeams()
       .then((teams) => {
         if (!mounted) return;
@@ -159,16 +165,22 @@ export default function TeamHeadToHead({ initialA, initialB }: TeamHeadToHeadPro
         setLoading(false);
       })
       .catch(() => {
-        if (mounted) setLoading(false);
+        if (mounted) {
+          setTeamsError('Teams could not be loaded.');
+          setLoading(false);
+        }
       });
     return () => { mounted = false; };
-  }, [initialA, initialB]);
+  }, [initialA, initialB, teamsAttempt]);
 
   // Load stats whenever both pinned
   useEffect(() => {
+    const requestId = ++statsRequest.current;
     if (!pinA || !pinB) {
       setStatsA(null);
       setStatsB(null);
+      setStatsError(null);
+      setStatsLoading(false);
       return;
     }
     let cancelled = false;
@@ -176,18 +188,18 @@ export default function TeamHeadToHead({ initialA, initialB }: TeamHeadToHeadPro
     setStatsA(null); setStatsB(null); setStatsError(null);
     getTeamComparisonPair(pinA.abbrev, pinB.abbrev)
       .then(([a, b]) => {
-        if (cancelled) return;
+        if (cancelled || requestId !== statsRequest.current) return;
         setStatsA(a);
         setStatsB(b);
         setStatsLoading(false);
       })
       .catch(() => {
-        if (cancelled) return;
+        if (cancelled || requestId !== statsRequest.current) return;
         setStatsError('Comparable statistics are unavailable for this snapshot. Choose another team or try again.');
         setStatsLoading(false);
       });
     return () => { cancelled = true; };
-  }, [pinA, pinB]);
+  }, [pinA, pinB, statsAttempt]);
 
   const onTapTeam = (t: SimpleTeam) => {
     Haptics.selectionAsync().catch(() => {});
@@ -248,7 +260,7 @@ export default function TeamHeadToHead({ initialA, initialB }: TeamHeadToHeadPro
             </View>
           )}
 
-          {statsError && <Text style={styles.explainer}>{statsError}</Text>}
+          {statsError && <View><Text accessibilityRole="alert" style={styles.explainer}>{statsError}</Text><Pressable accessibilityRole="button" onPress={() => setStatsAttempt(value => value + 1)} style={styles.retryButton}><Text style={styles.retryLabel}>Try comparison again</Text></Pressable></View>}
           {statsA?.period && <Text style={styles.explainer}>{formatSeasonLabel(statsA.period.season)} regular season · Standings {statsA.period.snapshotDate}
             {'\n'}{pinA.abbrev}: summary {statsA.period.summaryAsOf?.slice(0, 10) ?? 'unavailable'} · penalties {statsA.period.penaltiesAsOf?.slice(0, 10) ?? 'unavailable'}
             {'\n'}{pinB.abbrev}: summary {statsB?.period?.summaryAsOf?.slice(0, 10) ?? 'unavailable'} · penalties {statsB?.period?.penaltiesAsOf?.slice(0, 10) ?? 'unavailable'}
@@ -293,11 +305,15 @@ export default function TeamHeadToHead({ initialA, initialB }: TeamHeadToHeadPro
             <View style={{ paddingTop: 40, alignItems: 'center' }}>
               <ActivityIndicator size="small" color={p.muted} />
             </View>
+          ) : teamsError ? (
+            <View><Text accessibilityRole="alert" style={styles.explainer}>{teamsError}</Text><Pressable accessibilityRole="button" onPress={() => setTeamsAttempt(value => value + 1)} style={styles.retryButton}><Text style={styles.retryLabel}>Try loading teams again</Text></Pressable></View>
           ) : (
             <View style={styles.gridWrap}>
               {filteredTeams.map((t) => (
                 <Pressable
                   key={t.abbrev}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Select ${t.name} for comparison`}
                   onPress={() => onTapTeam(t)}
                   style={({ pressed }) => [styles.gridCell, pressed && { opacity: 0.7 }]}
                 >
@@ -372,9 +388,9 @@ function useComparisonStyles() {
     letterSpacing: 0.5,
   },
   pinClear: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: p.soft,
     alignItems: 'center',
     justifyContent: 'center',
@@ -387,6 +403,8 @@ function useComparisonStyles() {
     marginBottom: 10,
     lineHeight: 15,
   },
+  retryButton: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 16 },
+  retryLabel: { fontFamily: arenaType.body, color: p.link, fontWeight: '700', fontSize: 12 },
 
   // Pick grid
   gridWrap: {

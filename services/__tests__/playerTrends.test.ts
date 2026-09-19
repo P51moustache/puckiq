@@ -1,5 +1,5 @@
 import { supabase } from '../../lib/supabase';
-import { getLeagueLeaders, getLeaderTrends, getTrendingPlayers, getTrendingGoalies, getPlayerHitRate, getPlayerL10GameStats, getPlayersPlayingTonight, clearTrendsCache, batchGetHitRates } from '../playerTrends';
+import { getLeagueLeaders, getLeagueLeadersStrict, getLeaderTrends, getTrendingPlayers, getTrendingPlayersStrict, getTrendingGoalies, getPlayerHitRate, getPlayerL10GameStats, getPlayersPlayingTonight, getPlayersPlayingTonightStrict, clearTrendsCache, batchGetHitRates } from '../playerTrends';
 const season = 20252026;
 const seasonRow = (extra: any = {}) => ({ id: 1, player_id: 1, season, team_abbrev: 'EDM', position: 'C', games_played: 20, goals: 4, assists: 16, points: 20, shots: 40, updated_at: '2026-02-01T12:00:00Z', ...extra });
 const gameRow = (id: number, extra: any = {}) => ({ game_id: id, player_id: 1, goals: 0, assists: 0, points: 0, shots_on_goal: 0, team_abbrev: 'EDM', games: { season, game_type: 2, game_date: `2026-01-${String(id).padStart(2, '0')}`, game_state: 'OFF' }, ...extra });
@@ -51,6 +51,11 @@ test('leaders aggregate traded splits before ranking and exclude old seasons', a
   const leaders = await getLeagueLeaders('points', 1);
   expect(leaders).toHaveLength(1);
   expect(leaders[0]).toMatchObject({ playerId: 1, seasonPoints: 25, gamesPlayed: 40, season, gameType: 2, seasonShots: 80 });
+});
+test('strict leaders reject backend failures while compatibility leaders remain empty', async () => {
+  errors.skater_season_stats = { message: 'offline' };
+  await expect(getLeagueLeadersStrict('points')).rejects.toThrow('offline');
+  await expect(getLeagueLeaders('points')).resolves.toEqual([]);
 });
 test.each(['goals', 'assists', 'points', 'shots'] as const)('ranks %s by season count', async (category) => {
   data.skater_season_stats = [seasonRow(), seasonRow({ player_id: 2, [category]: 100 })];
@@ -114,6 +119,11 @@ test('trending uses five verified games from the selected season', async () => {
   expect((await getTrendingPlayers('up'))[0]).toMatchObject({ trendLabel: 'HOT', recentSampleSize: 5 });
   expect(await getTrendingPlayers('down')).toEqual([]);
 });
+test('strict trending rejects a selective backend failure while compatibility stays empty', async () => {
+  errors.game_skater_stats = { message: 'recent feed offline' };
+  await expect(getTrendingPlayersStrict('up')).rejects.toThrow('recent feed offline');
+  await expect(getTrendingPlayers('up')).resolves.toEqual([]);
+});
 test('conflicting season totals cannot produce leaders or trends', async () => {
   data.skater_season_stats = [seasonRow({ points: 20 })];
   data.game_skater_stats = Array.from({ length: 5 }, (_, i) => gameRow(i + 1, { points: 5 }));
@@ -134,6 +144,15 @@ test('traded player stays in tonight list under current roster team', async () =
   data.games = [{ id: 2, season, game_type: 2, game_date: today, home_team_abbrev: 'EDM', away_team_abbrev: 'TOR' }];
   data.skater_season_stats = [seasonRow({ team_abbrev: 'BOS' }), seasonRow({ id: 2, team_abbrev: 'EDM' })];
   expect((await getPlayersPlayingTonight())[0]).toMatchObject({ playerId: 1, teamAbbrev: 'EDM', seasonPoints: 40, matchup: { gameId: 2, opponent: 'TOR' } });
+});
+test('strict tonight rejects schedule and roster failures while compatibility stays empty', async () => {
+  errors.games = { message: 'schedule offline' };
+  await expect(getPlayersPlayingTonightStrict()).rejects.toThrow('schedule offline');
+  await expect(getPlayersPlayingTonight()).resolves.toEqual([]);
+  errors.games = null;
+  data.games = [{ id: 2, season, game_type: 2, game_date: new Date().toISOString().slice(0, 10), home_team_abbrev: 'EDM', away_team_abbrev: 'TOR' }];
+  errors.players = { message: 'roster offline' };
+  await expect(getPlayersPlayingTonightStrict()).rejects.toThrow('roster offline');
 });
 test('streak exhausting the sample is a lower bound; known boundary is exact', async () => {
   data.game_skater_stats = Array.from({ length: 10 }, (_, i) => gameRow(i + 1, { points: 1 }));

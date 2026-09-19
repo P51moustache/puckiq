@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { parseEntityId } from '../../utils/entityRoutes';
 import React, {
   useCallback,
@@ -10,6 +10,7 @@ import React, {
 import {
   ActivityIndicator,
   Alert,
+  BackHandler,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -20,7 +21,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useArena } from "./ArenaProvider";
-import { ArenaHeader, ArenaNote, arenaType } from "./ArenaPrimitives";
+import { ArenaButton, ArenaHeader, ArenaNote, arenaType } from "./ArenaPrimitives";
 import { GamePoster, gameTime } from "./GamePoster";
 import { GamePreview } from "./GamePreview";
 import { SeasonBook } from "./SeasonBook";
@@ -40,6 +41,7 @@ import {
   subscribeSeasonBook,
 } from "../../services/seasonBook";
 import { resolveSeasonContext } from '../../utils/seasonContext';
+import { gameOrigin, type GameOrigin } from '../../utils/navigationOrigins';
 import { SeasonClubhouse, SeasonGuide, SeasonIdentity } from './SeasonHub';
 import { PlayoffSeries } from './PlayoffSeries';
 import {
@@ -51,7 +53,7 @@ import {
 import type { ArenaGame, SeasonEntry } from "../../types/arena";
 
 export default function TonightScreen() {
-  const params = useLocalSearchParams<{ game?: string | string[]; previewSeason?: string }>();
+  const params = useLocalSearchParams<{ game?: string | string[]; from?: string | string[]; previewSeason?: string }>();
   const [routeMessage, setRouteMessage] = useState<string | null>(null);
   const { palette: p, homeTeam } = useArena();
   const { games, loading, error, notice, refresh } = useArenaGames(
@@ -60,11 +62,14 @@ export default function TonightScreen() {
   const [section, setSection] = useState<"tonight" | "preview" | "book">(
     "tonight",
   );
+  const [previewOrigin, setPreviewOrigin] = useState<GameOrigin>('home');
   const [selection, setSelection] = useState<ArenaGame | null>(null);
   const [entries, setEntries] = useState<SeasonEntry[]>([]);
   const [results, setResults] = useState<ArenaGame[]>([]);
   const [bookError, setBookError] = useState<string | null>(null);
+  const [resultsError, setResultsError] = useState<string | null>(null);
   const scroll = useRef<ScrollView>(null);
+  const scrollOffsets = useRef({ tonight: 0, preview: 0, book: 0 });
   const selectionRequest = useRef(0);
   const ordered = useMemo(
     () => orderArenaGames(games, homeTeam?.abbrev),
@@ -102,10 +107,13 @@ export default function TonightScreen() {
     let alive = true;
     fetchArenaResults(entries.map((entry) => entry.game.id))
       .then((next) => {
-        if (alive) setResults(next);
+        if (alive) {
+          setResults(next);
+          setResultsError(null);
+        }
       })
       .catch((err) => {
-        if (alive) setBookError(err.message);
+        if (alive) setResultsError(err instanceof Error ? err.message : 'Saved results could not be refreshed.');
       });
     return () => {
       alive = false;
@@ -131,11 +139,22 @@ export default function TonightScreen() {
       Alert.alert("Card could not be removed", "Please try again.");
     }
   };
-  const openGame = (game: ArenaGame) => {
+  const confirmRemove = (entry: SeasonEntry) => {
+    Alert.alert(
+      'Remove saved game?',
+      `Remove the original ${entry.game.away_team_abbrev} at ${entry.game.home_team_abbrev} forecast from this device?`,
+      [
+        { text: 'Keep card', style: 'cancel' },
+        { text: 'Remove', style: 'destructive', onPress: () => void remove(entry.game.id) },
+      ],
+    );
+  };
+  const openGame = (game: ArenaGame, origin: GameOrigin = 'home') => {
     const requestId = ++selectionRequest.current;
+    setPreviewOrigin(origin);
+    scrollOffsets.current.preview = 0;
     setSelection(game);
     setSection("preview");
-    scroll.current?.scrollTo({ y: 0, animated: false });
     if (games.some(loaded => loaded.id === game.id)) {
       setRouteMessage(null);
       return;
@@ -154,6 +173,7 @@ export default function TonightScreen() {
     if (params.game === undefined) return;
     let alive = true;
     const requestId = ++selectionRequest.current;
+    setPreviewOrigin(gameOrigin(params.from));
     setSection('preview'); setSelection(null);
     const id = parseEntityId(params.game);
     setRouteMessage(id ? 'Loading selected game…' : 'Game unavailable: this link has an invalid game ID. Choose a game from Home.');
@@ -163,12 +183,47 @@ export default function TonightScreen() {
       setRouteMessage(game ? null : 'This game is unavailable in the feed. Choose a game from Home.');
     }).catch(() => { if (alive && selectionRequest.current === requestId) setRouteMessage('The selected game could not be loaded. Return to Home and try again.'); });
     return () => { alive = false; };
-  }, [params.game]);
+  }, [params.game, params.from]);
+  const leavePreview = useCallback(() => {
+    selectionRequest.current += 1;
+    setRouteMessage(null);
+    setSelection(null);
+    if (previewOrigin === 'book') setSection('book');
+    else if (previewOrigin === 'home') setSection('tonight');
+    else if (router.canGoBack?.()) router.back();
+    else setSection('tonight');
+  }, [previewOrigin]);
+  useFocusEffect(useCallback(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (section === 'preview') {
+        leavePreview();
+        return true;
+      }
+      if (section === 'book') {
+        setSection('tonight');
+        return true;
+      }
+      return false;
+    });
+    return () => subscription.remove();
+  }, [leavePreview, section]));
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      scroll.current?.scrollTo({ y: scrollOffsets.current[section], animated: false });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [section]);
   const upcoming = visibleGames.some((g) => !isFinalGame(g));
+  const selectSection = (next: 'tonight' | 'preview' | 'book') => {
+    if (next === 'preview') setPreviewOrigin(section === 'book' ? 'book' : 'home');
+    setSection(next);
+  };
   return (
     <SafeAreaView edges={["top"]} style={{ flex: 1, backgroundColor: p.page }}>
       <ScrollView
         ref={scroll}
+        onScroll={(event) => { scrollOffsets.current[section] = event.nativeEvent.contentOffset.y; }}
+        scrollEventThrottle={32}
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 38 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -199,7 +254,7 @@ export default function TonightScreen() {
               key={key}
               accessibilityRole="tab"
               accessibilityState={{ selected: section === key }}
-              onPress={() => setSection(key)}
+              onPress={() => selectSection(key)}
               style={{
                 flex: 1,
                 minHeight: 44,
@@ -230,6 +285,7 @@ export default function TonightScreen() {
         )}
         {notice && <ArenaNote>{notice}</ArenaNote>}
         {bookError && <ArenaNote>{bookError}</ArenaNote>}
+        {resultsError && <ArenaNote>{resultsError}</ArenaNote>}
         {section === "tonight" && (
           <>
             {loading && !games.length ? (
@@ -269,12 +325,12 @@ export default function TonightScreen() {
                 if (featured) void save(featured);
               }}
               onPreview={() => {
-                if (featured) openGame(featured);
+                if (featured) openGame(featured, 'home');
               }}
             />}
-            {phase === 'playoffs' && featured?.game_type === 3 && <PlayoffSeries game={featured} onOpen={openGame} />}
+            {phase === 'playoffs' && featured?.game_type === 3 && <PlayoffSeries game={featured} onOpen={(game) => openGame(game, 'home')} />}
             {lowSeason && !visibleGames.length && <Text style={{ fontFamily: arenaType.body, color: p.muted, fontSize: 12, lineHeight: 19, marginTop: 8 }}>The next schedule isn’t available here yet. Your watchlist and saved season are ready to use.</Text>}
-            {lowSeason && seasonContext.nextGame && <Pressable accessibilityRole="button" onPress={() => openGame(seasonContext.nextGame!)} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, marginTop: 14, borderWidth: 1.5, borderColor: p.edge, borderRadius: 14, backgroundColor: p.paper }}>
+            {lowSeason && seasonContext.nextGame && <Pressable accessibilityRole="button" onPress={() => openGame(seasonContext.nextGame!, 'home')} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, marginTop: 14, borderWidth: 1.5, borderColor: p.edge, borderRadius: 14, backgroundColor: p.paper }}>
               <View style={{ flex: 1 }}><Text style={{ fontFamily: arenaType.body, color: p.muted, fontSize: 10 }}>Next on the league calendar</Text><Text style={{ fontFamily: arenaType.display, color: p.ink, fontSize: 27, marginTop: 2 }}>{seasonContext.nextGame.away_team_abbrev} / {seasonContext.nextGame.home_team_abbrev}</Text><Text style={{ fontFamily: arenaType.body, color: p.muted, fontSize: 11 }}>{gameTime(seasonContext.nextGame)}</Text></View>
               <Text style={{ fontFamily: arenaType.display, color: p.link, fontSize: 33 }}>{seasonContext.daysUntilNextGame === 0 ? 'TODAY' : `${seasonContext.daysUntilNextGame}D`}</Text>
             </Pressable>}
@@ -315,7 +371,7 @@ export default function TonightScreen() {
                 key={game.id}
                 accessibilityRole="button"
                 accessibilityLabel={`Preview ${game.away_team_abbrev} at ${game.home_team_abbrev}`}
-                onPress={() => openGame(game)}
+                onPress={() => openGame(game, 'home')}
                 style={{
                   backgroundColor: p.paper,
                   borderColor: p.edge,
@@ -415,11 +471,13 @@ export default function TonightScreen() {
           </>
         )}
         {section === "preview" &&
-          (routeMessage ? <ArenaNote>{routeMessage}</ArenaNote> : selected ? (
+          (routeMessage ? <><ArenaNote>{routeMessage}</ArenaNote><ArenaButton label={previewOrigin === 'link' && router.canGoBack?.() ? 'Go back' : 'Return to Home'} secondary onPress={leavePreview} /></> : selected ? (
             <GamePreview
               game={selected}
               entry={entries.find((e) => e.game.id === selected.id)}
               onSave={() => void save(selected)}
+              onBack={leavePreview}
+              backLabel={previewOrigin === 'book' ? 'Back to season book' : 'Back to Home'}
             />
           ) : (
             <ArenaNote>
@@ -431,8 +489,8 @@ export default function TonightScreen() {
           <SeasonBook
             entries={entries}
             results={results}
-            onOpen={openGame}
-            onRemove={(id) => void remove(id)}
+            onOpen={(game) => openGame(game, 'book')}
+            onRemove={confirmRemove}
           />
         )}
       </ScrollView>

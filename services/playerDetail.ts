@@ -231,7 +231,7 @@ export function clearDetailCache(): void {
 // getPlayerDetail
 // ---------------------------------------------------------------------------
 
-export async function getPlayerDetail(playerId: number): Promise<PlayerDetail | null> {
+async function loadPlayerDetail(playerId: number): Promise<PlayerDetail | null> {
   const cached = detailCache.get(playerId);
   if (isCacheValid(cached)) return cached.data;
 
@@ -243,8 +243,12 @@ export async function getPlayerDetail(playerId: number): Promise<PlayerDetail | 
       .eq('id', playerId)
       .single();
 
-    if (playerErr || !playerRow) {
-      console.warn(`[PLAYER DETAIL] Player ${playerId} not found:`, playerErr?.message);
+    if (playerErr) {
+      if (playerErr.code === 'PGRST116') return null;
+      throw new Error(playerErr.message || 'Player detail unavailable');
+    }
+    if (!playerRow) {
+      console.warn(`[PLAYER DETAIL] Player ${playerId} not found`);
       return null;
     }
 
@@ -274,10 +278,13 @@ export async function getPlayerDetail(playerId: number): Promise<PlayerDetail | 
     detailCache.set(playerId, { data: detail, timestamp: Date.now() });
     console.log(`[PLAYER DETAIL] Loaded detail for ${bio.fullName} (${bio.position})`);
     return detail;
-  } catch (err) {
-    console.error(`[PLAYER DETAIL] Error fetching detail for ${playerId}:`, err);
-    return null;
-  }
+  } catch (err) { throw err; }
+}
+
+export function getPlayerDetailStrict(playerId: number): Promise<PlayerDetail | null> { return loadPlayerDetail(playerId); }
+export async function getPlayerDetail(playerId: number): Promise<PlayerDetail | null> {
+  try { return await loadPlayerDetail(playerId); }
+  catch (err) { console.error(`[PLAYER DETAIL] Error fetching detail for ${playerId}:`, err); return null; }
 }
 
 // ---------------------------------------------------------------------------

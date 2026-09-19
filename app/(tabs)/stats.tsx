@@ -39,8 +39,8 @@ export default function LeagueScreen() {
   const initialA = parseTeamParam(params.teamA);
   const initialB = parseTeamParam(params.teamB);
   useEffect(() => {
-    if (params.game !== undefined) router.replace({ pathname: '/(tabs)', params: { game: typeof params.game === 'string' ? params.game : 'invalid' } });
-    else if (params.team !== undefined) router.replace({ pathname: '/(tabs)/teams', params: { team: typeof params.team === 'string' ? params.team : 'invalid' } });
+    if (params.game !== undefined) router.replace({ pathname: '/(tabs)', params: { game: typeof params.game === 'string' ? params.game : 'invalid', from: 'link' } });
+    else if (params.team !== undefined) router.replace({ pathname: '/(tabs)/teams', params: { team: typeof params.team === 'string' ? params.team : 'invalid', from: 'league' } });
   }, [params.game, params.team]);
   const { palette: p } = useArena();
   const [view, setView] = useState<LeagueView>(initialA || initialB ? 'compare' : 'standings');
@@ -113,9 +113,9 @@ export default function LeagueScreen() {
           <View style={[styles.toolsCard, { backgroundColor: p.hero, borderColor: p.frame }]}>
             <View style={styles.toolsCopy}>
               <Text style={[styles.toolsTitle, { color: p.heroInk }]}>YOUR MODEL ROOM</Text>
-              <Text style={[styles.toolsBody, { color: p.heroInk }]}>Review the model behind your forecasts and adjust your own weights.</Text>
+              <Text style={[styles.toolsBody, { color: p.heroInk }]}>Arena forecasts are published by PuckIQ AI with their source and publication time. Changing a personal model never changes those published probabilities.</Text>
             </View>
-            <ArenaButton label="Models" icon="options-outline" secondary onPress={() => router.push('/(tabs)/models')} style={styles.modelsButton} />
+            <ArenaButton label="My model experiments" icon="options-outline" secondary onPress={() => router.push('/(tabs)/models')} style={styles.modelsButton} />
           </View>
 
           <View style={styles.tableHeading}>
@@ -127,13 +127,13 @@ export default function LeagueScreen() {
                 </Text>
               ) : null}
             </View>
-            <Ionicons name="refresh-outline" size={20} color={p.link} />
+            <Pressable accessibilityRole="button" accessibilityLabel="Refresh league standings" onPress={() => void loadStandings(true)} style={styles.refreshButton}><Ionicons name="refresh-outline" size={20} color={p.link} /></Pressable>
           </View>
 
           {loading ? (
             <View style={styles.loading}><ActivityIndicator size="large" color={p.action} /></View>
           ) : error ? (
-            <ArenaNote>{error}</ArenaNote>
+            <><ArenaNote>{error}{standings.length ? ' Showing the last loaded standings.' : ''}</ArenaNote><ArenaButton label="Try loading standings again" onPress={() => void loadStandings(true)} secondary /></>
           ) : ranked.length === 0 ? (
             <ArenaNote>No standings snapshot is available yet. Pull down to check again.</ArenaNote>
           ) : (
@@ -149,7 +149,7 @@ export default function LeagueScreen() {
                 const rank = standing.league_sequence ?? index + 1;
                 const goalDiff = standing.goals_for - standing.goals_against;
                 return (
-                  <Pressable accessibilityRole="button" accessibilityLabel={`Open ${standing.team_abbrev} team detail`} onPress={() => router.push({ pathname: '/(tabs)/teams', params: { team: standing.team_abbrev } })} key={standing.team_abbrev} style={[styles.standingRow, { borderBottomColor: p.edge }]} testID={`standing-${standing.team_abbrev}`}>
+                  <Pressable accessibilityRole="button" accessibilityLabel={`Open ${standing.team_abbrev} team detail`} onPress={() => router.push({ pathname: '/(tabs)/teams', params: { team: standing.team_abbrev, from: 'league' } })} key={standing.team_abbrev} style={[styles.standingRow, { borderBottomColor: p.edge }]} testID={`standing-${standing.team_abbrev}`}>
                     <Text style={[styles.rank, { color: p.ink }]}>{rank}</Text>
                     <View style={[styles.accent, { backgroundColor: team?.tokens.hero ?? p.frame }]} />
                     <Image source={{ uri: getTeamLogoUrl(standing.team_abbrev) }} style={styles.logo} contentFit="contain" accessibilityLabel={`${team?.name ?? standing.team_abbrev} logo`} />
@@ -185,8 +185,9 @@ const styles = StyleSheet.create({
   toolsCopy: { flex: 1 },
   toolsTitle: { fontFamily: arenaType.display, fontSize: 24 },
   toolsBody: { fontFamily: arenaType.body, fontSize: 12, lineHeight: 17, opacity: 0.8, marginTop: 2 },
-  modelsButton: { minHeight: 44, width: 108, paddingHorizontal: 10, borderRadius: 10 },
+  modelsButton: { minHeight: 48, width: 154, paddingHorizontal: 10, borderRadius: 10 },
   tableHeading: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 25, marginBottom: 10 },
+  refreshButton: { minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
   tableTitle: { fontFamily: arenaType.display, fontSize: 31 },
   freshness: { fontFamily: arenaType.body, fontSize: 12, marginTop: 2 },
   loading: { paddingVertical: 70, alignItems: 'center' },

@@ -6,10 +6,11 @@
 
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { rinkGlass } from '../constants/theme';
 import type { PlayerProjection } from '../types/fantasy';
+import { useArena } from './arena/ArenaProvider';
+import { arenaType } from '../constants/arenaTypography';
 
 interface WaiverWireSectionProps {
   picks: PlayerProjection[];
@@ -17,56 +18,57 @@ interface WaiverWireSectionProps {
 }
 
 export default function WaiverWireSection({ picks, onSeeAll }: WaiverWireSectionProps) {
+  const { palette: p } = useArena();
   if (picks.length === 0) return null;
 
   return (
-    <Animated.View
-      entering={FadeInDown.delay(300).duration(400).springify()}
-      style={styles.container}
+    <View
+      style={[styles.container, { backgroundColor: p.paper, borderColor: p.edge, shadowColor: p.frame }]}
       testID="waiver-wire-section"
     >
       {/* Header */}
       <View style={styles.headerRow}>
         <View style={styles.headerLeft}>
           <View style={styles.headerTitleRow}>
-            <Text style={styles.headerTitle}>WAIVER WIRE</Text>
-            <Text style={styles.fireEmoji}>{'\ud83d\udd25'}</Text>
+            <Text style={[styles.headerTitle, { color: p.ink, fontFamily: arenaType.display }]}>WAIVER WIRE</Text>
           </View>
-          <View style={styles.headerUnderline} />
+          <View style={[styles.headerUnderline, { backgroundColor: p.action }]} />
         </View>
         {onSeeAll && (
           <TouchableOpacity
             onPress={onSeeAll}
             style={styles.seeAllButton}
             testID="waiver-see-all"
+            accessibilityRole="button"
+            accessibilityLabel="See all waiver picks"
           >
-            <Text style={styles.seeAllText}>See All</Text>
-            <Ionicons name="chevron-forward" size={14} color={rinkGlass.blueLight} />
+            <Text style={[styles.seeAllText, { color: p.link }]}>See All</Text>
+            <Ionicons name="chevron-forward" size={14} color={p.link} />
           </TouchableOpacity>
         )}
       </View>
 
       {/* Player cards */}
       {picks.map((player, idx) => (
-        <View key={player.playerId} style={styles.playerCard}>
+        <View key={player.playerId} style={[styles.playerCard, { borderBottomColor: p.edge }]}>
           {/* Rank number */}
           <View style={styles.rankCol}>
-            <View style={styles.rankBadge}>
-              <Text style={styles.rankText}>{idx + 1}</Text>
+            <View style={[styles.rankBadge, { backgroundColor: p.action }]}>
+              <Text style={[styles.rankText, { color: p.actionInk }]}>{idx + 1}</Text>
             </View>
           </View>
 
           {/* Player info */}
           <View style={styles.playerInfo}>
-            <Text style={styles.playerName} numberOfLines={1}>
+            <Text style={[styles.playerName, { color: p.ink, fontFamily: arenaType.body }]} numberOfLines={1}>
               {player.playerName}
             </Text>
             <View style={styles.playerMetaRow}>
-              <Text style={styles.playerMeta}>
+              <Text style={[styles.playerMeta, { color: p.muted }]}>
                 {player.teamAbbrev} \u00b7 {player.position}
               </Text>
               {player.opponentAbbrev ? (
-                <Text style={styles.matchupText}>
+                <Text style={[styles.matchupText, { color: p.muted }]}>
                   {player.isHome ? 'vs' : '@'} {player.opponentAbbrev}
                 </Text>
               ) : null}
@@ -75,16 +77,12 @@ export default function WaiverWireSection({ picks, onSeeAll }: WaiverWireSection
 
           {/* Points + Trending */}
           <View style={styles.pointsCol}>
-            <Text style={styles.points}>{player.fantasyPoints.toFixed(1)}</Text>
-            <Text style={styles.pointsLabel}>pts</Text>
-            <View style={styles.trendBadge}>
-              <Ionicons name="trending-up" size={10} color={rinkGlass.goalLight} />
-              <Text style={styles.trendText}>HOT</Text>
-            </View>
+            <Text style={[styles.points, { color: p.link, fontFamily: arenaType.display }]}>{player.fantasyPoints.toFixed(1)}</Text>
+            <Text style={[styles.pointsLabel, { color: p.muted }]}>pts</Text>
           </View>
         </View>
       ))}
-    </Animated.View>
+    </View>
   );
 }
 
@@ -138,7 +136,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
-    paddingVertical: 4,
+    minHeight: 48,
+    paddingHorizontal: 8,
   },
   seeAllText: {
     fontSize: 13,

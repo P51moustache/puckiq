@@ -24,6 +24,8 @@ jest.mock('react-native-reanimated', () => ({
   FadeInUp: { duration: () => ({ delay: () => ({}) }) },
   FadeInDown: { duration: () => ({ delay: () => ({}) }) },
 }));
+jest.mock('../arena/ArenaProvider', () => ({ useArena: () => ({ palette: { page: '#fff', soft: '#eee', ink: '#111', muted: '#555', action: '#06c', link: '#06c' } }) }));
+jest.mock('../arena/ArenaPrimitives', () => ({ arenaType: { display: 'display', body: 'body' } }));
 
 const mockGetOfferings = jest.fn();
 const mockPurchasePackage = jest.fn();
@@ -70,10 +72,27 @@ describe('PaywallModal', () => {
     const texts = collectText(tree.toJSON());
 
     expect(texts).toContain('Unlock Premium Analytics');
-    expect(texts).toContain('ML-powered game predictions');
-    expect(texts).toContain('Advanced player analytics');
-    expect(texts).toContain('Custom model builder');
-    expect(texts).toContain('Forecast history');
+    expect(texts).toContain('Fantasy Projections');
+    expect(texts).toContain('My Team');
+    expect(texts.join(' ')).not.toMatch(/model-backed probabilities|forecast tools/i);
+  });
+
+  it('exposes close, plans, subscribe, and restore as accessible 48-point controls', async () => {
+    const tree = await renderModal();
+    const close = tree.root.findByProps({ testID: 'paywall-close' });
+    const annual = tree.root.findByProps({ testID: 'paywall-annual-plan' });
+    const purchase = tree.root.findByProps({ testID: 'paywall-purchase' });
+    const restore = tree.root.findByProps({ testID: 'paywall-restore' });
+    expect(close.props.accessibilityRole).toBe('button');
+    expect(close.props.accessibilityLabel).toBe('Close subscription options');
+    expect(annual.props.accessibilityRole).toBe('radio');
+    expect(annual.props.accessibilityState.selected).toBe(true);
+    expect(annual.props.disabled).toBe(false);
+    expect(purchase.props.accessibilityRole).toBe('button');
+    expect(purchase.props.accessibilityLabel).toBe('Subscribe with annual plan');
+    expect(restore.props.accessibilityRole).toBe('button');
+    expect(restore.props.accessibilityLabel).toBe('Restore purchases');
+    expect(close.props.style).toEqual(expect.arrayContaining([expect.objectContaining({ minWidth: 48, minHeight: 48 })]));
   });
 
   it('renders actual store prices without trial or savings claims', async () => {
@@ -114,5 +133,47 @@ describe('PaywallModal', () => {
     expect(mockRestorePurchases).toHaveBeenCalled();
     expect(refresh).toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('keeps native dismissal disabled during a purchase transaction', async () => {
+    let resolvePurchase!: (value: any) => void;
+    mockPurchasePackage.mockReturnValueOnce(new Promise((resolve) => { resolvePurchase = resolve; }));
+    const onClose = jest.fn();
+    const tree = await renderModal({ onClose });
+    await act(async () => { void tree.root.findByProps({ testID: 'paywall-purchase' }).props.onPress(); });
+    expect(tree.root.findByProps({ testID: 'paywall-monthly-plan' }).props.disabled).toBe(true);
+    expect(tree.root.findByProps({ testID: 'paywall-annual-plan' }).props.disabled).toBe(true);
+    act(() => { tree.root.findByType('Modal' as any).props.onRequestClose(); });
+    expect(onClose).not.toHaveBeenCalled();
+    resolvePurchase({ status: 'cancelled' });
+    await act(async () => { await Promise.resolve(); });
+  });
+
+  it('retries an offering load failure inline', async () => {
+    mockGetOfferings.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce({ current: offering });
+    const tree = await renderModal();
+    expect(collectText(tree.toJSON())).toContain('Subscription options could not be loaded.');
+    await act(async () => { tree.root.findByProps({ testID: 'paywall-retry-offering' }).props.onPress(); });
+    expect(mockGetOfferings).toHaveBeenCalledTimes(2);
+    expect(collectText(tree.toJSON())).toContain('$79.99');
+  });
+
+  it.each([
+    { current: null },
+    { current: { monthly: null, annual: null } },
+  ])('retries an empty or unpriced offering inline', async (emptyOfferings) => {
+    mockGetOfferings.mockResolvedValueOnce(emptyOfferings).mockResolvedValueOnce({ current: offering });
+    const tree = await renderModal();
+    await act(async () => { tree.root.findByProps({ testID: 'paywall-retry-offering' }).props.onPress(); });
+    expect(mockGetOfferings).toHaveBeenCalledTimes(2);
+    expect(collectText(tree.toJSON())).toContain('$79.99');
+  });
+
+  it('keeps help available after a restore failure', async () => {
+    mockRestorePurchases.mockResolvedValueOnce({ status: 'error', error: new Error('offline') });
+    const onHelp = jest.fn();
+    const tree = await renderModal({ onHelp });
+    await act(async () => { await tree.root.findByProps({ testID: 'paywall-restore' }).props.onPress(); });
+    expect(tree.root.findByProps({ testID: 'paywall-help' }).props.onPress).toBe(onHelp);
   });
 });

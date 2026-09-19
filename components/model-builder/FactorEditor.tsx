@@ -9,7 +9,6 @@ import {
   UIManager,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { theme } from '../../constants/theme';
 import {
   FACTOR_DEFINITIONS,
   FactorCategory,
@@ -19,6 +18,8 @@ import {
 } from '../../constants/modelFactors';
 import type { ConfidenceWeights, PlayerWeights } from '../../types/predictions';
 import WeightSlider from './WeightSlider';
+import { useArena } from '../arena/ArenaProvider';
+import type { ArenaPalette } from '../../constants/arenaTheme';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -39,19 +40,20 @@ interface FactorEditorProps {
 const CATEGORIES: FactorCategory[] = ['team', 'situational', 'specialTeams', 'playerBased'];
 
 // Category colors for the distribution chart
-const CATEGORY_COLORS: Record<FactorCategory, string> = {
-  team: '#60a5fa',        // Blue
-  situational: '#f59e0b', // Amber
-  specialTeams: '#10b981', // Green
-  playerBased: '#a855f7',  // Purple
-};
-
 export default function FactorEditor({
   weights,
   onChange,
   onSliderDragStart,
   onSliderDragEnd,
 }: FactorEditorProps) {
+  const { palette: p } = useArena();
+  const styles = useMemo(() => createStyles(p), [p]);
+  const categoryColors: Record<FactorCategory, string> = useMemo(() => ({
+    team: p.action,
+    situational: p.hero,
+    specialTeams: p.frame,
+    playerBased: p.muted,
+  }), [p]);
   // Track which categories are expanded
   const [expandedCategories, setExpandedCategories] = useState<Record<FactorCategory, boolean>>({
     team: true,
@@ -189,7 +191,7 @@ export default function FactorEditor({
                   styles.chartSegment,
                   {
                     flex: percentage,
-                    backgroundColor: CATEGORY_COLORS[category],
+                    backgroundColor: categoryColors[category],
                     borderTopLeftRadius: isFirst ? 6 : 0,
                     borderBottomLeftRadius: isFirst ? 6 : 0,
                     borderTopRightRadius: isLast ? 6 : 0,
@@ -197,11 +199,6 @@ export default function FactorEditor({
                   },
                 ]}
               >
-                {percentage > 10 && (
-                  <Text style={styles.chartSegmentText}>
-                    {percentage.toFixed(0)}%
-                  </Text>
-                )}
               </View>
             );
           })}
@@ -211,7 +208,7 @@ export default function FactorEditor({
           {CATEGORIES.map((category) => (
             <View key={category} style={styles.legendItem}>
               <View
-                style={[styles.legendDot, { backgroundColor: CATEGORY_COLORS[category] }]}
+                style={[styles.legendDot, { backgroundColor: categoryColors[category] }]}
               />
               <Text style={styles.legendText}>
                 {CATEGORY_NAMES[category].split(' ')[0]}
@@ -236,15 +233,18 @@ export default function FactorEditor({
           style={styles.categoryHeader}
           onPress={() => toggleCategory(category)}
           activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={`${CATEGORY_NAMES[category]}, ${isExpanded ? 'expanded' : 'collapsed'}`}
+          accessibilityState={{ expanded: isExpanded }}
         >
           <View style={styles.categoryHeaderLeft}>
             <View
-              style={[styles.categoryIndicator, { backgroundColor: CATEGORY_COLORS[category] }]}
+              style={[styles.categoryIndicator, { backgroundColor: categoryColors[category] }]}
             />
             <Ionicons
               name={isExpanded ? 'chevron-down' : 'chevron-forward'}
               size={20}
-              color={theme.accent}
+              color={p.action}
             />
             <Text style={styles.categoryTitle}>{CATEGORY_NAMES[category]}</Text>
           </View>
@@ -257,6 +257,8 @@ export default function FactorEditor({
                   resetCategory(category);
                 }}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityRole="button"
+                accessibilityLabel={`Reset ${CATEGORY_NAMES[category]} weights`}
               >
                 <Text style={styles.resetCategoryText}>Reset</Text>
               </TouchableOpacity>
@@ -312,11 +314,14 @@ export default function FactorEditor({
           onPress={resetAll}
           disabled={!hasAnyModifications}
           activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Reset all weights to defaults"
+          accessibilityState={{ disabled: !hasAnyModifications }}
         >
           <Ionicons
             name="refresh-outline"
             size={18}
-            color={hasAnyModifications ? theme.text : theme.subtext}
+            color={hasAnyModifications ? p.actionInk : p.muted}
           />
           <Text
             style={[
@@ -335,13 +340,13 @@ export default function FactorEditor({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (p: ArenaPalette) => StyleSheet.create({
   contentContainer: {
     padding: 16,
   },
   // Distribution Chart Styles
   chartContainer: {
-    backgroundColor: theme.card,
+    backgroundColor: p.paper,
     borderRadius: 14,
     padding: 16,
     marginBottom: 16,
@@ -349,7 +354,7 @@ const styles = StyleSheet.create({
   chartTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.text,
+    color: p.ink,
     marginBottom: 12,
   },
   chartBar: {
@@ -386,7 +391,7 @@ const styles = StyleSheet.create({
   },
   legendText: {
     fontSize: 11,
-    color: theme.subtext,
+    color: p.muted,
   },
   // Global Reset Styles
   globalResetContainer: {
@@ -397,7 +402,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: theme.card,
+    backgroundColor: p.paper,
     paddingVertical: 12,
     borderRadius: 10,
   },
@@ -407,14 +412,14 @@ const styles = StyleSheet.create({
   globalResetText: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.text,
+    color: p.ink,
   },
   globalResetTextDisabled: {
-    color: theme.subtext,
+    color: p.muted,
   },
   // Category Section Styles
   categoryContainer: {
-    backgroundColor: theme.card,
+    backgroundColor: p.paper,
     borderRadius: 14,
     marginBottom: 12,
     overflow: 'hidden',
@@ -425,7 +430,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 14,
     paddingHorizontal: 16,
-    backgroundColor: theme.factbox,
+    backgroundColor: p.soft,
+    minHeight: 48,
   },
   categoryHeaderLeft: {
     flexDirection: 'row',
@@ -441,7 +447,7 @@ const styles = StyleSheet.create({
   categoryTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: theme.text,
+    color: p.ink,
   },
   categoryHeaderRight: {
     flexDirection: 'row',
@@ -451,18 +457,18 @@ const styles = StyleSheet.create({
   resetCategoryButton: {
     paddingHorizontal: 10,
     paddingVertical: 4,
-    backgroundColor: theme.subtle,
+    backgroundColor: p.soft,
     borderRadius: 6,
   },
   resetCategoryText: {
     fontSize: 12,
     fontWeight: '600',
-    color: theme.accent,
+    color: p.link,
   },
   factorCount: {
     fontSize: 13,
-    color: theme.subtext,
-    backgroundColor: theme.subtle,
+    color: p.muted,
+    backgroundColor: p.soft,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
@@ -470,7 +476,7 @@ const styles = StyleSheet.create({
   },
   categoryDescriptionCollapsed: {
     fontSize: 12,
-    color: theme.subtext,
+    color: p.muted,
     paddingHorizontal: 16,
     paddingVertical: 10,
     fontStyle: 'italic',

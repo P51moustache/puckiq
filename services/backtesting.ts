@@ -28,6 +28,24 @@ interface HistoricalGame {
   awayGoalie?: string;
 }
 
+export function mapReplayGames(rows: Record<string, unknown>[]): HistoricalGame[] {
+  return rows
+    .filter((row) => Number.isFinite(row.home_score) && Number.isFinite(row.away_score))
+    .map((row) => {
+      const homeScore = row.home_score as number;
+      const awayScore = row.away_score as number;
+      return {
+        id: row.id as number,
+        date: row.game_date as string,
+        homeTeam: row.home_team_abbrev as string,
+        awayTeam: row.away_team_abbrev as string,
+        homeScore,
+        awayScore,
+        winner: homeScore > awayScore ? 'home' as const : 'away' as const,
+      };
+    });
+}
+
 /** Internal implementation — exposed via `deps` for testability */
 async function _getGamesInRangeImpl(startDate: string, endDate: string): Promise<HistoricalGame[]> {
   try {
@@ -50,15 +68,7 @@ async function _getGamesInRangeImpl(startDate: string, endDate: string): Promise
       return [];
     }
 
-    const games: HistoricalGame[] = data.map((row) => ({
-      id: row.id,
-      date: row.game_date,
-      homeTeam: row.home_team_abbrev,
-      awayTeam: row.away_team_abbrev,
-      homeScore: row.home_score ?? 0,
-      awayScore: row.away_score ?? 0,
-      winner: (row.home_score ?? 0) > (row.away_score ?? 0) ? 'home' as const : 'away' as const,
-    }));
+    const games = mapReplayGames(data);
 
     console.log(`[BACKTEST] Fetched ${games.length} games from Supabase (${startDate} to ${endDate})`);
     return games;

@@ -1,6 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Pressable,
+  ActivityIndicator,
+  Modal,
+  Linking,
+  Platform,
   ScrollView,
   StyleSheet,
   Switch,
@@ -14,9 +18,10 @@ import { useArena } from './arena/ArenaProvider';
 import type { ArenaPalette } from '../constants/arenaTheme';
 import { arenaType } from './arena/ArenaPrimitives';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useAuthContext } from './auth/AuthProvider';
 import { useSubscription } from './SubscriptionProvider';
+import { getSettingsReturnRoute, getSupportDestination } from '../utils/accountFlowPolicy';
 
 import {
   FantasyNotificationPreferences,
@@ -74,7 +79,14 @@ export default function HubScreen() {
   const { palette } = useArena();
   const rinkGlass = arenaSettingsTheme(palette);
   const s = createStyles(rinkGlass);
-  const { user, signInWithApple, signInWithGoogle, signOut } = useAuthContext();
+  const { user, error: authError, signInWithApple, signInWithGoogle, signOut } = useAuthContext();
+  const { origin } = useLocalSearchParams<{ origin?: string }>();
+  const [authBusy, setAuthBusy] = useState<'apple' | 'google' | null>(null);
+  const [authFeedback, setAuthFeedback] = useState<string | null>(null);
+  const [helpVisible, setHelpVisible] = useState(false);
+  const [supportFeedback, setSupportFeedback] = useState<string | null>(null);
+  const [signOutVisible, setSignOutVisible] = useState(false);
+  const supportDestination = getSupportDestination(process.env.EXPO_PUBLIC_SUPPORT_DESTINATION);
   const {
     isPremium,
     loading: subscriptionLoading,
@@ -147,10 +159,36 @@ export default function HubScreen() {
       : isPremium
         ? 'PuckIQ Pro active'
         : 'No active subscription';
+  const runAuth = useCallback(async (provider: 'apple' | 'google') => {
+    setAuthBusy(provider);
+    setAuthFeedback(null);
+    try {
+      const ok = await (provider === 'apple' ? signInWithApple() : signInWithGoogle());
+      if (!ok) setAuthFeedback('Sign-in did not finish. You can retry or continue using PuckIQ on this device.');
+    } catch {
+      setAuthFeedback('Sign-in could not open. You can retry or continue using PuckIQ on this device.');
+    } finally {
+      setAuthBusy(null);
+    }
+  }, [signInWithApple, signInWithGoogle]);
+
+  const leaveSettings = useCallback(() => {
+    if (router.canGoBack?.()) router.back();
+    else router.push(getSettingsReturnRoute(origin));
+  }, [origin]);
+
+  const openSupportDestination = useCallback(() => {
+    if (!supportDestination) return;
+    const url = supportDestination.type === 'email'
+      ? `mailto:${supportDestination.value}?subject=PuckIQ%20support`
+      : supportDestination.value;
+    setSupportFeedback(null);
+    Promise.resolve(Linking.openURL(url)).catch(() => setSupportFeedback('Could not open the support destination. Use the recovery actions here and try again.'));
+  }, [supportDestination]);
 
   return (
     <SafeAreaView edges={['top']} style={s.container}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', padding: 16, gap: 13 }}><Pressable accessibilityRole="button" accessibilityLabel="Back to Tonight" onPress={() => router.push('/(tabs)')} style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center' }}><Ionicons name="arrow-back" color={palette.ink} size={25} /></Pressable><Text style={{ fontFamily: arenaType.display, color: palette.ink, fontSize: 40 }}>SETTINGS</Text></View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', padding: 16, gap: 13 }}><Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={leaveSettings} style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center' }}><Ionicons name="arrow-back" color={palette.ink} size={25} /></Pressable><Text style={{ fontFamily: arenaType.display, color: palette.ink, fontSize: 40 }}>SETTINGS</Text></View>
       <ScrollView
         style={s.scroll}
         contentContainerStyle={s.scrollContent}
@@ -233,7 +271,7 @@ export default function HubScreen() {
                 </View>
                 <Pressable
                   style={s.signOutButton}
-                  onPress={signOut}
+                  onPress={() => setSignOutVisible(true)}
                   testID="sign-out-button"
                 >
                   <Text style={s.signOutText}>Sign out</Text>
@@ -241,22 +279,31 @@ export default function HubScreen() {
               </View>
             ) : (
               <View style={s.authButtons}>
-                <Pressable
+                {Platform.OS === 'ios' && <Pressable
                   style={s.authButton}
-                  onPress={signInWithApple}
+                  onPress={() => void runAuth('apple')}
+                  disabled={authBusy !== null}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: authBusy !== null, busy: authBusy === 'apple' }}
                   testID="sign-in-apple"
                 >
                   <Ionicons name="logo-apple" size={18} color={rinkGlass.textPrimary} style={s.authIcon} />
-                  <Text style={s.authButtonText}>Continue with Apple</Text>
-                </Pressable>
+                  {authBusy === 'apple' && <ActivityIndicator color={rinkGlass.textPrimary} size="small" />}
+                  <Text style={s.authButtonText}>{authBusy === 'apple' ? 'Opening Apple…' : 'Continue with Apple'}</Text>
+                </Pressable>}
                 <Pressable
                   style={s.authButton}
-                  onPress={signInWithGoogle}
+                  onPress={() => void runAuth('google')}
+                  disabled={authBusy !== null}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: authBusy !== null, busy: authBusy === 'google' }}
                   testID="sign-in-google"
                 >
                   <Ionicons name="logo-google" size={16} color={rinkGlass.textPrimary} style={s.authIcon} />
-                  <Text style={s.authButtonText}>Continue with Google</Text>
+                  {authBusy === 'google' && <ActivityIndicator color={rinkGlass.textPrimary} size="small" />}
+                  <Text style={s.authButtonText}>{authBusy === 'google' ? 'Opening Google…' : 'Continue with Google'}</Text>
                 </Pressable>
+                {(authFeedback || authError) && <Text accessibilityRole="alert" style={s.toggleHelper}>{authFeedback || authError}</Text>}
               </View>
             )}
           </View>
@@ -268,7 +315,7 @@ export default function HubScreen() {
             <Text style={s.aboutLabel}>VERSION</Text>
             <Text style={s.aboutValue}>3.0.0</Text>
           </View>
-          <Pressable style={s.supportLink} testID="support-link">
+          <Pressable accessibilityRole="button" accessibilityLabel="Open PuckIQ help" style={s.supportLink} testID="support-link" onPress={() => setHelpVisible(true)}>
             <Text style={s.supportLinkText}>Support</Text>
             <Ionicons name="open-outline" size={12} color={rinkGlass.blueLight} style={{ marginLeft: 4 }} />
           </Pressable>
@@ -276,6 +323,27 @@ export default function HubScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+      <Modal visible={helpVisible} transparent animationType="fade" onRequestClose={() => setHelpVisible(false)} testID="support-modal">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 }}>
+          <View style={[s.card, { gap: 14 }]}>
+            <Text style={s.screenTitle}>HELP</Text>
+            <Text style={s.planLabel}>Subscription recovery</Text><Text style={s.toggleHelper}>Open Subscription options to retry setup, restore purchases, or confirm your current entitlement.</Text>
+            <Pressable accessibilityRole="button" testID="help-subscription-options" onPress={() => { setHelpVisible(false); handleSubscriptionPress(); }} style={s.authButton}><Text style={s.authButtonText}>Subscription options</Text></Pressable>
+            <Text style={s.planLabel}>Feed and schedule recovery</Text><Text style={s.toggleHelper}>Return to Tonight and pull to refresh. Saved cards and preferences remain on this device.</Text>
+            <Pressable accessibilityRole="button" testID="help-go-tonight" onPress={() => { setHelpVisible(false); router.push('/(tabs)'); }} style={s.authButton}><Text style={s.authButtonText}>Go to Tonight</Text></Pressable>
+            {supportDestination && <Pressable accessibilityRole="link" onPress={openSupportDestination} style={s.authButton}><Text style={s.authButtonText}>Contact support</Text></Pressable>}
+            {supportFeedback && <Text accessibilityRole="alert" style={s.toggleHelper}>{supportFeedback}</Text>}
+            <Pressable accessibilityRole="button" onPress={() => setHelpVisible(false)} style={s.authButton}><Text style={s.authButtonText}>Close help</Text></Pressable>
+          </View>
+        </View>
+      </Modal>
+      <Modal visible={signOutVisible} transparent animationType="fade" onRequestClose={() => setSignOutVisible(false)} testID="sign-out-confirm">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 }}><View style={[s.card, { gap: 14 }]}>
+          <Text style={s.screenTitle}>SIGN OUT?</Text><Text style={s.toggleHelper}>Saved cards, watched players, and team preferences stay on this device.</Text>
+          <Pressable accessibilityRole="button" onPress={() => { setSignOutVisible(false); void signOut(); }} style={s.signOutButton}><Text style={s.signOutText}>Sign out</Text></Pressable>
+          <Pressable accessibilityRole="button" onPress={() => setSignOutVisible(false)} style={s.authButton}><Text style={s.authButtonText}>Keep me signed in</Text></Pressable>
+        </View></View>
+      </Modal>
     </SafeAreaView>
   );
 }

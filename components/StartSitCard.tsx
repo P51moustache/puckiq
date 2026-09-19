@@ -6,9 +6,10 @@
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import { rinkGlass } from '../constants/theme';
 import type { PlayerProjection, StartSitRec } from '../types/fantasy';
+import { useArena } from './arena/ArenaProvider';
+import { arenaType } from '../constants/arenaTypography';
 
 interface StartSitCardProps {
   projection: PlayerProjection;
@@ -16,11 +17,11 @@ interface StartSitCardProps {
   index?: number;
 }
 
-const BADGE_CONFIG: Record<StartSitRec, { color: string; label: string }> = {
-  START: { color: rinkGlass.faceoffDot, label: 'START' },
-  SIT: { color: rinkGlass.redLine, label: 'SIT' },
-  UPSIDE: { color: rinkGlass.powerPlay, label: 'UPSIDE' },
-  FLEX: { color: rinkGlass.blueLight, label: 'FLEX' },
+const BADGE_CONFIG: Record<StartSitRec, { color: string; ink: string; label: string }> = {
+  START: { color: rinkGlass.faceoffDot, ink: '#FFFFFF', label: 'START' },
+  SIT: { color: rinkGlass.redLine, ink: '#FFFFFF', label: 'SIT' },
+  UPSIDE: { color: rinkGlass.powerPlay, ink: '#172332', label: 'UPSIDE' },
+  FLEX: { color: '', ink: '', label: 'FLEX' },
 };
 
 const STRIPE_COLORS: Record<StartSitRec, string> = {
@@ -41,12 +42,15 @@ function formatGameTime(startTimeUTC?: string): string {
 }
 
 export default function StartSitCard({ projection, gameTime, index = 0 }: StartSitCardProps) {
+  const { palette: p } = useArena();
   const badge = projection.recommendation
-    ? BADGE_CONFIG[projection.recommendation]
-    : { color: rinkGlass.blueLight, label: 'Forecast only / recommendation unavailable' };
+    ? projection.recommendation === 'FLEX'
+      ? { ...BADGE_CONFIG.FLEX, color: p.action, ink: p.actionInk }
+      : BADGE_CONFIG[projection.recommendation]
+    : { color: p.soft, ink: p.ink, label: 'Forecast only / recommendation unavailable' };
   const stripeColor = projection.recommendation
-    ? STRIPE_COLORS[projection.recommendation]
-    : rinkGlass.blueLight;
+    ? projection.recommendation === 'FLEX' ? p.action : STRIPE_COLORS[projection.recommendation]
+    : p.action;
 
   const matchupText = projection.opponentAbbrev
     ? `${projection.isHome ? 'vs' : '@'} ${projection.opponentAbbrev}`
@@ -61,9 +65,8 @@ export default function StartSitCard({ projection, gameTime, index = 0 }: StartS
     : 50;
 
   return (
-    <Animated.View
-      entering={FadeInDown.delay(index * 60).duration(400).springify()}
-      style={styles.wrapper}
+    <View
+      style={[styles.wrapper, { backgroundColor: p.paper, borderColor: p.edge, shadowColor: p.frame }]}
       testID="start-sit-card"
     >
       {/* Left color stripe */}
@@ -73,42 +76,42 @@ export default function StartSitCard({ projection, gameTime, index = 0 }: StartS
         {/* Top row: Badge + Player info */}
         <View style={styles.topRow}>
           <View style={[styles.badge, { backgroundColor: badge.color }]}>
-            <Text style={styles.badgeText}>{badge.label}</Text>
+            <Text style={[styles.badgeText, { color: badge.ink }]}>{badge.label}</Text>
           </View>
           <View style={styles.positionTeam}>
-            <Text style={styles.positionText}>
+            <Text style={[styles.positionText, { color: p.muted, fontFamily: arenaType.body }]}>
               {projection.position} \u00b7 {projection.teamAbbrev}
             </Text>
           </View>
         </View>
 
         {/* Player name */}
-        <Text style={styles.playerName} numberOfLines={1}>
+        <Text style={[styles.playerName, { color: p.ink, fontFamily: arenaType.body }]} numberOfLines={1}>
           {projection.playerName}
         </Text>
 
         {/* Divider */}
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: p.edge }]} />
 
         {/* Stats row: Projected points + Floor/Ceiling */}
         <View style={styles.statsRow}>
           <View style={styles.projectedCol}>
-            <Text style={styles.projectedPoints}>
+            <Text style={[styles.projectedPoints, { color: p.ink, fontFamily: arenaType.display }]}>
               {projection.fantasyPoints.toFixed(1)}
             </Text>
-            <Text style={styles.projectedLabel}>pts projected</Text>
+            <Text style={[styles.projectedLabel, { color: p.muted }]}>pts projected</Text>
           </View>
           <View style={styles.rangeCol}>
             <View style={styles.rangeLabels}>
-              <Text style={styles.rangeText}>
+              <Text style={[styles.rangeText, { color: p.muted }]}>
                 Floor: {projection.floor.toFixed(1)}
               </Text>
-              <Text style={styles.rangeText}>
+              <Text style={[styles.rangeText, { color: p.muted }]}>
                 Ceil: {projection.ceiling.toFixed(1)}
               </Text>
             </View>
             {/* Range bar */}
-            <View style={styles.rangeBarTrack}>
+            <View style={[styles.rangeBarTrack, { backgroundColor: p.soft }]}>
               <View
                 style={[
                   styles.rangeBarFill,
@@ -134,16 +137,16 @@ export default function StartSitCard({ projection, gameTime, index = 0 }: StartS
         {/* Bottom row: Matchup + Reason */}
         <View style={styles.bottomRow}>
           {contextLine ? (
-            <Text style={styles.contextText}>{contextLine}</Text>
+            <Text style={[styles.contextText, { color: p.muted }]}>{contextLine}</Text>
           ) : null}
           {projection.reason ? (
-            <Text style={styles.reasonText} numberOfLines={1}>
+            <Text style={[styles.reasonText, { color: p.link }]} numberOfLines={2}>
               {projection.reason}
             </Text>
           ) : null}
         </View>
       </View>
-    </Animated.View>
+    </View>
   );
 }
 

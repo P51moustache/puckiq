@@ -5,6 +5,7 @@ import {
   removeFromSeasonBook,
 } from "../seasonBook";
 import type { ArenaGame } from "../../types/arena";
+import { formatFinalScore } from "../../utils/arenaSlate";
 
 const game = (id: number): ArenaGame => ({
   id,
@@ -65,4 +66,9 @@ it("preserves cards with malformed forecast data instead of displaying fabricate
   await expect(getSeasonBook()).rejects.toThrow("preserved");
   await expect(saveToSeasonBook(game(2))).rejects.toThrow("preserved");
   expect(stored).toBe(before);
+});
+it("formats final score only when both scores are valid and keeps zero valid", () => {
+  expect(formatFinalScore({ ...game(1), game_state: "OFF", away_score: 0, home_score: 3 })).toBe("0–3");
+  expect(formatFinalScore({ ...game(1), game_state: "OFF", away_score: null, home_score: 3 })).toBe("SCORE UNAVAILABLE");
+  expect(formatFinalScore({ ...game(1), game_state: "OFF", away_score: Number.NaN, home_score: 3 })).toBe("SCORE UNAVAILABLE");
 });

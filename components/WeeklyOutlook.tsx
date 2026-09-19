@@ -6,10 +6,11 @@
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { rinkGlass } from '../constants/theme';
 import type { PlayerProjection } from '../types/fantasy';
+import { useArena } from './arena/ArenaProvider';
+import { arenaType } from '../constants/arenaTypography';
 
 interface WeeklyOutlookProps {
   projections: PlayerProjection[];
@@ -73,25 +74,25 @@ const STATUS_LABELS = {
 };
 
 export default function WeeklyOutlook({ projections, gamesRemaining }: WeeklyOutlookProps) {
+  const { palette: p } = useArena();
   const categories = computeCategories(projections);
   const maxValue = Math.max(...categories.map(c => c.value), 1);
 
   return (
-    <Animated.View
-      entering={FadeInDown.delay(200).duration(400).springify()}
-      style={styles.container}
+    <View
+      style={[styles.container, { backgroundColor: p.paper, borderColor: p.edge, shadowColor: p.frame }]}
       testID="weekly-outlook"
     >
       {/* Header */}
       <View style={styles.headerRow}>
         <View style={styles.headerLeft}>
-          <Text style={styles.headerTitle}>WEEKLY OUTLOOK</Text>
-          <View style={styles.headerUnderline} />
+          <Text style={[styles.headerTitle, { color: p.ink, fontFamily: arenaType.display }]}>WEEKLY OUTLOOK</Text>
+          <View style={[styles.headerUnderline, { backgroundColor: p.action }]} />
         </View>
         {gamesRemaining !== undefined && (
-          <View style={styles.gamesRemainingPill}>
-            <Ionicons name="calendar-outline" size={12} color={rinkGlass.textSecondary} />
-            <Text style={styles.gamesRemainingText}>
+          <View style={[styles.gamesRemainingPill, { backgroundColor: p.soft }]}>
+            <Ionicons name="calendar-outline" size={12} color={p.muted} />
+            <Text style={[styles.gamesRemainingText, { color: p.muted }]}>
               {gamesRemaining} game{gamesRemaining !== 1 ? 's' : ''} left
             </Text>
           </View>
@@ -100,13 +101,13 @@ export default function WeeklyOutlook({ projections, gamesRemaining }: WeeklyOut
 
       {/* Games remaining progress bar */}
       {gamesRemaining !== undefined && (
-        <View style={styles.progressTrack}>
+        <View style={[styles.progressTrack, { backgroundColor: p.soft }]}>
           <View
             style={[
               styles.progressFill,
               {
                 width: `${Math.min(((12 - gamesRemaining) / 12) * 100, 100)}%`,
-                backgroundColor: rinkGlass.blueLight,
+                backgroundColor: p.action,
               },
             ]}
           />
@@ -114,7 +115,7 @@ export default function WeeklyOutlook({ projections, gamesRemaining }: WeeklyOut
       )}
 
       {categories.length === 0 ? (
-        <Text style={styles.emptyText}>No projection data available</Text>
+        <Text style={[styles.emptyText, { color: p.muted }]}>No projection data available</Text>
       ) : (
         <View style={styles.categoryList}>
           {categories.map((cat, idx) => {
@@ -124,9 +125,9 @@ export default function WeeklyOutlook({ projections, gamesRemaining }: WeeklyOut
 
             return (
               <View key={cat.label} style={styles.categoryRow}>
-                <Text style={styles.categoryLabel}>{cat.label}</Text>
+                <Text style={[styles.categoryLabel, { color: p.muted }]}>{cat.label}</Text>
                 <View style={styles.barContainer}>
-                  <View style={styles.barTrack}>
+                  <View style={[styles.barTrack, { backgroundColor: p.soft }]}>
                     <View
                       style={[styles.barFill, { width: `${Math.max(barPct, 8)}%`, backgroundColor: color }]}
                     />
@@ -148,7 +149,7 @@ export default function WeeklyOutlook({ projections, gamesRemaining }: WeeklyOut
           })}
         </View>
       )}
-    </Animated.View>
+    </View>
   );
 }
 

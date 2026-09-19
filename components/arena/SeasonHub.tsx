@@ -71,7 +71,7 @@ export function SeasonClubhouse({ phase, season, onBook }: { phase: 'offseason' 
         <Text style={[styles.body, { color: p.frameInk, fontSize: 12, lineHeight: 19, marginTop: 3 }]}>{camp ? 'Watch the players you want to follow. Use last season as a baseline, then check the exhibitions.' : 'Build your watchlist, set your home team and keep the moments from your season.'}</Text>
       </View>
     </View>
-    <View style={{ marginTop: 14 }}><ArenaButton label="Build your watchlist" icon="person-add-outline" onPress={() => router.push('/(tabs)/players')} /></View>
+    <View style={{ marginTop: 14 }}><ArenaButton label="Open watched players" icon="person-add-outline" onPress={() => router.push('/(tabs)/following')} /></View>
     <View style={{ flexDirection: 'row', gap: 10, marginTop: 11 }}>
       <ArenaButton label="Your teams" icon="flag-outline" secondary style={{ flex: 1 }} onPress={() => router.push('/(tabs)/following')} />
       <ArenaButton label="Season book" icon="albums-outline" secondary style={{ flex: 1 }} onPress={onBook} />
@@ -123,8 +123,8 @@ export function SeasonGuide({ phase, onBook }: { phase: SeasonPhase; onBook: () 
       <View style={{ borderTopWidth: 1, borderColor: p.edge, paddingTop: 13 }} accessibilityLiveRegion="polite">
         <Text style={[styles.body, { fontWeight: '800', color: p.ink, fontSize: 14 }]}>{item.title}</Text>
         <Text style={[styles.body, { color: p.muted, fontSize: 12, lineHeight: 19, marginTop: 6 }]}>{item.copy}</Text>
-        <Pressable accessibilityRole="button" onPress={selected === 'offseason' || selected === 'preseason' ? () => router.push('/(tabs)/players') : onBook} style={{ minHeight: 45, justifyContent: 'center' }}>
-          <Text style={[styles.body, { color: p.link, fontWeight: '700', fontSize: 12 }]}>{selected === 'offseason' || selected === 'preseason' ? 'Open players' : 'Open season book'}</Text>
+        <Pressable accessibilityRole="button" onPress={selected === 'offseason' || selected === 'preseason' ? () => router.push('/(tabs)/following') : onBook} style={{ minHeight: 48, justifyContent: 'center' }}>
+          <Text style={[styles.body, { color: p.link, fontWeight: '700', fontSize: 12 }]}>{selected === 'offseason' || selected === 'preseason' ? 'Open watched players' : 'Open season book'}</Text>
         </Pressable>
       </View>
     </View></>}

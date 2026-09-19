@@ -22,10 +22,14 @@ export function GamePreview({
   game,
   entry,
   onSave,
+  onBack,
+  backLabel,
 }: {
   game: ArenaGame;
   entry?: SeasonEntry;
   onSave: () => void;
+  onBack: () => void;
+  backLabel: string;
 }) {
   const { palette: p } = useArena();
   const [data, setData] = useState<ArenaPreviewData | null>(null);
@@ -133,6 +137,7 @@ export function GamePreview({
   );
   return (
     <View>
+      <ArenaButton label={backLabel} icon="arrow-back" secondary onPress={onBack} style={{ marginBottom: 12 }} />
       <View style={{ backgroundColor: p.frame, borderRadius: 15, padding: 20 }}>
         <Text
           style={{

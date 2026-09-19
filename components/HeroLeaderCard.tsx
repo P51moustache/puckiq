@@ -95,6 +95,8 @@ export default React.memo(function HeroLeaderCard({
     <Pressable
       style={({ pressed }) => [styles.card, { backgroundColor: p.paper, borderColor: p.frame, shadowColor: p.frame }, pressed && styles.cardPressed]}
       onPress={handlePress}
+      accessibilityRole="button"
+      accessibilityLabel={`Open ${player.playerName} player detail`}
       testID={`hero-card-${player.playerId}`}
     >
       {/* Header: rank + player info */}

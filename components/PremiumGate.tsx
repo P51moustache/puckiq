@@ -11,6 +11,9 @@ import Animated, {
   FadeInUp,
 } from 'react-native-reanimated';
 import { useSubscription } from './SubscriptionProvider';
+import { useArena } from './arena/ArenaProvider';
+import { arenaType } from './arena/ArenaPrimitives';
+import { proSummary } from '../utils/accountFlowPolicy';
 
 export interface PremiumGateProps {
   children: React.ReactNode;
@@ -19,6 +22,7 @@ export interface PremiumGateProps {
 }
 
 export default function PremiumGate({ children, feature, onUpgrade }: PremiumGateProps) {
+  const { palette } = useArena();
   const {
     isPremium,
     loading,
@@ -73,16 +77,16 @@ export default function PremiumGate({ children, feature, onUpgrade }: PremiumGat
         style={styles.gradientOverlay}
         testID="premium-gate-overlay"
       >
-        <Animated.View entering={FadeInUp.duration(500)} style={styles.glassCard}>
-          <View style={styles.lockBadge}>
-            <Ionicons name="lock-closed" size={16} color="#0a0e1a" />
-            <Text style={styles.lockBadgeText}>PRO</Text>
+        <Animated.View entering={FadeInUp.duration(500)} style={[styles.glassCard, { backgroundColor: palette.paper, borderColor: palette.edge }]}>
+          <View style={[styles.lockBadge, { backgroundColor: palette.action }]}>
+            <Ionicons name="lock-closed" size={16} color={palette.actionInk} />
+            <Text style={[styles.lockBadgeText, { color: palette.actionInk }]}>PRO</Text>
           </View>
 
           {/* Headline — the feature name leads, no marketing copy */}
-          <Text style={styles.headline}>{unavailable ? 'Subscriptions unavailable' : feature}</Text>
-          <Text style={styles.subhead}>
-            {unavailable ? subscriptionUnavailableReason : 'Pro adds forecast and player-analysis tools.'}
+          <Text style={[styles.headline, { color: palette.ink, fontFamily: arenaType.display }]}>{unavailable ? 'Subscriptions unavailable' : feature}</Text>
+          <Text style={[styles.subhead, { color: palette.muted, fontFamily: arenaType.body }]}>
+            {unavailable ? subscriptionUnavailableReason : proSummary}
           </Text>
 
           {/* CTA Button — single solid cyan, no rainbow gradient */}
@@ -91,14 +95,16 @@ export default function PremiumGate({ children, feature, onUpgrade }: PremiumGat
             testID="premium-gate-upgrade"
             activeOpacity={0.85}
             disabled={loading && !unavailable}
-            style={styles.ctaButton}
+            accessibilityRole="button"
+            accessibilityLabel={unavailable ? 'Retry subscription setup' : `View subscription options for ${feature}`}
+            style={[styles.ctaButton, { backgroundColor: palette.action }]}
           >
-            <Text style={styles.ctaText}>
+            <Text style={[styles.ctaText, { color: palette.actionInk }]}>
               {unavailable ? 'Retry subscription setup' : loading ? 'Checking subscription…' : 'View subscription options'}
             </Text>
           </TouchableOpacity>
 
-          <Text style={styles.trialSubtext}>Store pricing and terms apply.</Text>
+          <Text style={[styles.trialSubtext, { color: palette.muted, fontFamily: arenaType.body }]}>Store pricing and terms apply.</Text>
         </Animated.View>
       </LinearGradient>
     </View>

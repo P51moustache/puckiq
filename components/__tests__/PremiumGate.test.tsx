@@ -70,6 +70,8 @@ const mockUseSubscription = jest.fn((): SubscriptionMock => ({
 jest.mock('../SubscriptionProvider', () => ({
   useSubscription: () => mockUseSubscription(),
 }));
+jest.mock('../arena/ArenaProvider', () => ({ useArena: () => ({ palette: { paper: '#fff', edge: '#ddd', action: '#06c', actionInk: '#fff', ink: '#111', muted: '#555' } }) }));
+jest.mock('../arena/ArenaPrimitives', () => ({ arenaType: { display: 'display', body: 'body' } }));
 
 // Mock hooks so direct function calls work outside render context
 jest.spyOn(React, 'useEffect').mockImplementation((() => {}) as any);
@@ -131,7 +133,7 @@ describe('PremiumGate', () => {
     expect(findByTestID(element, 'premium-gate-overlay')).not.toBeNull();
     expect(findByText(element, 'ML Predictions')).not.toBeNull();
     expect(
-      findByText(element, 'Pro adds forecast and player-analysis tools.'),
+      findByText(element, 'Pro unlocks Fantasy Projections and My Team.'),
     ).not.toBeNull();
   });
 
