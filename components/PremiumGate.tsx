@@ -11,6 +11,9 @@ import Animated, {
   FadeInUp,
 } from 'react-native-reanimated';
 import { useSubscription } from './SubscriptionProvider';
+import { useArena } from './arena/ArenaProvider';
+import { arenaType } from './arena/ArenaPrimitives';
+import { proSummary } from '../utils/accountFlowPolicy';
 
 export interface PremiumGateProps {
   children: React.ReactNode;
@@ -19,7 +22,14 @@ export interface PremiumGateProps {
 }
 
 export default function PremiumGate({ children, feature, onUpgrade }: PremiumGateProps) {
-  const { isPremium } = useSubscription();
+  const { palette } = useArena();
+  const {
+    isPremium,
+    loading,
+    showPaywall,
+    subscriptionUnavailableReason,
+    retrySubscription,
+  } = useSubscription();
   const glowScale = useSharedValue(1);
   const glowOpacity = useSharedValue(0.4);
 
@@ -42,7 +52,16 @@ export default function PremiumGate({ children, feature, onUpgrade }: PremiumGat
     );
   }, [glowScale, glowOpacity]);
 
-  if (isPremium) return <>{children}</>;
+  if (isPremium && !loading) return <>{children}</>;
+
+  const handleUpgrade = onUpgrade ?? (() => {
+    if (subscriptionUnavailableReason) {
+      void retrySubscription();
+      return;
+    }
+    showPaywall(feature);
+  });
+  const unavailable = Boolean(subscriptionUnavailableReason);
 
   return (
     <View style={styles.wrapper} testID="premium-gate">
@@ -58,28 +77,34 @@ export default function PremiumGate({ children, feature, onUpgrade }: PremiumGat
         style={styles.gradientOverlay}
         testID="premium-gate-overlay"
       >
-        {/* Stat-Sheet card: tighter, calmer, no pulsing glow ring */}
-        <Animated.View entering={FadeInUp.duration(500)} style={styles.glassCard}>
-          <View style={styles.lockBadge}>
-            <Ionicons name="lock-closed" size={16} color="#0a0e1a" />
-            <Text style={styles.lockBadgeText}>PRO</Text>
+        <Animated.View entering={FadeInUp.duration(500)} style={[styles.glassCard, { backgroundColor: palette.paper, borderColor: palette.edge }]}>
+          <View style={[styles.lockBadge, { backgroundColor: palette.action }]}>
+            <Ionicons name="lock-closed" size={16} color={palette.actionInk} />
+            <Text style={[styles.lockBadgeText, { color: palette.actionInk }]}>PRO</Text>
           </View>
 
           {/* Headline — the feature name leads, no marketing copy */}
-          <Text style={styles.headline}>{feature}</Text>
-          <Text style={styles.subhead}>Pro unlocks lineup, projections, and waiver intel.</Text>
+          <Text style={[styles.headline, { color: palette.ink, fontFamily: arenaType.display }]}>{unavailable ? 'Subscriptions unavailable' : feature}</Text>
+          <Text style={[styles.subhead, { color: palette.muted, fontFamily: arenaType.body }]}>
+            {unavailable ? subscriptionUnavailableReason : proSummary}
+          </Text>
 
           {/* CTA Button — single solid cyan, no rainbow gradient */}
           <TouchableOpacity
-            onPress={onUpgrade}
+            onPress={handleUpgrade}
             testID="premium-gate-upgrade"
             activeOpacity={0.85}
-            style={styles.ctaButton}
+            disabled={loading && !unavailable}
+            accessibilityRole="button"
+            accessibilityLabel={unavailable ? 'Retry subscription setup' : `View subscription options for ${feature}`}
+            style={[styles.ctaButton, { backgroundColor: palette.action }]}
           >
-            <Text style={styles.ctaText}>Start 7-day trial</Text>
+            <Text style={[styles.ctaText, { color: palette.actionInk }]}>
+              {unavailable ? 'Retry subscription setup' : loading ? 'Checking subscription…' : 'View subscription options'}
+            </Text>
           </TouchableOpacity>
 
-          <Text style={styles.trialSubtext}>$6.99 / mo after trial · cancel anytime</Text>
+          <Text style={[styles.trialSubtext, { color: palette.muted, fontFamily: arenaType.body }]}>Store pricing and terms apply.</Text>
         </Animated.View>
       </LinearGradient>
     </View>

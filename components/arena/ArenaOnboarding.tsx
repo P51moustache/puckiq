@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Alert, Platform, ScrollView, Text, View } from "react-native";
+import { Platform, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ArenaButton, arenaType, TeamPicker } from "./ArenaPrimitives";
 import { useArena } from "./ArenaProvider";
@@ -10,20 +10,25 @@ export function ArenaOnboarding({
   onComplete,
   onApple,
   onGoogle,
+  authError,
 }: {
   onComplete: () => Promise<void>;
   onApple: () => Promise<boolean>;
   onGoogle: () => Promise<boolean>;
+  authError?: string | null;
 }) {
   const { palette: p, homeTeam } = useArena();
   const [picker, setPicker] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
   const finish = async (auth?: () => Promise<boolean>) => {
     setBusy(true);
+    setFeedback(null);
     try {
       if (!auth || (await auth())) await onComplete();
+      else setFeedback("Sign-in did not finish. Retry, or start your season on this device.");
     } catch {
-      Alert.alert("Could not continue", "Please try again.");
+      setFeedback("Could not continue. Your choices are still here; please try again.");
     } finally {
       setBusy(false);
     }
@@ -155,6 +160,7 @@ export function ArenaOnboarding({
           onPress={() => void finish(onGoogle)}
           icon="logo-google"
         />
+        {(feedback || authError) && <Text accessibilityRole="alert" style={{ fontFamily: arenaType.body, color: '#b42318', fontSize: 13, lineHeight: 19 }}>{feedback || authError}</Text>}
         <Text
           style={{
             fontFamily: arenaType.body,

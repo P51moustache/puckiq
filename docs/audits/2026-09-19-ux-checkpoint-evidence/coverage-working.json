@@ -1,0 +1,499 @@
+{
+  "scope": "iOS only, per latest user instruction",
+  "baselineCommit": "7cc67917858da49881eb33e414855d0932b42618",
+  "findings": [
+    {
+      "id": "F01",
+      "title": "Search closes after the first character",
+      "priority": "P1",
+      "acceptance": "Type C then o without tapping Search again; keyboard and query remain; deletion to one character keeps input; cancel restores prior list.",
+      "screens": [
+        "S11"
+      ],
+      "task": 1,
+      "implementationStatus": "awaiting review and final verification",
+      "evidence": []
+    },
+    {
+      "id": "F02",
+      "title": "Watchlist journey cannot be completed for an arbitrary player",
+      "priority": "P1",
+      "acceptance": "Search any valid player, watch, close, find in Following, reopen, unwatch; removed player can be restored with Undo.",
+      "screens": [
+        "S03",
+        "S08",
+        "S10",
+        "S11",
+        "S12"
+      ],
+      "task": 1,
+      "implementationStatus": "awaiting review and final verification",
+      "evidence": []
+    },
+    {
+      "id": "F03",
+      "title": "Watch toggle can report a save that failed",
+      "priority": "P1",
+      "acceptance": "Simulate failed write and concurrent taps; all rows/count agree with persisted IDs and no false success remains.",
+      "screens": [
+        "S10"
+      ],
+      "task": 1,
+      "implementationStatus": "awaiting review and final verification",
+      "evidence": []
+    },
+    {
+      "id": "F04",
+      "title": "Active model language does not explain Arena forecast provenance",
+      "priority": "P1",
+      "acceptance": "Change local weights; published probability and source stay unchanged and UI explains why. AI detail is read-only; local edit is labeled experimental.",
+      "screens": [
+        "S06",
+        "S13",
+        "S16",
+        "S17"
+      ],
+      "task": 2,
+      "implementationStatus": "awaiting review and final verification",
+      "evidence": []
+    },
+    {
+      "id": "F05",
+      "title": "Authentication failures disappear from the journey",
+      "priority": "P1",
+      "acceptance": "Simulated cancelled, missing-token, network and expired-session returns have distinct outcomes; inputs/context retained; Android has valid providers only.",
+      "screens": [
+        "S01",
+        "S22",
+        "S28"
+      ],
+      "task": 3,
+      "implementationStatus": "awaiting review and final verification",
+      "evidence": []
+    },
+    {
+      "id": "F06",
+      "title": "Native dismissal bypasses model draft protection",
+      "priority": "P1",
+      "acceptance": "Change a weight, press Android Back, tap Cancel and interrupt editor; each preserves draft until explicit discard or successful save.",
+      "screens": [
+        "S17"
+      ],
+      "task": 2,
+      "implementationStatus": "awaiting review and final verification",
+      "evidence": []
+    },
+    {
+      "id": "F07",
+      "title": "Support control has no action",
+      "priority": "P1",
+      "acceptance": "Support opens a real destination; failed/open-cancel returns to origin; offline shows copyable help details. Product must supply support destination.",
+      "screens": [
+        "S22"
+      ],
+      "task": 3,
+      "implementationStatus": "awaiting review and final verification",
+      "evidence": []
+    },
+    {
+      "id": "F08",
+      "title": "Return paths lose the entry context",
+      "priority": "P1",
+      "acceptance": "Following\u2192team\u2192Back returns Following at same row; Book\u2192game\u2192Back returns Book; cold links have explicit safe fallback; no repeated back-push loops.",
+      "screens": [
+        "S06",
+        "S07",
+        "S14",
+        "S16",
+        "S22"
+      ],
+      "task": 4,
+      "implementationStatus": "awaiting review and final verification",
+      "evidence": []
+    },
+    {
+      "id": "F09",
+      "title": "Failures masquerade as empty player data",
+      "priority": "P1",
+      "acceptance": "Two out-of-order searches show latest query only. Offline never says No players found. Retry reuses query; closing detail returns unchanged results.",
+      "screens": [
+        "S10",
+        "S11",
+        "S12",
+        "S15"
+      ],
+      "task": 1,
+      "implementationStatus": "awaiting review and final verification",
+      "evidence": []
+    },
+    {
+      "id": "F10",
+      "title": "Saved card removal is immediate and unrecoverable in UI",
+      "priority": "P1",
+      "acceptance": "Remove and Undo restores exact forecast/version/publication/savedAt, not a fresh snapshot; failed delete leaves card and retry.",
+      "screens": [
+        "S07"
+      ],
+      "task": 4,
+      "implementationStatus": "awaiting review and final verification",
+      "evidence": []
+    },
+    {
+      "id": "F11",
+      "title": "Missing final scores can leak into Season Book",
+      "priority": "P1",
+      "acceptance": "Final game with null, absent or invalid score shows Final score unavailable with freshness; 0 is displayed as valid.",
+      "screens": [
+        "S07"
+      ],
+      "task": 4,
+      "implementationStatus": "awaiting review and final verification",
+      "evidence": []
+    },
+    {
+      "id": "F12",
+      "title": "Historical data UI promises a download it never performs",
+      "priority": "P2",
+      "acceptance": "An old season cannot enable replay for an empty requested season; retry never implies download; result says Available records.",
+      "screens": [
+        "S16",
+        "S20",
+        "S21"
+      ],
+      "task": 2,
+      "implementationStatus": "awaiting review and final verification",
+      "evidence": []
+    },
+    {
+      "id": "F13",
+      "title": "Store recovery and dismissal need a coherent outcome contract",
+      "priority": "P2",
+      "acceptance": "No-games and stale-feed states can reach Subscription. Missing prices disable purchase only. Cancel returns safely; failed restore can retry; pending entitlement never shows Pro until confirmed.",
+      "screens": [
+        "S22",
+        "S23",
+        "S24"
+      ],
+      "task": 3,
+      "implementationStatus": "awaiting review and final verification",
+      "evidence": []
+    },
+    {
+      "id": "F14",
+      "title": "Some advertised Pro features are not gated in current routes",
+      "priority": "P2",
+      "acceptance": "For guest/free/premium, every offered feature has a documented policy and matching UI; never sell disabled remote alerts.",
+      "screens": [
+        "S06",
+        "S16",
+        "S23",
+        "S24"
+      ],
+      "task": 3,
+      "implementationStatus": "awaiting review and final verification",
+      "evidence": []
+    },
+    {
+      "id": "F15",
+      "title": "Legacy secondary screens break Arena Club continuity",
+      "priority": "P2",
+      "acceptance": "Switch home team then visit all secondary surfaces; readable home identity persists; no decorative palette clashes; enlarged type does not clip.",
+      "screens": [
+        "S12",
+        "S16",
+        "S17",
+        "S19",
+        "S21",
+        "S23",
+        "S24",
+        "S25",
+        "S26",
+        "S27"
+      ],
+      "task": 5,
+      "implementationStatus": "awaiting review and final verification",
+      "evidence": []
+    },
+    {
+      "id": "F16",
+      "title": "Roster draft and failure states are ambiguous",
+      "priority": "P2",
+      "acceptance": "Reopen changed roster correctly; search documented fields; failed save retains draft with Retry; dirty close asks; empty action is explicit.",
+      "screens": [
+        "S25",
+        "S26"
+      ],
+      "task": 5,
+      "implementationStatus": "awaiting review and final verification",
+      "evidence": []
+    },
+    {
+      "id": "F17",
+      "title": "Local data ownership is unclear when switching accounts",
+      "priority": "P2",
+      "acceptance": "Account A\u2192guest\u2192B does not claim B owns A\u2019s data or that it was synced; sign-out message describes retained local data.",
+      "screens": [
+        "S01",
+        "S07",
+        "S08",
+        "S10",
+        "S22"
+      ],
+      "task": 3,
+      "implementationStatus": "awaiting review and final verification",
+      "evidence": []
+    },
+    {
+      "id": "F18",
+      "title": "Accessible action meaning and recovery are inconsistent",
+      "priority": "P2",
+      "acceptance": "VoiceOver/TalkBack can identify every icon and state; keyboard/focus return works; 200% type and 320-wide layouts retain actions. Runtime verification required.",
+      "screens": [
+        "S05",
+        "S08",
+        "S10",
+        "S11",
+        "S12",
+        "S13",
+        "S15",
+        "S17",
+        "S23"
+      ],
+      "task": 5,
+      "implementationStatus": "awaiting review and final verification",
+      "evidence": []
+    },
+    {
+      "id": "F19",
+      "title": "Launch storage failure can leave a blank app",
+      "priority": "P2",
+      "acceptance": "Reject onboarding read and font/session setup in isolated test environment; useful recovery appears instead of blank screen.",
+      "screens": [
+        "S01"
+      ],
+      "task": 3,
+      "implementationStatus": "awaiting review and final verification",
+      "evidence": []
+    },
+    {
+      "id": "F20",
+      "title": "Cold-link and notification routing remain partially unverified",
+      "priority": "P3",
+      "acceptance": "Invalid and legacy entity links recover; supported notification opens correct entity; unsupported referral clearly recovers; OAuth callback completes without not-found flash.",
+      "screens": [
+        "S06",
+        "S12",
+        "S14",
+        "S15",
+        "S27",
+        "S28"
+      ],
+      "task": 4,
+      "implementationStatus": "awaiting review and final verification",
+      "evidence": []
+    }
+  ],
+  "surfaces": [
+    {
+      "id": "S01",
+      "name": "Launch and onboarding",
+      "source": "app/_layout.tsx; components/arena/ArenaOnboarding.tsx",
+      "nativeVerification": "pending",
+      "automatedEvidence": []
+    },
+    {
+      "id": "S02",
+      "name": "Home / current slate",
+      "source": "components/arena/TonightScreen.tsx",
+      "nativeVerification": "pending",
+      "automatedEvidence": []
+    },
+    {
+      "id": "S03",
+      "name": "Home / offseason and preseason",
+      "source": "components/arena/SeasonHub.tsx",
+      "nativeVerification": "pending",
+      "automatedEvidence": []
+    },
+    {
+      "id": "S04",
+      "name": "Home / playoffs",
+      "source": "components/arena/PlayoffSeries.tsx",
+      "nativeVerification": "pending",
+      "automatedEvidence": []
+    },
+    {
+      "id": "S05",
+      "name": "Game poster front/back",
+      "source": "components/arena/GamePoster.tsx",
+      "nativeVerification": "pending",
+      "automatedEvidence": []
+    },
+    {
+      "id": "S06",
+      "name": "Game Preview",
+      "source": "components/arena/GamePreview.tsx",
+      "nativeVerification": "pending",
+      "automatedEvidence": []
+    },
+    {
+      "id": "S07",
+      "name": "Season Book",
+      "source": "components/arena/SeasonBook.tsx",
+      "nativeVerification": "pending",
+      "automatedEvidence": []
+    },
+    {
+      "id": "S08",
+      "name": "Following",
+      "source": "app/(tabs)/following.tsx",
+      "nativeVerification": "pending",
+      "automatedEvidence": []
+    },
+    {
+      "id": "S09",
+      "name": "Home-team picker",
+      "source": "components/arena/ArenaPrimitives.tsx",
+      "nativeVerification": "pending",
+      "automatedEvidence": []
+    },
+    {
+      "id": "S10",
+      "name": "Players feed",
+      "source": "app/(tabs)/players.tsx",
+      "nativeVerification": "pending",
+      "automatedEvidence": []
+    },
+    {
+      "id": "S11",
+      "name": "Players search",
+      "source": "app/(tabs)/players.tsx",
+      "nativeVerification": "pending",
+      "automatedEvidence": []
+    },
+    {
+      "id": "S12",
+      "name": "Player detail",
+      "source": "components/PlayerDetailModal.tsx",
+      "nativeVerification": "pending",
+      "automatedEvidence": []
+    },
+    {
+      "id": "S13",
+      "name": "League standings",
+      "source": "app/(tabs)/stats.tsx",
+      "nativeVerification": "pending",
+      "automatedEvidence": []
+    },
+    {
+      "id": "S14",
+      "name": "Team detail",
+      "source": "app/(tabs)/teams.tsx",
+      "nativeVerification": "pending",
+      "automatedEvidence": []
+    },
+    {
+      "id": "S15",
+      "name": "Team compare",
+      "source": "components/TeamHeadToHead.tsx",
+      "nativeVerification": "pending",
+      "automatedEvidence": []
+    },
+    {
+      "id": "S16",
+      "name": "Models",
+      "source": "app/(tabs)/models.tsx; components/model-builder/ModelList.tsx",
+      "nativeVerification": "pending",
+      "automatedEvidence": []
+    },
+    {
+      "id": "S17",
+      "name": "Model editor",
+      "source": "components/model-builder/ModelEditScreen.tsx",
+      "nativeVerification": "pending",
+      "automatedEvidence": []
+    },
+    {
+      "id": "S18",
+      "name": "Duplicate model dialog",
+      "source": "components/model-builder/ModelList.tsx",
+      "nativeVerification": "pending",
+      "automatedEvidence": []
+    },
+    {
+      "id": "S19",
+      "name": "Factor help dialog",
+      "source": "components/model-builder/WeightSlider.tsx",
+      "nativeVerification": "pending",
+      "automatedEvidence": []
+    },
+    {
+      "id": "S20",
+      "name": "Replay and live preview",
+      "source": "components/model-builder/BacktestPanel.tsx; components/model-builder/LivePreview.tsx",
+      "nativeVerification": "pending",
+      "automatedEvidence": []
+    },
+    {
+      "id": "S21",
+      "name": "Historical data availability",
+      "source": "components/DataSeedingModal.tsx",
+      "nativeVerification": "pending",
+      "automatedEvidence": []
+    },
+    {
+      "id": "S22",
+      "name": "Settings",
+      "source": "components/HubScreen.tsx",
+      "nativeVerification": "pending",
+      "automatedEvidence": []
+    },
+    {
+      "id": "S23",
+      "name": "Subscription options",
+      "source": "components/PaywallModal.tsx",
+      "nativeVerification": "pending",
+      "automatedEvidence": []
+    },
+    {
+      "id": "S24",
+      "name": "Premium gate",
+      "source": "components/PremiumGate.tsx",
+      "nativeVerification": "pending",
+      "automatedEvidence": []
+    },
+    {
+      "id": "S25",
+      "name": "My Team legacy route",
+      "source": "components/MyTeamScreen.tsx",
+      "nativeVerification": "pending",
+      "automatedEvidence": []
+    },
+    {
+      "id": "S26",
+      "name": "Roster builder",
+      "source": "components/RosterBuilder.tsx",
+      "nativeVerification": "pending",
+      "automatedEvidence": []
+    },
+    {
+      "id": "S27",
+      "name": "Unknown route",
+      "source": "app/+not-found.tsx",
+      "nativeVerification": "pending",
+      "automatedEvidence": []
+    },
+    {
+      "id": "S28",
+      "name": "Native alerts and external auth/store",
+      "source": "components/auth/AuthProvider.tsx; services/notifications.ts; services/subscription.ts",
+      "nativeVerification": "pending",
+      "automatedEvidence": []
+    }
+  ],
+  "externalValidation": [
+    "Real Apple/Google OAuth return and account creation are not exercised against production.",
+    "Actual StoreKit purchase/restore must be confirmed in a signed sandbox build; Expo Go browser-mode prices/transactions do not certify StoreKit.",
+    "Remote alerts stay unavailable; no backend delivery changes are made."
+  ]
+}

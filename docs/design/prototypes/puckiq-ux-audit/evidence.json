@@ -1,0 +1,865 @@
+{
+  "timestamp": "2026-09-12T22:55:37.525Z",
+  "commit": "7dde1799dedb6997c440ef6d9c1a65d41720d55f",
+  "branch": "codex/arena-club-native",
+  "gitStatus": " M .env.example\n M app/(tabs)/_layout.tsx\n M components/FantasyProjectionRow.tsx\n M components/HubScreen.tsx\n M components/MyTeamScreen.tsx\n M components/PaywallModal.tsx\n M components/PlayerDetailModal.tsx\n M components/PremiumGate.tsx\n M components/StartSitCard.tsx\n M components/SubscriptionProvider.tsx\n M components/__tests__/HubScreen.test.tsx\n M components/__tests__/MyTeamScreen.test.tsx\n M components/__tests__/PaywallModal.test.tsx\n M components/__tests__/PremiumGate.test.tsx\n M components/analytics/AnalyticsProvider.tsx\n M components/analytics/__tests__/AnalyticsProvider.test.tsx\n M components/arena/GamePoster.tsx\n M components/arena/TonightScreen.tsx\n M hooks/useAnalytics.ts\n M jest.setup.js\n M ml/io/supabase_client.py\n M ml/pipeline/daily_run.py\n M ml/tests/test_fantasy_pipeline.py\n M services/__tests__/fantasyNotifications.test.ts\n M services/__tests__/fantasyProjections.test.ts\n M services/__tests__/notifications.test.ts\n M services/__tests__/subscription.test.ts\n M services/analytics/AnalyticsService.ts\n M services/fantasyProjections.ts\n M services/notifications.ts\n M services/subscription.ts\n M types/fantasy.ts\n M types/react-native-purchases.d.ts\n?? .codex/\n?? AGENTS.md\n?? components/__tests__/PaywallOfferings.test.tsx\n?? components/__tests__/SubscriptionProvider.test.tsx\n?? components/__tests__/fantasyProjectionUnavailable.test.tsx\n?? components/analytics/__tests__/AnalyticsLifecycle.integration.test.tsx\n?? components/arena/PlayoffSeries.tsx\n?? components/arena/SeasonHub.tsx\n?? docs/audits/2026-09-12-operational-recovery.md\n?? docs/audits/2026-09-12-recovery-tooling.md\n?? docs/design/2026-09-10-season-rhythm.md\n?? docs/design/screenshots/season-rhythm/\n?? docs/superpowers/plans/2026-09-12-operational-recovery.md\n?? ios/Podfile.lock\n?? ios/PuckIQ.xcworkspace/\n?? ios/PuckIQ/PrivacyInfo.xcprivacy\n?? scripts/diagnostics/recovery-compare.mjs\n?? scripts/diagnostics/recovery-export.mjs\n?? scripts/diagnostics/recovery-manifest.mjs\n?? scripts/sync/__tests__/recovery-manifest.test.mjs\n?? services/__tests__/playoffSeries.test.ts\n?? services/analytics/__tests__/\n?? services/playoffSeries.ts\n?? utils/__tests__/arenaSlate.test.ts\n?? utils/__tests__/seasonContext.test.ts\n?? utils/arenaSlate.ts\n?? utils/seasonContext.ts\n",
+  "files": [
+    {
+      "file": "app/(tabs)/_layout.tsx",
+      "sha256": "3b3399151f6087bd0760452d8a136267913ad23ec099a151e19425a0a8c4b150"
+    },
+    {
+      "file": "app/(tabs)/following.tsx",
+      "sha256": "e3c418ea737cb69369d54ea866bf0d036432054fb15db460bf672d9457bfe5bc"
+    },
+    {
+      "file": "app/(tabs)/hub.tsx",
+      "sha256": "a25aa7925310b830f9ac02f61916305a71acc1d275182621d872f2ff7184a6e0"
+    },
+    {
+      "file": "app/(tabs)/index.tsx",
+      "sha256": "63740b3524007cfd407c6cf6a5fc129da53c7ab582fcae4d97f29aaf33cf7ad2"
+    },
+    {
+      "file": "app/(tabs)/models.tsx",
+      "sha256": "c4a96a62f670d70dd4d7b4a2e7ccbbc54d4a9fef252b3743992beb08c44eef65"
+    },
+    {
+      "file": "app/(tabs)/myteam.tsx",
+      "sha256": "d19d3aa08b4f125da6ac09e42b50b488a5ed0f5856065b57392be4dc21408e29"
+    },
+    {
+      "file": "app/(tabs)/players.tsx",
+      "sha256": "f9d33cccb357eea401bc304bdb197701ffd5c07fe16e718424ab77f0b93859e3"
+    },
+    {
+      "file": "app/(tabs)/stats.tsx",
+      "sha256": "1f29590ebee507bf1f1030991a5ba40bb75ae4d80458d70d3db1b5ec8a5f7490"
+    },
+    {
+      "file": "app/(tabs)/teams.tsx",
+      "sha256": "70a314ad53e74767595481372ae1524832385215f7db620528ae77890e0bcf1b"
+    },
+    {
+      "file": "app/+not-found.tsx",
+      "sha256": "ec71aa960694eb519bf5d3bb42e8a6863456fbe86ade94d3693d67e1c7ecc213"
+    },
+    {
+      "file": "app/_layout.tsx",
+      "sha256": "9df8347dd210f335db932d7a0e0efb6465e8c37599457a0de685fefd1ebc58f9"
+    },
+    {
+      "file": "components/AccuracyTracker.tsx",
+      "sha256": "1f1561c169fa0f3d57739d3be4d31dca34edf4fa0dbd8962df3611aa1440c664"
+    },
+    {
+      "file": "components/AllGamesCard.tsx",
+      "sha256": "4130b24805dc5da4e9175ad7cc5a48f86f4daa6656b7918ad82eaf367e2b628f"
+    },
+    {
+      "file": "components/AnimatedNumber.tsx",
+      "sha256": "a695fdc6ee59b00ec0cf1f8af5c97283c5fc06eefd513b13b985f02ed7c844be"
+    },
+    {
+      "file": "components/AnimatedProbBar.tsx",
+      "sha256": "0ca6dbd8b55f63f493ba21bf22c6e9678a7aa916081ffc26f7ef2ebad30d9926"
+    },
+    {
+      "file": "components/AnimatedProbabilityBar.tsx",
+      "sha256": "e0036ec4fa8d93fcd5cda393113982b22b21b1167d96f71884a98075aac3d3af"
+    },
+    {
+      "file": "components/ClutchBadge.tsx",
+      "sha256": "dc02dcea5a5b9acd2dd9a94e9de42d1743a882bfa550c1f349e2685a79336b68"
+    },
+    {
+      "file": "components/CompactGameRow.tsx",
+      "sha256": "b867daf3d0b49ffd413a791ec17276b3029a61d6ac29d15050b979117a93ffb9"
+    },
+    {
+      "file": "components/CompactPlayerRow.tsx",
+      "sha256": "dc833837db82dc8d9e30fc7c96eb400bfa394969e5d8a1e7a13f8874d3b9ae5d"
+    },
+    {
+      "file": "components/ConfidenceBadge.tsx",
+      "sha256": "f412c01a43546e36939bd267f198813afe493993f9d6b772cb00248e68c2c744"
+    },
+    {
+      "file": "components/DataSeedingModal.tsx",
+      "sha256": "3703c69c1cd1bb4e68b0c4c3caa4924f697817d02ccc587ca14acaeaca53a66b"
+    },
+    {
+      "file": "components/Dropdown.tsx",
+      "sha256": "a0dbfb822afdc876e52f3fdc12545857b93633b0646229ebee11e5f63a9ffb96"
+    },
+    {
+      "file": "components/EdgeIntelSection.tsx",
+      "sha256": "04ffd92cb3ff4ca7664cb3a60ae46861f4b9da281744c6afc75a1fc7cd62b0ee"
+    },
+    {
+      "file": "components/EdgeSpotlight.tsx",
+      "sha256": "032fb4a2cd89bce85ac789b20a13c5a3f599b6484ee784c0ab5f1554790b2237"
+    },
+    {
+      "file": "components/ElevatedPlayerRow.tsx",
+      "sha256": "59d1d7c9f5c8104d8f4a02466eb7c29692ca5777c208a20a83d7d9e0489636ca"
+    },
+    {
+      "file": "components/EmptyNightCard.tsx",
+      "sha256": "a9a17695644391ef384a996b2ca67a791c2ab9e9edc92431a45668364b827e09"
+    },
+    {
+      "file": "components/FactorLeaderboard.tsx",
+      "sha256": "ee04df06e766aa07caab5859ea7b15bf531923753d496d0b24b4bf004e555e31"
+    },
+    {
+      "file": "components/FantasyProjectionRow.tsx",
+      "sha256": "2d76ed875c80a4210c470a579cf9e7ca6912b1b3cc374844f36e66efcde89dcf"
+    },
+    {
+      "file": "components/FinishSetupCard.tsx",
+      "sha256": "7cb1d9275103d82f04ae6e642d1f38c23747038ff5f338b6ebb9dac9395c9618"
+    },
+    {
+      "file": "components/FlippableRow.tsx",
+      "sha256": "e0888dfc04d208a99ccf4f2f928443ba0dbc1654222ca95de01ebd8548986cd6"
+    },
+    {
+      "file": "components/FloatingTodayBar.tsx",
+      "sha256": "009e4dd7bb01698a446dcacb58006ae96a05dbf15a82c94ea86aae23de1e9a25"
+    },
+    {
+      "file": "components/FormSparkline.tsx",
+      "sha256": "49d1011c1a3789aa8ebd1b43c1bba2561e3bc3eae64f697960d9311b0b9873dd"
+    },
+    {
+      "file": "components/GameDeepDiveModal.tsx",
+      "sha256": "c02034c8c30ce9f14c82d4f465517bdeb2dec7c9e62810ee1f6652abf0b05458"
+    },
+    {
+      "file": "components/GameTicker.tsx",
+      "sha256": "3f491dbd2270bf8f7969cda18832383a688a5a6297c9ecfcd02f5fa73ed70bbb"
+    },
+    {
+      "file": "components/GoalieSpotlightCard.tsx",
+      "sha256": "63baa97e1b01fade8c3f66280c75a0eb539c7a5c3d583f05641f2541c65f8f49"
+    },
+    {
+      "file": "components/HapticTab.tsx",
+      "sha256": "8deebeae307a143ab8079a974629103bb878e9e483ecf2a31ff351f5fa151194"
+    },
+    {
+      "file": "components/HeatStrip.tsx",
+      "sha256": "e7d4b7f4d923584705bebdf6839654b1f2379d5e227837eef0efcda2f687fea3"
+    },
+    {
+      "file": "components/HeroBanner.tsx",
+      "sha256": "ceb7881a5aec0e27013726d2dc72bba46eeb17a7bb3131052bdf20ba006b7ecb"
+    },
+    {
+      "file": "components/HeroLeaderCard.tsx",
+      "sha256": "d959d09bcd019cd4ba42035494c65643e177507bba9d3168ba9f96c15650289a"
+    },
+    {
+      "file": "components/HeroMatchup.tsx",
+      "sha256": "8242517e240a981a888f95099fa2f57a34f06cbd75905d40d811fce6a7d204c5"
+    },
+    {
+      "file": "components/HitRateBar.tsx",
+      "sha256": "ea925bd014cbce707968cac6bc95aadf88e50cb73fb48a64c926f03906c8fcca"
+    },
+    {
+      "file": "components/HotPlayersSection.tsx",
+      "sha256": "c68ead7a85ee999e5bb33123f54bd6e1786db6c7360ff2b5a87486cc869eff42"
+    },
+    {
+      "file": "components/HubScreen.tsx",
+      "sha256": "26f894348fe4ceaab9486082663d7984ed50d2f0c2ed69e8a0fed365114a63b3"
+    },
+    {
+      "file": "components/InfoTooltip.tsx",
+      "sha256": "8cc21aac4b0e71f33a1c905f9243938d01ef8b7f7a6db39226ada05272321a00"
+    },
+    {
+      "file": "components/InsightFeed.tsx",
+      "sha256": "bc8f77e5162782adb76c41ec22dcf0e11fb367b82df5e4bfea4230cad2a6bb36"
+    },
+    {
+      "file": "components/Leaderboard.tsx",
+      "sha256": "3466d63128d789cb03ee69be3a33059fbc84632a6381bf4a8070067052398267"
+    },
+    {
+      "file": "components/LiveNowBar.tsx",
+      "sha256": "fe6edd0df8fd781844bc3e8323683da408f51c19d49187e79c43efe1e9c8c002"
+    },
+    {
+      "file": "components/MatchupAnalyzer.tsx",
+      "sha256": "156838a68dbdf9bf62567b71485d18c0636ec5cec9d427fe3db3196176190ecd"
+    },
+    {
+      "file": "components/MatchupGameCard.tsx",
+      "sha256": "cb046930620e6246efe381cf0f8db18d02e533e34551ef48fe84a9449b8953de"
+    },
+    {
+      "file": "components/ModelAccuracyCard.tsx",
+      "sha256": "8d211f671afc4fb3fc8f16fc9cc57ea043bdc498333b5fa5a8610feb78a6b172"
+    },
+    {
+      "file": "components/ModelPickerModal.tsx",
+      "sha256": "ea6e1c116d5ed0484e201435bf8b797a6e313b07829e8d7e8ca89c48092f9f91"
+    },
+    {
+      "file": "components/MomentumSparkline.tsx",
+      "sha256": "0944adf895a493c7f3dd52ff1daa276947bad02ef9df8bb7377b73911889074f"
+    },
+    {
+      "file": "components/MyTeamScreen.tsx",
+      "sha256": "0a802f21193ac38a64ed37b9bd818ddafb36a4bedb3bd680eaca97d04dc66587"
+    },
+    {
+      "file": "components/PageHeader.tsx",
+      "sha256": "36ca335debd4a08059cab576409a199c4ffdad5af062215fd888dea28c0c2e95"
+    },
+    {
+      "file": "components/PaywallModal.tsx",
+      "sha256": "af0f8c0ee5baf5ed78f09312eb09539ee04c299fcc362854311987a0fe8fda29"
+    },
+    {
+      "file": "components/PlayerDetailModal.tsx",
+      "sha256": "7e3e792a4c2d3f06eaa68ec256ef13bf4d769b443fd573c96bd3cb06d70e99ad"
+    },
+    {
+      "file": "components/PlayerEdgeCard.tsx",
+      "sha256": "80af82e00ca0e512c1913dee623a937b8acbb17132a0c10da186e33b12327a13"
+    },
+    {
+      "file": "components/PlayerProjectionCard.tsx",
+      "sha256": "a805e9d0fd8d0bc28da452d37729831702a13b28a946ce4dfa4fe5fc093fb290"
+    },
+    {
+      "file": "components/PremiumGate.tsx",
+      "sha256": "cba1dc5b3085cc0dbd49db61cb049ac344e94f82f64d7538bb706c516d020667"
+    },
+    {
+      "file": "components/QuickStatsBar.tsx",
+      "sha256": "a611f9714d0186f73b60fe7ec1bf16943dc9f47c0958764e238b49f29f958f17"
+    },
+    {
+      "file": "components/ReferralCard.tsx",
+      "sha256": "f2a69399c01844b56e3320a172ba496f117477224dc4129ad187bdb1a6c8f8c0"
+    },
+    {
+      "file": "components/RosterBuilder.tsx",
+      "sha256": "e1645c3a761769de995d54096bee24c154abec974f7927a339d708d2da9c6c9c"
+    },
+    {
+      "file": "components/SeasonSeriesBadge.tsx",
+      "sha256": "08e7cae11a633423641f9b61c21d2cea292693fe117f11ecc499b93162635dc7"
+    },
+    {
+      "file": "components/SettingsButton.tsx",
+      "sha256": "14418dba3e001f322ac20209914656167f3a3d67e7e8d26dfe60780f76cc4747"
+    },
+    {
+      "file": "components/ShareablePickCard.tsx",
+      "sha256": "13e397c461aecbb3d60f3f7c9009cb98bd85aee418e9badb2db4c1a8b4eb8789"
+    },
+    {
+      "file": "components/ShotLocationMap.tsx",
+      "sha256": "1d3fbb4de14a2ef87b00c5ff13528d25a6f0b5140b38435154d454b08c46432d"
+    },
+    {
+      "file": "components/SlateRowViz.tsx",
+      "sha256": "f8ab1ba16353686b47a5749c54ca1ae545feaab8e804a069f0e0aa0d4e2e7af3"
+    },
+    {
+      "file": "components/Sparkline.tsx",
+      "sha256": "92fad77368c9a34598533f8fb6a67f6f69fe4030512347da88b7584c8e14878a"
+    },
+    {
+      "file": "components/SpeedGauge.tsx",
+      "sha256": "5b9230be10e326a0193f45a4eef91f0cdb77682c220a258249e2cada19ad7f84"
+    },
+    {
+      "file": "components/StandingsSnapshot.tsx",
+      "sha256": "9d1ef8d1afbb224ecd22d2ce530deb22c54b692074d528681b142edac928cc69"
+    },
+    {
+      "file": "components/StandingsWidget.tsx",
+      "sha256": "1fae56c7dc6d95ad4c762218f4a7976a59a5c24343b184d168a2990d08a3bd6b"
+    },
+    {
+      "file": "components/StartSitCard.tsx",
+      "sha256": "64c5debe3fa1d5f6f87acfccd0050ac808f7d34002009754f33264fbfc681366"
+    },
+    {
+      "file": "components/StatComparisonRow.tsx",
+      "sha256": "159756f2066767d51f8e2f08378b1236016d2f5807edbfb05575aef6b0e308e6"
+    },
+    {
+      "file": "components/StatOfTheNight.tsx",
+      "sha256": "d9164d3b1f73a5694187a329c5216f648901a010174e6f22a339399759f7709a"
+    },
+    {
+      "file": "components/StreakBadge.tsx",
+      "sha256": "f9bae136cccbbb949c401c0dc8a6b0e505688d14fec1910d398d147a824c9031"
+    },
+    {
+      "file": "components/SubscriptionProvider.tsx",
+      "sha256": "9072b9e3e226f7aa51685199b3390d7b306b97ab21d1102e6a6a78846a127a86"
+    },
+    {
+      "file": "components/TeamCard.tsx",
+      "sha256": "4e08e2b1e26776bf7b5c623fa7508b036dabaa655309a93fcb3bcadf3d7553f5"
+    },
+    {
+      "file": "components/TeamHeadToHead.tsx",
+      "sha256": "09fe820aa6b76a38c082ebf2271cb0547458c2aa709169a81030345d392e8d10"
+    },
+    {
+      "file": "components/TeamModal.tsx",
+      "sha256": "2cc9f82d0202dea0d3462f05af9319f00d06b437913fb7645e8e03b943d23f15"
+    },
+    {
+      "file": "components/TeamStatusBadges.tsx",
+      "sha256": "e10cf4686639fd2035b425d94bd6d2c877a727fb005a8fe23767ed5b6e369a7d"
+    },
+    {
+      "file": "components/ThemedText.tsx",
+      "sha256": "cd190d108fbcfea8aeb866c3e02eb3c4b0fbcccece438ac5a16479f67b4f71df"
+    },
+    {
+      "file": "components/ThemedView.tsx",
+      "sha256": "3bf249f8a01922d34d5e5d84612904f4d14adaf92a07eebf16194ccd4973df21"
+    },
+    {
+      "file": "components/Toast.tsx",
+      "sha256": "bfe2e2d6d2595d86cef1db9d3c686886551d5b0d4b3cce37c5f4e9e4bfc81752"
+    },
+    {
+      "file": "components/WaiverWireScout.tsx",
+      "sha256": "8f701dded982a4ef494c94a1924e7b4b6f842e8409d460ed78cea3989591dda3"
+    },
+    {
+      "file": "components/WaiverWireSection.tsx",
+      "sha256": "c3c95f6db8d5e39707fa61e4bd73fb5509facb097477d64390a9bb472c70aa8b"
+    },
+    {
+      "file": "components/WeeklyOutlook.tsx",
+      "sha256": "efcef48bf85f7340f40f771cef75bc00d31d5a56b74e17525e7d78bf17dd861c"
+    },
+    {
+      "file": "components/ZoneTimeChart.tsx",
+      "sha256": "23809f98523fba4decadbfda38649bd3b19be61ebb578777be52120a0ddef0e1"
+    },
+    {
+      "file": "components/analytics/AnalyticsProvider.tsx",
+      "sha256": "d97ae2bce81ba792df37b059f7c11bc37d098290066d16e59304db090f330983"
+    },
+    {
+      "file": "components/arena/ArenaHeadline.tsx",
+      "sha256": "bac6a7adc5eb627686f77d36323cfb34d2d9936657dd05f09f61e27be9d7f47c"
+    },
+    {
+      "file": "components/arena/ArenaOnboarding.tsx",
+      "sha256": "b763b39466848b5169715f526d5b9cad0de794e6dfb4405abb74eb0aee805cd6"
+    },
+    {
+      "file": "components/arena/ArenaPrimitives.tsx",
+      "sha256": "97c0bb9061f04a37621164b238b5f9fcbdad67245c6d788495cecd0f64e7b2e7"
+    },
+    {
+      "file": "components/arena/ArenaProvider.tsx",
+      "sha256": "c546a4cbc3ed3668adc555083f369e3dac9b0a8eef9745247a6090e959cedc97"
+    },
+    {
+      "file": "components/arena/ArenaSkater.tsx",
+      "sha256": "7027cb09d53b2c9d6932bfc57a409b560c97b8dc92ddd72a9a326e426b374d52"
+    },
+    {
+      "file": "components/arena/GamePoster.tsx",
+      "sha256": "8fb05d00e359d1799aefea00069b0fef2b514518a82f538fcc16f8a7832ef45c"
+    },
+    {
+      "file": "components/arena/GamePreview.tsx",
+      "sha256": "ff18731c744087da0723a3549c5f808cc620a1c41e581323f7f81057fa136edc"
+    },
+    {
+      "file": "components/arena/PlayoffSeries.tsx",
+      "sha256": "c20eabb0ec19f11fd4333f42e3642a479e903e44e9fa5e00602fba7f564d2140"
+    },
+    {
+      "file": "components/arena/SeasonBook.tsx",
+      "sha256": "62103997f7c9d64c33181f65a3730a560373c402b3c1304768d309222e572d99"
+    },
+    {
+      "file": "components/arena/SeasonHub.tsx",
+      "sha256": "9d5011651fc0a4c60d38763bfaa3dbe2a0649a7c4e1edc65e5887594e5e7edcd"
+    },
+    {
+      "file": "components/arena/TonightScreen.tsx",
+      "sha256": "bd96af0e883cb8c8ba0da3d2e50efeb564709aca75ba49f72153af836cc64043"
+    },
+    {
+      "file": "components/auth/AuthProvider.tsx",
+      "sha256": "f3e383490ff02979eba1015e3efea23075c8746a6da646b7dcec5005932d7dc0"
+    },
+    {
+      "file": "components/dashboard/AlertsModule.tsx",
+      "sha256": "8734eb330346ff238fbbe5bc8d97248b7370d9d95d55b9c4f5c7fa7cd3b28111"
+    },
+    {
+      "file": "components/dashboard/DailyInsightModule.tsx",
+      "sha256": "91e47eea56e0fcf9e77d14252efbdceb859ff3030f0aaa03a9755dfcfd5e1aee"
+    },
+    {
+      "file": "components/dashboard/DashboardContainer.tsx",
+      "sha256": "ab037f78e74c923b7a5238829cfdf2688d9e4308b32110161dd0f249ae01d068"
+    },
+    {
+      "file": "components/dashboard/MatchupEdgeModule.tsx",
+      "sha256": "30456773c911b084e85d65179bfe4455de4531d69481f996a95cf022bfb0b112"
+    },
+    {
+      "file": "components/dashboard/ModulePicker.tsx",
+      "sha256": "dc11ae15c06dac69e6d9de1c99749f307805b78fc54dc2beebc3c8156bdec79e"
+    },
+    {
+      "file": "components/dashboard/StartSitModule.tsx",
+      "sha256": "16b3635d3ca52d7e2cb9f129347c6e3058de047449d53a6b2ef160afae00dfdd"
+    },
+    {
+      "file": "components/dashboard/TrendingModule.tsx",
+      "sha256": "5fa0c25d302dcbf49c42be5facb10efa53c6909ca48d216f84cc28ffa9c66861"
+    },
+    {
+      "file": "components/dashboard/WaiverWireModule.tsx",
+      "sha256": "441b02e259bfdf90e26d24fff7195fee26317620e8c2ee78a0b8ef9bd23403c4"
+    },
+    {
+      "file": "components/design-system/Button.tsx",
+      "sha256": "2ff7d7a7f59bc2f850c43730b2998aaf4b46e915476eb4b3209f5075134058b4"
+    },
+    {
+      "file": "components/design-system/Card.tsx",
+      "sha256": "642140658e0438da3119a074fb7f5242dcef0091027bfa900b363c61f0340a65"
+    },
+    {
+      "file": "components/model-builder/BacktestPanel.tsx",
+      "sha256": "a5e42ff726bcfd0d4f0834ee9326ed33594a2b1e594043d85140c80fe981917c"
+    },
+    {
+      "file": "components/model-builder/FactorEditor.tsx",
+      "sha256": "56cfa8ebc7332253af299852e76dda55fd4b717a67a7ce11184ca9c9d908f5a7"
+    },
+    {
+      "file": "components/model-builder/LivePreview.tsx",
+      "sha256": "e16f9f29d94e029766718edbbcd12643fecfe612eeace1ad7b1506b484527551"
+    },
+    {
+      "file": "components/model-builder/ModelEditScreen.tsx",
+      "sha256": "470891ea111937952cded1bf9fed552b8b426f301ab8e1aaa4afcf3e3a7d6349"
+    },
+    {
+      "file": "components/model-builder/ModelList.tsx",
+      "sha256": "21bf9879dec9c42b3581203e50634f4a61fc1904608f733705716480f7bad9c8"
+    },
+    {
+      "file": "components/model-builder/WeightSlider.tsx",
+      "sha256": "c6c366faf1f50043e9779d554f63f3d24a0adf8c42046f275b57baad50ad75ae"
+    },
+    {
+      "file": "components/model-builder/index.ts",
+      "sha256": "f86464abe9312f1fb5c5d67715e562e62b5650c1994576bae128895c0a9ffb90"
+    },
+    {
+      "file": "components/onboarding/OnboardingFlow.tsx",
+      "sha256": "eb9238df37a186c7c7ec7bde55ca934622fa97445270881151598b7a782d3f1b"
+    },
+    {
+      "file": "components/onboarding/PlatformPicker.tsx",
+      "sha256": "1679efc94b8262f289f68c33cf0f75c54ae0d3f72fc3f266915b842221b28a17"
+    },
+    {
+      "file": "components/onboarding/RosterSetup.tsx",
+      "sha256": "26c54a908749aec4671a213516787ae652971c1884a8b0f7309e40138dc8f0f0"
+    },
+    {
+      "file": "components/onboarding/TonightPreview.tsx",
+      "sha256": "9b942802b9def9a61a55b8fe70c9f66aebc542292c7882c427b6e273671476cf"
+    },
+    {
+      "file": "components/onboarding/WelcomeScreen.tsx",
+      "sha256": "10563a7b634cb035dccb8c9b2420eab78cb2d27cfc72bc1f11246ba4af29231e"
+    },
+    {
+      "file": "components/ui/EmptyState.tsx",
+      "sha256": "63b7680c7038070e178e1650b784009098e37e2c1f2081b8f305657ee8c60ec5"
+    },
+    {
+      "file": "components/ui/IconSymbol.ios.tsx",
+      "sha256": "c4e56fc2c481f0964d06ff0c9dda51eeba1ca7f6f554336dfdceb4a75c80eb2c"
+    },
+    {
+      "file": "components/ui/IconSymbol.tsx",
+      "sha256": "f859fb13ada5641e3bbf83865ed4a249abeb3aaa2cc424be5aa120aca220b362"
+    },
+    {
+      "file": "components/ui/SkeletonLoader.tsx",
+      "sha256": "9abbadec4d40756a1588da65a22ea96b9d95fb51e93638bd4bbc079bcc983e32"
+    },
+    {
+      "file": "components/ui/TabBarBackground.ios.tsx",
+      "sha256": "cc75823f1ed08d7b36a8cfa4c0001e0862d8391028408fcced2bc0c2b24854c9"
+    },
+    {
+      "file": "components/ui/TabBarBackground.tsx",
+      "sha256": "924ee506c20225e23935fd9df94fa26c683fef46df5acbeaa39f4209907c04a9"
+    },
+    {
+      "file": "constants/Colors.ts",
+      "sha256": "3b31db21f8966e3c8efea1bfa06530fc367e3e2107ae395afdcff2c4065f4893"
+    },
+    {
+      "file": "constants/arenaTheme.ts",
+      "sha256": "790464e0a41f5186ecce311f0d6d921c1184139dda3c4b1fe94baf7357defb07"
+    },
+    {
+      "file": "constants/arenaTypography.ts",
+      "sha256": "112c2136d85519a0a813d826b17bab34efee6106f55683f953925279ddb2c7a2"
+    },
+    {
+      "file": "constants/glossary.ts",
+      "sha256": "d88bc89e018783fe54a142b5e143f11438c50dd024fe019f4b7dc342b79a07f7"
+    },
+    {
+      "file": "constants/modelFactors.ts",
+      "sha256": "a8b208052803ddf5dcd1c1af5cc4087967982663499eaf85d723d7fb846ebfa2"
+    },
+    {
+      "file": "constants/teamColors.ts",
+      "sha256": "a73c8734680112d5b50824c7fc6264bbc1d4a207074b9b94693cc214bcfef4e5"
+    },
+    {
+      "file": "constants/theme.ts",
+      "sha256": "2921aad93ff96f2c4dea6c95d504f9a2d19afb75f591a23a85995fd3bc960ca6"
+    },
+    {
+      "file": "hooks/useAnalytics.ts",
+      "sha256": "d0710a07986d7fa1e829acd10c132be02a7e1d737003f08d8ae9678ff9822bcb"
+    },
+    {
+      "file": "hooks/useArenaGames.ts",
+      "sha256": "b658a99e4dbe1ca6956fa3ffa6eba862932a2a61cf7728340b4722ed248c9f22"
+    },
+    {
+      "file": "hooks/useAuth.ts",
+      "sha256": "73fa648ae55b991c58bb2477940462424cbffd796333ab8e33694ac7e384f9d5"
+    },
+    {
+      "file": "hooks/useColorScheme.ts",
+      "sha256": "901930fbaf2a3a3c3290c8128a25d0e3ee3baa28c94753d00edeb10cbb3cac82"
+    },
+    {
+      "file": "hooks/useColorScheme.web.ts",
+      "sha256": "ddf8c8d1c5bfea6ba6ae989cfd5bdd38ea53437436791596dc3148fc1faa483c"
+    },
+    {
+      "file": "hooks/useDashboardData.ts",
+      "sha256": "70d5ec32ad4fff310d3c578dcbdf621faf38810ed8f2331d11dd8e5cbc0523a3"
+    },
+    {
+      "file": "hooks/useGlossary.ts",
+      "sha256": "a00f3eb60b020c082fb129002097e247eb879219ba2dc60d121f1e9aa4e350bd"
+    },
+    {
+      "file": "hooks/useHaptics.ts",
+      "sha256": "76b0b521d198bf2b13bc4f11cfc322fa15e206d0c615813c368349b8b80be74c"
+    },
+    {
+      "file": "hooks/useMLPredictions.ts",
+      "sha256": "f0ea68e8d7aaccb4847256c2828c10af7472379711a3d0821a8d478b416a7af0"
+    },
+    {
+      "file": "hooks/useMyTeamData.ts",
+      "sha256": "ccded7918c44df18787ef93153e826989e3278bbf8c8f3714e953354c2edffbb"
+    },
+    {
+      "file": "hooks/useThemeColor.ts",
+      "sha256": "5ce4d3eb4cc8468138d1515eb45893e1c5aee2f0eeddf7e14ac57140cfb6184c"
+    },
+    {
+      "file": "services/accuracyStats.ts",
+      "sha256": "96c8ceba713763ea93831a90b6c164991893b246459f1a7c9ad4e67328319e7e"
+    },
+    {
+      "file": "services/analytics/AnalyticsService.ts",
+      "sha256": "0bff390bc6b035a5331c26edab2e6a696d61d104a6012e53db78b05906d3130d"
+    },
+    {
+      "file": "services/analytics/types.ts",
+      "sha256": "41f8a05e1337e3003650a3799223a8bb794a44bca71037d905e374d8f07b7449"
+    },
+    {
+      "file": "services/arenaData.ts",
+      "sha256": "f7613b26440798b07e42d181827b0504461e1b5ba9112862832e81676e27960d"
+    },
+    {
+      "file": "services/backtesting.ts",
+      "sha256": "dc68a13a91d043e89b74d8e8593e0f7e97ec97ce0dcb57a25eb3ce346e9ab34f"
+    },
+    {
+      "file": "services/dashboardModules.ts",
+      "sha256": "f3588dabdbba6d4262e580c21e2efadb6e0b9cd50fcc90dd6317deefd43b93da"
+    },
+    {
+      "file": "services/derivedStats.ts",
+      "sha256": "4e249396c9bd404e37b111bdc38246172d46cd724b7e66a25e3a2c96a440269d"
+    },
+    {
+      "file": "services/edgeStats.ts",
+      "sha256": "4df30a2a6618df9af6c3fdd26b3f87d61df7c1414354d285429e1ddc4e8567c6"
+    },
+    {
+      "file": "services/fantasyAlerts.ts",
+      "sha256": "9ecd8fcbce47e1a478a9b7272fda943d32719e894b60c5d759f29360b3081c01"
+    },
+    {
+      "file": "services/fantasyProjections.ts",
+      "sha256": "a1bc852c3dde1b321e020e7b9d0445a9c88e8684ce854597529bbad79f84768f"
+    },
+    {
+      "file": "services/fantasyRoster.ts",
+      "sha256": "d8d2f8045b86a40459ae49627afad0df3154bdb2983cd9157117682ca3598f33"
+    },
+    {
+      "file": "services/gameResults.ts",
+      "sha256": "7a90aeed747c4f1702bedc8a1b037e5b65cf78f21a5fa8e0a1e3dc7fd03cf86d"
+    },
+    {
+      "file": "services/goalieRates.ts",
+      "sha256": "43835aad658381fd3cd411f30f7444ca64783953758c29f47741a71747e9b756"
+    },
+    {
+      "file": "services/googleAuth.ts",
+      "sha256": "d5fd1d5b3c6f981398ad861f51a4eb96602a69dfdee29412339e5d2089526212"
+    },
+    {
+      "file": "services/homeTeam.ts",
+      "sha256": "8875960116da0bf87d8ad4c9b26fd307495c523bc68b520b823e5d0323f4e6c5"
+    },
+    {
+      "file": "services/insightGenerator.ts",
+      "sha256": "4c6a3fc467d24804e3094174c3b6b2192b1ec601f37193169ac4daaa2037e66b"
+    },
+    {
+      "file": "services/leaderboard.ts",
+      "sha256": "915d0633de7495f09aef241441634069e0a6a3c219c9343d5557b4ad5c0c4987"
+    },
+    {
+      "file": "services/matchupAnalysis.ts",
+      "sha256": "16db29996a93fe39cde154f7c55801e69e6df711942242d5397fae52fb47b52f"
+    },
+    {
+      "file": "services/mlPredictions.ts",
+      "sha256": "2eb05cbcc8cdde5c80a7a706adc7a0e30c57ec273148ba09f4bdfbb71b6937a1"
+    },
+    {
+      "file": "services/modelPrediction.ts",
+      "sha256": "f320727fba8fcce1b2cfb1d7093eca31d489d2e519060a55549de0d485c5f3c4"
+    },
+    {
+      "file": "services/modelStorage.ts",
+      "sha256": "00cfb67c98dfbf4776945cf82716a436a9ba44e7c0985ede9dcab1e88ce08c6f"
+    },
+    {
+      "file": "services/notificationSettings.ts",
+      "sha256": "1244c031a0efadb3b045b2e2048c3576149a2c4d06f2f95946968a9b85e76b8c"
+    },
+    {
+      "file": "services/notifications.ts",
+      "sha256": "473ff3ddcaf0616f82fbd4c0d71d799c89c0236cc7c32d4d74d9b9603ece0440"
+    },
+    {
+      "file": "services/pickTracking.ts",
+      "sha256": "6576f6a422b399740032254259bbbc8a949d94325106fbc75a07fdb545ac42e3"
+    },
+    {
+      "file": "services/playerDetail.ts",
+      "sha256": "5d5baa51ccf1b8dc2bcee115817757f680307f198b736cf1b369ffbb2cbee0c6"
+    },
+    {
+      "file": "services/playerLeaders.ts",
+      "sha256": "dc8f6c39e3984d3bb78604d0eefba866d90f19b147535f0d3046776341aaecaa"
+    },
+    {
+      "file": "services/playerPrediction.ts",
+      "sha256": "38268fc18fb9ad4e8a88b246a9d35a8d10058452ad61d6baea3141cfe23c9794"
+    },
+    {
+      "file": "services/playerStats.ts",
+      "sha256": "00d380fc63d0a3affe686d57b4a5e6928654f56ce52ef2aa56578f22dd26f923"
+    },
+    {
+      "file": "services/playerTrends.ts",
+      "sha256": "6bc5978d37dcce29e6223a9a65c02b6d559a49565c1c4dd72ba0ec29f05532d5"
+    },
+    {
+      "file": "services/playoffSeries.ts",
+      "sha256": "ac2b66d4a6ac90e2c09451c14e95ad79f7979620438a34387ce3d6521b0766d2"
+    },
+    {
+      "file": "services/referrals.ts",
+      "sha256": "588a3d7c630bf06374c964bcf72e68f3b37957eb47a10679fd75a92bb6d13583"
+    },
+    {
+      "file": "services/seasonBook.ts",
+      "sha256": "cd49bd7e326cc77070c4417fc69f1c2d4c07f77a8acb7fc6539753ce5d1dc2f8"
+    },
+    {
+      "file": "services/shareCards.ts",
+      "sha256": "576ba8387c8052103dc6b1bd31266c1efbb731f384c4bd29cac0a86d1b344481"
+    },
+    {
+      "file": "services/subscription.ts",
+      "sha256": "1a28427627d07c3daa621baa3ebcdf29156d38304d81232e8baf299d167779b1"
+    },
+    {
+      "file": "services/teamComparison.ts",
+      "sha256": "3808402f38ee7da251eece10a6d421578a8ecd8e7992cc48f4d52dc1b349c6ce"
+    },
+    {
+      "file": "services/teamFavorites.ts",
+      "sha256": "108d7587cdc601f88adc4ab6d5838ed0b7bb530d4073cf35e7a8789f4871ba8f"
+    },
+    {
+      "file": "services/teamForm.ts",
+      "sha256": "1618754807b863bec3e006a25f789de4f5f5ce3aecef19cc6a4efd4571e2040f"
+    },
+    {
+      "file": "services/teamList.ts",
+      "sha256": "55b3af5528b40346e7826e810a1ca7b8a76c7f2121ab739fe38a48f1729e8722"
+    },
+    {
+      "file": "services/userSync.ts",
+      "sha256": "4ef51b7da947fd24b9321838037bdddc4e3773355dc3dd72bdde48dfc8b80478"
+    },
+    {
+      "file": "types/arena.ts",
+      "sha256": "29ca97a113cc3fc29d8ff1f208861cc88dfa8382553defcdc30fa0c745e1922b"
+    },
+    {
+      "file": "types/dashboard.ts",
+      "sha256": "6894ee29b4db89b057695cc5d0c6a7ddbea882d69dbbc448e1881f827ed86441"
+    },
+    {
+      "file": "types/edgeStats.ts",
+      "sha256": "1c6223f73e86e69a4fad9c7fd1f773e40d2dbb8fcce2c8651f004a9c4e571331"
+    },
+    {
+      "file": "types/factors.ts",
+      "sha256": "62645fab23bacffe6c5d2d198e1d994468081758bc0d0ee4699dde3d7962405d"
+    },
+    {
+      "file": "types/fantasy.ts",
+      "sha256": "3e2a2a9cd56b33d0bef5b45f0146c30fe4da9153ff4f43227b46ec6b7876a069"
+    },
+    {
+      "file": "types/gameResults.ts",
+      "sha256": "6520861deba8fa47595eb1d06bc6280915f8a4835ce5cb79d319555c77cff154"
+    },
+    {
+      "file": "types/insights.ts",
+      "sha256": "fb6ad603bd246156e8fffd02962fcd3d09f6ccf79f8579a5a68472d2b713d444"
+    },
+    {
+      "file": "types/players.ts",
+      "sha256": "40d3644ba08a592f1dd2b62b95aa2d531d523114f5625612237228d2e9752367"
+    },
+    {
+      "file": "types/predictions.ts",
+      "sha256": "20ee28571cb4ffa3ce0e7167ea6bf13a6f090ac9d85b039a6c39d671db23c12c"
+    },
+    {
+      "file": "types/react-native-purchases.d.ts",
+      "sha256": "62b76c6ba84c361e121ff1584d8b5be36aa3c7a8616ab214bf3e882169bd1787"
+    },
+    {
+      "file": "types/teamForm.ts",
+      "sha256": "692f9b36021e2b6bf546434bd3d0a482b5887eb0c3f8bcb083a41543224919ee"
+    },
+    {
+      "file": "types/teamStats.ts",
+      "sha256": "22de6c3df823f7e27a855a0ff10fd80efbd1e4f2cbfc993aeb666ccd361c2a0f"
+    },
+    {
+      "file": "types/weeklyTheme.ts",
+      "sha256": "6c54701e8e2fd415ee32fc7021bf769a239a2919b3f72313ab35a283f6898bb7"
+    },
+    {
+      "file": "utils/accuracyTracking.ts",
+      "sha256": "ecea0b9082d3111447bc3e100a582a07f86db64b2483cc6da50fdf77593e065f"
+    },
+    {
+      "file": "utils/arenaSlate.ts",
+      "sha256": "73ed0a77ffda96343b22f8a38106dce5ed2941043fd7081eb89163cef1dba318"
+    },
+    {
+      "file": "utils/dateLabel.ts",
+      "sha256": "b5c4ac60a2a4db3aad7568a4c7ab62f522c9344923e1cf4a4c13f7d821a86222"
+    },
+    {
+      "file": "utils/entityRoutes.ts",
+      "sha256": "76f89df313d4829a0d323df5161aef542b408d7bce9a1a5ce30eea95593e0569"
+    },
+    {
+      "file": "utils/headlineGenerator.ts",
+      "sha256": "08b9d2ad28f25dbd049069ccb4523e732eb105b2a9c608f904e1671523c3b422"
+    },
+    {
+      "file": "utils/heroPhoto.ts",
+      "sha256": "fd17d76f65eaaf30b4b5cf4d4d8cdc181b4b0fc227628e1af8348164289ea636"
+    },
+    {
+      "file": "utils/logger.ts",
+      "sha256": "5f7b978d80f3d0c76e6aab7901c6cddf2fd321d17e7bd4ef037b9c3c32252f0d"
+    },
+    {
+      "file": "utils/playerStats.ts",
+      "sha256": "03ef763084b1bbcee683c3b2c918f5235a5e67d8f690e7b562038197f9ce296c"
+    },
+    {
+      "file": "utils/predictionUtils.ts",
+      "sha256": "a5d2be551a9d8c8a45f4aacd6f74a51a550f89391c9434bcfa0b280327956415"
+    },
+    {
+      "file": "utils/recentForm.ts",
+      "sha256": "938d60b3d4811682e44d3804cb904633eb53df865619b199bd8d8ab411cda2bc"
+    },
+    {
+      "file": "utils/season.ts",
+      "sha256": "e4af5d482c730ecff3c03cbc72e59bc9d1a228f7cba01030570fa0de35b92196"
+    },
+    {
+      "file": "utils/seasonContext.ts",
+      "sha256": "cfbaedd36664d5d1632ff3c36f051bf81750c0b5fe254f8e02f710ba3582bbed"
+    },
+    {
+      "file": "utils/situationalFactors.ts",
+      "sha256": "6750a16d4234c46672ea8bca5c02d2d11f240f7255a372b43ebd03bb3b210043"
+    },
+    {
+      "file": "utils/teamLogo.ts",
+      "sha256": "7538ec10d94b4a137965530b19d6095acd59a4fa8c0d117624257c10dfe86adf"
+    },
+    {
+      "file": "utils/teamStatsForPrediction.ts",
+      "sha256": "b0c99f67691ce8e5e07f87a0af93af8a8f5087a12ae076360d7d4a67b774689a"
+    },
+    {
+      "file": "utils/weightCalibration.ts",
+      "sha256": "ff157e024a98fd325ccfb25869064dca1c8cf87d00386acaed478eb3aea932fe"
+    }
+  ],
+  "notes": "Source inspection only. No app execution, production transactions or real user-data mutations. No secrets captured. Hashes describe per-file reads, not an atomic checkout snapshot."
+}

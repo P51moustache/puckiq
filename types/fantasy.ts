@@ -37,9 +37,9 @@ export interface PlayerProjection {
   predSog: number;
   predHits: number;
   predBlocks: number;
-  recommendation: StartSitRec;
-  confidence: string;
-  reason: string;
+  recommendation: StartSitRec | null;
+  confidence: string | null;
+  reason: string | null;
   gameId: number;
   opponentAbbrev: string;
   isHome: boolean;

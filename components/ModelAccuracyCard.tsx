@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { theme } from '../constants/theme';
+import { useArena } from './arena/ArenaProvider';
+import type { ArenaPalette } from '../constants/arenaTheme';
 import { getPickStatsByModel, PickStats, CLASSIC_MODEL_ID } from '../services/pickTracking';
 
 interface ModelAccuracyCardProps {
@@ -11,6 +12,8 @@ interface ModelAccuracyCardProps {
 }
 
 export default function ModelAccuracyCard({ modelId, modelName, compact = false }: ModelAccuracyCardProps) {
+  const { palette: p } = useArena();
+  const styles = React.useMemo(() => createStyles(p), [p]);
   const [stats, setStats] = useState<PickStats | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -35,13 +38,13 @@ export default function ModelAccuracyCard({ modelId, modelName, compact = false 
     if (compact) {
       return (
         <View style={styles.compactLoading}>
-          <ActivityIndicator size="small" color={theme.accent} />
+          <ActivityIndicator size="small" color={p.action} />
         </View>
       );
     }
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="small" color={theme.accent} />
+        <ActivityIndicator size="small" color={p.action} />
         <Text style={styles.loadingText}>Loading accuracy...</Text>
       </View>
     );
@@ -58,7 +61,7 @@ export default function ModelAccuracyCard({ modelId, modelName, compact = false 
     }
     return (
       <View style={styles.emptyContainer}>
-        <Ionicons name="analytics-outline" size={24} color={theme.subtext} />
+        <Ionicons name="analytics-outline" size={24} color={p.muted} />
         <Text style={styles.emptyText}>No real-world picks recorded yet</Text>
       </View>
     );
@@ -97,7 +100,7 @@ export default function ModelAccuracyCard({ modelId, modelName, compact = false 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Ionicons name="trophy-outline" size={20} color={theme.accent} />
+        <Ionicons name="trophy-outline" size={20} color={p.action} />
         <Text style={styles.headerTitle}>Real-World Performance</Text>
       </View>
 
@@ -145,9 +148,9 @@ export default function ModelAccuracyCard({ modelId, modelName, compact = false 
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (p: ArenaPalette) => StyleSheet.create({
   container: {
-    backgroundColor: theme.card,
+    backgroundColor: p.paper,
     borderRadius: 14,
     padding: 16,
     marginBottom: 16,
@@ -161,14 +164,14 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.accent,
+    color: p.link,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   modelName: {
     fontSize: 18,
     fontWeight: '700',
-    color: theme.text,
+    color: p.ink,
     marginBottom: 16,
   },
   statsGrid: {
@@ -179,25 +182,25 @@ const styles = StyleSheet.create({
   statBox: {
     flex: 1,
     minWidth: '45%',
-    backgroundColor: theme.factbox,
+    backgroundColor: p.soft,
     borderRadius: 10,
     padding: 12,
     alignItems: 'center',
   },
   statLabel: {
     fontSize: 12,
-    color: theme.subtext,
+    color: p.muted,
     marginBottom: 4,
   },
   statValue: {
     fontSize: 20,
     fontWeight: '700',
-    color: theme.text,
+    color: p.ink,
   },
   statValueLarge: {
     fontSize: 28,
     fontWeight: '800',
-    color: theme.text,
+    color: p.ink,
   },
   accuracyGood: {
     color: '#10b981',
@@ -210,14 +213,14 @@ const styles = StyleSheet.create({
   },
   pushesNote: {
     fontSize: 12,
-    color: theme.subtext,
+    color: p.muted,
     fontStyle: 'italic',
     marginTop: 12,
     textAlign: 'center',
   },
   // Loading state
   loadingContainer: {
-    backgroundColor: theme.card,
+    backgroundColor: p.paper,
     borderRadius: 14,
     padding: 24,
     alignItems: 'center',
@@ -225,12 +228,12 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 13,
-    color: theme.subtext,
+    color: p.muted,
     marginTop: 8,
   },
   // Empty state
   emptyContainer: {
-    backgroundColor: theme.card,
+    backgroundColor: p.paper,
     borderRadius: 14,
     padding: 24,
     alignItems: 'center',
@@ -238,13 +241,13 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 13,
-    color: theme.subtext,
+    color: p.muted,
     marginTop: 8,
   },
   // Compact styles (for ModelList cards)
   compactContainer: {
     flexDirection: 'row',
-    backgroundColor: theme.factbox,
+    backgroundColor: p.soft,
     borderRadius: 10,
     padding: 10,
     marginBottom: 12,
@@ -256,23 +259,23 @@ const styles = StyleSheet.create({
   },
   compactLabel: {
     fontSize: 10,
-    color: theme.subtext,
+    color: p.muted,
     marginBottom: 2,
   },
   compactValue: {
     fontSize: 14,
     fontWeight: '700',
-    color: theme.text,
+    color: p.ink,
   },
   compactLoading: {
-    backgroundColor: theme.factbox,
+    backgroundColor: p.soft,
     borderRadius: 10,
     padding: 12,
     marginBottom: 12,
     alignItems: 'center',
   },
   compactEmpty: {
-    backgroundColor: theme.factbox,
+    backgroundColor: p.soft,
     borderRadius: 10,
     padding: 10,
     marginBottom: 12,
@@ -280,7 +283,7 @@ const styles = StyleSheet.create({
   },
   compactEmptyText: {
     fontSize: 12,
-    color: theme.subtext,
+    color: p.muted,
     fontStyle: 'italic',
   },
 });

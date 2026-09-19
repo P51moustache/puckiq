@@ -1,4 +1,5 @@
 import { parseEntityId, parseTeamParam } from '../../utils/entityRoutes';
+import { gameOrigin, teamOrigin, teamOriginRoute } from '../../utils/navigationOrigins';
 import { sourceFreshness, applyGameFreshness, fetchArenaGameById, fetchArenaPreview } from '../arenaData';
 import { getPlayerDetail } from '../playerDetail';
 import { formatStatValue, getTeamComparisonData, getTeamComparisonPair } from '../teamComparison';
@@ -16,6 +17,18 @@ test('entity IDs validate scalar parameters without selecting arbitrary array en
  expect(parseTeamParam('EDM')).toBe('EDM');
  expect(parseTeamParam('edm')).toBe('EDM');
  expect(parseTeamParam('XXX')).toBeNull();
+});
+test('navigation origins accept only supported values and provide safe tab fallbacks', () => {
+ expect(gameOrigin('book')).toBe('book');
+ expect(gameOrigin('home')).toBe('home');
+ expect(gameOrigin(['book'])).toBe('link');
+ expect(gameOrigin('unknown')).toBe('link');
+ expect(teamOrigin('following')).toBe('following');
+ expect(teamOrigin('league')).toBe('league');
+ expect(teamOrigin(['following'])).toBeNull();
+ expect(teamOrigin('legacy')).toBeNull();
+ expect(teamOriginRoute('following')).toBe('/(tabs)/following');
+ expect(teamOriginRoute('league')).toBe('/(tabs)/stats');
 });
 test('unknown and stale source age are independent of request time', () => {
  expect(sourceFreshness(null, now).status).toBe('unknown');

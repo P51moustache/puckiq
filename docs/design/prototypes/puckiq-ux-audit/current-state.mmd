@@ -1,0 +1,86 @@
+flowchart LR
+  S01["S01 Launch and onboarding"]
+  S02["S02 Home / current slate"]
+  S03["S03 Home / offseason and preseason"]
+  S04["S04 Home / playoffs"]
+  S05["S05 Game poster front/back"]
+  S06["S06 Game Preview"]
+  S07["S07 Season Book"]
+  S08["S08 Following"]
+  S09["S09 Home-team picker"]
+  S10["S10 Players feed"]
+  S11["S11 Players search"]
+  S12["S12 Player detail"]
+  S13["S13 League standings"]
+  S14["S14 Team detail"]
+  S15["S15 Team compare"]
+  S16["S16 Models"]
+  S17["S17 Model editor"]
+  S18["S18 Duplicate model dialog"]
+  S19["S19 Factor help dialog"]
+  S20["S20 Replay and live preview"]
+  S21["S21 Historical data availability"]
+  S22["S22 Settings"]
+  S23["S23 Subscription options"]
+  S24["S24 Premium gate"]
+  S25["S25 My Team legacy route"]
+  S26["S26 Roster builder"]
+  S27["S27 Unknown route"]
+  S28["S28 Native alerts and external auth/store"]
+  RETURN["Return to invoker; native behavior unverified"]
+  DEFECT["Missing action"]
+  S01 -->|"Choose team"| S09
+  S01 -->|"Guest/auth success"| S02
+  S09 -->|"Choose / close"| RETURN
+  S02 -->|"Flip"| S05
+  S02 -->|"Preview / game row / deep link"| S06
+  S02 -->|"Season book segment"| S07
+  S02 -->|"Season alternative"| S03
+  S02 -->|"Playoff series"| S04
+  S03 -->|"Build watchlist"| S10
+  S03 -->|"Your teams"| S08
+  S03 -->|"Season book"| S07
+  S04 -->|"Select game"| S06
+  S05 -->|"Save"| S07
+  S05 -->|"Preview"| S06
+  S06 -->|"Save"| S07
+  S06 -->|"Home segment"| S02
+  S07 -->|"Open card"| S06
+  S07 -->|"Remove"| S07
+  S08 -->|"Browse players"| S10
+  S08 -->|"Team name"| S14
+  S08 -->|"Follow/unfollow/home"| S08
+  S10 -->|"Search"| S11
+  S10 -->|"Row / card"| S12
+  S10 -->|"Limited leader watch toggle"| S10
+  S10 -->|"Gate action"| S24
+  S11 -->|"First typed character"| S10
+  S11 -->|"Result (if query >=2)"| S12
+  S12 -->|"Close"| RETURN
+  S13 -->|"Team row"| S14
+  S13 -->|"Compare segment"| S15
+  S13 -->|"Models"| S16
+  S14 -->|"Compare"| S15
+  S14 -->|"Back to League"| S13
+  S15 -->|"Clear/select pair"| S15
+  S16 -->|"Edit/new"| S17
+  S16 -->|"Duplicate"| S18
+  S16 -->|"Data banner"| S21
+  S17 -->|"Factor help"| S19
+  S17 -->|"Replay"| S20
+  S17 -->|"Save / cancel"| S16
+  S18 -->|"Duplicate / cancel"| S16
+  S19 -->|"Reset / close"| S17
+  S20 -->|"Data prompt"| S21
+  S21 -->|"Close"| RETURN
+  S22 -->|"Subscription options"| S23
+  S22 -->|"Apple / Google"| S28
+  S22 -->|"Support: missing handler"| DEFECT
+  S22 -->|"Back to Tonight"| S02
+  S23 -->|"Purchase/restore"| S28
+  S23 -->|"Close"| RETURN
+  S24 -->|"Upgrade"| S23
+  S25 -->|"Add/edit roster"| S26
+  S26 -->|"Save / cancel"| S25
+  S27 -->|"Home"| S02
+  S28 -->|"Success / cancel / failure"| RETURN

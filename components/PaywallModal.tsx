@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -11,75 +11,142 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
-import { purchasePackage, restorePurchases, getOfferings } from '../services/subscription';
-import { useSubscription } from './SubscriptionProvider';
+import { useArena } from './arena/ArenaProvider';
+import { arenaType } from './arena/ArenaPrimitives';
+import { proBenefits, proSummary } from '../utils/accountFlowPolicy';
+import {
+  getIntroductoryPriceEligibility,
+  getOfferings,
+  PurchaseResult,
+  purchasePackage,
+  restorePurchases,
+  RestoreResult,
+} from '../services/subscription';
+import { PurchasesOffering, PurchasesPackage } from 'react-native-purchases';
 
 interface PaywallModalProps {
   visible: boolean;
   onClose: () => void;
+  refresh: () => Promise<void>;
   featureHeadline?: string;
+  onHelp?: () => void;
 }
 
-const FEATURES = [
-  {
-    emoji: '\u{1F9E0}',
-    title: 'ML-powered game predictions',
-    subtitle: 'Know who wins before the game',
-    icon: 'analytics' as const,
-  },
-  {
-    emoji: '\u{1F3D2}',
-    title: 'Advanced player analytics',
-    subtitle: 'Never bench the wrong player',
-    icon: 'swap-horizontal' as const,
-  },
-  {
-    emoji: '\u{1F4CA}',
-    title: 'Custom model builder',
-    subtitle: 'Projected points for every player',
-    icon: 'stats-chart' as const,
-  },
-  {
-    emoji: '\u{1F514}',
-    title: 'Ad-free experience',
-    subtitle: 'Lineup locks, injuries, goalies',
-    icon: 'notifications' as const,
-  },
-];
+const FEATURES = proBenefits;
+
+type Plan = 'annual' | 'monthly';
+type OfferingState = 'loading' | 'available' | 'unavailable' | 'error';
+
+function packageForPlan(offering: PurchasesOffering | null, plan: Plan): PurchasesPackage | null {
+  return offering?.[plan] ?? null;
+}
+
+function hasStorePrice(pkg: PurchasesPackage | null): boolean {
+  return Boolean(pkg?.product?.priceString);
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error && error.message
+    ? `Subscription action failed: ${error.message}`
+    : 'Subscription action failed. Please try again.';
+}
+
+function purchaseMessage(result: PurchaseResult): string | null {
+  if (result.status === 'cancelled') return 'Purchase cancelled.';
+  if (result.status === 'no_entitlement') return 'Purchase completed, but Pro is not active yet. Try Restore Purchases.';
+  if (result.status === 'error') return errorMessage(result.error);
+  return null;
+}
+
+function restoreMessage(result: RestoreResult): string | null {
+  if (result.status === 'no_entitlement') return 'No active PuckIQ Pro entitlement was found.';
+  if (result.status === 'error') return errorMessage(result.error);
+  return null;
+}
 
 export default function PaywallModal({
   visible,
   onClose,
+  refresh,
   featureHeadline = 'Unlock Premium Analytics',
+  onHelp,
 }: PaywallModalProps) {
-  const { refresh } = useSubscription();
+  const { palette } = useArena();
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<'annual' | 'monthly'>('annual');
+  const [currentOffering, setCurrentOffering] = useState<PurchasesOffering | null>(null);
+  const [offeringState, setOfferingState] = useState<OfferingState>('loading');
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [introEligibility, setIntroEligibility] = useState<Record<string, boolean>>({});
+  const [offeringAttempt, setOfferingAttempt] = useState(0);
+  const [helpVisible, setHelpVisible] = useState(false);
 
-  const handlePurchase = async (packageType: 'monthly' | 'annual') => {
-    setPurchasing(true);
-    try {
+  useEffect(() => {
+    if (!visible) return undefined;
+    let mounted = true;
+    setOfferingState('loading');
+    setCurrentOffering(null);
+    setFeedback(null);
+    setIntroEligibility({});
+
+    const loadOffering = async () => {
       const offerings = await getOfferings();
-      const currentOffering = offerings?.current;
-      if (!currentOffering) {
-        console.warn('[SUBSCRIPTION] No current offering available');
+      if (!mounted) return;
+      const offering = offerings.current;
+      const supportedPackages = offering
+        ? [offering.monthly, offering.annual].filter(
+          (pkg): pkg is PurchasesPackage => hasStorePrice(pkg),
+        )
+        : [];
+
+      if (!offering || supportedPackages.length === 0) {
+        setCurrentOffering(null);
+        setOfferingState('unavailable');
         return;
       }
 
-      const pkg = packageType === 'monthly'
-        ? currentOffering.monthly
-        : currentOffering.annual;
+      setCurrentOffering(offering);
+      setOfferingState('available');
+      setSelectedPlan((plan) => packageForPlan(offering, plan) && hasStorePrice(packageForPlan(offering, plan))
+        ? plan
+        : hasStorePrice(offering.annual) ? 'annual' : 'monthly');
 
-      if (!pkg) {
-        console.warn(`[SUBSCRIPTION] No ${packageType} package available`);
-        return;
+      const introProductIds = supportedPackages
+        .filter((pkg) => Boolean(pkg.product?.introPrice))
+        .map((pkg) => pkg.product?.identifier || pkg.identifier);
+      if (introProductIds.length > 0) {
+        const eligibility = await getIntroductoryPriceEligibility(introProductIds);
+        if (mounted) setIntroEligibility(eligibility);
       }
+    };
 
-      const success = await purchasePackage(pkg);
-      if (success) {
+    loadOffering().catch((error: unknown) => {
+      if (!mounted) return;
+      setOfferingState('error');
+      setFeedback(errorMessage(error));
+    });
+
+    return () => { mounted = false; };
+  }, [visible, offeringAttempt]);
+
+  const handlePurchase = async (packageType: Plan) => {
+    const pkg = packageForPlan(currentOffering, packageType);
+    if (!pkg || !hasStorePrice(pkg)) {
+      setFeedback(pkg ? 'This subscription price is unavailable.' : 'Subscriptions are currently unavailable.');
+      return;
+    }
+
+    setPurchasing(true);
+    setFeedback(null);
+    try {
+      const result = await purchasePackage(pkg);
+      const message = purchaseMessage(result);
+      if (result.status === 'active') {
         await refresh();
         onClose();
+      } else if (message) {
+        setFeedback(message);
       }
     } finally {
       setPurchasing(false);
@@ -88,11 +155,15 @@ export default function PaywallModal({
 
   const handleRestore = async () => {
     setRestoring(true);
+    setFeedback(null);
     try {
-      const success = await restorePurchases();
-      if (success) {
+      const result = await restorePurchases();
+      const message = restoreMessage(result);
+      if (result.status === 'restored') {
         await refresh();
         onClose();
+      } else if (message) {
+        setFeedback(message);
       }
     } finally {
       setRestoring(false);
@@ -106,22 +177,25 @@ export default function PaywallModal({
       visible={visible}
       animationType="slide"
       transparent={false}
-      onRequestClose={onClose}
+      onRequestClose={() => { if (!isLoading) onClose(); }}
     >
       <LinearGradient
-        colors={['#0a0e1a', '#141829']}
-        style={styles.fullScreen}
+        colors={[palette.page, palette.soft]}
+        style={[styles.fullScreen, { backgroundColor: palette.page }]}
       >
         {/* Close button */}
         <TouchableOpacity
-          style={styles.closeButton}
+          accessibilityRole="button"
+          accessibilityLabel="Close subscription options"
+          accessibilityState={{ disabled: isLoading }}
+          style={[styles.closeButton, { minWidth: 48, minHeight: 48 }]}
           onPress={onClose}
           testID="paywall-close"
           disabled={isLoading}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
-          <View style={styles.closeCircle}>
-            <Ionicons name="close" size={20} color="#f0f4ff" />
+          <View style={[styles.closeCircle, { backgroundColor: palette.paper, borderColor: palette.edge }]}>
+            <Ionicons name="close" size={20} color={palette.ink} />
           </View>
         </TouchableOpacity>
 
@@ -134,31 +208,31 @@ export default function PaywallModal({
           <Animated.View entering={FadeInUp.duration(600).delay(100)} style={styles.headerSection}>
             <View style={styles.proIconContainer}>
               <LinearGradient
-                colors={['#4cc9f0', '#141829']}
+                colors={[palette.hero, palette.hero]}
                 style={styles.proIconGradient}
               >
-                <Ionicons name="diamond" size={28} color="#fff" />
+                <Ionicons name="diamond" size={28} color={palette.heroInk} />
               </LinearGradient>
-              <View style={styles.proIconGlow} />
+              <View style={[styles.proIconGlow, { backgroundColor: palette.soft }]} />
             </View>
 
-            <Text style={styles.proTitle}>PuckIQ Pro</Text>
-            <Text style={styles.headline}>{featureHeadline}</Text>
-            <Text style={styles.subheadline}>
-              Elevate your hockey analytics with machine learning predictions and fantasy tools.
+            <Text style={[styles.proTitle, { color: palette.link, fontFamily: arenaType.body }]}>PuckIQ Pro</Text>
+            <Text style={[styles.headline, { color: palette.ink, fontFamily: arenaType.display }]}>{featureHeadline}</Text>
+            <Text style={[styles.subheadline, { color: palette.muted, fontFamily: arenaType.body }]}>
+              {proSummary}
             </Text>
           </Animated.View>
 
           {/* Feature cards */}
           <Animated.View entering={FadeInUp.duration(600).delay(250)} style={styles.featuresSection}>
-            {FEATURES.map((feat, idx) => (
-              <View key={feat.title} style={styles.featureCard}>
-                <View style={styles.featureIconWrap}>
-                  <Ionicons name={feat.icon} size={20} color="#4cc9f0" />
+            {FEATURES.map((feat) => (
+              <View key={feat.title} style={[styles.featureCard, { backgroundColor: palette.paper, borderColor: palette.edge }]}>
+                <View style={[styles.featureIconWrap, { backgroundColor: palette.soft }]}>
+                  <Ionicons name={feat.icon} size={20} color={palette.link} />
                 </View>
                 <View style={styles.featureTextWrap}>
-                  <Text style={styles.featureTitle}>{feat.title}</Text>
-                  <Text style={styles.featureSubtitle}>{feat.subtitle}</Text>
+                  <Text style={[styles.featureTitle, { color: palette.ink, fontFamily: arenaType.body }]}>{feat.title}</Text>
+                  <Text style={[styles.featureSubtitle, { color: palette.muted, fontFamily: arenaType.body }]}>{feat.subtitle}</Text>
                 </View>
               </View>
             ))}
@@ -166,84 +240,77 @@ export default function PaywallModal({
 
           {/* Pricing cards */}
           <Animated.View entering={FadeInUp.duration(600).delay(400)} style={styles.pricingSection}>
-            <Text style={styles.pricingLabel}>Choose Your Plan</Text>
+            <Text style={[styles.pricingLabel, { color: palette.muted, fontFamily: arenaType.body }]}>Store subscription options</Text>
 
-            <View style={styles.pricingRow}>
-              {/* Monthly */}
-              <TouchableOpacity
-                style={[
-                  styles.pricingCard,
-                  selectedPlan === 'monthly' && styles.pricingCardSelected,
-                ]}
-                onPress={() => setSelectedPlan('monthly')}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.planName}>Monthly</Text>
-                <Text style={styles.planPrice}>$6.99/mo</Text>
+            {offeringState === 'loading' && <Text style={[styles.statusText, { color: palette.muted }]}>Loading store prices…</Text>}
+            {offeringState === 'unavailable' && <Text style={[styles.statusText, { color: palette.muted }]}>Subscriptions are currently unavailable.</Text>}
+            {(offeringState === 'unavailable' || offeringState === 'error') && <>
+              {offeringState === 'error' && <Text style={[styles.statusText, { color: palette.muted }]}>Subscription options could not be loaded.</Text>}
+              <TouchableOpacity accessibilityRole="button" testID="paywall-retry-offering" onPress={() => setOfferingAttempt((attempt) => attempt + 1)} style={[styles.retryButton, { borderColor: palette.action }]}>
+                <Text style={[styles.restoreText, { color: palette.link }]}>Retry store connection</Text>
               </TouchableOpacity>
+            </>}
 
-              {/* Annual (recommended) */}
-              <TouchableOpacity
-                style={[
-                  styles.pricingCard,
-                  styles.pricingCardAnnual,
-                  selectedPlan === 'annual' && styles.pricingCardSelected,
-                ]}
-                onPress={() => setSelectedPlan('annual')}
-                activeOpacity={0.8}
-              >
-                {/* Save badge */}
-                <View style={styles.saveBadge}>
-                  <Text style={styles.saveBadgeText}>Save 40%</Text>
-                </View>
-
-                <Text style={styles.planName}>Annual</Text>
-                <Text style={styles.planPrice}>$49.99/yr</Text>
-                <Text style={styles.planMonthly}>$4.17/mo</Text>
-              </TouchableOpacity>
-            </View>
+            {currentOffering && (
+              <View style={styles.pricingRow}>
+                {(['monthly', 'annual'] as Plan[]).map((plan) => {
+                  const pkg = packageForPlan(currentOffering, plan);
+                  if (!pkg || !hasStorePrice(pkg)) return null;
+                  const introPrice = pkg.product?.introPrice;
+                  return (
+                    <TouchableOpacity
+                      key={plan}
+                      style={[
+                        styles.pricingCard,
+                        { backgroundColor: selectedPlan === plan ? palette.soft : palette.paper, borderColor: selectedPlan === plan ? palette.action : palette.edge },
+                      ]}
+                      accessibilityRole="radio"
+                      accessibilityLabel={`${plan === 'annual' ? 'Annual' : 'Monthly'} plan, ${pkg.product?.priceString}`}
+                      accessibilityState={{ selected: selectedPlan === plan, disabled: isLoading }}
+                      disabled={isLoading}
+                      onPress={() => setSelectedPlan(plan)}
+                      testID={`paywall-${plan}-plan`}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.planName, { color: palette.muted, fontFamily: arenaType.body }]}>{plan === 'annual' ? 'Annual' : 'Monthly'}</Text>
+                      <Text style={[styles.planPrice, { color: palette.ink, fontFamily: arenaType.display }]}>{pkg.product?.priceString || 'Price unavailable'}</Text>
+                      {introPrice
+                        && introEligibility[pkg.product?.identifier || pkg.identifier] === true && (
+                        <Text style={[styles.planMonthly, { color: palette.link }]}>Intro offer: {introPrice.priceString}</Text>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
           </Animated.View>
 
           {/* CTA */}
           <Animated.View entering={FadeInDown.duration(600).delay(550)} style={styles.ctaSection}>
             <TouchableOpacity
               onPress={() => handlePurchase(selectedPlan)}
-              testID={selectedPlan === 'annual' ? 'paywall-annual' : 'paywall-monthly'}
-              disabled={isLoading}
+              testID="paywall-purchase"
+              disabled={isLoading || offeringState !== 'available' || !hasStorePrice(packageForPlan(currentOffering, selectedPlan))}
               activeOpacity={0.85}
               style={styles.ctaTouchable}
+              accessibilityRole="button"
+              accessibilityLabel={`Subscribe with ${selectedPlan} plan`}
+              accessibilityState={{ disabled: isLoading || offeringState !== 'available', busy: purchasing }}
             >
-              <LinearGradient
-                colors={['#4cc9f0', '#f72585']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.ctaGradient}
-              >
+              <View style={[styles.ctaGradient, { backgroundColor: palette.action }]}>
                 {purchasing ? (
-                  <ActivityIndicator color="#fff" size="small" />
+                  <ActivityIndicator color={palette.actionInk} size="small" />
                 ) : (
-                  <Text style={styles.ctaText}>Start 7-Day Free Trial</Text>
+                  <Text style={[styles.ctaText, { color: palette.actionInk }]}>Subscribe</Text>
                 )}
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
+            <TouchableOpacity accessibilityRole="button" style={styles.restoreButton} onPress={onHelp ?? (() => setHelpVisible((value) => !value))} testID="paywall-help"><Text style={[styles.restoreText, { color: palette.link }]}>Purchase help</Text></TouchableOpacity>
+            {helpVisible && <Text style={[styles.statusText, { color: palette.muted }]}>Retry store connection for missing prices. Use Restore Purchases for an existing subscription. A cancelled purchase does not activate Pro.</Text>}
 
-            {/* Hidden testID buttons for purchase flows */}
-            <View style={styles.hiddenButtons}>
-              <TouchableOpacity
-                testID="paywall-annual"
-                onPress={() => handlePurchase('annual')}
-                disabled={isLoading}
-              />
-              <TouchableOpacity
-                testID="paywall-monthly"
-                onPress={() => handlePurchase('monthly')}
-                disabled={isLoading}
-              />
-            </View>
+            {feedback && <Text style={[styles.feedbackText, { color: palette.ink }]} accessibilityRole="alert">{feedback}</Text>}
 
-            <Text style={styles.trialSubtext}>
-              {selectedPlan === 'annual' ? '$49.99/yr' : '$6.99/mo'} after free trial. Cancel anytime.
-            </Text>
+            <Text style={[styles.trialSubtext, { color: palette.muted }]}>Store terms apply.</Text>
 
             {/* Restore */}
             <TouchableOpacity
@@ -251,11 +318,14 @@ export default function PaywallModal({
               onPress={handleRestore}
               testID="paywall-restore"
               disabled={isLoading}
+              accessibilityRole="button"
+              accessibilityLabel="Restore purchases"
+              accessibilityState={{ disabled: isLoading, busy: restoring }}
             >
               {restoring ? (
-                <ActivityIndicator color="#8b95b0" size="small" />
+                <ActivityIndicator color={palette.muted} size="small" />
               ) : (
-                <Text style={styles.restoreText}>Restore Purchases</Text>
+                <Text style={[styles.restoreText, { color: palette.link }]}>Restore Purchases</Text>
               )}
             </TouchableOpacity>
           </Animated.View>
@@ -402,6 +472,7 @@ const styles = StyleSheet.create({
   },
   pricingCard: {
     flex: 1,
+    minHeight: 96,
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: 16,
     borderWidth: 1.5,
@@ -409,34 +480,9 @@ const styles = StyleSheet.create({
     padding: 18,
     alignItems: 'center',
   },
-  pricingCardAnnual: {
-    borderColor: '#06d6a0',
-    shadowColor: '#06d6a0',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
-  },
   pricingCardSelected: {
     borderColor: '#4cc9f0',
     backgroundColor: 'rgba(76, 201, 240, 0.12)',
-  },
-  saveBadge: {
-    position: 'absolute',
-    top: -10,
-    right: -1,
-    backgroundColor: '#06d6a0',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderTopRightRadius: 16,
-  },
-  saveBadgeText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
   planName: {
     fontSize: 12,
@@ -467,9 +513,10 @@ const styles = StyleSheet.create({
   },
   ctaTouchable: {
     width: '100%',
+    minHeight: 48,
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#f72585',
+    shadowColor: '#4cc9f0',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.4,
     shadowRadius: 16,
@@ -486,10 +533,12 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.3,
   },
-  hiddenButtons: {
-    height: 0,
-    overflow: 'hidden',
-    opacity: 0,
+  statusText: {
+    color: '#8b95b0',
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 19,
+    paddingHorizontal: 16,
   },
   trialSubtext: {
     color: '#8b95b0',
@@ -498,7 +547,16 @@ const styles = StyleSheet.create({
     marginTop: 12,
     textAlign: 'center',
   },
+  feedbackText: {
+    color: '#f0f4ff',
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 12,
+    textAlign: 'center',
+  },
   restoreButton: {
+    minHeight: 48,
+    justifyContent: 'center',
     paddingVertical: 12,
     marginTop: 4,
   },
@@ -507,4 +565,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textDecorationLine: 'underline',
   },
+  retryButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderRadius: 10, marginTop: 12, paddingHorizontal: 18 },
 });

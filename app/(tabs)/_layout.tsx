@@ -12,11 +12,11 @@ export default function TabLayout() {
   const icon = (name: React.ComponentProps<typeof Ionicons>['name']) => function TabIcon({ color, focused }: { color: ColorValue; focused: boolean }) {
     return <View style={{ minWidth: 48, alignItems: 'center', paddingVertical: 4, borderRadius: 9, backgroundColor: focused ? p.soft : 'transparent' }}><Ionicons name={name} size={23} color={color} /></View>;
   };
-  return <Tabs screenOptions={{ headerShown: false, tabBarButton: HapticTab, tabBarActiveTintColor: p.link, tabBarInactiveTintColor: p.muted, tabBarLabelStyle: { fontFamily: 'Arena-Sans', fontSize: 10, fontWeight: '700' }, tabBarStyle: { backgroundColor: p.paper, borderTopColor: p.edge, borderTopWidth: 1.5, paddingTop: 7 } }}>
-    <Tabs.Screen name="index" options={{ title: 'Tonight', tabBarIcon: icon('ticket-outline') }} />
-    <Tabs.Screen name="following" options={{ title: 'Following', tabBarIcon: icon('flag-outline') }} />
-    <Tabs.Screen name="players" options={{ title: 'Players', tabBarIcon: icon('people-outline') }} />
-    <Tabs.Screen name="stats" options={{ title: 'League', tabBarIcon: icon('podium-outline') }} />
+  return <Tabs backBehavior="history" screenOptions={{ headerShown: false, tabBarButton: HapticTab, tabBarActiveTintColor: p.link, tabBarInactiveTintColor: p.muted, tabBarLabelStyle: { fontFamily: 'Arena-Sans', fontSize: 10, fontWeight: '700' }, tabBarStyle: { backgroundColor: p.paper, borderTopColor: p.edge, borderTopWidth: 1.5, paddingTop: 7 } }}>
+    <Tabs.Screen name="index" options={{ title: 'Home', tabBarAccessibilityLabel: 'Home, tab 1 of 4', tabBarIcon: icon('ticket-outline') }} />
+    <Tabs.Screen name="following" options={{ title: 'Following', tabBarAccessibilityLabel: 'Following, tab 2 of 4', tabBarIcon: icon('flag-outline') }} />
+    <Tabs.Screen name="players" options={{ title: 'Players', tabBarAccessibilityLabel: 'Players, tab 3 of 4', tabBarIcon: icon('people-outline') }} />
+    <Tabs.Screen name="stats" options={{ title: 'League', tabBarAccessibilityLabel: 'League, tab 4 of 4', tabBarIcon: icon('podium-outline') }} />
     <Tabs.Screen name="hub" options={{ href: null }} />
     <Tabs.Screen name="myteam" options={{ href: null }} />
     <Tabs.Screen name="models" options={{ href: null }} />

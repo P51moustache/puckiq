@@ -14,7 +14,8 @@ import {
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { theme } from '../../constants/theme';
+import { useArena } from '../arena/ArenaProvider';
+import type { ArenaPalette } from '../../constants/arenaTheme';
 import type {
   ConfidenceWeights,
   PlayerWeights,
@@ -71,6 +72,8 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 export default function LivePreview({ weights }: LivePreviewProps) {
+  const { palette: p } = useArena();
+  const styles = useMemo(() => createStyles(p), [p]);
   const [games, setGames] = useState<GameData[]>([]);
   const [standings, setStandings] = useState<StandingsData | null>(null);
   const [predictions, setPredictions] = useState<PredictionWithBreakdown[]>([]);
@@ -327,7 +330,7 @@ export default function LivePreview({ weights }: LivePreviewProps) {
   // Render empty state
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <Ionicons name="calendar-outline" size={48} color={theme.subtext} />
+      <Ionicons name="calendar-outline" size={48} color={p.muted} />
       <Text style={styles.emptyTitle}>No Games Today</Text>
       <Text style={styles.emptyDescription}>
         Check back when games are scheduled to see live predictions.
@@ -339,7 +342,7 @@ export default function LivePreview({ weights }: LivePreviewProps) {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={theme.accent} />
+        <ActivityIndicator size="large" color={p.action} />
         <Text style={styles.loadingText}>Loading today's games...</Text>
       </View>
     );
@@ -361,7 +364,7 @@ export default function LivePreview({ weights }: LivePreviewProps) {
       <View style={styles.header}>
         <Text style={styles.title}>Live Preview</Text>
         {predicting && (
-          <ActivityIndicator size="small" color={theme.accent} style={styles.predictingIndicator} />
+          <ActivityIndicator size="small" color={p.action} style={styles.predictingIndicator} />
         )}
       </View>
 
@@ -370,6 +373,9 @@ export default function LivePreview({ weights }: LivePreviewProps) {
         style={styles.toggleContainer}
         onPress={toggleClassicComparison}
         activeOpacity={0.7}
+        accessibilityRole="switch"
+        accessibilityLabel="Compare with Classic local model"
+        accessibilityState={{ checked: showClassicComparison }}
       >
         <View style={[
           styles.toggleSwitch,
@@ -400,9 +406,9 @@ export default function LivePreview({ weights }: LivePreviewProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (p: ArenaPalette) => StyleSheet.create({
   container: {
-    backgroundColor: theme.card,
+    backgroundColor: p.paper,
     borderRadius: 14,
     overflow: 'hidden',
   },
@@ -417,13 +423,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: '700',
-    color: theme.text,
+    color: p.ink,
   },
   predictingIndicator: {
     marginLeft: 8,
   },
   loadingContainer: {
-    backgroundColor: theme.card,
+    backgroundColor: p.paper,
     borderRadius: 14,
     padding: 32,
     alignItems: 'center',
@@ -432,10 +438,10 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: theme.subtext,
+    color: p.muted,
   },
   errorContainer: {
-    backgroundColor: theme.card,
+    backgroundColor: p.paper,
     borderRadius: 14,
     padding: 32,
     alignItems: 'center',
@@ -457,18 +463,18 @@ const styles = StyleSheet.create({
     width: 44,
     height: 24,
     borderRadius: 12,
-    backgroundColor: theme.subtle,
+    backgroundColor: p.soft,
     justifyContent: 'center',
     paddingHorizontal: 2,
   },
   toggleSwitchActive: {
-    backgroundColor: theme.accent,
+    backgroundColor: p.action,
   },
   toggleKnob: {
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: theme.subtext,
+    backgroundColor: p.muted,
   },
   toggleKnobActive: {
     backgroundColor: '#ffffff',
@@ -477,13 +483,13 @@ const styles = StyleSheet.create({
   toggleLabel: {
     marginLeft: 10,
     fontSize: 14,
-    color: theme.subtext,
+    color: p.muted,
   },
   gamesList: {
     maxHeight: 400,
   },
   gameCard: {
-    backgroundColor: theme.factbox,
+    backgroundColor: p.soft,
     marginHorizontal: 12,
     marginBottom: 10,
     borderRadius: 10,
@@ -502,14 +508,14 @@ const styles = StyleSheet.create({
   teamAbbrev: {
     fontSize: 18,
     fontWeight: '700',
-    color: theme.text,
+    color: p.ink,
   },
   predictedLoser: {
     opacity: 0.5,
   },
   atSymbol: {
     fontSize: 14,
-    color: theme.subtext,
+    color: p.muted,
     marginHorizontal: 8,
   },
   tierBadge: {
@@ -531,19 +537,19 @@ const styles = StyleSheet.create({
   },
   predictedWinnerLabel: {
     fontSize: 12,
-    color: theme.subtext,
+    color: p.muted,
     marginRight: 6,
   },
   predictedWinner: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.accent,
+    color: p.link,
     marginRight: 8,
   },
   winProbability: {
     fontSize: 14,
     fontWeight: '700',
-    color: theme.text,
+    color: p.ink,
   },
   classicComparison: {
     flexDirection: 'row',
@@ -552,18 +558,18 @@ const styles = StyleSheet.create({
   },
   classicLabel: {
     fontSize: 12,
-    color: theme.subtext,
+    color: p.muted,
     marginRight: 6,
   },
   classicWinner: {
     fontSize: 13,
     fontWeight: '500',
-    color: theme.subtext,
+    color: p.muted,
     marginRight: 8,
   },
   classicProbability: {
     fontSize: 13,
-    color: theme.subtext,
+    color: p.muted,
   },
   differentPickBadge: {
     backgroundColor: '#f59e0b',
@@ -575,17 +581,17 @@ const styles = StyleSheet.create({
   differentPickText: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#ffffff',
+    color: '#111820',
   },
   factorsContainer: {
     borderTopWidth: 1,
-    borderTopColor: theme.subtle,
+    borderTopColor: p.edge,
     paddingTop: 10,
   },
   factorsTitle: {
     fontSize: 11,
     fontWeight: '600',
-    color: theme.subtext,
+    color: p.muted,
     marginBottom: 6,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -599,7 +605,7 @@ const styles = StyleSheet.create({
   factorName: {
     flex: 1,
     fontSize: 12,
-    color: theme.text,
+    color: p.ink,
   },
   factorValues: {
     flexDirection: 'row',
@@ -608,17 +614,17 @@ const styles = StyleSheet.create({
   },
   factorValue: {
     fontSize: 11,
-    color: theme.subtext,
+    color: p.muted,
     minWidth: 40,
     textAlign: 'center',
   },
   favoredValue: {
-    color: theme.accent,
+    color: p.link,
     fontWeight: '600',
   },
   factorSeparator: {
     fontSize: 10,
-    color: theme.subtext,
+    color: p.muted,
     marginHorizontal: 4,
   },
   factorImpact: {
@@ -626,7 +632,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     minWidth: 36,
     textAlign: 'right',
-    color: theme.subtext,
+    color: p.muted,
   },
   positiveImpact: {
     color: '#10b981',
@@ -641,12 +647,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: theme.text,
+    color: p.ink,
     marginTop: 12,
   },
   emptyDescription: {
     fontSize: 13,
-    color: theme.subtext,
+    color: p.muted,
     textAlign: 'center',
     marginTop: 6,
   },

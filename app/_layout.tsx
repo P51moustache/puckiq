@@ -3,6 +3,8 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
+import { Platform, Pressable, Text, View } from 'react-native';
+import Constants from 'expo-constants';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -10,8 +12,8 @@ import { AnalyticsProvider } from '../components/analytics/AnalyticsProvider';
 import { AuthProvider, useAuthContext } from '../components/auth/AuthProvider';
 import { SubscriptionProvider } from '../components/SubscriptionProvider';
 import { ArenaOnboarding } from '../components/arena/ArenaOnboarding';
-import { initializeNotifications } from '../services/notifications';
 import { ArenaProvider, useArena } from '../components/arena/ArenaProvider';
+import { initializeNotificationsIfSupported } from '../utils/runtimeCapabilities';
 
 const ONBOARDING_KEY = 'puckiq_onboarding_complete';
 
@@ -19,14 +21,22 @@ const ONBOARDING_KEY = 'puckiq_onboarding_complete';
 SplashScreen.preventAutoHideAsync();
 
 function AppContent() {
+  const { palette } = useArena();
   const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
-  const { signInWithApple, signInWithGoogle } = useAuthContext();
+  const [onboardingError, setOnboardingError] = useState(false);
+  const [onboardingAttempt, setOnboardingAttempt] = useState(0);
+  const { error: authError, signInWithApple, signInWithGoogle } = useAuthContext();
 
   useEffect(() => {
+    let mounted = true;
+    setOnboardingError(false);
     AsyncStorage.getItem(ONBOARDING_KEY).then((value) => {
-      setOnboardingComplete(value === 'true');
+      if (mounted) setOnboardingComplete(value === 'true');
+    }).catch(() => {
+      if (mounted) setOnboardingError(true);
     });
-  }, []);
+    return () => { mounted = false; };
+  }, [onboardingAttempt]);
 
   const handleOnboardingComplete = useCallback(async () => {
     await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
@@ -34,6 +44,9 @@ function AppContent() {
   }, []);
 
   // Still loading onboarding state
+  if (onboardingError) {
+    return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 14, backgroundColor: palette.page }}><Text accessibilityRole="header" style={{ fontFamily: 'Arena-Display', fontSize: 36, color: palette.ink }}>COULD NOT START</Text><Text accessibilityRole="alert" style={{ textAlign: 'center', color: palette.muted }}>PuckIQ could not read this device’s setup. Your saved data has not been changed.</Text><Pressable accessibilityRole="button" accessibilityLabel="Retry device setup" testID="retry-onboarding-read" onPress={() => setOnboardingAttempt((attempt) => attempt + 1)} style={{ minHeight: 48, paddingHorizontal: 20, justifyContent: 'center', backgroundColor: palette.action, borderColor: palette.frame, borderWidth: 2, borderRadius: 8 }}><Text style={{ color: palette.actionInk }}>Try again</Text></Pressable></View>;
+  }
   if (onboardingComplete === null) {
     return null;
   }
@@ -44,6 +57,7 @@ function AppContent() {
         onComplete={handleOnboardingComplete}
         onApple={signInWithApple}
         onGoogle={signInWithGoogle}
+        authError={authError}
       />
     );
   }
@@ -84,7 +98,11 @@ export default function RootLayout() {
     if (loaded) {
       SplashScreen.hideAsync();
       // Initialize notifications (schedule daily results if enabled)
-      initializeNotifications().catch((error) => {
+      initializeNotificationsIfSupported(
+        Platform.OS,
+        Constants.appOwnership,
+        () => import('../services/notifications'),
+      ).catch((error) => {
         console.log('[Notifications] Failed to initialize:', error);
       });
     }

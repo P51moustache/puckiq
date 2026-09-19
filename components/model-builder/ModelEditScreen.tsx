@@ -3,7 +3,7 @@
  * Full screen modal for creating and editing prediction models
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { forwardRef, useState, useCallback, useEffect, useImperativeHandle, useRef } from 'react';
 import {
   View,
   Text,
@@ -19,13 +19,16 @@ import {
   UIManager,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { theme } from '../../constants/theme';
 import type { PredictionModel, ConfidenceWeights, PlayerWeights, ModelBacktestResults } from '../../types/predictions';
 import { saveModel, createDefaultModel } from '../../services/modelStorage';
 import FactorEditor from './FactorEditor';
 import LivePreview from './LivePreview';
 import BacktestPanel from './BacktestPanel';
 import DataSeedingModal from '../DataSeedingModal';
+import type { ReplayDateRange } from '../../services/replayAvailability';
+import { useArena } from '../arena/ArenaProvider';
+import { arenaType } from '../../constants/arenaTypography';
+import type { ArenaPalette } from '../../constants/arenaTheme';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -41,6 +44,10 @@ interface ModelEditScreenProps {
   onCancel: () => void;
 }
 
+export interface ModelEditScreenHandle {
+  requestClose: () => void;
+}
+
 // Get default weights from Classic model
 const getDefaultWeights = (): AllWeights => {
   const classic = createDefaultModel();
@@ -50,7 +57,9 @@ const getDefaultWeights = (): AllWeights => {
   };
 };
 
-export default function ModelEditScreen({ model, onSave, onCancel }: ModelEditScreenProps) {
+const ModelEditScreen = forwardRef<ModelEditScreenHandle, ModelEditScreenProps>(function ModelEditScreen({ model, onSave, onCancel }, ref) {
+  const { palette: p } = useArena();
+  const styles = React.useMemo(() => createStyles(p), [p]);
   // Is this a new model or editing existing?
   const isNewModel = !model;
 
@@ -75,7 +84,10 @@ export default function ModelEditScreen({ model, onSave, onCancel }: ModelEditSc
     model?.backtestResults
   );
   const [seedingModalVisible, setSeedingModalVisible] = useState(false);
+  const [replayCheckRange, setReplayCheckRange] = useState<ReplayDateRange | null>(null);
+  const [replayAvailabilityVersion, setReplayAvailabilityVersion] = useState(0);
   const [scrollEnabled, setScrollEnabled] = useState(true);
+  const saveInFlightRef = useRef(false);
 
   // Track if weights have changed from initial state
   const initialWeightsRef = React.useRef<AllWeights>(weights);
@@ -130,7 +142,8 @@ export default function ModelEditScreen({ model, onSave, onCancel }: ModelEditSc
   }, []);
 
   // Handle seed prompt from BacktestPanel
-  const handleSeedPrompt = useCallback(() => {
+  const handleSeedPrompt = useCallback((range: ReplayDateRange) => {
+    setReplayCheckRange(range);
     setSeedingModalVisible(true);
   }, []);
 
@@ -144,10 +157,10 @@ export default function ModelEditScreen({ model, onSave, onCancel }: ModelEditSc
   const handleCancel = useCallback(() => {
     if (hasUnsavedChanges) {
       Alert.alert(
-        'Discard Changes?',
+        'Discard changes?',
         'You have unsaved changes. Are you sure you want to discard them?',
         [
-          { text: 'Keep Editing', style: 'cancel' },
+          { text: 'Keep editing', style: 'cancel' },
           { text: 'Discard', style: 'destructive', onPress: onCancel },
         ]
       );
@@ -156,14 +169,18 @@ export default function ModelEditScreen({ model, onSave, onCancel }: ModelEditSc
     }
   }, [hasUnsavedChanges, onCancel]);
 
+  useImperativeHandle(ref, () => ({ requestClose: handleCancel }), [handleCancel]);
+
   // Handle save
   const handleSave = useCallback(async () => {
+    if (saveInFlightRef.current) return;
     // Validate name
     if (!validateName(name)) {
       return;
     }
 
     try {
+      saveInFlightRef.current = true;
       setSaving(true);
 
       // Build model object
@@ -198,11 +215,12 @@ export default function ModelEditScreen({ model, onSave, onCancel }: ModelEditSc
     } catch (error) {
       console.error('[MODEL_EDIT] Error saving model:', error);
       Alert.alert(
-        'Save Failed',
+        'Save failed',
         'Failed to save the model. Please try again.',
         [{ text: 'OK' }]
       );
     } finally {
+      saveInFlightRef.current = false;
       setSaving(false);
     }
   }, [name, weights, model, backtestResults, validateName, onSave]);
@@ -212,30 +230,34 @@ export default function ModelEditScreen({ model, onSave, onCancel }: ModelEditSc
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: p.page }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: p.frame, borderBottomColor: p.action }]}>
         <TouchableOpacity
           style={styles.headerButton}
           onPress={handleCancel}
           disabled={saving}
+          accessibilityRole="button"
+          accessibilityLabel="Cancel model editing"
         >
-          <Text style={styles.cancelText}>Cancel</Text>
+          <Text style={[styles.cancelText, { color: p.frameInk, fontFamily: arenaType.body }]}>Cancel</Text>
         </TouchableOpacity>
 
-        <Text style={styles.headerTitle}>{title}</Text>
+        <Text style={[styles.headerTitle, { color: p.frameInk, fontFamily: arenaType.display }]}>{title}</Text>
 
         <TouchableOpacity
-          style={[styles.headerButton, styles.saveButton, saving && styles.saveButtonDisabled]}
+          style={[styles.headerButton, styles.saveButton, { backgroundColor: p.action }, saving && styles.saveButtonDisabled]}
           onPress={handleSave}
           disabled={saving || !name.trim()}
+          accessibilityRole="button"
+          accessibilityLabel="Save model"
         >
           {saving ? (
-            <ActivityIndicator size="small" color="#ffffff" />
+            <ActivityIndicator size="small" color={p.actionInk} />
           ) : (
-            <Text style={[styles.saveText, !name.trim() && styles.saveTextDisabled]}>
+            <Text style={[styles.saveText, { color: p.actionInk, fontFamily: arenaType.body }, !name.trim() && styles.saveTextDisabled]}>
               Save
             </Text>
           )}
@@ -258,11 +280,12 @@ export default function ModelEditScreen({ model, onSave, onCancel }: ModelEditSc
             onChangeText={handleNameChange}
             onBlur={handleNameBlur}
             placeholder="Enter model name..."
-            placeholderTextColor={theme.subtext}
+            placeholderTextColor={p.muted}
             maxLength={50}
             autoCapitalize="words"
             autoCorrect={false}
             editable={!saving}
+            accessibilityLabel="Model name"
           />
           {nameError && (
             <Text style={styles.errorText}>{nameError}</Text>
@@ -283,12 +306,15 @@ export default function ModelEditScreen({ model, onSave, onCancel }: ModelEditSc
             style={styles.sectionHeader}
             onPress={togglePreview}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`Local preview, ${previewExpanded ? 'expanded' : 'collapsed'}`}
+            accessibilityState={{ expanded: previewExpanded }}
           >
             <View style={styles.sectionHeaderLeft}>
               <Ionicons
                 name={previewExpanded ? 'chevron-down' : 'chevron-forward'}
                 size={20}
-                color={theme.accent}
+                color={p.action}
               />
               <Text style={styles.sectionTitle}>Live Preview</Text>
             </View>
@@ -314,6 +340,7 @@ export default function ModelEditScreen({ model, onSave, onCancel }: ModelEditSc
               Test your model against historical game results
             </Text>
             <BacktestPanel
+              key={replayAvailabilityVersion}
               model={{
                 id: model?.id || '',
                 name: name || 'Untitled Model',
@@ -367,15 +394,19 @@ export default function ModelEditScreen({ model, onSave, onCancel }: ModelEditSc
       <DataSeedingModal
         visible={seedingModalVisible}
         onClose={() => setSeedingModalVisible(false)}
+        range={replayCheckRange ?? { start: new Date().toISOString().slice(0, 10), end: new Date().toISOString().slice(0, 10) }}
+        onSeedingComplete={() => setReplayAvailabilityVersion(version => version + 1)}
       />
     </KeyboardAvoidingView>
   );
-}
+});
 
-const styles = StyleSheet.create({
+export default ModelEditScreen;
+
+const createStyles = (p: ArenaPalette) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.background,
+    backgroundColor: p.page,
   },
   header: {
     flexDirection: 'row',
@@ -384,26 +415,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: Platform.OS === 'ios' ? 60 : 16,
     paddingBottom: 16,
-    backgroundColor: theme.card,
+    backgroundColor: p.frame,
     borderBottomWidth: 1,
-    borderBottomColor: theme.subtle,
+    borderBottomColor: p.action,
   },
   headerButton: {
     paddingVertical: 8,
     paddingHorizontal: 4,
     minWidth: 60,
+    minHeight: 48,
+    justifyContent: 'center',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: theme.text,
+    color: p.frameInk,
   },
   cancelText: {
     fontSize: 16,
-    color: theme.accent,
+    color: p.frameInk,
   },
   saveButton: {
-    backgroundColor: theme.accent,
+    backgroundColor: p.action,
     borderRadius: 8,
     paddingHorizontal: 16,
     alignItems: 'center',
@@ -442,23 +475,23 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: theme.text,
+    color: p.ink,
     marginBottom: 8,
   },
   sectionDescription: {
     fontSize: 13,
-    color: theme.subtext,
+    color: p.muted,
     marginBottom: 12,
   },
   nameInput: {
-    backgroundColor: theme.card,
+    backgroundColor: p.paper,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
-    color: theme.text,
+    color: p.ink,
     borderWidth: 1,
-    borderColor: theme.subtle,
+    borderColor: p.edge,
   },
   nameInputError: {
     borderColor: '#ef4444',
@@ -476,29 +509,29 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: theme.card,
+    backgroundColor: p.paper,
     borderRadius: 8,
   },
   classicBadgeText: {
     fontSize: 12,
-    color: theme.subtext,
+    color: p.muted,
     fontStyle: 'italic',
   },
   previewBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    backgroundColor: theme.subtle,
+    backgroundColor: p.soft,
     borderRadius: 6,
   },
   previewBadgeText: {
     fontSize: 11,
-    color: theme.subtext,
+    color: p.muted,
   },
   previewContainer: {
     marginTop: 4,
   },
   factorEditorContainer: {
-    backgroundColor: theme.card,
+    backgroundColor: p.paper,
     borderRadius: 14,
     overflow: 'hidden',
   },

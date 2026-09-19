@@ -1,0 +1,11 @@
+{
+  "teams": 32,
+  "threshold": 4.5,
+  "failedPairs": [
+    {
+      "team": "ANA",
+      "pair": "link/paper",
+      "contrast": 4.45
+    }
+  ]
+}

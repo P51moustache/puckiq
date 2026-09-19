@@ -328,6 +328,25 @@ def read_player_season_stats(
 
 
 @_retry
+def read_player_identities(client: Client, player_ids: list[int]) -> list[dict[str, Any]]:
+    """Read stable player identities without using current team membership."""
+    if not player_ids:
+        return []
+    all_rows: list[dict[str, Any]] = []
+    batch_size = 200
+    for i in range(0, len(player_ids), batch_size):
+        batch = player_ids[i:i + batch_size]
+        response = (
+            client.table("players")
+            .select("id,full_name,first_name,last_name")
+            .in_("id", batch)
+            .execute()
+        )
+        all_rows.extend(response.data or [])
+    return all_rows
+
+
+@_retry
 def read_recent_games(
     client: Client, team_abbrev: str, before_date: str, limit: int = 10, season: int | None = None
 ) -> list[dict[str, Any]]:

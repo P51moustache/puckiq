@@ -36,13 +36,15 @@ import { useAnalytics } from '../../hooks/useAnalytics';
 import { getWaiverWireRecommendations } from '../../services/fantasyProjections';
 import type { PlayerProjection as FantasyPlayerProjection } from '../../types/fantasy';
 import {
-  searchPlayers,
   type PlayerSearchResult,
 } from '../../services/playerLeaders';
+import { PlayerSearchSession } from '../../services/playerSearchSession';
+import { searchActivePlayers as searchPlayersWithFailures } from '../../services/playerSearch';
 import {
-  getTrendingPlayers,
-  getLeagueLeaders,
+  getTrendingPlayersStrict,
+  getLeagueLeadersStrict,
   getPlayerProjections,
+  getPlayersPlayingTonightStrict,
   getLeaderTrends,
   getTrendingGoalies,
   batchGetHitRates,
@@ -93,6 +95,7 @@ export default function PlayersScreen() {
   const [trendingGoalies, setTrendingGoalies] = useState<TrendingGoalie[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [feedError, setFeedError] = useState<string | null>(null);
 
   // State — hit rates (loaded per-player)
   const [hitRates, setHitRates] = useState<Map<number, HitRateResult>>(new Map());
@@ -104,8 +107,10 @@ export default function PlayersScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<PlayerSearchResult[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [isSearchActive, setIsSearchActive] = useState(false);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchSessionRef = useRef(new PlayerSearchSession<PlayerSearchResult>((query) => searchPlayersWithFailures(query, 20)));
 
   // State — player detail modal
   const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null);
@@ -125,9 +130,10 @@ export default function PlayersScreen() {
   // ---------------------------------------------------------------------------
 
   const loadTrendingData = useCallback(async () => {
+    setFeedError(null);
     try {
       // Load season-scoped leaders before the secondary sections.
-      const rawLeaders = await getLeagueLeaders(statCategory, 10);
+      const rawLeaders = await getLeagueLeadersStrict(statCategory, 10);
       // Deduplicate: keep first (highest-stat) occurrence per player
       const seenIds = new Set<number>();
       const leaders = rawLeaders.filter(p => {
@@ -139,8 +145,8 @@ export default function PlayersScreen() {
 
       // Step 2: Trending + goalies (sequential to avoid VIEW query overload)
       const [up, down, goalies] = await Promise.all([
-        getTrendingPlayers('up', 10),
-        getTrendingPlayers('down', 5),
+        getTrendingPlayersStrict('up', 10),
+        getTrendingPlayersStrict('down', 5),
         getTrendingGoalies('up', 3),
       ]);
       setTrendingUp(up);
@@ -148,6 +154,7 @@ export default function PlayersScreen() {
       setTrendingGoalies(goalies);
 
       // Step 3: Projections (calls getPlayersPlayingTonight which also hits the VIEW)
+      await getPlayersPlayingTonightStrict(30);
       const tonight = await getPlayerProjections(15);
       setProjections(tonight);
 
@@ -180,6 +187,7 @@ export default function PlayersScreen() {
       }
     } catch (err) {
       console.error('[PLAYERS TAB] Error loading trending data:', err);
+      setFeedError('Player data could not be loaded. Check your connection and try again.');
     }
   }, [statCategory]);
 
@@ -230,10 +238,11 @@ export default function PlayersScreen() {
   // Debounced search
   const handleSearchChange = useCallback((text: string) => {
     setSearchQuery(text);
+    setSearchError(null);
+    searchSessionRef.current.cancel();
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
 
     if (text.trim().length < 2) {
-      setIsSearchActive(false);
       setSearchResults([]);
       setSearchLoading(false);
       return;
@@ -244,13 +253,12 @@ export default function PlayersScreen() {
 
     searchTimerRef.current = setTimeout(async () => {
       try {
-        const results = await searchPlayers(text, 20);
-        setSearchResults(results);
-      } catch {
-        setSearchResults([]);
-      } finally {
+        const outcome = await searchSessionRef.current.search(text);
+        if (outcome.kind === 'stale') return;
+        if (outcome.kind === 'success') setSearchResults(outcome.results);
+        else setSearchError('Search could not be completed. Check your connection and retry.');
         setSearchLoading(false);
-      }
+      } catch { setSearchError('Search could not be completed. Check your connection and retry.'); setSearchLoading(false); }
     }, SEARCH_DEBOUNCE_MS);
   }, []);
 
@@ -259,6 +267,8 @@ export default function PlayersScreen() {
     setSearchResults([]);
     setIsSearchActive(false);
     setSearchLoading(false);
+    setSearchError(null);
+    searchSessionRef.current.cancel();
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
   }, []);
 
@@ -271,6 +281,8 @@ export default function PlayersScreen() {
       style={[styles.searchRow, { backgroundColor: p.paper, borderColor: p.edge }]}
       onPress={() => handlePlayerTap(item.playerId)}
       testID={`search-result-${item.playerId}`}
+      accessibilityRole="button"
+      accessibilityLabel={`Open ${item.fullName || `${item.firstName} ${item.lastName}`} player detail`}
     >
       <Image
         source={{ uri: item.headshotUrl }}
@@ -327,7 +339,7 @@ export default function PlayersScreen() {
               autoFocus
               testID="player-search-input-active"
             />
-            <TouchableOpacity onPress={clearSearch} testID="search-clear-button" style={styles.clearButton}>
+            <TouchableOpacity onPress={clearSearch} testID="search-clear-button" style={styles.clearButton} accessibilityRole="button" accessibilityLabel="Cancel player search">
               <Ionicons name="close-circle" size={20} color={p.muted} />
             </TouchableOpacity>
           </View>
@@ -353,8 +365,9 @@ export default function PlayersScreen() {
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
                 <Text style={[styles.emptyText, { color: p.muted, fontFamily: arenaType.body }]}>
-                  {searchQuery.length < 2 ? 'Type at least 2 characters to search' : 'No players found'}
+                  {searchError ?? (searchQuery.trim().length < 2 ? 'Type at least 2 characters to search' : 'No players found')}
                 </Text>
+                {searchError ? <Pressable accessibilityRole="button" accessibilityLabel={`Retry search for ${searchQuery}`} onPress={() => handleSearchChange(searchQuery)} style={[styles.retryButton, { backgroundColor: p.action }]}><Text style={{ color: p.actionInk, fontFamily: arenaType.body, fontWeight: '800' }}>Retry</Text></Pressable> : null}
               </View>
             }
             testID="search-results-list"
@@ -384,6 +397,8 @@ export default function PlayersScreen() {
       {/* Always-visible compact search bar */}
       <Pressable
         onPress={() => setIsSearchActive(true)}
+        accessibilityRole="button"
+        accessibilityLabel="Search players"
         style={[styles.searchBarStatic, { backgroundColor: p.paper, borderColor: p.edge }]}
         testID="search-toggle"
       >
@@ -409,6 +424,9 @@ export default function PlayersScreen() {
                 { backgroundColor: active ? p.action : p.paper, borderColor: active ? p.frame : p.edge },
               ]}
               testID={`category-chip-${cat.key}`}
+              accessibilityRole="button"
+              accessibilityLabel={`Show leaders by ${cat.key}`}
+              accessibilityState={{ selected: active }}
             >
               <Text style={[styles.categoryChipText, { color: active ? p.actionInk : p.muted, fontFamily: arenaType.body }]}>
                 {cat.label}
@@ -430,6 +448,12 @@ export default function PlayersScreen() {
           />
         }
       >
+        {feedError ? (
+          <View style={[styles.feedError, { backgroundColor: p.paper, borderColor: p.edge }]}>
+            <Text style={[styles.emptyText, { color: p.ink }]}>{feedError}</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="Retry player data" onPress={() => void loadTrendingData()} style={[styles.retryButton, { backgroundColor: p.action }]}><Text style={{ color: p.actionInk, fontFamily: arenaType.body, fontWeight: '800' }}>Retry</Text></Pressable>
+          </View>
+        ) : null}
         {loading ? (
           <View style={styles.skeletonContainer}>
             {/* SPOTLIGHT skeleton — section header + 3 horizontal cards */}
@@ -524,6 +548,8 @@ export default function PlayersScreen() {
                       <View>
                         <Pressable
                           onPress={() => handlePlayerTap(item.playerId)}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Open ${item.playerName} player detail`}
                           style={({ pressed }) => [
                             styles.spotlightCard,
                             { backgroundColor: p.paper, borderColor: p.edge, borderTopColor: tc.primary, borderTopWidth: 4 },
@@ -1002,9 +1028,14 @@ const styles = StyleSheet.create({
     color: rinkGlass.textPrimary,
   },
   clearButton: {
-    padding: 4,
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginLeft: 4,
   },
+  retryButton: { minHeight: 44, paddingHorizontal: 18, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
+  feedError: { marginHorizontal: 16, marginBottom: 12, padding: 14, borderWidth: 1, borderRadius: 12, alignItems: 'center' },
   // Search results
   searchRow: {
     flexDirection: 'row',

@@ -13,115 +13,85 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { theme } from '../constants/theme';
-import { supabase } from '../lib/supabase';
-
-async function checkDataAvailability(): Promise<{ available: boolean; gameCount: number }> {
-  try {
-    const { count, error } = await supabase
-      .from('games')
-      .select('*', { count: 'exact', head: true });
-    if (error) return { available: false, gameCount: 0 };
-    return { available: (count ?? 0) > 0, gameCount: count ?? 0 };
-  } catch {
-    return { available: false, gameCount: 0 };
-  }
-}
+import { checkReplayAvailability, type ReplayDateRange } from '../services/replayAvailability';
+import { useArena } from './arena/ArenaProvider';
+import { arenaType } from '../constants/arenaTypography';
+import type { ArenaPalette } from '../constants/arenaTheme';
 
 interface DataSeedingModalProps {
   visible: boolean;
   onClose: () => void;
   onSeedingComplete?: () => void;
-}
-
-interface SeedingProgress {
-  currentDate: string;
-  gamesLoaded: number;
-  totalDays: number;
-  currentDay: number;
+  range: ReplayDateRange;
 }
 
 export default function DataSeedingModal({
   visible,
   onClose,
   onSeedingComplete,
+  range,
 }: DataSeedingModalProps) {
+  const { palette: p } = useArena();
+  const styles = React.useMemo(() => createStyles(p), [p]);
   const [isSeeding, setIsSeeding] = useState(false);
-  const [progress, setProgress] = useState<SeedingProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isComplete, setIsComplete] = useState(false);
   const [totalGames, setTotalGames] = useState(0);
+  const [latestGameDate, setLatestGameDate] = useState<string | null>(null);
   const abortRef = useRef(false);
+  const requestIdRef = useRef(0);
 
   // Reset state when modal opens
   useEffect(() => {
     if (visible) {
       setIsSeeding(false);
-      setProgress(null);
       setError(null);
       setIsComplete(false);
       setTotalGames(0);
+      setLatestGameDate(null);
       abortRef.current = false;
     }
   }, [visible]);
 
-  // Calculate estimated time remaining
-  const getEstimatedTime = useCallback(() => {
-    if (!progress || progress.currentDay === 0) return 'Calculating...';
-
-    const remainingDays = progress.totalDays - progress.currentDay;
-    // Estimate ~60ms per day (50ms delay + API time)
-    const estimatedSeconds = Math.ceil((remainingDays * 60) / 1000);
-
-    if (estimatedSeconds < 60) {
-      return `~${estimatedSeconds}s remaining`;
-    } else {
-      const minutes = Math.ceil(estimatedSeconds / 60);
-      return `~${minutes}m remaining`;
-    }
-  }, [progress]);
-
   // Check if data is available (read-only — data is synced by server)
   const handleCheckData = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
     setIsSeeding(true);
     setError(null);
     abortRef.current = false;
 
     try {
-      const { available, gameCount } = await checkDataAvailability();
+      const { available, gameCount, latestGameDate: latest } = await checkReplayAvailability(range);
 
-      if (!abortRef.current) {
+      if (!abortRef.current && requestId === requestIdRef.current) {
         if (available) {
           setTotalGames(gameCount);
+          setLatestGameDate(latest);
           setIsComplete(true);
           onSeedingComplete?.();
         } else {
-          setError('Game data is still being synced. Data updates automatically twice daily — please check back soon.');
+          setError('No completed regular-season games are available in this replay period. Choose another range or check again later.');
         }
       }
     } catch (err) {
       console.error('[DataSeedingModal] Check error:', err);
-      if (!abortRef.current) {
+      if (!abortRef.current && requestId === requestIdRef.current) {
         setError('Unable to check data status. Please try again later.');
       }
     } finally {
-      if (!abortRef.current) {
+      if (!abortRef.current && requestId === requestIdRef.current) {
         setIsSeeding(false);
       }
     }
-  }, [onSeedingComplete]);
+  }, [onSeedingComplete, range]);
 
   // Handle skip/close
   const handleSkip = useCallback(() => {
+    requestIdRef.current += 1;
     abortRef.current = true;
     setIsSeeding(false);
     onClose();
   }, [onClose]);
-
-  // Calculate progress percentage
-  const progressPercentage = progress
-    ? Math.round((progress.currentDay / progress.totalDays) * 100)
-    : 0;
 
   return (
     <Modal
@@ -131,15 +101,15 @@ export default function DataSeedingModal({
       onRequestClose={handleSkip}
     >
       <View style={styles.overlay}>
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: p.paper, borderColor: p.edge }]}>
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.title}>
-              {isComplete ? 'Data Ready!' : 'Historical Data Required'}
+            <Text accessibilityRole="header" style={[styles.title, { color: p.ink, fontFamily: arenaType.display }]}>
+              {isComplete ? 'Replay data available' : 'Check replay data'}
             </Text>
             {!isSeeding && !isComplete && (
-              <Pressable onPress={handleSkip} style={styles.closeButton}>
-                <Ionicons name="close" size={18} color={theme.subtext} />
+              <Pressable accessibilityRole="button" accessibilityLabel="Close replay data check" onPress={handleSkip} style={[styles.closeButton, { backgroundColor: p.soft }]}>
+                <Ionicons name="close" size={18} color={p.muted} />
               </Pressable>
             )}
           </View>
@@ -149,65 +119,37 @@ export default function DataSeedingModal({
             // Success state
             <View style={styles.content}>
               <View style={styles.successIcon}>
-                <Ionicons name="checkmark" size={28} color={theme.semantic?.positive || '#10b981'} />
+                <Ionicons name="checkmark" size={28} color="#10b981" />
               </View>
               <Text style={styles.successText}>
-                Successfully loaded {totalGames.toLocaleString()} games
+                Available records: {totalGames.toLocaleString()}
               </Text>
-              <Text style={styles.successSubtext}>
-                You can now run backtests on your models
+              <Text style={[styles.successSubtext, { color: p.muted, fontFamily: arenaType.body }]}>
+                {latestGameDate ? `Latest game in this period: ${latestGameDate}.` : 'This replay period is available.'}
               </Text>
               <Pressable
-                style={styles.primaryButton}
+                style={[styles.primaryButton, { backgroundColor: p.action, borderColor: p.frame }]}
                 onPress={onClose}
+                accessibilityRole="button"
               >
-                <Text style={styles.primaryButtonText}>Continue</Text>
+                <Text style={[styles.primaryButtonText, { color: p.actionInk, fontFamily: arenaType.body }]}>Continue</Text>
               </Pressable>
             </View>
           ) : isSeeding ? (
             // Seeding in progress
             <View style={styles.content}>
-              <ActivityIndicator size="large" color={theme.accent} />
+              <ActivityIndicator size="large" color={p.action} />
 
-              <Text style={styles.progressTitle}>Downloading Game Data</Text>
-
-              {progress && (
-                <>
-                  {/* Progress bar */}
-                  <View style={styles.progressBarContainer}>
-                    <View
-                      style={[
-                        styles.progressBar,
-                        { width: `${progressPercentage}%` },
-                      ]}
-                    />
-                  </View>
-
-                  {/* Progress details */}
-                  <View style={styles.progressDetails}>
-                    <Text style={styles.progressText}>
-                      {progress.currentDate}
-                    </Text>
-                    <Text style={styles.progressText}>
-                      {progressPercentage}%
-                    </Text>
-                  </View>
-
-                  <Text style={styles.progressStats}>
-                    {progress.gamesLoaded.toLocaleString()} games loaded
-                  </Text>
-
-                  <Text style={styles.estimatedTime}>
-                    {getEstimatedTime()}
-                  </Text>
-                </>
-              )}
+              <Text style={[styles.progressTitle, { color: p.ink, fontFamily: arenaType.body }]}>Checking this replay period</Text>
+              <Text style={[styles.progressText, { color: p.muted, fontFamily: arenaType.body }]}>{range.start} through {range.end}</Text>
 
               <Pressable
                 style={styles.cancelButton}
                 onPress={handleSkip}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel replay data check"
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={[styles.cancelButtonText, { color: p.link }]}>Cancel</Text>
               </Pressable>
             </View>
           ) : error ? (
@@ -219,16 +161,19 @@ export default function DataSeedingModal({
               <Text style={styles.errorText}>{error}</Text>
               <View style={styles.buttonRow}>
                 <Pressable
-                  style={styles.secondaryButton}
+                  style={[styles.secondaryButton, { backgroundColor: p.soft }]}
                   onPress={handleSkip}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close replay data check"
                 >
-                  <Text style={styles.secondaryButtonText}>Skip</Text>
+                  <Text style={[styles.secondaryButtonText, { color: p.link }]}>Close</Text>
                 </Pressable>
                 <Pressable
-                  style={styles.primaryButton}
+                  style={[styles.primaryButton, { backgroundColor: p.action, borderColor: p.frame }]}
                   onPress={handleCheckData}
+                  accessibilityRole="button"
                 >
-                  <Text style={styles.primaryButtonText}>Retry</Text>
+                  <Text style={[styles.primaryButtonText, { color: p.actionInk }]}>Retry</Text>
                 </Pressable>
               </View>
             </View>
@@ -238,24 +183,27 @@ export default function DataSeedingModal({
               <View style={styles.infoIcon}>
                 <Ionicons name="stats-chart" size={24} color="#60a5fa" />
               </View>
-              <Text style={styles.description}>
-                Checking if game data is available for backtesting your models.
+              <Text style={[styles.description, { color: p.ink, fontFamily: arenaType.body }]}>
+                Check completed regular-season games from {range.start} through {range.end}.
               </Text>
-              <Text style={styles.note}>
-                Data is synced automatically twice daily. No action required.
+              <Text style={[styles.note, { color: p.muted, fontFamily: arenaType.body }]}>
+                This is a read-only availability check. It does not download data.
               </Text>
               <View style={styles.buttonRow}>
                 <Pressable
-                  style={styles.secondaryButton}
+                  style={[styles.secondaryButton, { backgroundColor: p.soft }]}
                   onPress={handleSkip}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close replay data check"
                 >
-                  <Text style={styles.secondaryButtonText}>Skip</Text>
+                  <Text style={[styles.secondaryButtonText, { color: p.link }]}>Close</Text>
                 </Pressable>
                 <Pressable
-                  style={styles.primaryButton}
+                  style={[styles.primaryButton, { backgroundColor: p.action, borderColor: p.frame }]}
                   onPress={handleCheckData}
+                  accessibilityRole="button"
                 >
-                  <Text style={styles.primaryButtonText}>Check Data</Text>
+                  <Text style={[styles.primaryButtonText, { color: p.actionInk }]}>Check availability</Text>
                 </Pressable>
               </View>
             </View>
@@ -266,7 +214,7 @@ export default function DataSeedingModal({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (p: ArenaPalette) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.85)',
@@ -275,11 +223,12 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   container: {
-    backgroundColor: theme.card,
+    backgroundColor: p.paper,
     borderRadius: 16,
     width: '100%',
     maxWidth: 340,
     overflow: 'hidden',
+    borderWidth: 1,
   },
   header: {
     flexDirection: 'row',
@@ -287,24 +236,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: theme.subtle,
+    borderBottomColor: p.edge,
   },
   title: {
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: '700',
-    color: theme.text,
+    color: p.ink,
   },
   closeButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: theme.subtle,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: p.soft,
     justifyContent: 'center',
     alignItems: 'center',
   },
   closeButtonText: {
     fontSize: 14,
-    color: theme.subtext,
+    color: p.muted,
   },
   content: {
     padding: 20,
@@ -314,7 +263,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: `${theme.accent}22`,
+    backgroundColor: p.soft,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -352,14 +301,14 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 14,
-    color: theme.text,
+    color: p.ink,
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 12,
   },
   note: {
     fontSize: 12,
-    color: theme.subtext,
+    color: p.muted,
     textAlign: 'center',
     marginBottom: 20,
   },
@@ -368,12 +317,14 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   primaryButton: {
-    backgroundColor: theme.accent,
+    backgroundColor: p.action,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
     minWidth: 100,
     alignItems: 'center',
+    minHeight: 48,
+    borderWidth: 2,
   },
   primaryButtonText: {
     fontSize: 14,
@@ -381,36 +332,38 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   secondaryButton: {
-    backgroundColor: theme.subtle,
+    backgroundColor: p.soft,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
     minWidth: 100,
     alignItems: 'center',
+    minHeight: 48,
+    justifyContent: 'center',
   },
   secondaryButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.subtext,
+    color: p.muted,
   },
   progressTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: theme.text,
+    color: p.ink,
     marginTop: 16,
     marginBottom: 16,
   },
   progressBarContainer: {
     width: '100%',
     height: 8,
-    backgroundColor: theme.subtle,
+    backgroundColor: p.soft,
     borderRadius: 4,
     overflow: 'hidden',
     marginBottom: 12,
   },
   progressBar: {
     height: '100%',
-    backgroundColor: theme.accent,
+    backgroundColor: p.action,
     borderRadius: 4,
   },
   progressDetails: {
@@ -421,17 +374,17 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 12,
-    color: theme.subtext,
+    color: p.muted,
   },
   progressStats: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.text,
+    color: p.ink,
     marginBottom: 4,
   },
   estimatedTime: {
     fontSize: 12,
-    color: theme.subtext,
+    color: p.muted,
     marginBottom: 16,
   },
   cancelButton: {
@@ -440,7 +393,7 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     fontSize: 14,
-    color: theme.subtext,
+    color: p.muted,
   },
   successText: {
     fontSize: 16,
@@ -451,7 +404,7 @@ const styles = StyleSheet.create({
   },
   successSubtext: {
     fontSize: 13,
-    color: theme.subtext,
+    color: p.muted,
     textAlign: 'center',
     marginBottom: 20,
   },

@@ -7,7 +7,10 @@ import { create, act } from 'react-test-renderer';
 import React from 'react';
 import HubScreen from '../HubScreen';
 
-jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
+jest.mock('expo-router', () => ({
+  router: { push: jest.fn(), back: jest.fn(), canGoBack: jest.fn(() => false) },
+  useLocalSearchParams: () => ({ origin: 'following' }),
+}));
 jest.mock('react-native-safe-area-context', () => ({ SafeAreaView: 'SafeAreaView' }));
 
 jest.mock('react-native', () => {
@@ -18,7 +21,11 @@ jest.mock('react-native', () => {
     ScrollView: ({ children, ...props }: any) => React.createElement('ScrollView', props, children),
     Pressable: ({ children, ...props }: any) => React.createElement('Pressable', props, children),
     Switch: (props: any) => React.createElement('Switch', props),
+    ActivityIndicator: (props: any) => React.createElement('ActivityIndicator', props),
     Platform: { OS: 'ios' },
+    Modal: ({ children, ...props }: any) => React.createElement('Modal', props, children),
+    Linking: { openURL: jest.fn() },
+    Alert: { alert: jest.fn() },
     StyleSheet: { create: (s: any) => s, hairlineWidth: 1 },
   };
 });
@@ -78,6 +85,9 @@ const mockSubscription = {
   isPremium: false,
   loading: false,
   refresh: jest.fn(),
+  showPaywall: jest.fn(),
+  subscriptionUnavailableReason: null as string | null,
+  retrySubscription: jest.fn(),
 };
 
 jest.mock('../SubscriptionProvider', () => ({
@@ -135,6 +145,9 @@ describe('HubScreen', () => {
     jest.clearAllMocks();
     mockAuthContext.user = null;
     mockSubscription.isPremium = false;
+    mockSubscription.loading = false;
+    mockSubscription.subscriptionUnavailableReason = null;
+    mockAuthContext.error = null;
   });
 
   describe('when user is NOT authenticated', () => {
@@ -142,7 +155,7 @@ describe('HubScreen', () => {
       const tree = renderHub();
       const texts = getAllText(tree);
       expect(texts).toContain('SETTINGS');
-      expect(tree.root.findByProps({ accessibilityLabel: 'Back to Tonight' })).toBeTruthy();
+      expect(tree.root.findByProps({ accessibilityLabel: 'Back' })).toBeTruthy();
     });
 
     it('shows sign-in buttons', () => {
@@ -153,9 +166,9 @@ describe('HubScreen', () => {
       expect(findByTestId(tree, 'sign-in-email')).toHaveLength(0);
     });
 
-    it('prompts the user to sign in to enable notifications', () => {
+    it('states that remote alerts are unavailable in this build', () => {
       const tree = renderHub();
-      expect(getAllText(tree)).toContain('Sign in below to enable notifications.');
+      expect(getAllText(tree)).toContain('Remote alerts are unavailable in this build.');
     });
 
     it('does NOT show sign-out button', () => {
@@ -175,6 +188,17 @@ describe('HubScreen', () => {
       const btn = findByTestId(tree, 'sign-in-google')[0];
       act(() => { btn.props.onPress(); });
       expect(mockSignInWithGoogle).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows a provider-specific accessible busy state while sign-in is pending', async () => {
+      let resolve!: (ok: boolean) => void;
+      mockSignInWithGoogle.mockReturnValueOnce(new Promise((done) => { resolve = done; }));
+      const tree = renderHub();
+      act(() => { findByTestId(tree, 'sign-in-google')[0].props.onPress(); });
+      const button = findByTestId(tree, 'sign-in-google')[0];
+      expect(button.props.accessibilityState).toEqual({ disabled: true, busy: true });
+      expect(getAllText(tree)).toContain('Opening Google…');
+      await act(async () => { resolve(false); await Promise.resolve(); });
     });
   });
 
@@ -200,11 +224,13 @@ describe('HubScreen', () => {
       expect(findByTestId(tree, 'sign-in-email')).toHaveLength(0);
     });
 
-    it('calls signOut when sign-out button pressed', () => {
+    it('explains retained device data before sign out', () => {
       const tree = renderHub();
       const btn = findByTestId(tree, 'sign-out-button')[0];
       act(() => { btn.props.onPress(); });
-      expect(mockSignOut).toHaveBeenCalledTimes(1);
+      expect(mockSignOut).not.toHaveBeenCalled();
+      expect(findByTestId(tree, 'sign-out-confirm')).toHaveLength(1);
+      expect(getAllText(tree)).toContain('Saved cards, watched players, and team preferences stay on this device.');
     });
 
     it('loads notification prefs from Supabase', async () => {
@@ -214,16 +240,32 @@ describe('HubScreen', () => {
   });
 
   describe('Subscription section', () => {
-    // The redesigned Settings screen no longer renders an in-screen subscription
-    // upsell. Free-tier state is now communicated by disabling the notification
-    // toggles (see "Notification preferences" below) rather than a Free Plan
-    // badge / Upgrade to Pro button.
-    it('does not render an Upgrade to Pro button or Free Plan badge', () => {
+    it('renders subscription options for guests and opens the shared paywall', () => {
       const tree = renderHub();
       const texts = getAllText(tree);
-      expect(findByTestId(tree, 'upgrade-button')).toHaveLength(0);
-      expect(texts).not.toContain('Upgrade to Pro');
-      expect(texts).not.toContain('Free Plan');
+      expect(findByTestId(tree, 'subscription-section')).toHaveLength(1);
+      expect(findByTestId(tree, 'subscription-options-button')[0].props.accessibilityRole).toBe('button');
+      expect(texts).toContain('Subscription options and restore');
+      act(() => { findByTestId(tree, 'subscription-options-button')[0].props.onPress(); });
+      expect(mockSubscription.showPaywall).toHaveBeenCalledWith('Subscription options and restore');
+    });
+
+    it('renders the same subscription entry for premium users', () => {
+      mockAuthContext.user = { email: 'pro@puckiq.com', id: 'user-pro' };
+      mockSubscription.isPremium = true;
+      const tree = renderHub();
+      expect(getAllText(tree)).toContain('PuckIQ Pro active');
+      expect(findByTestId(tree, 'subscription-options-button')).toHaveLength(1);
+    });
+
+    it('shows the provider unavailable reason and retries setup without opening the paywall', () => {
+      mockSubscription.subscriptionUnavailableReason = 'RevenueCat is not configured for this platform.';
+      const tree = renderHub();
+      expect(getAllText(tree)).toContain('Subscriptions unavailable');
+      expect(getAllText(tree)).toContain('RevenueCat is not configured for this platform.');
+      act(() => { findByTestId(tree, 'subscription-options-button')[0].props.onPress(); });
+      expect(mockSubscription.retrySubscription).toHaveBeenCalledTimes(1);
+      expect(mockSubscription.showPaywall).not.toHaveBeenCalled();
     });
   });
 
@@ -270,7 +312,7 @@ describe('HubScreen', () => {
       }
     });
 
-    it('enables all toggles when authenticated + premium', async () => {
+    it('keeps all remote alert toggles disabled when authenticated + premium', async () => {
       mockAuthContext.user = { email: 'pro@puckiq.com', id: 'user-pro' };
       mockSubscription.isPremium = true;
 
@@ -285,11 +327,11 @@ describe('HubScreen', () => {
         'toggle-game-reminders',
         'toggle-waiver-alerts',
       ]) {
-        expect(findByTestId(tree, testID)[0].props.disabled).toBe(false);
+        expect(findByTestId(tree, testID)[0].props.disabled).toBe(true);
       }
     });
 
-    it('can toggle morning brief on when premium', async () => {
+    it('does not change or save remote alert preferences when premium', async () => {
       mockAuthContext.user = { email: 'pro@puckiq.com', id: 'user-pro' };
       mockSubscription.isPremium = true;
 
@@ -297,14 +339,15 @@ describe('HubScreen', () => {
       await act(async () => { tree = create(<HubScreen />); });
 
       const toggle = findByTestId(tree, 'toggle-morning-brief')[0];
-      expect(toggle.props.disabled).toBe(false);
+      expect(toggle.props.disabled).toBe(true);
 
       await act(async () => { toggle.props.onValueChange(true); });
       const updated = findByTestId(tree, 'toggle-morning-brief')[0];
-      expect(updated.props.value).toBe(true);
+      expect(updated.props.value).toBe(false);
+      expect(mockSavePrefs).not.toHaveBeenCalled();
     });
 
-    it('saves prefs to Supabase on toggle', async () => {
+    it('does not save remote alert preferences on toggle', async () => {
       mockAuthContext.user = { email: 'pro@puckiq.com', id: 'user-pro' };
       mockSubscription.isPremium = true;
 
@@ -314,9 +357,7 @@ describe('HubScreen', () => {
       const toggle = findByTestId(tree, 'toggle-morning-brief')[0];
       await act(async () => { toggle.props.onValueChange(true); });
 
-      expect(mockSavePrefs).toHaveBeenCalledWith('user-pro', expect.objectContaining({
-        morningBrief: true,
-      }));
+      expect(mockSavePrefs).not.toHaveBeenCalled();
     });
   });
 
@@ -330,6 +371,16 @@ describe('HubScreen', () => {
       const tree = renderHub();
       expect(findByTestId(tree, 'support-link')).toHaveLength(1);
       expect(getAllText(tree)).toContain('Support');
+    });
+
+    it('opens actionable in-app help without requiring a configured contact', () => {
+      const tree = renderHub();
+      act(() => { findByTestId(tree, 'support-link')[0].props.onPress(); });
+      expect(findByTestId(tree, 'support-modal')).toHaveLength(1);
+      expect(getAllText(tree)).toContain('Subscription recovery');
+      expect(getAllText(tree)).toContain('Feed and schedule recovery');
+      expect(findByTestId(tree, 'help-subscription-options')).toHaveLength(1);
+      expect(findByTestId(tree, 'help-go-tonight')).toHaveLength(1);
     });
   });
 });

@@ -1,0 +1,980 @@
+{
+  "roots": [
+    "app/(tabs)/_layout.tsx",
+    "app/(tabs)/following.tsx",
+    "app/(tabs)/hub.tsx",
+    "app/(tabs)/index.tsx",
+    "app/(tabs)/models.tsx",
+    "app/(tabs)/myteam.tsx",
+    "app/(tabs)/players.tsx",
+    "app/(tabs)/stats.tsx",
+    "app/(tabs)/teams.tsx",
+    "app/+not-found.tsx",
+    "app/_layout.tsx"
+  ],
+  "imports": {
+    "app/(tabs)/_layout.tsx": [
+      "components/HapticTab.tsx",
+      "components/arena/ArenaProvider.tsx"
+    ],
+    "app/(tabs)/following.tsx": [
+      "components/arena/ArenaPrimitives.tsx",
+      "components/arena/ArenaProvider.tsx",
+      "constants/arenaTheme.ts",
+      "utils/teamLogo.ts"
+    ],
+    "app/(tabs)/hub.tsx": [
+      "components/HubScreen.tsx"
+    ],
+    "app/(tabs)/index.tsx": [
+      "components/arena/TonightScreen.tsx"
+    ],
+    "app/(tabs)/models.tsx": [
+      "constants/theme.ts",
+      "hooks/useAnalytics.ts",
+      "components/model-builder/index.ts",
+      "components/DataSeedingModal.tsx",
+      "types/predictions.ts"
+    ],
+    "app/(tabs)/myteam.tsx": [
+      "components/MyTeamScreen.tsx"
+    ],
+    "app/(tabs)/players.tsx": [
+      "utils/entityRoutes.ts",
+      "utils/season.ts",
+      "constants/teamColors.ts",
+      "components/CompactPlayerRow.tsx",
+      "components/ElevatedPlayerRow.tsx",
+      "components/FantasyProjectionRow.tsx",
+      "components/GoalieSpotlightCard.tsx",
+      "components/HeroLeaderCard.tsx",
+      "components/PlayerDetailModal.tsx",
+      "components/PlayerProjectionCard.tsx",
+      "components/PremiumGate.tsx",
+      "components/ui/SkeletonLoader.tsx",
+      "components/ThemedView.tsx",
+      "components/arena/ArenaPrimitives.tsx",
+      "components/arena/ArenaProvider.tsx",
+      "constants/theme.ts",
+      "hooks/useAnalytics.ts",
+      "services/fantasyProjections.ts",
+      "types/fantasy.ts",
+      "services/playerLeaders.ts",
+      "services/playerTrends.ts"
+    ],
+    "app/(tabs)/stats.tsx": [
+      "utils/entityRoutes.ts",
+      "components/TeamHeadToHead.tsx",
+      "components/arena/ArenaPrimitives.tsx",
+      "components/arena/ArenaProvider.tsx",
+      "constants/arenaTheme.ts",
+      "services/arenaData.ts",
+      "types/arena.ts",
+      "utils/teamLogo.ts"
+    ],
+    "app/(tabs)/teams.tsx": [
+      "components/arena/ArenaPrimitives.tsx",
+      "components/arena/ArenaProvider.tsx",
+      "services/arenaData.ts",
+      "constants/arenaTheme.ts",
+      "utils/entityRoutes.ts",
+      "utils/season.ts",
+      "types/arena.ts"
+    ],
+    "app/+not-found.tsx": [
+      "components/ThemedText.tsx",
+      "components/ThemedView.tsx"
+    ],
+    "app/_layout.tsx": [
+      "components/analytics/AnalyticsProvider.tsx",
+      "components/auth/AuthProvider.tsx",
+      "components/SubscriptionProvider.tsx",
+      "components/arena/ArenaOnboarding.tsx",
+      "services/notifications.ts",
+      "components/arena/ArenaProvider.tsx"
+    ],
+    "components/AccuracyTracker.tsx": [
+      "constants/theme.ts",
+      "services/accuracyStats.ts"
+    ],
+    "components/AllGamesCard.tsx": [
+      "constants/theme.ts",
+      "constants/teamColors.ts",
+      "utils/teamLogo.ts",
+      "components/ConfidenceBadge.tsx",
+      "utils/dateLabel.ts",
+      "types/gameResults.ts",
+      "types/predictions.ts",
+      "types/teamForm.ts"
+    ],
+    "components/AnimatedNumber.tsx": [],
+    "components/AnimatedProbBar.tsx": [
+      "constants/theme.ts"
+    ],
+    "components/AnimatedProbabilityBar.tsx": [],
+    "components/ClutchBadge.tsx": [
+      "types/edgeStats.ts"
+    ],
+    "components/CompactGameRow.tsx": [
+      "constants/theme.ts",
+      "constants/teamColors.ts",
+      "utils/teamLogo.ts",
+      "components/ConfidenceBadge.tsx",
+      "utils/dateLabel.ts",
+      "types/predictions.ts"
+    ],
+    "components/CompactPlayerRow.tsx": [
+      "constants/theme.ts",
+      "constants/arenaTypography.ts",
+      "constants/arenaTheme.ts",
+      "services/playerTrends.ts"
+    ],
+    "components/ConfidenceBadge.tsx": [],
+    "components/DataSeedingModal.tsx": [
+      "constants/theme.ts"
+    ],
+    "components/Dropdown.tsx": [
+      "constants/theme.ts"
+    ],
+    "components/EdgeIntelSection.tsx": [
+      "constants/theme.ts",
+      "types/edgeStats.ts"
+    ],
+    "components/EdgeSpotlight.tsx": [
+      "constants/theme.ts",
+      "constants/teamColors.ts",
+      "utils/teamLogo.ts",
+      "types/gameResults.ts",
+      "types/edgeStats.ts"
+    ],
+    "components/ElevatedPlayerRow.tsx": [
+      "constants/theme.ts",
+      "constants/arenaTypography.ts",
+      "constants/arenaTheme.ts",
+      "services/playerTrends.ts"
+    ],
+    "components/EmptyNightCard.tsx": [
+      "constants/theme.ts",
+      "constants/teamColors.ts",
+      "utils/teamLogo.ts"
+    ],
+    "components/FactorLeaderboard.tsx": [
+      "constants/theme.ts",
+      "types/factors.ts"
+    ],
+    "components/FantasyProjectionRow.tsx": [
+      "constants/theme.ts",
+      "constants/arenaTypography.ts",
+      "constants/arenaTheme.ts",
+      "types/fantasy.ts"
+    ],
+    "components/FinishSetupCard.tsx": [
+      "constants/theme.ts"
+    ],
+    "components/FlippableRow.tsx": [],
+    "components/FloatingTodayBar.tsx": [
+      "constants/theme.ts"
+    ],
+    "components/FormSparkline.tsx": [],
+    "components/GameDeepDiveModal.tsx": [
+      "constants/teamColors.ts",
+      "services/teamComparison.ts",
+      "types/teamStats.ts",
+      "components/StatComparisonRow.tsx",
+      "services/gameResults.ts",
+      "services/playerStats.ts",
+      "types/gameResults.ts",
+      "services/edgeStats.ts",
+      "services/derivedStats.ts",
+      "components/MomentumSparkline.tsx",
+      "components/ClutchBadge.tsx",
+      "components/ZoneTimeChart.tsx",
+      "components/SpeedGauge.tsx",
+      "types/edgeStats.ts",
+      "types/predictions.ts"
+    ],
+    "components/GameTicker.tsx": [
+      "constants/theme.ts",
+      "constants/teamColors.ts"
+    ],
+    "components/GoalieSpotlightCard.tsx": [
+      "constants/theme.ts",
+      "constants/arenaTypography.ts",
+      "constants/arenaTheme.ts",
+      "services/playerTrends.ts"
+    ],
+    "components/HapticTab.tsx": [],
+    "components/HeatStrip.tsx": [
+      "constants/theme.ts",
+      "constants/teamColors.ts",
+      "utils/teamLogo.ts",
+      "services/mlPredictions.ts"
+    ],
+    "components/HeroBanner.tsx": [
+      "constants/theme.ts",
+      "constants/teamColors.ts",
+      "utils/teamLogo.ts",
+      "utils/heroPhoto.ts",
+      "components/ConfidenceBadge.tsx",
+      "components/SettingsButton.tsx",
+      "components/ShareablePickCard.tsx",
+      "services/shareCards.ts",
+      "hooks/useHaptics.ts",
+      "types/gameResults.ts",
+      "types/predictions.ts",
+      "types/teamForm.ts"
+    ],
+    "components/HeroLeaderCard.tsx": [
+      "constants/theme.ts",
+      "constants/arenaTypography.ts",
+      "constants/arenaTheme.ts",
+      "utils/season.ts",
+      "services/playerTrends.ts"
+    ],
+    "components/HeroMatchup.tsx": [
+      "constants/theme.ts",
+      "constants/teamColors.ts",
+      "utils/teamLogo.ts",
+      "components/ConfidenceBadge.tsx",
+      "hooks/useHaptics.ts",
+      "types/gameResults.ts",
+      "types/predictions.ts",
+      "types/teamForm.ts",
+      "components/FormSparkline.tsx"
+    ],
+    "components/HitRateBar.tsx": [
+      "constants/theme.ts"
+    ],
+    "components/HotPlayersSection.tsx": [
+      "constants/theme.ts",
+      "constants/teamColors.ts",
+      "types/gameResults.ts"
+    ],
+    "components/HubScreen.tsx": [
+      "constants/theme.ts",
+      "components/arena/ArenaProvider.tsx",
+      "constants/arenaTheme.ts",
+      "components/arena/ArenaPrimitives.tsx",
+      "components/auth/AuthProvider.tsx",
+      "components/SubscriptionProvider.tsx",
+      "services/notificationSettings.ts"
+    ],
+    "components/InfoTooltip.tsx": [
+      "constants/theme.ts",
+      "constants/glossary.ts"
+    ],
+    "components/InsightFeed.tsx": [
+      "constants/theme.ts",
+      "utils/teamLogo.ts",
+      "types/insights.ts"
+    ],
+    "components/Leaderboard.tsx": [
+      "constants/theme.ts",
+      "components/auth/AuthProvider.tsx",
+      "services/leaderboard.ts"
+    ],
+    "components/LiveNowBar.tsx": [
+      "constants/theme.ts",
+      "utils/teamLogo.ts"
+    ],
+    "components/MatchupAnalyzer.tsx": [
+      "constants/theme.ts",
+      "services/matchupAnalysis.ts",
+      "types/fantasy.ts"
+    ],
+    "components/MatchupGameCard.tsx": [
+      "constants/theme.ts",
+      "components/AnimatedProbabilityBar.tsx"
+    ],
+    "components/ModelAccuracyCard.tsx": [
+      "constants/theme.ts",
+      "services/pickTracking.ts"
+    ],
+    "components/ModelPickerModal.tsx": [
+      "constants/theme.ts"
+    ],
+    "components/MomentumSparkline.tsx": [
+      "constants/theme.ts",
+      "constants/teamColors.ts",
+      "types/edgeStats.ts"
+    ],
+    "components/MyTeamScreen.tsx": [
+      "constants/theme.ts",
+      "components/PremiumGate.tsx",
+      "components/StartSitCard.tsx",
+      "components/WeeklyOutlook.tsx",
+      "components/WaiverWireSection.tsx",
+      "components/RosterBuilder.tsx",
+      "hooks/useMyTeamData.ts",
+      "types/fantasy.ts"
+    ],
+    "components/PageHeader.tsx": [
+      "constants/theme.ts"
+    ],
+    "components/PaywallModal.tsx": [
+      "services/subscription.ts"
+    ],
+    "components/PlayerDetailModal.tsx": [
+      "utils/season.ts",
+      "components/ui/IconSymbol.tsx",
+      "constants/theme.ts",
+      "constants/teamColors.ts",
+      "services/fantasyProjections.ts",
+      "types/fantasy.ts",
+      "services/playerDetail.ts"
+    ],
+    "components/PlayerEdgeCard.tsx": [
+      "constants/theme.ts",
+      "constants/teamColors.ts",
+      "services/playerTrends.ts"
+    ],
+    "components/PlayerProjectionCard.tsx": [
+      "constants/theme.ts",
+      "constants/teamColors.ts",
+      "constants/arenaTypography.ts",
+      "constants/arenaTheme.ts",
+      "services/playerTrends.ts"
+    ],
+    "components/PremiumGate.tsx": [
+      "components/SubscriptionProvider.tsx"
+    ],
+    "components/QuickStatsBar.tsx": [
+      "constants/theme.ts",
+      "types/edgeStats.ts"
+    ],
+    "components/ReferralCard.tsx": [
+      "constants/theme.ts",
+      "components/auth/AuthProvider.tsx",
+      "services/referrals.ts"
+    ],
+    "components/RosterBuilder.tsx": [
+      "constants/theme.ts",
+      "services/fantasyRoster.ts",
+      "types/fantasy.ts"
+    ],
+    "components/SeasonSeriesBadge.tsx": [
+      "constants/theme.ts",
+      "types/gameResults.ts"
+    ],
+    "components/SettingsButton.tsx": [
+      "components/ui/IconSymbol.tsx",
+      "constants/theme.ts"
+    ],
+    "components/ShareablePickCard.tsx": [
+      "constants/theme.ts",
+      "constants/teamColors.ts",
+      "utils/teamLogo.ts"
+    ],
+    "components/ShotLocationMap.tsx": [
+      "constants/theme.ts",
+      "types/edgeStats.ts"
+    ],
+    "components/SlateRowViz.tsx": [
+      "constants/theme.ts",
+      "constants/teamColors.ts"
+    ],
+    "components/Sparkline.tsx": [
+      "constants/theme.ts"
+    ],
+    "components/SpeedGauge.tsx": [
+      "constants/theme.ts"
+    ],
+    "components/StandingsSnapshot.tsx": [
+      "constants/theme.ts",
+      "constants/teamColors.ts",
+      "types/edgeStats.ts"
+    ],
+    "components/StandingsWidget.tsx": [
+      "constants/theme.ts",
+      "constants/teamColors.ts",
+      "utils/teamLogo.ts",
+      "types/predictions.ts"
+    ],
+    "components/StartSitCard.tsx": [
+      "constants/theme.ts",
+      "types/fantasy.ts"
+    ],
+    "components/StatComparisonRow.tsx": [
+      "services/teamComparison.ts"
+    ],
+    "components/StatOfTheNight.tsx": [
+      "constants/theme.ts",
+      "utils/teamLogo.ts",
+      "types/insights.ts"
+    ],
+    "components/StreakBadge.tsx": [
+      "constants/theme.ts"
+    ],
+    "components/SubscriptionProvider.tsx": [
+      "components/auth/AuthProvider.tsx",
+      "components/PaywallModal.tsx",
+      "services/subscription.ts"
+    ],
+    "components/TeamCard.tsx": [
+      "constants/theme.ts",
+      "utils/teamLogo.ts"
+    ],
+    "components/TeamHeadToHead.tsx": [
+      "utils/season.ts",
+      "components/arena/ArenaProvider.tsx",
+      "components/arena/ArenaPrimitives.tsx",
+      "utils/teamLogo.ts",
+      "services/teamList.ts",
+      "services/teamComparison.ts",
+      "types/teamStats.ts"
+    ],
+    "components/TeamModal.tsx": [
+      "components/ui/IconSymbol.tsx",
+      "constants/theme.ts"
+    ],
+    "components/TeamStatusBadges.tsx": [
+      "constants/theme.ts"
+    ],
+    "components/ThemedText.tsx": [
+      "hooks/useThemeColor.ts"
+    ],
+    "components/ThemedView.tsx": [
+      "hooks/useThemeColor.ts"
+    ],
+    "components/Toast.tsx": [
+      "constants/theme.ts"
+    ],
+    "components/WaiverWireScout.tsx": [
+      "constants/theme.ts",
+      "components/FantasyProjectionRow.tsx",
+      "services/fantasyProjections.ts",
+      "types/fantasy.ts"
+    ],
+    "components/WaiverWireSection.tsx": [
+      "constants/theme.ts",
+      "types/fantasy.ts"
+    ],
+    "components/WeeklyOutlook.tsx": [
+      "constants/theme.ts",
+      "types/fantasy.ts"
+    ],
+    "components/ZoneTimeChart.tsx": [
+      "constants/theme.ts"
+    ],
+    "components/analytics/AnalyticsProvider.tsx": [
+      "services/analytics/AnalyticsService.ts"
+    ],
+    "components/arena/ArenaHeadline.tsx": [
+      "constants/arenaTypography.ts"
+    ],
+    "components/arena/ArenaOnboarding.tsx": [
+      "components/arena/ArenaPrimitives.tsx",
+      "components/arena/ArenaProvider.tsx",
+      "components/arena/ArenaSkater.tsx",
+      "components/arena/ArenaHeadline.tsx"
+    ],
+    "components/arena/ArenaPrimitives.tsx": [
+      "constants/arenaTheme.ts",
+      "components/arena/ArenaProvider.tsx",
+      "constants/arenaTypography.ts",
+      "constants/arenaTypography.ts"
+    ],
+    "components/arena/ArenaProvider.tsx": [
+      "constants/arenaTheme.ts",
+      "services/homeTeam.ts",
+      "services/teamFavorites.ts"
+    ],
+    "components/arena/ArenaSkater.tsx": [],
+    "components/arena/GamePoster.tsx": [
+      "components/arena/ArenaProvider.tsx",
+      "components/arena/ArenaPrimitives.tsx",
+      "services/arenaData.ts",
+      "utils/seasonContext.ts",
+      "utils/arenaSlate.ts",
+      "types/arena.ts",
+      "components/arena/ArenaSkater.tsx",
+      "components/arena/ArenaHeadline.tsx"
+    ],
+    "components/arena/GamePreview.tsx": [
+      "components/arena/ArenaProvider.tsx",
+      "components/arena/ArenaPrimitives.tsx",
+      "services/arenaData.ts",
+      "types/arena.ts",
+      "components/arena/GamePoster.tsx"
+    ],
+    "components/arena/PlayoffSeries.tsx": [
+      "services/playoffSeries.ts",
+      "types/arena.ts",
+      "components/arena/ArenaProvider.tsx",
+      "components/arena/ArenaPrimitives.tsx"
+    ],
+    "components/arena/SeasonBook.tsx": [
+      "components/arena/ArenaProvider.tsx",
+      "components/arena/ArenaPrimitives.tsx",
+      "types/arena.ts",
+      "services/arenaData.ts",
+      "components/arena/GamePoster.tsx"
+    ],
+    "components/arena/SeasonHub.tsx": [
+      "components/arena/ArenaProvider.tsx",
+      "components/arena/ArenaPrimitives.tsx",
+      "components/arena/ArenaHeadline.tsx",
+      "components/arena/ArenaSkater.tsx",
+      "utils/season.ts",
+      "utils/seasonContext.ts"
+    ],
+    "components/arena/TonightScreen.tsx": [
+      "utils/entityRoutes.ts",
+      "components/arena/ArenaProvider.tsx",
+      "components/arena/ArenaPrimitives.tsx",
+      "components/arena/GamePoster.tsx",
+      "components/arena/GamePreview.tsx",
+      "components/arena/SeasonBook.tsx",
+      "hooks/useArenaGames.ts",
+      "services/arenaData.ts",
+      "services/seasonBook.ts",
+      "utils/seasonContext.ts",
+      "components/arena/SeasonHub.tsx",
+      "components/arena/PlayoffSeries.tsx",
+      "utils/arenaSlate.ts",
+      "types/arena.ts"
+    ],
+    "components/auth/AuthProvider.tsx": [
+      "services/analytics/AnalyticsService.ts",
+      "services/googleAuth.ts"
+    ],
+    "components/dashboard/AlertsModule.tsx": [
+      "constants/theme.ts",
+      "services/fantasyAlerts.ts"
+    ],
+    "components/dashboard/DailyInsightModule.tsx": [
+      "constants/theme.ts"
+    ],
+    "components/dashboard/DashboardContainer.tsx": [
+      "constants/theme.ts",
+      "types/dashboard.ts",
+      "services/dashboardModules.ts",
+      "components/dashboard/StartSitModule.tsx",
+      "components/dashboard/TrendingModule.tsx",
+      "components/dashboard/AlertsModule.tsx",
+      "components/dashboard/WaiverWireModule.tsx",
+      "components/dashboard/MatchupEdgeModule.tsx",
+      "components/dashboard/DailyInsightModule.tsx",
+      "components/dashboard/ModulePicker.tsx",
+      "hooks/useDashboardData.ts",
+      "hooks/useDashboardData.ts"
+    ],
+    "components/dashboard/MatchupEdgeModule.tsx": [
+      "constants/theme.ts"
+    ],
+    "components/dashboard/ModulePicker.tsx": [
+      "constants/theme.ts",
+      "types/dashboard.ts"
+    ],
+    "components/dashboard/StartSitModule.tsx": [
+      "constants/theme.ts",
+      "utils/teamLogo.ts"
+    ],
+    "components/dashboard/TrendingModule.tsx": [
+      "constants/theme.ts",
+      "components/Sparkline.tsx"
+    ],
+    "components/dashboard/WaiverWireModule.tsx": [
+      "constants/theme.ts"
+    ],
+    "components/design-system/Button.tsx": [],
+    "components/design-system/Card.tsx": [],
+    "components/model-builder/BacktestPanel.tsx": [
+      "constants/theme.ts",
+      "types/predictions.ts",
+      "services/backtesting.ts",
+      "utils/season.ts"
+    ],
+    "components/model-builder/FactorEditor.tsx": [
+      "constants/theme.ts",
+      "constants/modelFactors.ts",
+      "types/predictions.ts",
+      "components/model-builder/WeightSlider.tsx"
+    ],
+    "components/model-builder/LivePreview.tsx": [
+      "constants/theme.ts",
+      "types/predictions.ts",
+      "services/modelPrediction.ts"
+    ],
+    "components/model-builder/ModelEditScreen.tsx": [
+      "constants/theme.ts",
+      "types/predictions.ts",
+      "services/modelStorage.ts",
+      "components/model-builder/FactorEditor.tsx",
+      "components/model-builder/LivePreview.tsx",
+      "components/model-builder/BacktestPanel.tsx",
+      "components/DataSeedingModal.tsx"
+    ],
+    "components/model-builder/ModelList.tsx": [
+      "constants/theme.ts",
+      "types/predictions.ts",
+      "services/modelStorage.ts",
+      "components/ModelAccuracyCard.tsx"
+    ],
+    "components/model-builder/WeightSlider.tsx": [
+      "constants/theme.ts"
+    ],
+    "components/model-builder/index.ts": [
+      "components/model-builder/WeightSlider.tsx",
+      "components/model-builder/ModelList.tsx",
+      "components/model-builder/FactorEditor.tsx",
+      "components/model-builder/LivePreview.tsx",
+      "components/model-builder/BacktestPanel.tsx",
+      "components/model-builder/ModelEditScreen.tsx"
+    ],
+    "components/onboarding/OnboardingFlow.tsx": [
+      "components/onboarding/WelcomeScreen.tsx",
+      "components/onboarding/PlatformPicker.tsx",
+      "components/onboarding/RosterSetup.tsx",
+      "components/onboarding/TonightPreview.tsx",
+      "services/fantasyRoster.ts",
+      "types/fantasy.ts"
+    ],
+    "components/onboarding/PlatformPicker.tsx": [],
+    "components/onboarding/RosterSetup.tsx": [
+      "constants/theme.ts"
+    ],
+    "components/onboarding/TonightPreview.tsx": [],
+    "components/onboarding/WelcomeScreen.tsx": [],
+    "components/ui/EmptyState.tsx": [
+      "constants/theme.ts"
+    ],
+    "components/ui/IconSymbol.ios.tsx": [],
+    "components/ui/IconSymbol.tsx": [],
+    "components/ui/SkeletonLoader.tsx": [
+      "constants/theme.ts"
+    ],
+    "components/ui/TabBarBackground.ios.tsx": [],
+    "components/ui/TabBarBackground.tsx": [],
+    "constants/Colors.ts": [],
+    "constants/arenaTheme.ts": [],
+    "constants/arenaTypography.ts": [],
+    "constants/glossary.ts": [],
+    "constants/modelFactors.ts": [
+      "types/predictions.ts"
+    ],
+    "constants/teamColors.ts": [],
+    "constants/theme.ts": [],
+    "hooks/useAnalytics.ts": [
+      "components/analytics/AnalyticsProvider.tsx",
+      "services/analytics/types.ts"
+    ],
+    "hooks/useArenaGames.ts": [
+      "services/arenaData.ts",
+      "types/arena.ts"
+    ],
+    "hooks/useAuth.ts": [
+      "components/auth/AuthProvider.tsx"
+    ],
+    "hooks/useColorScheme.ts": [],
+    "hooks/useColorScheme.web.ts": [],
+    "hooks/useDashboardData.ts": [
+      "services/fantasyRoster.ts",
+      "services/fantasyProjections.ts",
+      "services/playerTrends.ts",
+      "services/insightGenerator.ts",
+      "services/fantasyAlerts.ts",
+      "services/fantasyAlerts.ts",
+      "types/fantasy.ts",
+      "components/dashboard/DailyInsightModule.tsx",
+      "components/dashboard/TrendingModule.tsx",
+      "components/dashboard/MatchupEdgeModule.tsx"
+    ],
+    "hooks/useGlossary.ts": [
+      "constants/glossary.ts"
+    ],
+    "hooks/useHaptics.ts": [],
+    "hooks/useMLPredictions.ts": [
+      "services/mlPredictions.ts"
+    ],
+    "hooks/useMyTeamData.ts": [
+      "services/fantasyRoster.ts",
+      "services/fantasyProjections.ts",
+      "types/fantasy.ts"
+    ],
+    "hooks/useThemeColor.ts": [
+      "constants/Colors.ts"
+    ],
+    "services/accuracyStats.ts": [
+      "services/pickTracking.ts"
+    ],
+    "services/analytics/AnalyticsService.ts": [
+      "services/analytics/types.ts"
+    ],
+    "services/analytics/types.ts": [],
+    "services/arenaData.ts": [
+      "types/arena.ts",
+      "constants/arenaTheme.ts",
+      "services/playerDetail.ts"
+    ],
+    "services/backtesting.ts": [
+      "types/predictions.ts",
+      "services/modelStorage.ts",
+      "utils/season.ts"
+    ],
+    "services/dashboardModules.ts": [
+      "types/dashboard.ts"
+    ],
+    "services/derivedStats.ts": [
+      "types/edgeStats.ts",
+      "types/gameResults.ts",
+      "types/edgeStats.ts"
+    ],
+    "services/edgeStats.ts": [
+      "types/edgeStats.ts"
+    ],
+    "services/fantasyAlerts.ts": [],
+    "services/fantasyProjections.ts": [
+      "types/fantasy.ts",
+      "utils/season.ts"
+    ],
+    "services/fantasyRoster.ts": [
+      "types/fantasy.ts"
+    ],
+    "services/gameResults.ts": [
+      "types/gameResults.ts"
+    ],
+    "services/goalieRates.ts": [],
+    "services/googleAuth.ts": [],
+    "services/homeTeam.ts": [
+      "constants/arenaTheme.ts"
+    ],
+    "services/insightGenerator.ts": [
+      "types/insights.ts",
+      "types/gameResults.ts",
+      "types/edgeStats.ts"
+    ],
+    "services/leaderboard.ts": [],
+    "services/matchupAnalysis.ts": [
+      "services/fantasyProjections.ts",
+      "types/fantasy.ts"
+    ],
+    "services/mlPredictions.ts": [],
+    "services/modelPrediction.ts": [
+      "types/predictions.ts",
+      "utils/predictionUtils.ts",
+      "utils/recentForm.ts",
+      "utils/situationalFactors.ts",
+      "utils/teamStatsForPrediction.ts",
+      "services/playerPrediction.ts"
+    ],
+    "services/modelStorage.ts": [
+      "types/predictions.ts",
+      "utils/predictionUtils.ts"
+    ],
+    "services/notificationSettings.ts": [],
+    "services/notifications.ts": [
+      "services/notificationSettings.ts",
+      "services/pickTracking.ts"
+    ],
+    "services/pickTracking.ts": [
+      "utils/accuracyTracking.ts",
+      "utils/logger.ts"
+    ],
+    "services/playerDetail.ts": [
+      "utils/playerStats.ts"
+    ],
+    "services/playerLeaders.ts": [
+      "services/goalieRates.ts"
+    ],
+    "services/playerPrediction.ts": [
+      "types/predictions.ts"
+    ],
+    "services/playerStats.ts": [
+      "types/gameResults.ts",
+      "services/goalieRates.ts"
+    ],
+    "services/playerTrends.ts": [
+      "utils/playerStats.ts"
+    ],
+    "services/playoffSeries.ts": [
+      "types/arena.ts",
+      "utils/season.ts"
+    ],
+    "services/referrals.ts": [],
+    "services/seasonBook.ts": [
+      "types/arena.ts"
+    ],
+    "services/shareCards.ts": [],
+    "services/subscription.ts": [],
+    "services/teamComparison.ts": [
+      "types/teamStats.ts",
+      "services/arenaData.ts",
+      "types/arena.ts"
+    ],
+    "services/teamFavorites.ts": [],
+    "services/teamForm.ts": [
+      "types/teamForm.ts",
+      "utils/logger.ts"
+    ],
+    "services/teamList.ts": [],
+    "services/userSync.ts": [],
+    "types/arena.ts": [],
+    "types/dashboard.ts": [],
+    "types/edgeStats.ts": [],
+    "types/factors.ts": [],
+    "types/fantasy.ts": [],
+    "types/gameResults.ts": [],
+    "types/insights.ts": [],
+    "types/players.ts": [
+      "services/playerLeaders.ts",
+      "services/playerDetail.ts"
+    ],
+    "types/predictions.ts": [],
+    "types/react-native-purchases.d.ts": [],
+    "types/teamForm.ts": [],
+    "types/teamStats.ts": [],
+    "types/weeklyTheme.ts": [
+      "types/factors.ts"
+    ],
+    "utils/accuracyTracking.ts": [
+      "types/predictions.ts"
+    ],
+    "utils/arenaSlate.ts": [
+      "types/arena.ts"
+    ],
+    "utils/dateLabel.ts": [],
+    "utils/entityRoutes.ts": [
+      "constants/arenaTheme.ts"
+    ],
+    "utils/headlineGenerator.ts": [
+      "types/gameResults.ts",
+      "types/edgeStats.ts"
+    ],
+    "utils/heroPhoto.ts": [],
+    "utils/logger.ts": [],
+    "utils/playerStats.ts": [
+      "utils/season.ts"
+    ],
+    "utils/predictionUtils.ts": [
+      "types/predictions.ts"
+    ],
+    "utils/recentForm.ts": [
+      "types/predictions.ts"
+    ],
+    "utils/season.ts": [],
+    "utils/seasonContext.ts": [
+      "types/arena.ts",
+      "utils/season.ts"
+    ],
+    "utils/situationalFactors.ts": [
+      "types/predictions.ts"
+    ],
+    "utils/teamLogo.ts": [],
+    "utils/teamStatsForPrediction.ts": [
+      "types/predictions.ts"
+    ],
+    "utils/weightCalibration.ts": [
+      "services/pickTracking.ts",
+      "types/predictions.ts",
+      "utils/predictionUtils.ts"
+    ]
+  },
+  "reachable": [
+    "app/(tabs)/_layout.tsx",
+    "components/HapticTab.tsx",
+    "components/arena/ArenaProvider.tsx",
+    "constants/arenaTheme.ts",
+    "services/homeTeam.ts",
+    "services/teamFavorites.ts",
+    "app/(tabs)/following.tsx",
+    "components/arena/ArenaPrimitives.tsx",
+    "constants/arenaTypography.ts",
+    "utils/teamLogo.ts",
+    "app/(tabs)/hub.tsx",
+    "components/HubScreen.tsx",
+    "constants/theme.ts",
+    "components/auth/AuthProvider.tsx",
+    "services/analytics/AnalyticsService.ts",
+    "services/analytics/types.ts",
+    "services/googleAuth.ts",
+    "components/SubscriptionProvider.tsx",
+    "components/PaywallModal.tsx",
+    "services/subscription.ts",
+    "services/notificationSettings.ts",
+    "app/(tabs)/index.tsx",
+    "components/arena/TonightScreen.tsx",
+    "utils/entityRoutes.ts",
+    "components/arena/GamePoster.tsx",
+    "services/arenaData.ts",
+    "types/arena.ts",
+    "services/playerDetail.ts",
+    "utils/playerStats.ts",
+    "utils/season.ts",
+    "utils/seasonContext.ts",
+    "utils/arenaSlate.ts",
+    "components/arena/ArenaSkater.tsx",
+    "components/arena/ArenaHeadline.tsx",
+    "components/arena/GamePreview.tsx",
+    "components/arena/SeasonBook.tsx",
+    "hooks/useArenaGames.ts",
+    "services/seasonBook.ts",
+    "components/arena/SeasonHub.tsx",
+    "components/arena/PlayoffSeries.tsx",
+    "services/playoffSeries.ts",
+    "app/(tabs)/models.tsx",
+    "hooks/useAnalytics.ts",
+    "components/analytics/AnalyticsProvider.tsx",
+    "components/model-builder/index.ts",
+    "components/model-builder/WeightSlider.tsx",
+    "components/model-builder/ModelList.tsx",
+    "types/predictions.ts",
+    "services/modelStorage.ts",
+    "utils/predictionUtils.ts",
+    "components/ModelAccuracyCard.tsx",
+    "services/pickTracking.ts",
+    "utils/accuracyTracking.ts",
+    "utils/logger.ts",
+    "components/model-builder/FactorEditor.tsx",
+    "constants/modelFactors.ts",
+    "components/model-builder/LivePreview.tsx",
+    "services/modelPrediction.ts",
+    "utils/recentForm.ts",
+    "utils/situationalFactors.ts",
+    "utils/teamStatsForPrediction.ts",
+    "services/playerPrediction.ts",
+    "components/model-builder/BacktestPanel.tsx",
+    "services/backtesting.ts",
+    "components/model-builder/ModelEditScreen.tsx",
+    "components/DataSeedingModal.tsx",
+    "app/(tabs)/myteam.tsx",
+    "components/MyTeamScreen.tsx",
+    "components/PremiumGate.tsx",
+    "components/StartSitCard.tsx",
+    "types/fantasy.ts",
+    "components/WeeklyOutlook.tsx",
+    "components/WaiverWireSection.tsx",
+    "components/RosterBuilder.tsx",
+    "services/fantasyRoster.ts",
+    "hooks/useMyTeamData.ts",
+    "services/fantasyProjections.ts",
+    "app/(tabs)/players.tsx",
+    "constants/teamColors.ts",
+    "components/CompactPlayerRow.tsx",
+    "services/playerTrends.ts",
+    "components/ElevatedPlayerRow.tsx",
+    "components/FantasyProjectionRow.tsx",
+    "components/GoalieSpotlightCard.tsx",
+    "components/HeroLeaderCard.tsx",
+    "components/PlayerDetailModal.tsx",
+    "components/ui/IconSymbol.tsx",
+    "components/PlayerProjectionCard.tsx",
+    "components/ui/SkeletonLoader.tsx",
+    "components/ThemedView.tsx",
+    "hooks/useThemeColor.ts",
+    "constants/Colors.ts",
+    "services/playerLeaders.ts",
+    "services/goalieRates.ts",
+    "app/(tabs)/stats.tsx",
+    "components/TeamHeadToHead.tsx",
+    "services/teamList.ts",
+    "services/teamComparison.ts",
+    "types/teamStats.ts",
+    "app/(tabs)/teams.tsx",
+    "app/+not-found.tsx",
+    "components/ThemedText.tsx",
+    "app/_layout.tsx",
+    "components/arena/ArenaOnboarding.tsx",
+    "services/notifications.ts"
+  ]
+}

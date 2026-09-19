@@ -115,6 +115,13 @@ jest.mock('react-native-purchases', () => ({
     getCustomerInfo: jest.fn(() => Promise.resolve({ entitlements: { active: {} } })),
     purchasePackage: jest.fn(),
     restorePurchases: jest.fn(() => Promise.resolve({ entitlements: { active: {} } })),
+    logIn: jest.fn(() => Promise.resolve({ customerInfo: { entitlements: { active: {} } }, created: false })),
+    logOut: jest.fn(() => Promise.resolve({ entitlements: { active: {} } })),
+    getAppUserID: jest.fn(() => Promise.resolve('$RCAnonymousID:test')),
+    isAnonymous: jest.fn(() => Promise.resolve(true)),
+    checkTrialOrIntroductoryPriceEligibility: jest.fn(() => Promise.resolve({})),
+    addCustomerInfoUpdateListener: jest.fn(),
+    removeCustomerInfoUpdateListener: jest.fn(),
   },
 }), { virtual: true });
 

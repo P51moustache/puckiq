@@ -13,11 +13,12 @@ import {
   type ViewStyle,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, usePathname } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ARENA_TEAMS } from "../../constants/arenaTheme";
 import { useArena } from "./ArenaProvider";
 import { arenaType } from "../../constants/arenaTypography";
+import { getSettingsOriginFromPathname } from "../../utils/accountFlowPolicy";
 export { arenaType } from "../../constants/arenaTypography";
 
 export function ArenaButton({
@@ -79,6 +80,7 @@ export function ArenaHeader({
   subtitle?: string;
 }) {
   const { palette: p, homeTeam } = useArena();
+  const pathname = usePathname();
   const [picker, setPicker] = useState(false);
   return (
     <>
@@ -130,7 +132,7 @@ export function ArenaHeader({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Settings"
-            onPress={() => router.push("/(tabs)/hub")}
+            onPress={() => router.push({ pathname: "/(tabs)/hub", params: { origin: getSettingsOriginFromPathname(pathname) } })}
             style={styles.iconButton}
           >
             <Ionicons name="options-outline" size={24} color={p.ink} />

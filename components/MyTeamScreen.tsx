@@ -16,7 +16,6 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { rinkGlass } from '../constants/theme';
 import PremiumGate from './PremiumGate';
@@ -26,6 +25,15 @@ import WaiverWireSection from './WaiverWireSection';
 import RosterBuilder from './RosterBuilder';
 import { useMyTeamData } from '../hooks/useMyTeamData';
 import type { PlayerProjection } from '../types/fantasy';
+import { useArena } from './arena/ArenaProvider';
+import { arenaType } from '../constants/arenaTypography';
+
+interface UnavailableRosterPlayer {
+  playerId: number;
+  playerName: string;
+  teamAbbrev: string;
+  position: string;
+}
 
 function getWeekNumber(): number {
   const now = new Date();
@@ -40,6 +48,7 @@ function formatScoringBadge(format?: string): string {
 }
 
 export default function MyTeamScreen() {
+  const { palette: p } = useArena();
   const {
     isLoading,
     roster,
@@ -57,9 +66,13 @@ export default function MyTeamScreen() {
   }, [onRefresh]);
 
   // Split projections into active lineup (has game today) vs bench
-  const { lineup, bench } = useMemo(() => {
-    if (!roster || projections.length === 0) {
-      return { lineup: [] as PlayerProjection[], bench: [] as PlayerProjection[] };
+  const { lineup, bench, unavailable } = useMemo(() => {
+    if (!roster) {
+      return {
+        lineup: [] as PlayerProjection[],
+        bench: [] as PlayerProjection[],
+        unavailable: [] as UnavailableRosterPlayer[],
+      };
     }
 
     const projectedPlayerIds = new Set(projections.map(p => p.playerId));
@@ -70,33 +83,19 @@ export default function MyTeamScreen() {
       .filter(p => p.recommendation === 'SIT')
       .sort((a, b) => b.fantasyPoints - a.fantasyPoints);
 
-    // Players on roster without projections go to bench
-    const rosterWithoutProjections = roster.players
+    const unavailablePlayers = roster.players
       .filter(p => !projectedPlayerIds.has(p.playerId))
       .map(p => ({
         playerId: p.playerId,
         playerName: p.playerName,
         teamAbbrev: p.teamAbbrev,
         position: p.position,
-        fantasyPoints: 0,
-        floor: 0,
-        ceiling: 0,
-        predGoals: 0,
-        predAssists: 0,
-        predSog: 0,
-        predHits: 0,
-        predBlocks: 0,
-        recommendation: 'SIT' as const,
-        confidence: 'low',
-        reason: 'No game today',
-        gameId: 0,
-        opponentAbbrev: '',
-        isHome: false,
       }));
 
     return {
       lineup: lineupPlayers,
-      bench: [...benchPlayers, ...rosterWithoutProjections],
+      bench: benchPlayers,
+      unavailable: unavailablePlayers,
     };
   }, [roster, projections]);
 
@@ -105,30 +104,28 @@ export default function MyTeamScreen() {
   // Loading state
   if (isLoading) {
     return (
-      <View style={styles.centered} testID="my-team-loading">
-        <ActivityIndicator size="large" color={rinkGlass.blueLight} />
+      <View style={[styles.centered, { backgroundColor: p.page }]} testID="my-team-loading">
+        <ActivityIndicator size="large" color={p.action} />
       </View>
     );
   }
 
   return (
     <PremiumGate feature="My Team">
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: p.page }]}>
         {/* Empty state: no roster */}
         {!hasRoster ? (
-          <Animated.View
-            entering={FadeIn.duration(500)}
+          <View
             style={styles.emptyState}
             testID="my-team-empty"
           >
             {/* Glowing icon */}
-            <View style={styles.emptyIconWrapper}>
-              <View style={styles.emptyIconGlow} />
-              <Ionicons name="trophy-outline" size={56} color={rinkGlass.blueLight} />
+            <View style={[styles.emptyIconWrapper, { backgroundColor: p.soft, borderColor: p.edge }]}>
+              <Ionicons name="people-outline" size={44} color={p.link} />
             </View>
 
-            <Text style={styles.emptyTitle}>Build Your Roster</Text>
-            <Text style={styles.emptyDescription}>
+            <Text accessibilityRole="header" style={[styles.emptyTitle, { color: p.ink, fontFamily: arenaType.display }]}>BUILD YOUR ROSTER</Text>
+            <Text style={[styles.emptyDescription, { color: p.muted, fontFamily: arenaType.body }]}>
               Get personalized start/sit recommendations, projected points, and waiver wire picks
             </Text>
 
@@ -137,49 +134,15 @@ export default function MyTeamScreen() {
               onPress={() => setShowRosterBuilder(true)}
               activeOpacity={0.85}
               testID="setup-roster-button"
+              accessibilityRole="button"
+              accessibilityLabel="Add players to roster"
             >
-              <View style={styles.ctaButton}>
-                <Ionicons name="add-circle" size={20} color="#fff" />
-                <Text style={styles.ctaText}>Add Players</Text>
+              <View style={[styles.ctaButton, { backgroundColor: p.action, borderColor: p.frame, shadowColor: p.frame }]}>
+                <Ionicons name="add-circle" size={20} color={p.actionInk} />
+                <Text style={[styles.ctaText, { color: p.actionInk, fontFamily: arenaType.body }]}>Add Players</Text>
               </View>
             </TouchableOpacity>
-
-            {/* Preview teaser cards */}
-            <View style={styles.previewCards}>
-              <Animated.View
-                entering={FadeInDown.delay(200).duration(400)}
-                style={styles.previewCard}
-              >
-                <View style={[styles.previewBadge, { backgroundColor: `${rinkGlass.faceoffDot}33` }]}>
-                  <Text style={[styles.previewBadgeText, { color: rinkGlass.faceoffDot }]}>START</Text>
-                </View>
-                <Text style={styles.previewPlayerName}>C. McDavid</Text>
-                <Text style={styles.previewPoints}>4.2 pts</Text>
-              </Animated.View>
-
-              <Animated.View
-                entering={FadeInDown.delay(300).duration(400)}
-                style={styles.previewCard}
-              >
-                <View style={[styles.previewBadge, { backgroundColor: `${rinkGlass.blueLight}33` }]}>
-                  <Text style={[styles.previewBadgeText, { color: rinkGlass.blueLight }]}>PROJ</Text>
-                </View>
-                <Text style={styles.previewPlayerName}>N. MacKinnon</Text>
-                <Text style={styles.previewPoints}>3.8 pts</Text>
-              </Animated.View>
-
-              <Animated.View
-                entering={FadeInDown.delay(400).duration(400)}
-                style={styles.previewCard}
-              >
-                <View style={[styles.previewBadge, { backgroundColor: `${rinkGlass.powerPlay}33` }]}>
-                  <Text style={[styles.previewBadgeText, { color: rinkGlass.powerPlay }]}>WAIVER</Text>
-                </View>
-                <Text style={styles.previewPlayerName}>M. Boldy</Text>
-                <Text style={styles.previewPoints}>2.6 pts</Text>
-              </Animated.View>
-            </View>
-          </Animated.View>
+          </View>
         ) : (
           /* Roster view */
           <ScrollView
@@ -189,25 +152,24 @@ export default function MyTeamScreen() {
               <RefreshControl
                 refreshing={false}
                 onRefresh={onRefresh}
-                tintColor={rinkGlass.blueLight}
-                colors={[rinkGlass.blueLight]}
+                tintColor={p.action}
+                colors={[p.action]}
               />
             }
             testID="my-team-roster"
           >
             {/* Header */}
-            <Animated.View
-              entering={FadeIn.duration(300)}
+            <View
               style={styles.headerRow}
             >
               <View>
-                <Text style={styles.headerTitle}>My Team</Text>
+                <Text accessibilityRole="header" style={[styles.headerTitle, { color: p.ink, fontFamily: arenaType.display }]}>MY TEAM</Text>
                 <View style={styles.badgeRow}>
-                  <View style={styles.weekBadge}>
-                    <Text style={styles.weekBadgeText}>Week {weekNumber}</Text>
+                  <View style={[styles.weekBadge, { backgroundColor: p.soft }]}>
+                    <Text style={[styles.weekBadgeText, { color: p.muted }]}>Week {weekNumber}</Text>
                   </View>
-                  <View style={styles.formatBadge}>
-                    <Text style={styles.formatBadgeText}>
+                  <View style={[styles.formatBadge, { backgroundColor: p.action }]}>
+                    <Text style={[styles.formatBadgeText, { color: p.actionInk }]}>
                       {formatScoringBadge(roster?.scoringFormat)}
                     </Text>
                   </View>
@@ -215,19 +177,21 @@ export default function MyTeamScreen() {
               </View>
               <TouchableOpacity
                 onPress={() => setShowRosterBuilder(true)}
-                style={styles.editButton}
+                style={[styles.editButton, { backgroundColor: p.soft, borderColor: p.edge }]}
                 testID="edit-roster-button"
+                accessibilityRole="button"
+                accessibilityLabel="Edit roster"
               >
-                <Ionicons name="pencil" size={16} color={rinkGlass.blueLight} />
+                <Ionicons name="pencil" size={19} color={p.link} />
               </TouchableOpacity>
-            </Animated.View>
+            </View>
 
             {/* Today's Lineup */}
             {lineup.length > 0 && (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>TODAY'S LINEUP</Text>
-                  <View style={styles.sectionUnderline} />
+                  <Text style={[styles.sectionTitle, { color: p.muted, fontFamily: arenaType.display }]}>TODAY'S LINEUP</Text>
+                  <View style={[styles.sectionUnderline, { backgroundColor: p.action }]} />
                 </View>
                 {lineup.map((p, idx) => (
                   <StartSitCard key={p.playerId} projection={p} index={idx} />
@@ -239,8 +203,8 @@ export default function MyTeamScreen() {
             {bench.length > 0 && (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>BENCH</Text>
-                  <View style={[styles.sectionUnderline, { backgroundColor: rinkGlass.textSecondary }]} />
+                  <Text style={[styles.sectionTitle, { color: p.muted, fontFamily: arenaType.display }]}>BENCH</Text>
+                  <View style={[styles.sectionUnderline, { backgroundColor: p.muted }]} />
                 </View>
                 {bench.map((p, idx) => (
                   <StartSitCard key={p.playerId} projection={p} index={idx} />
@@ -248,17 +212,34 @@ export default function MyTeamScreen() {
               </View>
             )}
 
+            {unavailable.length > 0 && (
+              <View style={styles.section} testID="my-team-unavailable-roster">
+                <View style={styles.sectionHeader}>
+                  <Text style={[styles.sectionTitle, { color: p.muted, fontFamily: arenaType.display }]}>FORECAST UNAVAILABLE</Text>
+                  <View style={[styles.sectionUnderline, { backgroundColor: p.muted }]} />
+                </View>
+                {unavailable.map((player) => (
+                  <View key={player.playerId} style={[styles.unavailablePlayer, { backgroundColor: p.paper, borderColor: p.edge }]} testID={`unavailable-roster-player-${player.playerId}`}>
+                    <Text style={[styles.unavailablePlayerName, { color: p.ink, fontFamily: arenaType.body }]}>{player.playerName}</Text>
+                    <Text style={[styles.unavailablePlayerMeta, { color: p.muted }]}>
+                      {player.position} · {player.teamAbbrev}
+                    </Text>
+                    <Text style={[styles.unavailablePlayerReason, { color: p.muted }]}>Projection unavailable</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
             {/* No projections at all */}
-            {lineup.length === 0 && bench.length === 0 && (
-              <Animated.View
-                entering={FadeIn.duration(300)}
-                style={styles.noProjections}
+            {lineup.length === 0 && bench.length === 0 && unavailable.length === 0 && (
+              <View
+                style={[styles.noProjections, { backgroundColor: p.paper, borderColor: p.edge }]}
               >
-                <Ionicons name="time-outline" size={28} color={rinkGlass.textSecondary} />
-                <Text style={styles.noProjectionsText}>
+                <Ionicons name="time-outline" size={28} color={p.muted} />
+                <Text style={[styles.noProjectionsText, { color: p.muted }]}>
                   No projections available for today. Check back when games are scheduled.
                 </Text>
-              </Animated.View>
+              </View>
             )}
 
             {/* Weekly Outlook */}
@@ -305,6 +286,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
+    borderWidth: 1,
+    borderRadius: 24,
   },
   emptyIconGlow: {
     position: 'absolute',
@@ -437,12 +420,13 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   editButton: {
-    width: 36,
-    height: 36,
+    width: 48,
+    height: 48,
     borderRadius: 10,
     backgroundColor: `${rinkGlass.blueLight}1F`,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
   },
   // ── Sections ─────────────────────────────────────────────
   section: {
@@ -464,6 +448,30 @@ const styles = StyleSheet.create({
     width: 32,
     borderRadius: 1,
     backgroundColor: rinkGlass.blueLight,
+  },
+  unavailablePlayer: {
+    backgroundColor: rinkGlass.glass,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: rinkGlass.glassBorder,
+  },
+  unavailablePlayerName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: rinkGlass.textPrimary,
+    marginBottom: 4,
+  },
+  unavailablePlayerMeta: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: rinkGlass.textSecondary,
+    marginBottom: 6,
+  },
+  unavailablePlayerReason: {
+    fontSize: 12,
+    color: rinkGlass.textSecondary,
   },
   noProjections: {
     backgroundColor: rinkGlass.glass,

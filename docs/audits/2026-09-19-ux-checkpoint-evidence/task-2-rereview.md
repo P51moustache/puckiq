@@ -1,0 +1,33 @@
+# Task 2 recovery re-review — Personal models and replay
+
+## Verdict
+
+**Most prior findings are addressed, but replay state and availability error semantics still need revision.** Navigation, launch-token invalidation, eligibility-count alignment, Arena conversion, and the named accessibility repairs are present. A completed result remains displayed after range changes, and backend failures in the shared replay queries are still converted into zero eligible games rather than a retryable availability error.
+
+## Prior findings
+
+1. **Explicit iOS Models exit and status bar — ADDRESSED.** Models renders a visible 48-point Back control and a dark-content status bar on the Arena light page (`app/(tabs)/models.tsx:80-96,126-134`). The navigation helper uses history when available and replaces with League on cold entry (`components/model-builder/modelNavigation.ts:1-10`), with direct contract coverage (`components/model-builder/__tests__/modelNavigation.test.ts:1-13`).
+
+2. **Late/duplicate replay saved to a changed or closed draft — ADDRESSED for in-flight work.** The ref-backed guard rejects duplicate starts and identifies the launch weights/range (`components/model-builder/replayRunGuard.ts:1-22`; `components/model-builder/BacktestPanel.tsx:141-156`). Weight/range changes and unmount invalidate the active token (`components/model-builder/BacktestPanel.tsx:141-148`); progress, results, errors, and `onSaveResults` are all conditional on the current token (`components/model-builder/BacktestPanel.tsx:165-217`). Closing the editor unmounts this panel, so a late run cannot save into the closed draft.
+
+3. **Availability count versus replay eligibility — ADDRESSED for successful reads.** `checkReplayAvailability()` calls the same `runBacktest()` engine and reports its retained `results`/`totalGames` (`services/replayAvailability.ts:16-29`). The engine excludes dates without pregame standings and games without usable team predictions before deriving `totalGames` (`services/backtesting.ts:530-614`). The focused contract covers completed games with zero retained eligibility (`services/__tests__/replayAvailability.test.ts:26-30`).
+
+4. **Nested Arena styling — ADDRESSED.** The reviewed nested components now construct styles from `useArena()` palette values: `ModelAccuracyCard` (`components/ModelAccuracyCard.tsx:14-17`), ModelEditScreen (`components/model-builder/ModelEditScreen.tsx:60-63`), ModelList (`components/model-builder/ModelList.tsx:35-39`), FactorEditor (`components/model-builder/FactorEditor.tsx:47-55`), WeightSlider and help (`components/model-builder/WeightSlider.tsx:43-45,215-329`), BacktestPanel (`components/model-builder/BacktestPanel.tsx:87-90,469-655`), LivePreview (`components/model-builder/LivePreview.tsx:73-77`), and DataSeedingModal (`components/DataSeedingModal.tsx:34-35,217-253`). Remaining green/red/amber constants represent data direction, error, success, or warning rather than legacy dark surfaces.
+
+5. **Accessible controls — ADDRESSED for the prior named gaps.** Model activation is now a separate labeled selected/disabled control outside edit/duplicate/delete (`components/model-builder/ModelList.tsx:231-288`). Category and global resets have roles, labels, and applicable state (`components/model-builder/FactorEditor.tsx:232-268,307-335`). Replay ranges and availability/run controls have roles and labels (`components/model-builder/BacktestPanel.tsx:227-292,362-381,443-452`). Dialog close/cancel controls are labeled (`components/DataSeedingModal.tsx:107-114,146-177,193-207`; `components/model-builder/ModelList.tsx:358-403`). Slider native adjustment exposes one-step increment/decrement actions and a 48-point frame (`components/model-builder/WeightSlider.tsx:119-147,236-252`).
+
+6. **Legacy modal styling and small targets — ADDRESSED.** Duplicate modal styles are derived from Arena roles (`components/model-builder/ModelList.tsx:412-655`); data-check close, buttons, slider, help, and activation/action controls meet the 48-point frames identified in the prior review (`components/DataSeedingModal.tsx:246-253,324-341`; `components/model-builder/WeightSlider.tsx:236-252,316-323`; `components/model-builder/ModelList.tsx:547-558,655`).
+
+## Remaining important findings
+
+1. **Changing range leaves completed results visibly attached to the new selection.** The replay-key effect invalidates a running token and clears running/progress, but does not clear `results`, `resultsSaved`, or the last-tested range (`components/model-builder/BacktestPanel.tsx:141-148`). Existing result clearing compares only the four-factor weights hash (`components/model-builder/BacktestPanel.tsx:127-139`). After a completed 30-day replay, selecting 90 days immediately relabels the range while continuing to display and potentially save the 30-day result (`components/model-builder/BacktestPanel.tsx:227-292,463-464`). Clear completed results on any replay-key/range change or track the completed launch key and render/save only while it matches.
+
+2. **Backend failures are reported as zero eligible records, defeating Retry semantics.** `checkReplayAvailability()` only throws when `runBacktest()` rejects (`services/replayAvailability.ts:17-32`). The production game query catches Supabase errors/exceptions and returns `[]` (`services/backtesting.ts:42-76`), while standings queries convert query errors and exceptions to `null` (`services/backtesting.ts:237-257`). `runBacktest()` interprets those values as no games/no eligible dates and resolves with `totalGames: 0` (`services/backtesting.ts:498-517,534-560`). DataSeedingModal therefore shows the “no completed games” condition rather than its retryable check-error condition during an outage (`components/DataSeedingModal.tsx:63-84`). Introduce a strict availability/replay read contract that distinguishes unavailable data from a verified empty eligible set; test production dependency failures rather than only mocking `runBacktest()` to reject (`services/__tests__/replayAvailability.test.ts:32-36`).
+
+## Additional quality risk
+
+- The availability check is described as read-only but calls `runBacktest(..., skipCache=true)`, and `skipCache` bypasses only cache reads; every non-empty run still writes a backtest cache (`services/replayAvailability.ts:17-20`; `services/backtesting.ts:487-496,634-635`). This can create/update the Classic cache merely by checking availability. Either suppress cache writes for availability or rename the flag/claim so the side effect is explicit.
+
+## Evidence limits
+
+Read-only source review only. I did not run the full suite or native iOS checks.

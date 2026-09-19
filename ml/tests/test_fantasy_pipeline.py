@@ -33,9 +33,10 @@ def sample_player_pred_rows():
             "model_version": "2026-04-01_001",
             "game_date": "2026-04-04",
             "player_id": 8478402,
-            "team_abbrev": "TOR",
-            "position": "C",
             "player_predictions": {
+                "player_name": "Auston Matthews",
+                "team_abbrev": "TOR",
+                "position": "C",
                 "expected_goals": 0.45,
                 "expected_assists": 0.60,
                 "expected_points": 1.05,
@@ -49,9 +50,10 @@ def sample_player_pred_rows():
             "model_version": "2026-04-01_001",
             "game_date": "2026-04-04",
             "player_id": 8479318,
-            "team_abbrev": "MTL",
-            "position": "L",
             "player_predictions": {
+                "player_name": "Cole Caufield",
+                "team_abbrev": "MTL",
+                "position": "L",
                 "expected_goals": 0.30,
                 "expected_assists": 0.40,
                 "expected_points": 0.70,
@@ -72,9 +74,10 @@ def multi_game_pred_rows():
             "model_version": "2026-04-01_001",
             "game_date": "2026-04-04",
             "player_id": 8478402,
-            "team_abbrev": "TOR",
-            "position": "C",
             "player_predictions": {
+                "player_name": "Auston Matthews",
+                "team_abbrev": "TOR",
+                "position": "C",
                 "expected_goals": 0.45,
                 "expected_assists": 0.60,
                 "expected_points": 1.05,
@@ -88,9 +91,10 @@ def multi_game_pred_rows():
             "model_version": "2026-04-01_001",
             "game_date": "2026-04-04",
             "player_id": 8479318,
-            "team_abbrev": "BOS",
-            "position": "D",
             "player_predictions": {
+                "player_name": "Charlie McAvoy",
+                "team_abbrev": "BOS",
+                "position": "D",
                 "expected_goals": 0.10,
                 "expected_assists": 0.25,
                 "expected_points": 0.35,
@@ -276,3 +280,69 @@ class TestPredictFantasyPoints:
         p2_rows = [r for r in result if r["player_id"] == 8479318]
         for row in p2_rows:
             assert row["position"] == "L"
+
+    def test_projection_identity_comes_from_player_prediction_context(
+        self, sample_player_pred_rows, mock_client
+    ):
+        """Projection rows must not lose nested player name/team identity."""
+        with patch("ml.pipeline.daily_run.write_fantasy_projections"):
+            result = _predict_fantasy_points(
+                sample_player_pred_rows, "2026-04-04", mock_client, "fresh"
+            )
+
+        player_rows = [r for r in result if r["player_id"] == 8478402]
+        assert player_rows
+        for row in player_rows:
+            assert row["player_name"] == "Auston Matthews"
+            assert row["team_abbrev"] == "TOR"
+
+    def test_missing_projection_name_is_enriched_from_players(
+        self, sample_player_pred_rows, mock_client
+    ):
+        """The writer must not persist blank names when player identity is available."""
+        rows_without_names = [
+            {
+                **row,
+                "player_predictions": {
+                    **row["player_predictions"],
+                    "player_name": None,
+                },
+            }
+            for row in sample_player_pred_rows
+        ]
+        mock_client.table.return_value.select.return_value.in_.return_value.execute.return_value.data = [
+            {"id": 8478402, "full_name": "Auston Matthews"},
+            {"id": 8479318, "full_name": "Cole Caufield"},
+        ]
+
+        with patch("ml.pipeline.daily_run.write_fantasy_projections"):
+            result = _predict_fantasy_points(
+                rows_without_names, "2026-04-04", mock_client, "fresh"
+            )
+
+        assert {row["player_name"] for row in result} == {"Auston Matthews", "Cole Caufield"}
+
+    def test_missing_identity_is_not_written_as_a_blank_projection(
+        self, sample_player_pred_rows, mock_client
+    ):
+        rows_without_names = [
+            {
+                **row,
+                "player_predictions": {
+                    **row["player_predictions"],
+                    "player_name": None,
+                },
+            }
+            for row in sample_player_pred_rows
+        ]
+        mock_client.table.return_value.select.return_value.in_.return_value.execute.return_value.data = [
+            {"id": 8478402, "full_name": "Auston Matthews"},
+        ]
+
+        with patch("ml.pipeline.daily_run.write_fantasy_projections"):
+            result = _predict_fantasy_points(
+                rows_without_names, "2026-04-04", mock_client, "fresh"
+            )
+
+        assert {row["player_id"] for row in result} == {8478402}
+        assert all(row["player_name"] for row in result)

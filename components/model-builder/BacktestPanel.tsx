@@ -3,7 +3,7 @@
  * Allows users to run backtests on prediction models
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,15 +12,17 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { theme } from '../../constants/theme';
 import type { PredictionModel, ModelBacktestResults } from '../../types/predictions';
 import {
   runBacktest,
   getReplayWeightsKey,
-  isReplaySeasonAvailable,
   type BacktestResults,
   type BacktestProgressCallback,
 } from '../../services/backtesting';
+import { checkReplayAvailability, type ReplayDateRange } from '../../services/replayAvailability';
+import { createReplayRunGuard } from './replayRunGuard';
+import { useArena } from '../arena/ArenaProvider';
+import type { ArenaPalette } from '../../constants/arenaTheme';
 import { getCurrentSeason, formatSeasonLabel } from '../../utils/season';
 
 /**
@@ -37,7 +39,7 @@ interface DateRange {
 interface BacktestPanelProps {
   model: PredictionModel;
   onSaveResults?: (results: ModelBacktestResults) => void;
-  onSeedPrompt?: () => void;
+  onSeedPrompt?: (range: ReplayDateRange) => void;
 }
 
 /**
@@ -83,6 +85,8 @@ export default function BacktestPanel({
   onSaveResults,
   onSeedPrompt,
 }: BacktestPanelProps) {
+  const { palette: p } = useArena();
+  const styles = React.useMemo(() => createStyles(p), [p]);
   // State
   const [isSeeded, setIsSeeded] = useState<boolean | null>(null);
   const [selectedRange, setSelectedRange] = useState<DateRangeOption>('last30');
@@ -98,21 +102,26 @@ export default function BacktestPanel({
 
   // Track if weights have changed since last backtest to show "outdated" indicator
   const [lastTestedWeightsHash, setLastTestedWeightsHash] = useState<string | null>(null);
+  const availabilityRequestRef = useRef(0);
+  const replayRunGuardRef = useRef(createReplayRunGuard());
 
   const checkSeeding = useCallback(async () => {
+    const requestId = ++availabilityRequestRef.current;
     try {
-      const seasonId = String(getCurrentSeason());
-      const seeded = await isReplaySeasonAvailable(Number(seasonId));
-      setIsSeeded(seeded);
+      setIsSeeded(null);
+      const range = getDateRange(selectedRange);
+      const availability = await checkReplayAvailability({ start: range.start, end: range.end });
+      if (requestId === availabilityRequestRef.current) setIsSeeded(availability.available);
     } catch (err) {
       console.error('[BacktestPanel] Error checking seeding:', err);
-      setIsSeeded(false);
+      if (requestId === availabilityRequestRef.current) setIsSeeded(false);
     }
-  }, []);
+  }, [selectedRange]);
 
   // Check if data is seeded on mount
   useEffect(() => {
     checkSeeding();
+    return () => { availabilityRequestRef.current += 1; };
   }, [checkSeeding]);
 
   // Clear results when model weights change (so user knows to re-run backtest)
@@ -129,10 +138,22 @@ export default function BacktestPanel({
     }
   }, [model.weights, model.playerWeights, lastTestedWeightsHash]);
 
+  const replayKey = `${getReplayWeightsKey(model.weights)}|${selectedRange}`;
+  useEffect(() => {
+    replayRunGuardRef.current.invalidate();
+    setIsRunning(false);
+    setProgress(null);
+    const guard = replayRunGuardRef.current;
+    return () => guard.invalidate();
+  }, [replayKey]);
+
 
 
   // Handle running backtest
   const handleRunBacktest = useCallback(async () => {
+    const launchKey = `${getReplayWeightsKey(model.weights)}|${selectedRange}`;
+    const token = replayRunGuardRef.current.begin(launchKey);
+    if (!token) return;
     setIsRunning(true);
     setError(null);
     setResults(null);
@@ -143,6 +164,7 @@ export default function BacktestPanel({
 
     try {
       const progressCallback: BacktestProgressCallback = (prog) => {
+        if (!replayRunGuardRef.current.isCurrent(token, launchKey)) return;
         setProgress({
           currentGame: prog.currentGame,
           totalGames: prog.totalGames,
@@ -158,6 +180,7 @@ export default function BacktestPanel({
         true // skipCache - always run fresh during model editing
       );
 
+      if (!replayRunGuardRef.current.isCurrent(token, launchKey)) return;
       setResults(backtestResults);
 
       // Save the weights hash so we can detect if weights change later
@@ -182,19 +205,24 @@ export default function BacktestPanel({
         setResultsSaved(true);
       }
     } catch (err) {
+      if (!replayRunGuardRef.current.isCurrent(token, launchKey)) return;
       console.error('[BacktestPanel] Backtest error:', err);
       setError(err instanceof Error ? err.message : 'Failed to run backtest');
     } finally {
-      setIsRunning(false);
-      setProgress(null);
+      if (replayRunGuardRef.current.isCurrent(token, launchKey)) {
+        replayRunGuardRef.current.finish(token);
+        setIsRunning(false);
+        setProgress(null);
+      }
     }
   }, [model, selectedRange, onSaveResults]);
 
 
   // Handle seed prompt
   const handleSeedPrompt = useCallback(() => {
-    onSeedPrompt?.();
-  }, [onSeedPrompt]);
+    const range = getDateRange(selectedRange);
+    onSeedPrompt?.({ start: range.start, end: range.end });
+  }, [onSeedPrompt, selectedRange]);
 
   // Render date range selector
   const renderDateRangeSelector = () => (
@@ -206,6 +234,9 @@ export default function BacktestPanel({
         ]}
         onPress={() => setSelectedRange('last30')}
         disabled={isRunning}
+        accessibilityRole="button"
+        accessibilityLabel="Replay last 30 days"
+        accessibilityState={{ selected: selectedRange === 'last30', disabled: isRunning }}
       >
         <Text
           style={[
@@ -224,6 +255,9 @@ export default function BacktestPanel({
         ]}
         onPress={() => setSelectedRange('last90')}
         disabled={isRunning}
+        accessibilityRole="button"
+        accessibilityLabel="Replay last 3 months"
+        accessibilityState={{ selected: selectedRange === 'last90', disabled: isRunning }}
       >
         <Text
           style={[
@@ -242,6 +276,9 @@ export default function BacktestPanel({
         ]}
         onPress={() => setSelectedRange('season')}
         disabled={isRunning}
+        accessibilityRole="button"
+        accessibilityLabel="Replay current season"
+        accessibilityState={{ selected: selectedRange === 'season', disabled: isRunning }}
       >
         <Text
           style={[
@@ -261,7 +298,7 @@ export default function BacktestPanel({
     if (!results) return null;
 
     const improvement = results.improvement;
-    const improvementColor = improvement > 0 ? '#10b981' : improvement < 0 ? '#ef4444' : theme.subtext;
+    const improvementColor = improvement > 0 ? '#10b981' : improvement < 0 ? '#ef4444' : p.muted;
     const improvementPrefix = improvement > 0 ? '+' : '';
 
     return (
@@ -328,17 +365,19 @@ export default function BacktestPanel({
       <View style={styles.container}>
         <View style={styles.notSeededContainer}>
           <Ionicons name="warning-outline" size={32} color="#f59e0b" />
-          <Text style={styles.notSeededTitle}>Historical Data Required</Text>
+          <Text style={styles.notSeededTitle}>Replay data unavailable</Text>
           <Text style={styles.notSeededText}>
-            Download historical game data to enable backtesting.
+            No completed regular-season games are available for this selected period.
           </Text>
           {onSeedPrompt && (
             <TouchableOpacity
               style={styles.seedButton}
               onPress={handleSeedPrompt}
+              accessibilityRole="button"
+              accessibilityLabel="Check replay data availability"
             >
-              <Ionicons name="download-outline" size={18} color="#fff" />
-              <Text style={styles.seedButtonText}>Download Data</Text>
+              <Ionicons name="refresh-outline" size={18} color={p.actionInk} />
+              <Text style={styles.seedButtonText}>Check availability</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -351,7 +390,7 @@ export default function BacktestPanel({
     return (
       <View style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color={theme.accent} />
+          <ActivityIndicator size="small" color={p.action} />
           <Text style={styles.loadingText}>Checking data availability...</Text>
         </View>
       </View>
@@ -363,14 +402,14 @@ export default function BacktestPanel({
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Ionicons name="analytics-outline" size={20} color={theme.accent} />
+          <Ionicons name="analytics-outline" size={20} color={p.action} />
           <Text style={styles.headerTitle}>Four-factor replay</Text>
         </View>
         <Text style={styles.headerSubtitle}>Historical pick accuracy · limited replay</Text>
       </View>
 
       <Text style={styles.headerSubtitle}>
-        Includes standings, home ice, streak, and goal differential. Recent form, rest,
+        This historical subset includes standings, home ice, streak, and goal differential. Recent form, rest,
         back-to-back, special teams, shots, goalie and hot-player sliders do not affect
         this replay. It does not validate the complete model or its probabilities.
       </Text>
@@ -384,7 +423,7 @@ export default function BacktestPanel({
       {/* Run Button or Progress */}
       {isRunning ? (
         <View style={styles.progressContainer}>
-          <ActivityIndicator size="small" color={theme.accent} />
+          <ActivityIndicator size="small" color={p.action} />
           <Text style={styles.progressText}>
             {progress
               ? `Testing game ${progress.currentGame} of ${progress.totalGames} (${progress.percentComplete}%)`
@@ -405,8 +444,10 @@ export default function BacktestPanel({
         <TouchableOpacity
           style={styles.runButton}
           onPress={handleRunBacktest}
+          accessibilityRole="button"
+          accessibilityLabel="Run four-factor replay"
         >
-          <Ionicons name="play-circle-outline" size={20} color="#fff" />
+          <Ionicons name="play-circle-outline" size={20} color={p.actionInk} />
           <Text style={styles.runButtonText}>Run replay</Text>
         </TouchableOpacity>
       )}
@@ -425,16 +466,16 @@ export default function BacktestPanel({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (p: ArenaPalette) => StyleSheet.create({
   container: {
-    backgroundColor: theme.card,
+    backgroundColor: p.paper,
     borderRadius: 14,
     overflow: 'hidden',
   },
   header: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: theme.subtle,
+    borderBottomColor: p.edge,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -445,21 +486,21 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: theme.text,
+    color: p.ink,
   },
   headerSubtitle: {
     fontSize: 13,
-    color: theme.subtext,
+    color: p.muted,
   },
   selectorContainer: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: theme.subtle,
+    borderBottomColor: p.edge,
   },
   selectorLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: theme.subtext,
+    color: p.muted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 10,
@@ -472,36 +513,39 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 10,
     paddingHorizontal: 12,
-    backgroundColor: theme.subtle,
+    backgroundColor: p.soft,
     borderRadius: 8,
     alignItems: 'center',
+    minHeight: 48,
+    justifyContent: 'center',
   },
   rangeOptionSelected: {
-    backgroundColor: theme.accent,
+    backgroundColor: p.action,
   },
   rangeOptionText: {
     fontSize: 13,
     fontWeight: '600',
-    color: theme.subtext,
+    color: p.muted,
   },
   rangeOptionTextSelected: {
-    color: '#fff',
+    color: p.actionInk,
   },
   runButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: theme.accent,
+    backgroundColor: p.action,
     paddingVertical: 14,
     marginHorizontal: 16,
     marginVertical: 12,
     borderRadius: 10,
+    minHeight: 48,
   },
   runButtonText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#fff',
+    color: p.actionInk,
   },
   progressContainer: {
     padding: 16,
@@ -509,26 +553,26 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 13,
-    color: theme.subtext,
+    color: p.muted,
     marginTop: 10,
     marginBottom: 12,
   },
   progressBar: {
     width: '100%',
     height: 6,
-    backgroundColor: theme.subtle,
+    backgroundColor: p.soft,
     borderRadius: 3,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: theme.accent,
+    backgroundColor: p.action,
     borderRadius: 3,
   },
   resultsContainer: {
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: theme.subtle,
+    borderTopColor: p.edge,
   },
   resultRow: {
     flexDirection: 'row',
@@ -536,22 +580,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: theme.subtle,
+    borderBottomColor: p.edge,
   },
   resultRowLast: {
     borderBottomWidth: 0,
   },
   resultLabel: {
     fontSize: 14,
-    color: theme.subtext,
+    color: p.muted,
   },
   resultValue: {
     fontSize: 16,
     fontWeight: '700',
-    color: theme.text,
+    color: p.ink,
   },
   resultValueHighlight: {
-    color: theme.accent,
+    color: p.link,
     fontSize: 18,
   },
   improvementContainer: {
@@ -563,7 +607,7 @@ const styles = StyleSheet.create({
   },
   durationText: {
     fontSize: 11,
-    color: theme.subtext,
+    color: p.muted,
     textAlign: 'center',
     marginTop: 12,
   },
@@ -601,13 +645,13 @@ const styles = StyleSheet.create({
   notSeededTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: theme.text,
+    color: p.ink,
     marginTop: 12,
     marginBottom: 6,
   },
   notSeededText: {
     fontSize: 13,
-    color: theme.subtext,
+    color: p.muted,
     textAlign: 'center',
     marginBottom: 16,
   },
@@ -615,7 +659,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: theme.accent,
+    backgroundColor: p.action,
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 8,
@@ -623,7 +667,7 @@ const styles = StyleSheet.create({
   seedButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#fff',
+    color: p.actionInk,
   },
   loadingContainer: {
     padding: 24,
@@ -631,7 +675,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 13,
-    color: theme.subtext,
+    color: p.muted,
     marginTop: 10,
   },
 });

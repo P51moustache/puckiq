@@ -104,10 +104,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     setError(null);
-    await supabase.auth.signOut();
+    try {
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) setError(signOutError.message);
+    } catch {
+      setError('Could not sign out. Please try again.');
+    }
   }, []);
 
   const signInWithApple = useCallback(async () => {
+    setError(null);
     if (Platform.OS !== 'ios') {
       Alert.alert('Apple Sign-In is only available on iOS devices.');
       return false;
@@ -139,6 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return true;
     } catch (err: any) {
       if (err?.code === 'ERR_CANCELED') {
+        setError('Apple Sign-In was cancelled.');
         return false;
       }
       setError(err?.message || 'Apple Sign-In failed');
@@ -159,9 +166,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refreshSession = useCallback(async () => {
-    const { data, error: refreshError } = await supabase.auth.refreshSession();
-    if (!refreshError) {
-      handleAuthChange(data.session);
+    setError(null);
+    try {
+      const { data, error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError) setError(refreshError.message);
+      else handleAuthChange(data.session);
+    } catch {
+      setError('Could not refresh your session. Please try again.');
     }
   }, [handleAuthChange]);
 

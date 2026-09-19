@@ -1,7 +1,6 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -22,8 +21,10 @@ import {
 import { useArena } from '../../components/arena/ArenaProvider';
 import { ARENA_TEAMS, type ArenaTeam } from '../../constants/arenaTheme';
 import { getTeamLogoUrl } from '../../utils/teamLogo';
-
-const WATCHLIST_KEY = 'puckiq_watchlist';
+import { useWatchlist } from '../../hooks/useWatchlist';
+import PlayerDetailModal from '../../components/PlayerDetailModal';
+import type { WatchedPlayer } from '../../services/watchlist';
+import { getPlayerDetail } from '../../services/playerDetail';
 
 export default function FollowingScreen() {
   const {
@@ -36,25 +37,47 @@ export default function FollowingScreen() {
     chooseHomeTeam,
   } = useArena();
   const [busyTeam, setBusyTeam] = useState<string | null>(null);
-  const [watchCount, setWatchCount] = useState(0);
+  const watchlist = useWatchlist();
+  const refreshWatchlist = watchlist.refresh;
+  const addWatchedPlayer = watchlist.add;
+  const removeWatchedPlayer = watchlist.remove;
+  const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null);
+  const [removedPlayer, setRemovedPlayer] = useState<WatchedPlayer | null>(null);
+  const [watchActionError, setWatchActionError] = useState<string | null>(null);
+  const [removingPlayerId, setRemovingPlayerId] = useState<number | null>(null);
+  const [failedRemove, setFailedRemove] = useState<WatchedPlayer | null>(null);
+  const removingRef = useRef(false);
+
+  const removePlayer = useCallback(async (player: WatchedPlayer) => {
+    if (removingRef.current) return;
+    removingRef.current = true;
+    setRemovingPlayerId(player.playerId);
+    setWatchActionError(null);
+    setFailedRemove(null);
+    try {
+      const removed = await removeWatchedPlayer(player.playerId);
+      if (removed) setRemovedPlayer(removed);
+    } catch {
+      setFailedRemove(player);
+      setWatchActionError(`${player.fullName} could not be removed.`);
+    } finally { removingRef.current = false; setRemovingPlayerId(null); }
+  }, [removeWatchedPlayer]);
 
   useFocusEffect(useCallback(() => {
+    void refreshWatchlist().then(() => undefined);
+    return undefined;
+  }, [refreshWatchlist]));
+
+  useEffect(() => {
+    const legacy = watchlist.players.filter(player => player.fullName === `Player #${player.playerId}`);
+    if (!legacy.length) return;
     let active = true;
-    void AsyncStorage.getItem(WATCHLIST_KEY)
-      .then((raw) => {
-        if (!active) return;
-        try {
-          const parsed: unknown = raw ? JSON.parse(raw) : [];
-          setWatchCount(Array.isArray(parsed) ? parsed.filter((id) => typeof id === 'number').length : 0);
-        } catch {
-          setWatchCount(0);
-        }
-      })
-      .catch(() => {
-        if (active) setWatchCount(0);
-      });
+    void Promise.all(legacy.map(async player => {
+      const detail = await getPlayerDetail(player.playerId);
+      if (active && detail) await addWatchedPlayer({ playerId: detail.bio.playerId, fullName: detail.bio.fullName, teamAbbrev: detail.bio.teamAbbrev, position: detail.bio.position, headshotUrl: detail.bio.headshotUrl });
+    })).catch(() => undefined);
     return () => { active = false; };
-  }, []));
+  }, [watchlist.players, addWatchedPlayer]);
 
   const followed = useMemo(
     () => new Set(followedTeams.map((team) => team.triCode.toUpperCase())),
@@ -103,7 +126,33 @@ export default function FollowingScreen() {
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Browse players, ${watchCount} watched`}
+          accessibilityLabel="Open My Team fantasy roster"
+          onPress={() => router.push('/(tabs)/myteam')}
+          style={({ pressed }) => [styles.watchCard, { backgroundColor: p.paper, borderColor: p.edge, opacity: pressed ? 0.78 : 1 }]}
+        >
+          <View style={[styles.watchIcon, { backgroundColor: p.soft }]}><Ionicons name="people-outline" size={22} color={p.link} /></View>
+          <View style={styles.watchCopy}><Text style={[styles.cardTitle, { color: p.ink }]}>My Team</Text><Text style={[styles.cardMeta, { color: p.muted }]}>Fantasy roster, starts and projections</Text></View>
+          <Ionicons name="chevron-forward" size={20} color={p.link} />
+        </Pressable>
+
+        <View style={styles.sectionHeading}>
+          <View><Text style={[styles.sectionTitle, { color: p.ink }]}>WATCHED PLAYERS</Text><Text accessibilityLabel={`Watched players, ${watchlist.players.length} saved on this device`} style={[styles.sectionMeta, { color: p.muted }]}>{watchlist.players.length} saved on this device</Text></View>
+          <View style={[styles.headingRule, { backgroundColor: p.action }]} />
+        </View>
+        {watchlist.loading ? <ActivityIndicator color={p.action} /> : watchlist.error ? (
+          <View style={[styles.inlineState, { backgroundColor: p.paper, borderColor: p.edge }]}><Text style={[styles.cardMeta, { color: p.ink }]}>{watchlist.error}</Text><ArenaButton label="Retry" onPress={() => void watchlist.refresh()} /></View>
+        ) : watchlist.players.length ? (
+          <View style={styles.playerList}>{watchlist.players.map(player => (
+            <Pressable key={player.playerId} accessibilityRole="button" accessibilityLabel={`Open ${player.fullName} player detail`} onPress={() => setSelectedPlayerId(player.playerId)} style={({ pressed }) => [styles.playerRow, { backgroundColor: p.paper, borderColor: p.edge, opacity: pressed ? 0.78 : 1 }]}>
+              <Image source={{ uri: player.headshotUrl }} style={[styles.playerHeadshot, { backgroundColor: p.soft }]} contentFit="cover" accessibilityLabel={`${player.fullName} headshot`} />
+              <View style={styles.watchCopy}><Text style={[styles.cardTitle, { color: p.ink }]}>{player.fullName}</Text><Text style={[styles.cardMeta, { color: p.muted }]}>{[player.teamAbbrev, player.position].filter(Boolean).join(' / ') || 'Details available when opened'}</Text></View>
+              <Pressable accessibilityRole="button" accessibilityLabel={`${failedRemove?.playerId === player.playerId ? 'Retry unwatching' : 'Unwatch'} ${player.fullName}`} accessibilityState={{ busy: removingPlayerId === player.playerId, disabled: removingPlayerId !== null }} disabled={removingPlayerId !== null} onPress={event => { event.stopPropagation(); void removePlayer(player); }} style={styles.removeButton}><Ionicons name="close" size={20} color={p.link} /></Pressable>
+            </Pressable>
+          ))}</View>
+        ) : (
+          <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Browse players"
           onPress={() => router.push('/(tabs)/players')}
           style={({ pressed }) => [
             styles.watchCard,
@@ -115,12 +164,13 @@ export default function FollowingScreen() {
           </View>
           <View style={styles.watchCopy}>
             <Text style={[styles.cardTitle, { color: p.ink }]}>Browse players</Text>
-            <Text style={[styles.cardMeta, { color: p.muted }]}>
-              {watchCount === 0 ? 'Watched players: none yet' : `Watched players: ${watchCount} saved`}
-            </Text>
+            <Text style={[styles.cardMeta, { color: p.muted }]}>Search any player and add them here.</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color={p.link} />
         </Pressable>
+        )}
+        {removedPlayer ? <View style={[styles.undoRow, { backgroundColor: p.soft }]}><Text style={[styles.cardMeta, { color: p.ink }]}>{removedPlayer.fullName} removed</Text><Pressable accessibilityRole="button" accessibilityLabel={`Undo removing ${removedPlayer.fullName}`} onPress={async () => { try { await watchlist.add(removedPlayer); setRemovedPlayer(null); setWatchActionError(null); } catch { setWatchActionError('Player could not be restored. Retry Undo.'); } }} style={styles.undoButton}><Text style={[styles.cardTitle, { color: p.link }]}>Undo</Text></Pressable></View> : null}
+        {watchActionError ? <View style={[styles.undoRow, { backgroundColor: p.soft }]}><Text accessibilityRole="alert" style={[styles.cardMeta, { color: p.ink }]}>{watchActionError}</Text>{failedRemove ? <Pressable accessibilityRole="button" accessibilityLabel={`Retry unwatching ${failedRemove.fullName}`} onPress={() => void removePlayer(failedRemove)} style={styles.undoButton}><Text style={[styles.cardTitle, { color: p.link }]}>Retry</Text></Pressable> : null}</View> : null}
 
         <View style={styles.sectionHeading}>
           <View>
@@ -150,7 +200,7 @@ export default function FollowingScreen() {
                   />
                 </View>
                 <View style={styles.teamCopy}>
-                  <Pressable accessibilityRole="button" accessibilityLabel={`Open ${team.name} team detail`} onPress={() => router.push({ pathname: '/(tabs)/teams', params: { team: team.abbrev } })}><Text style={[styles.teamName, { color: p.ink }]} numberOfLines={1}>{team.name}</Text></Pressable>
+                  <Pressable accessibilityRole="button" accessibilityLabel={`Open ${team.name} team detail`} onPress={() => router.push({ pathname: '/(tabs)/teams', params: { team: team.abbrev, from: 'following' } })}><Text style={[styles.teamName, { color: p.ink }]} numberOfLines={1}>{team.name}</Text></Pressable>
                   <Text style={[styles.teamState, { color: p.muted }]}>
                     {isHome ? 'Home team · Following' : isFollowed ? 'Following' : team.abbrev}
                   </Text>
@@ -183,6 +233,7 @@ export default function FollowingScreen() {
           })}
         </View>
       </ScrollView>
+      <PlayerDetailModal visible={selectedPlayerId !== null} playerId={selectedPlayerId} onClose={() => setSelectedPlayerId(null)} />
     </SafeAreaView>
   );
 }
@@ -223,6 +274,13 @@ const styles = StyleSheet.create({
   },
   watchIcon: { width: 46, height: 46, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   watchCopy: { flex: 1, marginHorizontal: 12 },
+  playerList: { gap: 8, marginBottom: 8 },
+  playerRow: { minHeight: 72, borderWidth: 1.5, borderRadius: 14, padding: 10, flexDirection: 'row', alignItems: 'center' },
+  playerHeadshot: { width: 48, height: 48, borderRadius: 24 },
+  removeButton: { minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
+  inlineState: { borderWidth: 1.5, borderRadius: 14, padding: 14, gap: 10, marginBottom: 8 },
+  undoRow: { minHeight: 48, borderRadius: 10, paddingLeft: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  undoButton: { minWidth: 60, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
   cardTitle: { fontFamily: arenaType.body, fontSize: 15, fontWeight: '800' },
   cardMeta: { fontFamily: arenaType.body, fontSize: 12, marginTop: 3 },
   sectionHeading: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 20, marginBottom: 12 },

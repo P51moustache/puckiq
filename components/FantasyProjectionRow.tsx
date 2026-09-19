@@ -33,7 +33,7 @@ const REC_COLORS: Record<string, { bg: string; text: string }> = {
 
 export default function FantasyProjectionRow({ projection, onPress, palette }: FantasyProjectionRowProps) {
   const p = palette ?? getArenaPalette();
-  const recColor = REC_COLORS[projection.recommendation] || REC_COLORS.FLEX;
+  const recColor = projection.recommendation ? REC_COLORS[projection.recommendation] : null;
   const opponentLabel = projection.opponentAbbrev
     ? `${projection.isHome ? 'vs' : '@'} ${projection.opponentAbbrev}`
     : '';
@@ -60,12 +60,14 @@ export default function FantasyProjectionRow({ projection, onPress, palette }: F
           {opponentLabel !== '' && (
             <Text style={[styles.opponentText, { color: p.muted }]}>{opponentLabel}</Text>
           )}
-          {projection.recommendation && (
+          {projection.recommendation && recColor ? (
             <View style={[styles.recBadge, { backgroundColor: recColor.bg }]}>
               <Text style={[styles.recText, { color: recColor.text }]}>
                 {projection.recommendation}
               </Text>
             </View>
+          ) : (
+            <Text style={[styles.unavailableText, { color: p.muted }]}>Forecast only / recommendation unavailable</Text>
           )}
         </View>
         <Text style={[styles.rangeText, { color: p.muted, fontFamily: arenaType.body }]}>
@@ -152,6 +154,10 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.5,
+  },
+  unavailableText: {
+    fontSize: 10,
+    fontWeight: '600',
   },
   rangeText: {
     fontSize: 11,

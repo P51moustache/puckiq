@@ -9,7 +9,9 @@ import {
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { Ionicons } from '@expo/vector-icons';
-import { theme } from '../../constants/theme';
+import { useArena } from '../arena/ArenaProvider';
+import type { ArenaPalette } from '../../constants/arenaTheme';
+import { adjustSliderValue } from './sliderAdjustment';
 
 interface WeightSliderProps {
   factorKey: string;
@@ -38,6 +40,8 @@ export default function WeightSlider({
   onDragStart,
   onDragEnd,
 }: WeightSliderProps) {
+  const { palette: p } = useArena();
+  const styles = React.useMemo(() => createStyles(p), [p]);
   const [showTooltip, setShowTooltip] = useState(false);
   // Local state for smooth slider movement without parent re-renders
   const [localValue, setLocalValue] = useState(value);
@@ -55,13 +59,13 @@ export default function WeightSlider({
 
   const getValueColor = useCallback(() => {
     if (Math.abs(displayValue - defaultValue) < step / 2) {
-      return theme.accent; // At default - blue
+      return p.action;
     } else if (displayValue > defaultValue) {
       return '#10b981'; // Above default - green
     } else {
       return '#ef4444'; // Below default - red
     }
-  }, [displayValue, defaultValue, step]);
+  }, [displayValue, defaultValue, step, p.action]);
 
   // Format value for display
   const formatValue = useCallback((val: number): string => {
@@ -86,8 +90,10 @@ export default function WeightSlider({
             onPress={() => setShowTooltip(true)}
             style={styles.infoButton}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+            accessibilityLabel={`About ${label}`}
           >
-            <Ionicons name="information-circle-outline" size={18} color={theme.subtext} />
+            <Ionicons name="information-circle-outline" size={20} color={p.muted} />
           </Pressable>
         </View>
         <Text style={[styles.valueDisplay, { color: valueColor }]}>
@@ -125,8 +131,19 @@ export default function WeightSlider({
             onChange(val);
           }}
           minimumTrackTintColor={valueColor}
-          maximumTrackTintColor={theme.subtle}
+          maximumTrackTintColor={p.edge}
           thumbTintColor={valueColor}
+          accessibilityLabel={`${label} weight`}
+          accessibilityHint={description}
+          accessibilityValue={{ min, max, now: displayValue, text: formatValue(displayValue) }}
+          accessibilityRole="adjustable"
+          accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+          onAccessibilityAction={(event) => {
+            const action = event.nativeEvent.actionName;
+            if (action === 'increment' || action === 'decrement') {
+              onChange(adjustSliderValue(displayValue, action, min, max, step));
+            }
+          }}
         />
       </View>
 
@@ -146,14 +163,16 @@ export default function WeightSlider({
           style={styles.tooltipOverlay}
           onPress={() => setShowTooltip(false)}
         >
-          <View style={styles.tooltipContainer}>
+          <View style={styles.tooltipContainer} accessibilityViewIsModal>
             <View style={styles.tooltipHeader}>
               <Text style={styles.tooltipTitle}>{label}</Text>
               <TouchableOpacity
                 onPress={() => setShowTooltip(false)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                accessibilityRole="button"
+                accessibilityLabel={`Close ${label} help`}
               >
-                <Ionicons name="close" size={24} color={theme.text} />
+                <Ionicons name="close" size={24} color={p.ink} />
               </TouchableOpacity>
             </View>
             <Text style={styles.tooltipDescription}>{description}</Text>
@@ -181,6 +200,8 @@ export default function WeightSlider({
                 onChange(defaultValue);
                 setShowTooltip(false);
               }}
+              accessibilityRole="button"
+              accessibilityLabel={`Reset ${label} to default`}
             >
               <Text style={styles.resetButtonText}>Reset to Default</Text>
             </Pressable>
@@ -191,7 +212,7 @@ export default function WeightSlider({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (p: ArenaPalette) => StyleSheet.create({
   container: {
     marginBottom: 20,
     paddingHorizontal: 4,
@@ -210,11 +231,14 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.text,
+    color: p.ink,
   },
   infoButton: {
     marginLeft: 6,
-    padding: 2,
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   valueDisplay: {
     fontSize: 16,
@@ -224,11 +248,11 @@ const styles = StyleSheet.create({
   },
   slider: {
     width: '100%',
-    height: 40,
+    height: 48,
   },
   defaultHint: {
     fontSize: 11,
-    color: theme.subtext,
+    color: p.muted,
     marginTop: 2,
   },
   // Tooltip Modal Styles
@@ -240,13 +264,13 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   tooltipContainer: {
-    backgroundColor: theme.card,
+    backgroundColor: p.paper,
     borderRadius: 16,
     padding: 20,
     maxWidth: 400,
     width: '100%',
     borderWidth: 1,
-    borderColor: theme.accent + '44',
+    borderColor: p.edge,
   },
   tooltipHeader: {
     flexDirection: 'row',
@@ -255,22 +279,22 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: theme.subtle,
+    borderBottomColor: p.edge,
   },
   tooltipTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: theme.text,
+    color: p.ink,
     flex: 1,
   },
   tooltipDescription: {
     fontSize: 14,
     lineHeight: 21,
-    color: theme.text,
+    color: p.ink,
     marginBottom: 16,
   },
   tooltipStats: {
-    backgroundColor: theme.subtle,
+    backgroundColor: p.soft,
     borderRadius: 10,
     padding: 12,
     marginBottom: 16,
@@ -282,22 +306,24 @@ const styles = StyleSheet.create({
   },
   tooltipStatLabel: {
     fontSize: 13,
-    color: theme.subtext,
+    color: p.muted,
   },
   tooltipStatValue: {
     fontSize: 13,
     fontWeight: '600',
-    color: theme.text,
+    color: p.ink,
   },
   resetButton: {
-    backgroundColor: theme.accent,
+    backgroundColor: p.action,
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
+    minHeight: 48,
+    justifyContent: 'center',
   },
   resetButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#ffffff',
+    color: p.actionInk,
   },
 });

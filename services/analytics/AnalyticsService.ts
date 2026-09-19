@@ -22,7 +22,11 @@ class AnalyticsService {
   private flushTimer?: ReturnType<typeof setInterval>;
   private lastActivityTime: number = Date.now();
   private sessionStartTime: number = Date.now();
+  private sessionActive: boolean = false;
   private initialized: boolean = false;
+  private initializationPromise?: Promise<void>;
+  private initializationGeneration: number = 0;
+  private persistedConfig?: Partial<AnalyticsConfig>;
 
   private constructor() {
     this.sessionId = this.generateSessionId();
@@ -44,35 +48,78 @@ class AnalyticsService {
 
   async initialize(config?: Partial<AnalyticsConfig>): Promise<void> {
     if (this.initialized) {
-      return; // Already initialized, skip
+      const previousFlushInterval = this.config.flushInterval;
+      if (config) {
+        const nextConfig = { ...this.config, ...config };
+        if (this.persistedConfig?.enabled === false && config.enabled === true) {
+          nextConfig.enabled = false;
+        }
+        this.config = nextConfig;
+      }
+      if (!this.config.enabled) {
+        this.sessionActive = false;
+        this.eventQueue = [];
+      }
+      if (!this.config.enabled || previousFlushInterval !== this.config.flushInterval || this.flushTimer === undefined) {
+        this.syncFlushTimer();
+      }
+      return;
     }
 
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
+
+    if (config) {
+      this.config = { ...this.config, ...config };
+    }
+
+    const generation = ++this.initializationGeneration;
+    const initialization = (async () => {
+      try {
+        // Load saved config from storage
+        const savedConfig = await AsyncStorage.getItem('analytics_config');
+        if (generation !== this.initializationGeneration) {
+          return;
+        }
+        if (savedConfig) {
+          const parsed = JSON.parse(savedConfig);
+          this.persistedConfig = parsed;
+          this.config = { ...this.config, ...parsed };
+          if (!this.config.enabled) {
+            this.sessionActive = false;
+            this.eventQueue = [];
+          }
+        }
+
+        // Load saved user ID
+        const savedUserId = await AsyncStorage.getItem('analytics_user_id');
+        if (generation !== this.initializationGeneration) {
+          return;
+        }
+        if (savedUserId) {
+          this.config.userId = savedUserId;
+          this.setUserId(savedUserId);
+        }
+
+        this.initialized = true;
+        this.syncFlushTimer();
+        this.log('Analytics service initialized');
+      } catch (error) {
+        if (generation === this.initializationGeneration) {
+          this.initialized = false;
+        }
+        console.error('Failed to initialize analytics service:', error);
+      }
+    })();
+
+    this.initializationPromise = initialization;
     try {
-      if (config) {
-        this.config = { ...this.config, ...config };
+      await initialization;
+    } finally {
+      if (this.initializationPromise === initialization) {
+        this.initializationPromise = undefined;
       }
-
-      // Load saved config from storage
-      const savedConfig = await AsyncStorage.getItem('analytics_config');
-      if (savedConfig) {
-        const parsed = JSON.parse(savedConfig);
-        this.config = { ...this.config, ...parsed };
-      }
-
-      // Load saved user ID
-      const savedUserId = await AsyncStorage.getItem('analytics_user_id');
-      if (savedUserId) {
-        this.config.userId = savedUserId;
-        this.setUserId(savedUserId);
-      }
-
-      // Start flush timer
-      this.startFlushTimer();
-
-      this.initialized = true;
-      this.log('Analytics service initialized');
-    } catch (error) {
-      console.error('Failed to initialize analytics service:', error);
     }
   }
 
@@ -82,6 +129,10 @@ class AnalyticsService {
   }
 
   private updateActivity(): void {
+    if (!this.initialized || !this.config.enabled) {
+      return;
+    }
+
     const now = Date.now();
     const timeSinceLastActivity = now - this.lastActivityTime;
 
@@ -91,6 +142,7 @@ class AnalyticsService {
     // If more than session timeout, create new session
     if (timeSinceLastActivity > this.config.sessionTimeout * 60 * 1000) {
       this.sessionId = this.generateSessionId();
+      this.sessionActive = false;
       this.trackSessionStart();
     }
   }
@@ -219,25 +271,55 @@ class AnalyticsService {
 
   // Session events
   trackSessionStart(): void {
-    this.sessionStartTime = Date.now();
-    this.trackCustomEvent('session_start', {
-      platform: Platform.OS,
-      app_version: '1.0.0', // You can get this from app.json
-    });
+    if (!this.initialized || !this.config.enabled || this.sessionActive) {
+      return;
+    }
+
+    const now = Date.now();
+    this.sessionActive = true;
+    this.sessionStartTime = now;
+    this.lastActivityTime = now;
+    const event: CustomEvent = {
+      event: 'session_start',
+      properties: {
+        platform: Platform.OS,
+        app_version: '1.0.0', // You can get this from app.json
+      },
+      timestamp: now,
+      session_id: this.sessionId,
+      user_id: this.config.userId,
+    };
+    this.addToQueue(event);
   }
 
   trackSessionEnd(): void {
-    this.trackCustomEvent('session_end', {
-      // Measure from session start, not last activity (which is updated on every
-      // tracked event and would collapse the duration to ~0).
-      session_duration: Date.now() - this.sessionStartTime,
-    });
-    this.flush(); // Ensure events are sent before session ends
+    if (!this.initialized || !this.sessionActive) {
+      return;
+    }
+
+    const now = Date.now();
+    const sessionDuration = Math.max(0, now - this.sessionStartTime);
+    this.sessionActive = false;
+    this.lastActivityTime = now;
+
+    if (this.config.enabled) {
+      const event: CustomEvent = {
+        event: 'session_end',
+        properties: {
+          session_duration: sessionDuration,
+        },
+        timestamp: now,
+        session_id: this.sessionId,
+        user_id: this.config.userId,
+      };
+      this.addToQueue(event);
+      void this.flush();
+    }
   }
 
   // Queue management
   private addToQueue(event: AnalyticsEvent): void {
-    if (!this.config.enabled) return;
+    if (!this.initialized || !this.config.enabled) return;
 
     this.eventQueue.push(event);
     this.log('Event added to queue:', event);
@@ -249,18 +331,36 @@ class AnalyticsService {
   }
 
   private startFlushTimer(): void {
-    if (this.flushTimer) {
-      clearInterval(this.flushTimer);
-    }
+    this.stopFlushTimer();
 
     this.flushTimer = setInterval(() => {
-      if (this.eventQueue.length > 0) {
+      if (this.initialized && this.config.enabled && this.eventQueue.length > 0) {
         this.flush();
       }
     }, this.config.flushInterval);
   }
 
+  private stopFlushTimer(): void {
+    if (this.flushTimer !== undefined) {
+      clearInterval(this.flushTimer);
+      this.flushTimer = undefined;
+    }
+  }
+
+  private syncFlushTimer(): void {
+    if (this.initialized && this.config.enabled) {
+      this.startFlushTimer();
+    } else {
+      this.stopFlushTimer();
+    }
+  }
+
   async flush(): Promise<void> {
+    if (!this.initialized || !this.config.enabled) {
+      this.eventQueue = [];
+      return;
+    }
+
     if (this.eventQueue.length === 0) return;
 
     const eventsToFlush = [...this.eventQueue];
@@ -293,7 +393,14 @@ class AnalyticsService {
 
   private async persistEvents(events: AnalyticsEvent[]): Promise<void> {
     try {
+      if (!this.initialized || !this.config.enabled) {
+        return;
+      }
+
       const existingEvents = await AsyncStorage.getItem('analytics_events');
+      if (!this.initialized || !this.config.enabled) {
+        return;
+      }
       const allEvents = existingEvents ? JSON.parse(existingEvents) : [];
       const updatedEvents = [...allEvents, ...events];
       
@@ -328,6 +435,14 @@ class AnalyticsService {
 
   setEnabled(enabled: boolean): void {
     this.config.enabled = enabled;
+    this.persistedConfig = { ...this.persistedConfig, enabled };
+    if (!enabled) {
+      this.sessionActive = false;
+      this.eventQueue = [];
+    }
+    if (this.initialized) {
+      this.syncFlushTimer();
+    }
     AsyncStorage.setItem('analytics_config', JSON.stringify(this.config));
   }
 
@@ -343,10 +458,13 @@ class AnalyticsService {
 
   // Cleanup
   destroy(): void {
-    if (this.flushTimer) {
-      clearInterval(this.flushTimer);
-    }
-    this.flush();
+    this.initializationGeneration += 1;
+    this.initializationPromise = undefined;
+    this.stopFlushTimer();
+    this.sessionActive = false;
+    this.initialized = false;
+    this.persistedConfig = undefined;
+    this.eventQueue = [];
   }
 }
 

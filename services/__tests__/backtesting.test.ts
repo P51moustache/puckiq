@@ -417,6 +417,19 @@ describe('backtesting', () => {
   });
 });
 
+describe('mapReplayGames', () => {
+  it('excludes completed rows whose final scores are missing or invalid while preserving zero', () => {
+    const rows = [
+      { id: 1, game_date: '2025-01-01', home_team_abbrev: 'TOR', away_team_abbrev: 'MTL', home_score: 0, away_score: 2 },
+      { id: 2, game_date: '2025-01-02', home_team_abbrev: 'TOR', away_team_abbrev: 'MTL', home_score: null, away_score: 2 },
+      { id: 3, game_date: '2025-01-03', home_team_abbrev: 'TOR', away_team_abbrev: 'MTL', home_score: Number.NaN, away_score: 2 },
+    ];
+    expect(backtesting.mapReplayGames(rows)).toEqual([
+      { id: 1, date: '2025-01-01', homeTeam: 'TOR', awayTeam: 'MTL', homeScore: 0, awayScore: 2, winner: 'away' },
+    ]);
+  });
+});
+
 describe('four-factor replay identity', () => {
   it('ignores unsupported sliders but distinguishes equal-sum supported weights', () => {
     const weights = createTestModel().weights;

@@ -1,8 +1,10 @@
-import React, { createContext, ReactNode, useContext, useEffect, useMemo } from 'react';
+import React, { createContext, ReactNode, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import AnalyticsService from '../../services/analytics/AnalyticsService';
 
 interface AnalyticsContextType {
   analytics: AnalyticsService;
+  ready: boolean;
 }
 
 const AnalyticsContext = createContext<AnalyticsContextType | undefined>(undefined);
@@ -22,18 +24,58 @@ export function AnalyticsProvider({ children, config }: AnalyticsProviderProps) 
     () => (config ? { ...config } : undefined),
     [config]
   );
+  const appState = useRef<AppStateStatus>(AppState.currentState);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // Initialize analytics service
-    analytics.initialize(normalizedConfig);
+    let mounted = true;
 
-    // Note: No cleanup function needed for singleton analytics service
-    // The singleton persists across component mounts/unmounts
-    // This prevents crashes when app returns from background
+    void analytics.initialize(normalizedConfig).then(() => {
+      if (!mounted) {
+        return;
+      }
+
+      const currentAppState = AppState.currentState;
+      appState.current = currentAppState;
+      if (currentAppState === 'active') {
+        analytics.trackSessionStart();
+      } else {
+        analytics.trackSessionEnd();
+      }
+      setReady(true);
+    });
+
+    return () => {
+      mounted = false;
+    };
   }, [analytics, normalizedConfig]);
 
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      const wasActive = appState.current === 'active';
+      const isActive = nextAppState === 'active';
+      appState.current = nextAppState;
+
+      if (wasActive === isActive) {
+        return;
+      }
+
+      if (isActive) {
+        analytics.trackSessionStart();
+      } else {
+        analytics.trackSessionEnd();
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      subscription?.remove();
+    };
+  }, [analytics]);
+
   return (
-    <AnalyticsContext.Provider value={{ analytics }}>
+    <AnalyticsContext.Provider value={{ analytics, ready }}>
       {children}
     </AnalyticsContext.Provider>
   );

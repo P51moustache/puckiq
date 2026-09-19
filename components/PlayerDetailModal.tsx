@@ -16,10 +16,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { IconSymbol } from './ui/IconSymbol';
 import { rinkGlass } from '../constants/theme';
 import { getTeamColors } from '../constants/teamColors';
+import { useArena } from './arena/ArenaProvider';
+import { arenaType } from './arena/ArenaPrimitives';
+import { useWatchlist } from '../hooks/useWatchlist';
 import { getWaiverWireRecommendations } from '../services/fantasyProjections';
 import type { PlayerProjection } from '../types/fantasy';
 import {
-  getPlayerDetail,
+  getPlayerDetailStrict,
   type PlayerDetail,
   type SkaterSeasonStats,
   type GoalieSeasonStats,
@@ -56,6 +59,11 @@ export default function PlayerDetailModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fantasyProjection, setFantasyProjection] = useState<PlayerProjection | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
+  const [watchBusy, setWatchBusy] = useState(false);
+  const [watchError, setWatchError] = useState(false);
+  const { palette: p } = useArena();
+  const watchlist = useWatchlist();
 
   useEffect(() => {
     if (!visible || !playerId) {
@@ -66,11 +74,13 @@ export default function PlayerDetailModal({
     }
 
     let mounted = true;
+    setWatchError(false);
+    setWatchBusy(false);
     async function load() {
       setLoading(true);
       setError(null);
       try {
-        const data = await getPlayerDetail(playerId!);
+        const data = await getPlayerDetailStrict(playerId!);
         if (mounted) {
           if (data) {
             setDetail(data);
@@ -101,7 +111,7 @@ export default function PlayerDetailModal({
     load();
     loadFantasy();
     return () => { mounted = false; };
-  }, [visible, playerId]);
+  }, [visible, playerId, retryKey]);
 
   const teamColors = detail ? getTeamColors(detail.bio.teamAbbrev) : null;
   const isGoalie = detail?.bio.position === 'G';
@@ -113,7 +123,7 @@ export default function PlayerDetailModal({
       presentationStyle="fullScreen"
       onRequestClose={onClose}
     >
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: p.frame }]}>
         {/* Team color accent bar */}
         {teamColors && (
           <LinearGradient
@@ -130,19 +140,22 @@ export default function PlayerDetailModal({
             onPress={onClose}
             style={styles.closeButton}
             testID="player-detail-close"
+            accessibilityRole="button"
+            accessibilityLabel="Close player detail"
           >
-            <IconSymbol name="xmark.circle.fill" size={28} color={rinkGlass.textSecondary} />
+            <IconSymbol name="xmark.circle.fill" size={28} color={p.link} />
           </TouchableOpacity>
         </View>
 
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={rinkGlass.blueLight} />
-            <Text style={styles.loadingText}>Loading player data...</Text>
+            <ActivityIndicator size="large" color={p.action} />
+            <Text style={[styles.loadingText, { color: p.frameInk, fontFamily: arenaType.body }]}>Loading player data...</Text>
           </View>
         ) : error ? (
           <View style={styles.loadingContainer}>
-            <Text style={styles.errorText}>{error}</Text>
+            <Text style={[styles.errorText, { color: p.frameInk, fontFamily: arenaType.body }]}>{error}</Text>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Retry player detail" onPress={() => setRetryKey(value => value + 1)} style={[styles.retryButton, { backgroundColor: p.action }]}><Text style={[styles.retryText, { color: p.actionInk }]}>Retry</Text></TouchableOpacity>
           </View>
         ) : detail ? (
           <ScrollView
@@ -160,7 +173,7 @@ export default function PlayerDetailModal({
                 accessibilityLabel={`${detail.bio.fullName} headshot`}
               />
               <View style={styles.heroInfo}>
-                <Text style={styles.heroName}>{detail.bio.fullName}</Text>
+                <Text style={[styles.heroName, { color: p.frameInk, fontFamily: arenaType.display }]}>{detail.bio.fullName}</Text>
                 <View style={styles.heroMeta}>
                   {detail.bio.sweaterNumber !== undefined && (
                     <View style={[styles.heroBadge, { borderColor: teamColors?.primary || rinkGlass.blueLight }]}>
@@ -173,6 +186,23 @@ export default function PlayerDetailModal({
                     {detail.bio.teamAbbrev} / {detail.bio.position}
                   </Text>
                 </View>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={`${watchError ? 'Retry updating watchlist for' : watchlist.isWatched(detail.bio.playerId) ? 'Unwatch' : 'Watch'} ${detail.bio.fullName}`}
+                  accessibilityState={{ selected: watchlist.isWatched(detail.bio.playerId), busy: watchBusy, disabled: watchBusy }}
+                  disabled={watchBusy}
+                  onPress={async () => {
+                    setWatchBusy(true); setWatchError(false);
+                    try { await watchlist.toggle({ playerId: detail.bio.playerId, fullName: detail.bio.fullName, teamAbbrev: detail.bio.teamAbbrev, position: detail.bio.position, headshotUrl: detail.bio.headshotUrl }); }
+                    catch { setWatchError(true); }
+                    finally { setWatchBusy(false); }
+                  }}
+                  style={[styles.watchButton, { backgroundColor: p.action }]}
+                  testID="player-detail-watch"
+                >
+                  <Ionicons name={watchlist.isWatched(detail.bio.playerId) ? 'eye' : 'eye-outline'} size={18} color={p.actionInk} />
+                  <Text style={[styles.watchText, { color: p.actionInk }]}>{watchBusy ? 'Saving' : watchError ? 'Retry' : watchlist.isWatched(detail.bio.playerId) ? 'Watching' : 'Watch'}</Text>
+                </TouchableOpacity>
               </View>
             </View>
 
@@ -665,8 +695,8 @@ function renderFantasySection(projection: PlayerProjection | null) {
               <Text style={styles.trendCardLabel}>Projected FPts</Text>
             </View>
             <View style={styles.fantasyRecBox}>
-              {(() => {
-                const rc = REC_COLORS[projection.recommendation] || REC_COLORS.FLEX;
+              {projection.recommendation ? (() => {
+                const rc = REC_COLORS[projection.recommendation];
                 return (
                   <View style={[styles.fantasyRecBadge, { backgroundColor: rc.bg, borderColor: rc.text }]}>
                     <Text style={[styles.fantasyRecText, { color: rc.text }]}>
@@ -674,7 +704,9 @@ function renderFantasySection(projection: PlayerProjection | null) {
                     </Text>
                   </View>
                 );
-              })()}
+              })() : (
+                <Text style={styles.fantasyUnavailableText}>Forecast only / recommendation unavailable</Text>
+              )}
               {projection.reason ? (
                 <Text style={styles.fantasyReasonText} numberOfLines={2}>{projection.reason}</Text>
               ) : null}
@@ -737,7 +769,7 @@ function renderFantasySection(projection: PlayerProjection | null) {
         <View style={styles.trendCard}>
           <View style={styles.fantasyEmptyContainer}>
             <Ionicons name="calendar-outline" size={24} color={rinkGlass.textSecondary} />
-            <Text style={styles.emptyText}>No projection available — player may not be playing today</Text>
+            <Text style={styles.emptyText}>Projection unavailable</Text>
           </View>
         </View>
       )}
@@ -809,7 +841,10 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   closeButton: {
-    padding: 8,
+    minWidth: 48,
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   loadingContainer: {
     flex: 1,
@@ -825,6 +860,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#f87171',
   },
+  retryButton: { minHeight: 48, paddingHorizontal: 22, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  retryText: { fontFamily: arenaType.body, fontSize: 14, fontWeight: '800' },
   scroll: {
     flex: 1,
   },
@@ -851,6 +888,8 @@ const styles = StyleSheet.create({
   heroInfo: {
     flex: 1,
   },
+  watchButton: { minHeight: 48, alignSelf: 'flex-start', marginTop: 10, borderRadius: 10, paddingHorizontal: 14, flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center' },
+  watchText: { fontFamily: arenaType.body, fontWeight: '800', fontSize: 13 },
   heroName: {
     fontSize: 22,
     fontWeight: '800',
@@ -1110,6 +1149,11 @@ const styles = StyleSheet.create({
   fantasyReasonText: {
     fontSize: 12,
     fontWeight: '500',
+    color: rinkGlass.textSecondary,
+  },
+  fantasyUnavailableText: {
+    fontSize: 12,
+    fontWeight: '600',
     color: rinkGlass.textSecondary,
   },
   fantasyBarContainer: {

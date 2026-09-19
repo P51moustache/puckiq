@@ -1,18 +1,18 @@
 import { useCallback, useEffect, useRef } from 'react';
-import AnalyticsService from '../services/analytics/AnalyticsService';
+import { useAnalyticsContext } from '../components/analytics/AnalyticsProvider';
 import { UserProperties } from '../services/analytics/types';
 
 export function useAnalytics(screenName?: string) {
-  const analytics = useRef(AnalyticsService.getInstance());
+  const { analytics, ready } = useAnalyticsContext();
   const previousScreen = useRef<string | undefined>(undefined);
 
   // Track screen view when component mounts
   useEffect(() => {
-    if (screenName) {
-      analytics.current.trackScreenView(screenName, previousScreen.current);
+    if (ready && screenName) {
+      analytics.trackScreenView(screenName, previousScreen.current);
       previousScreen.current = screenName;
     }
-  }, [screenName]);
+  }, [analytics, ready, screenName]);
 
   // Note: the app-wide session listener lives in AnalyticsProvider (mounted once).
   // It used to be registered here, which duplicated session_start/session_end
@@ -26,8 +26,8 @@ export function useAnalytics(screenName?: string) {
     value?: number, 
     properties?: Record<string, any>
   ) => {
-    analytics.current.trackUserAction(action, category, label, value, properties);
-  }, []);
+    analytics.trackUserAction(action, category, label, value, properties);
+  }, [analytics]);
 
   const trackFeatureUsage = useCallback((
     featureName: string,
@@ -35,8 +35,8 @@ export function useAnalytics(screenName?: string) {
     interactionType: 'click' | 'view' | 'complete' | 'share' | 'search',
     properties?: Record<string, any>
   ) => {
-    analytics.current.trackFeatureUsage(featureName, category, interactionType, properties);
-  }, []);
+    analytics.trackFeatureUsage(featureName, category, interactionType, properties);
+  }, [analytics]);
 
   const trackPerformance = useCallback((
     metricName: string,
@@ -44,8 +44,8 @@ export function useAnalytics(screenName?: string) {
     unit: 'ms' | 'bytes' | 'count',
     properties?: Record<string, any>
   ) => {
-    analytics.current.trackPerformance(metricName, metricValue, unit, properties);
-  }, []);
+    analytics.trackPerformance(metricName, metricValue, unit, properties);
+  }, [analytics]);
 
   const trackError = useCallback((
     errorType: 'javascript' | 'network' | 'user_input' | 'system',
@@ -53,23 +53,23 @@ export function useAnalytics(screenName?: string) {
     severity: 'low' | 'medium' | 'high' | 'critical',
     stack?: string
   ) => {
-    analytics.current.trackError(errorType, message, severity, stack);
-  }, []);
+    analytics.trackError(errorType, message, severity, stack);
+  }, [analytics]);
 
   const trackCustomEvent = useCallback((
     eventName: string,
     properties?: Record<string, any>
   ) => {
-    analytics.current.trackCustomEvent(eventName, properties);
-  }, []);
+    analytics.trackCustomEvent(eventName, properties);
+  }, [analytics]);
 
   const setUserId = useCallback((userId: string) => {
-    analytics.current.setUserId(userId);
-  }, []);
+    analytics.setUserId(userId);
+  }, [analytics]);
 
   const setUserProperties = useCallback((properties: UserProperties) => {
-    analytics.current.setUserProperties(properties);
-  }, []);
+    analytics.setUserProperties(properties);
+  }, [analytics]);
 
   return {
     trackUserAction,

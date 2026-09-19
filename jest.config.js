@@ -26,6 +26,12 @@ module.exports = {
     '**/__tests__/**/*.(test|spec).[jt]s?(x)',
     '**/?(*.)(test|spec).[jt]s?(x)',
   ],
+  // Git worktrees checked out under the repo root would otherwise be collected as duplicate suites.
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '/\\.claude/worktrees/',
+    '/\\.cursor/',
+  ],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
     '^expo/src/winter/(.*)$': '<rootDir>/__mocks__/expo-winter.js',

@@ -6,6 +6,7 @@ import { ArenaNote, arenaType } from "./ArenaPrimitives";
 import type { ArenaGame, SeasonEntry } from "../../types/arena";
 import { isFinalGame } from "../../services/arenaData";
 import { gameTime } from "./GamePoster";
+import { formatFinalScore } from "../../utils/arenaSlate";
 
 export function SeasonBook({
   entries,
@@ -16,7 +17,7 @@ export function SeasonBook({
   entries: SeasonEntry[];
   results: ArenaGame[];
   onOpen: (game: ArenaGame) => void;
-  onRemove: (id: number) => void;
+  onRemove: (entry: SeasonEntry) => void;
 }) {
   const { palette: p } = useArena();
   return (
@@ -184,7 +185,9 @@ export function SeasonBook({
                     }}
                   >
                     {isFinalGame(current)
-                      ? `${current.away_score} – ${current.home_score} FINAL`
+                      ? formatFinalScore(current) === 'SCORE UNAVAILABLE'
+                        ? 'Final score unavailable'
+                        : `${formatFinalScore(current)} FINAL`
                       : "Awaiting final"}
                   </Text>
                 </View>
@@ -212,10 +215,10 @@ export function SeasonBook({
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={`Remove ${entry.game.away_team_abbrev} at ${entry.game.home_team_abbrev} from season book`}
-                onPress={() => onRemove(entry.game.id)}
+                onPress={() => onRemove(entry)}
                 style={{
-                  minHeight: 44,
-                  minWidth: 44,
+                  minHeight: 48,
+                  minWidth: 48,
                   alignItems: "center",
                   justifyContent: "center",
                 }}
