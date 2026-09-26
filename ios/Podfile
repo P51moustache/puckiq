@@ -56,5 +56,14 @@ target 'PuckIQ' do
       :mac_catalyst_enabled => false,
       :ccache_enabled => ccache_enabled?(podfile_properties),
     )
+
+    # Building React Native from source (see patches/react-native+*.patch): fmt 11 fails
+    # with Xcode 26's clang under C++20 consteval. Compile just fmt as C++17.
+    installer.pods_project.targets.each do |target|
+      next unless target.name == 'fmt'
+      target.build_configurations.each do |config|
+        config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
+      end
+    end
   end
 end
