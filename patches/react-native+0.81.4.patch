@@ -1,0 +1,19 @@
+diff --git a/node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm b/node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm
+index 2a67797..600e61d 100644
+--- a/node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm
++++ b/node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm
+@@ -435,7 +435,13 @@ TraceSection s(
+     @try {
+       [inv invokeWithTarget:strongModule];
+     } @catch (NSException *exception) {
+-      throw convertNSExceptionToJSError(runtime, exception, std::string{moduleName}, methodNameStr);
++      if (shouldVoidMethodsExecuteSync_) {
++        throw convertNSExceptionToJSError(runtime, exception, std::string{moduleName}, methodNameStr);
++      }
++      // PuckIQ patch (react-native#54859): an async void call runs off the JS thread, so nothing
++      // can catch a rethrown error and the JS runtime isn't safe to touch here. Rethrowing
++      // aborts the app (SIGABRT on iOS 26 Release). Log and keep running instead.
++      NSLog(@"[TurboModule] %s.%s threw %@: %@", moduleName, methodNameStr.c_str(), exception.name, exception.reason);
+     } @finally {
+       [retainedObjectsForInvocation removeAllObjects];
+     }

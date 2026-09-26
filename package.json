@@ -25,7 +25,8 @@
     "sync:teams": "node scripts/sync/sync-teams.mjs",
     "sync:players": "node scripts/sync/sync-players.mjs",
     "sync:check": "node scripts/sync/sync-health.mjs",
-    "smoke:coach": "jest --testMatch '**/scripts/smoke/coach.smoke.ts' --testPathIgnorePatterns /node_modules/"
+    "smoke:coach": "jest --testMatch '**/scripts/smoke/coach.smoke.ts' --testPathIgnorePatterns /node_modules/",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
@@ -60,7 +61,7 @@
     "react-dom": "19.1.0",
     "react-native": "0.81.4",
     "react-native-gesture-handler": "~2.28.0",
-    "react-native-purchases": "^9.15.1",
+    "react-native-purchases": "10.10.2",
     "react-native-reanimated": "~4.1.0",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
@@ -80,6 +81,7 @@
     "expo-mcp": "~0.2.1",
     "jest": "^30.2.0",
     "jest-expo": "^54.0.13",
+    "patch-package": "^8.0.1",
     "ts-jest": "^29.4.5",
     "typescript": "~5.9.2"
   },
