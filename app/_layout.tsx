@@ -4,6 +4,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AnalyticsProvider } from '../components/analytics/AnalyticsProvider';
@@ -31,6 +32,8 @@ SplashScreen.preventAutoHideAsync();
 function AppContent() {
   const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
   const pathname = usePathname();
+  // Status bar sits over the dark frame once the screen is wider than the column.
+  const framed = useWindowDimensions().width > MAX_COLUMN_WIDTH;
 
   useEffect(() => {
     if (onboardingComplete) trackScreen(pathname === '/' ? '/tonight' : pathname);
@@ -55,19 +58,45 @@ function AppContent() {
   }
 
   if (!onboardingComplete) {
-    return <CoachOnboarding onComplete={handleOnboardingComplete} />;
+    return (
+      <View style={styles.frame}>
+        <View style={styles.column}>
+          <CoachOnboarding onComplete={handleOnboardingComplete} />
+        </View>
+      </View>
+    );
   }
 
   return (
-    <>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style="dark" />
-    </>
+    <View style={styles.frame}>
+      <View style={styles.column}>
+        <Stack>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="+not-found" />
+        </Stack>
+      </View>
+      <StatusBar style={framed ? 'light' : 'dark'} />
+    </View>
   );
 }
+
+/** Phone-shaped column on iPad: the layouts are built for one hand, so keep them that width. */
+const MAX_COLUMN_WIDTH = 640;
+
+const styles = StyleSheet.create({
+  frame: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: colors.ink,
+  },
+  column: {
+    flex: 1,
+    width: '100%',
+    maxWidth: MAX_COLUMN_WIDTH,
+    backgroundColor: colors.bg,
+    overflow: 'hidden',
+  },
+});
 
 export default function RootLayout() {
   const analyticsConfig = useMemo(() => ({ enabled: true, debug: __DEV__ }), []);

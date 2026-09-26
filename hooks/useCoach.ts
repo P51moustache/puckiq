@@ -20,7 +20,7 @@ import {
 import { compareWeeks, type MatchupSummary } from '../services/fantasy/matchup';
 import { likelyRosteredIds, rankPickups, type PickupRow } from '../services/fantasy/pickups';
 import { buildWeekPlan, type DayPlan, type WeekPlan } from '../services/fantasy/weekPlan';
-import { addDays, mondayOf, todayNhl } from '../services/nhl/dates';
+import { addDays, mondayOf, todayNhl, appNow } from '../services/nhl/dates';
 import { isGameFinal, isGameStarted, type WeekSchedule } from '../services/nhl/schedule';
 import { useResource, type Resource } from './useResource';
 
@@ -164,7 +164,7 @@ export function useNight(team: FantasyTeam | null, dayOffset = 0): NightView {
     const soon = !!night.data && Object.values(night.data.playerGames).some((game) => {
       if (!game?.startTimeUTC || isGameFinal(game)) return false;
       const start = Date.parse(game.startTimeUTC);
-      return Number.isFinite(start) && start - Date.now() < 90 * 60 * 1000;
+      return Number.isFinite(start) && start - appNow().getTime() < 90 * 60 * 1000;
     });
     if (!liveGames && !soon) return;
     const timer = setInterval(() => {

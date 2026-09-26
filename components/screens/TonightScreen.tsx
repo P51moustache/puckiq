@@ -328,7 +328,7 @@ export default function TonightScreen() {
               <DarkCard style={styles.lineup} testID="tonight-lineup">
                 {lineupRows.map((row) => (
                   <View key={row.slot} style={styles.lineupRow}>
-                    <Text style={styles.lineupSlot}>{row.slot}</Text>
+                    <Text style={styles.lineupSlot} numberOfLines={1}>{row.slot}</Text>
                     <View style={styles.lineupTiles}>
                       {row.seats.map((id) => {
                         const player = byId.get(id);
@@ -618,8 +618,9 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   lineupSlot: {
-    width: 38,
     ...display(15),
+    // Wide enough for "UTIL" once display()'s italic bleed padding is counted.
+    width: 46,
     color: colors.accent,
     paddingTop: 16,
   },

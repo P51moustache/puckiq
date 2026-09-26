@@ -88,6 +88,21 @@ function devDate(): string | null {
   return value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
 }
 
+/**
+ * Dev builds only: EXPO_PUBLIC_DEV_NOW=2026-10-13T22:30:00Z starts the app clock at that
+ * moment (then ticks normally) — for pre-lock screenshots. Release builds use real time.
+ */
+const DEV_CLOCK_OFFSET_MS = (() => {
+  if (typeof __DEV__ === 'undefined' || !__DEV__) return 0;
+  const target = Date.parse(process.env.EXPO_PUBLIC_DEV_NOW ?? '');
+  return Number.isFinite(target) ? target - Date.now() : 0;
+})();
+
+/** Current time as the app sees it. */
+export function appNow(): Date {
+  return new Date(Date.now() + DEV_CLOCK_OFFSET_MS);
+}
+
 export function todayNhl(now: Date = new Date()): string {
   return devDate() ?? getNhlCalendarDate(now);
 }

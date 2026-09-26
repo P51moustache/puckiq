@@ -8,12 +8,13 @@ import type { PlayerGameDay } from '../../services/fantasy/weekPlan';
 import { formatPuckDrop, shortDate, weekdayAbbrev } from '../../services/nhl/dates';
 import { formatValue, goaliePoints, skaterPoints } from '../../services/fantasy/scoring';
 import type { ScoringWeights } from '../../types/fantasy';
+import { appNow } from '../../services/nhl/dates';
 
 /** Re-render on an interval so countdowns stay honest. */
 export function useNow(intervalMs = 30_000): Date {
-  const [now, setNow] = useState(() => new Date());
+  const [now, setNow] = useState(() => appNow());
   useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), intervalMs);
+    const timer = setInterval(() => setNow(appNow()), intervalMs);
     return () => clearInterval(timer);
   }, [intervalMs]);
   return now;
