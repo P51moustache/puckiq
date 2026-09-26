@@ -295,7 +295,11 @@ class AnalyticsService {
       }
 
       if (Platform.OS !== 'web' && this.remote && this.installId) {
-        await sendToPostHog(this.remote, eventsToFlush, this.installId, { appVersion: APP_VERSION, os: Platform.OS });
+        await sendToPostHog(this.remote, eventsToFlush, this.installId, {
+          appVersion: APP_VERSION,
+          os: Platform.OS,
+          environment: __DEV__ ? 'development' : 'production',
+        });
       }
 
       // Keep a local copy in dev builds for debugging.

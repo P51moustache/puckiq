@@ -13,9 +13,17 @@ export interface PostHogConfig {
   host: string;
 }
 
-export function posthogConfig(env: Record<string, string | undefined> = process.env): PostHogConfig | null {
+/**
+ * Debug builds (simulator, screenshots, local testing) don't send unless
+ * EXPO_PUBLIC_POSTHOG_DEV=1, so real usage data stays clean.
+ */
+export function posthogConfig(
+  env: Record<string, string | undefined> = process.env,
+  isDev: boolean = typeof __DEV__ !== 'undefined' && __DEV__,
+): PostHogConfig | null {
   const apiKey = env.EXPO_PUBLIC_POSTHOG_KEY?.trim();
   if (!apiKey) return null;
+  if (isDev && env.EXPO_PUBLIC_POSTHOG_DEV !== '1') return null;
   const host = (env.EXPO_PUBLIC_POSTHOG_HOST?.trim() || DEFAULT_HOST).replace(/\/+$/, '');
   return { apiKey, host };
 }
@@ -23,6 +31,8 @@ export function posthogConfig(env: Record<string, string | undefined> = process.
 export interface AppContext {
   appVersion: string;
   os: string;
+  /** 'production' or 'development' — filter dev noise out of charts. */
+  environment?: string;
 }
 
 interface PostHogEvent {
@@ -53,6 +63,7 @@ export function toPostHogEvent(event: AnalyticsEvent, distinctId: string, app: A
     $app_version: app.appVersion,
     $os: app.os,
     $lib: 'puckiq',
+    environment: app.environment ?? 'production',
     // Anonymous install IDs shouldn't create PostHog person profiles.
     $process_person_profile: false,
   };

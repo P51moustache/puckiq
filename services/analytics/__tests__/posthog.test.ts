@@ -5,10 +5,15 @@ const at = Date.parse('2026-10-13T23:00:00Z');
 
 describe('posthog config', () => {
   it('is off without a key and trims the host', () => {
-    expect(posthogConfig({})).toBeNull();
-    expect(posthogConfig({ EXPO_PUBLIC_POSTHOG_KEY: '  ' })).toBeNull();
-    expect(posthogConfig({ EXPO_PUBLIC_POSTHOG_KEY: 'phc_x' })).toEqual({ apiKey: 'phc_x', host: 'https://us.i.posthog.com' });
-    expect(posthogConfig({ EXPO_PUBLIC_POSTHOG_KEY: 'phc_x', EXPO_PUBLIC_POSTHOG_HOST: 'https://eu.i.posthog.com/' })?.host).toBe('https://eu.i.posthog.com');
+    expect(posthogConfig({}, false)).toBeNull();
+    expect(posthogConfig({ EXPO_PUBLIC_POSTHOG_KEY: '  ' }, false)).toBeNull();
+    expect(posthogConfig({ EXPO_PUBLIC_POSTHOG_KEY: 'phc_x' }, false)).toEqual({ apiKey: 'phc_x', host: 'https://us.i.posthog.com' });
+    expect(posthogConfig({ EXPO_PUBLIC_POSTHOG_KEY: 'phc_x', EXPO_PUBLIC_POSTHOG_HOST: 'https://eu.i.posthog.com/' }, false)?.host).toBe('https://eu.i.posthog.com');
+  });
+
+  it('stays off in debug builds unless opted in', () => {
+    expect(posthogConfig({ EXPO_PUBLIC_POSTHOG_KEY: 'phc_x' }, true)).toBeNull();
+    expect(posthogConfig({ EXPO_PUBLIC_POSTHOG_KEY: 'phc_x', EXPO_PUBLIC_POSTHOG_DEV: '1' }, true)?.apiKey).toBe('phc_x');
   });
 });
 
@@ -23,7 +28,7 @@ describe('toPostHogEvent', () => {
       event: '$screen',
       distinct_id: 'install-1',
       timestamp: '2026-10-13T23:00:00.000Z',
-      properties: expect.objectContaining({ $screen_name: '/week', is_pro: true, session_id: 's1', $app_version: '3.0.0', $process_person_profile: false }),
+      properties: expect.objectContaining({ $screen_name: '/week', is_pro: true, session_id: 's1', $app_version: '3.0.0', $process_person_profile: false, environment: 'production' }),
     });
   });
 

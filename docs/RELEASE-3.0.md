@@ -29,8 +29,7 @@ Goal: ship before opening night (NHL regular season starts the week of Oct 5, 20
 | `EXPO_PUBLIC_FREEMIUM_CUTOVER` | ISO date you flip the price to Free (e.g. `2026-10-02`). Earlier original purchases keep Pro. |
 | `EXPO_PUBLIC_PRIVACY_URL` / `_SUPPORT_URL` / `_SUPPORT_EMAIL` | already defaulted in `constants/legal.ts` (GitHub Pages + zlce.app@gmail.com) |
 | `EXPO_PUBLIC_SUPABASE_URL` / `_ANON_KEY` | existing values |
-| `EXPO_PUBLIC_POSTHOG_KEY` | PostHog project API key (`phc_…`). Unset = no analytics leave the device. |
-| `EXPO_PUBLIC_POSTHOG_HOST` | only for an EU PostHog project: `https://eu.i.posthog.com` |
+| `EXPO_PUBLIC_POSTHOG_KEY` | set in `eas.json` (preview + production). US project, so no host needed. Write-only public key. |
 
 ## 5. Price change + release
 

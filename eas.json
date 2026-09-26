@@ -9,7 +9,10 @@
       "distribution": "internal"
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_POSTHOG_KEY": "phc_y99ukqMCfSFnPAuzPBVHmuRzMvyap6eP73bGwamZGJZb"
+      }
     },
     "production": {
       "autoIncrement": true,
@@ -20,7 +23,8 @@
         }
       },
       "env": {
-        "NODE_ENV": "production"
+        "NODE_ENV": "production",
+        "EXPO_PUBLIC_POSTHOG_KEY": "phc_y99ukqMCfSFnPAuzPBVHmuRzMvyap6eP73bGwamZGJZb"
       }
     }
   },
