@@ -24,7 +24,8 @@
       },
       "env": {
         "NODE_ENV": "production",
-        "EXPO_PUBLIC_POSTHOG_KEY": "phc_y99ukqMCfSFnPAuzPBVHmuRzMvyap6eP73bGwamZGJZb"
+        "EXPO_PUBLIC_POSTHOG_KEY": "phc_y99ukqMCfSFnPAuzPBVHmuRzMvyap6eP73bGwamZGJZb",
+        "EXPO_PUBLIC_FREEMIUM_CUTOVER": "2026-09-28T00:00:00Z"
       }
     }
   },
