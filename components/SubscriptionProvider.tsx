@@ -1,38 +1,67 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useAuthContext } from './auth/AuthProvider';
-import { initializeSubscription, isPro } from '../services/subscription';
+import {
+  FREE_STATUS,
+  getProStatus,
+  initializeSubscription,
+  onCustomerInfoChange,
+  type ProStatus,
+} from '../services/subscription';
+import AnalyticsService from '../services/analytics/AnalyticsService';
 
 interface SubscriptionContextValue {
   isPremium: boolean;
+  status: ProStatus;
   loading: boolean;
+  /** RevenueCat has a key and configured. False in local dev without keys. */
+  storeReady: boolean;
   refresh: () => Promise<void>;
+  applyStatus: (status: ProStatus) => void;
 }
 
 const SubscriptionContext = createContext<SubscriptionContextValue | undefined>(undefined);
 
+/** Local testing only: EXPO_PUBLIC_DEV_PRO=1 in a __DEV__ build unlocks Pro without a store. */
+function developerOverride(): ProStatus | null {
+  if (typeof __DEV__ !== 'undefined' && __DEV__ && process.env.EXPO_PUBLIC_DEV_PRO === '1') {
+    return { isPro: true, source: 'developer', expiresAt: null, willRenew: false };
+  }
+  return null;
+}
+
 export function SubscriptionProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuthContext();
-  const [isPremium, setIsPremium] = useState(false);
+  const [status, setStatus] = useState<ProStatus>(() => developerOverride() ?? FREE_STATUS);
   const [loading, setLoading] = useState(true);
+  const [storeReady, setStoreReady] = useState(false);
 
   const checkProStatus = useCallback(async () => {
+    const override = developerOverride();
     try {
-      const pro = await isPro();
-      setIsPremium(pro);
+      setStatus(override ?? (await getProStatus()));
     } catch {
-      setIsPremium(false);
+      setStatus(override ?? FREE_STATUS);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
+    let unsubscribe: () => void = () => undefined;
+    let cancelled = false;
     const init = async () => {
       setLoading(true);
-      await initializeSubscription(user?.id);
+      const ready = await initializeSubscription(user?.id);
+      if (cancelled) return;
+      setStoreReady(ready);
       await checkProStatus();
+      unsubscribe = onCustomerInfoChange((next) => setStatus(developerOverride() ?? next));
     };
     init();
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, [user?.id, checkProStatus]);
 
   const refresh = useCallback(async () => {
@@ -40,9 +69,17 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     await checkProStatus();
   }, [checkProStatus]);
 
+  const applyStatus = useCallback((next: ProStatus) => {
+    setStatus(developerOverride() ?? next);
+  }, []);
+
+  useEffect(() => {
+    AnalyticsService.getInstance().register({ is_pro: status.isPro });
+  }, [status.isPro]);
+
   const value = useMemo<SubscriptionContextValue>(
-    () => ({ isPremium, loading, refresh }),
-    [isPremium, loading, refresh],
+    () => ({ isPremium: status.isPro, status, loading, storeReady, refresh, applyStatus }),
+    [status, loading, storeReady, refresh, applyStatus],
   );
 
   return (

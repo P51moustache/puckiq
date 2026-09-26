@@ -1,42 +1,42 @@
 # PuckIQ
 
-PuckIQ is an NHL analytics and insights app for hockey fans who want an edge before puck drop. It turns raw league data into a fast, readable daily briefing: who's favored tonight, which goalies are confirmed, who just got hurt, and the one stat worth knowing before the games start.
+PuckIQ is a fantasy hockey coach for **your** roster, in the Yahoo, ESPN, or Fantrax league you already play. Add your players once (NHL player search) and every night it tells you who plays, who's scratched, the best lineup your league's slots allow, and which pickups fill your empty nights.
 
-PuckIQ is published on the **Apple App Store** and built with React Native and Expo.
+Free to download, with a PuckIQ Pro subscription. See [PRODUCT.md](PRODUCT.md) for the product spec and Free vs Pro.
 
 ## Features
 
-- **Daily briefing** — A single "story of the day" leads the home screen: the model's highest-confidence game, a notable upset from last night, or a team trending toward regression or a breakout.
-- **Model-backed game predictions** — Win probabilities, projected spreads and totals, and the top factors driving each pick, surfaced per matchup.
-- **Goalie-confirmed alerts** — Push notifications when starting goalies are confirmed, so lineup decisions aren't made on stale information.
-- **Injury alerts** — Status changes (DTD / OUT / IR) with a plain-language suggestion on who to bench or stream.
-- **Morning brief** — A start/sit/bench summary delivered each morning to users who opt in.
-- **Stat of the night** — A shareable, auto-generated insight nugget (player streaks, standings shifts, NHL Edge data) with one-tap sharing.
-- **Teams & standings** — Team pages, head-to-head matchups, recent form, and standings snapshots.
-- **Players** — League leaders, trending skaters, and projections.
+- **Tonight** — "5 of your 13 play tonight · 1 problem · first puck 7:00 PM", per-player puck-drop countdowns, NHL scratch confirmations, roster-filtered injury news, live box-score lines, and coach moves to make before lock. Toggle to tomorrow.
+- **Best lineup** (Pro) — slot-aware start/sit for C/LW/RW/F/D/UTIL/G, multi-position eligibility, IR.
+- **Week** — players × Mon–Sun grid with off-nights; Pro adds games that count, bench overflow, empty slots, next week, and a head-to-head matchup.
+- **Pickups** — streamers ranked by value added to your lineup over the rest of the week; filter by position and night; hides players your league size almost always rosters.
+- **Player sheet** — season line, last-14 form, game log, eligibility and IR editing.
+- **Lineup reminders** — one local notification before the first puck on nights your players play.
+- **Multiple leagues** (Pro) and optional cloud backup (Sign in with Apple/Google).
 
-All notifications are delivered through Supabase Edge Functions (`goalie-confirmed`, `injury-alert`, `morning-brief`) that read from Supabase and push via Expo.
+## Tech
 
-## Tech Stack
-
-- **React Native** + **Expo** (file-based routing via Expo Router)
-- **TypeScript** (strict mode)
-- **Supabase** — Postgres backend, row-level security, and Deno edge functions for scheduled push notifications
-- **Jest** — unit, integration, and component tests
-
-NHL data flows into Supabase through a scheduled sync pipeline; the app itself reads exclusively from Supabase at runtime.
+- React Native + Expo (Expo Router), TypeScript strict
+- Public NHL APIs (`api-web.nhle.com`, `api.nhle.com/stats/rest`) through a cached, rate-limit-aware client (`services/nhl/`)
+- Fantasy engine as pure, tested modules (`services/fantasy/`)
+- RevenueCat for subscriptions, Supabase for optional auth/backup, Jest
 
 ## Run
 
 ```bash
 npm install
-npm start          # Expo dev server (opens the iOS simulator)
+npm start          # Expo dev server (iOS)
 ```
 
 ```bash
-npm test           # run the test suite
-npx tsc --noEmit   # type-check
+npm test             # unit + component tests
+npx tsc --noEmit     # type-check
+npm run smoke:coach  # live end-to-end run of the coach against real NHL data (network)
 ```
+
+Copy `.env.example` to `.env`. Supabase keys are optional; the coach runs on public NHL data. Set `EXPO_PUBLIC_DEV_PRO=1` to try Pro locally.
+
+Release steps for the subscription launch: [docs/RELEASE-3.0.md](docs/RELEASE-3.0.md).
 
 ---
 

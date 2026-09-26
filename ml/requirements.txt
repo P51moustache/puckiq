@@ -2,6 +2,8 @@
 # Python version: 3.12 (must match .github/workflows/*.yml and Dockerfile)
 lightgbm==4.6.0
 pandas==2.3.3
+# Feature disk cache (ml/features/disk_cache.py) reads/writes parquet.
+pyarrow==21.0.0
 numpy==2.4.2
 scikit-learn==1.8.0
 statsmodels==0.14.6

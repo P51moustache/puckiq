@@ -1,79 +1,76 @@
 /**
- * PageHeader — the standardized header for every tab page.
- *
- * Every tab uses this, so the four tabs feel like one app.
- *
- *   24px Display-Bold title with 0.5 letter-spacing
- *   10px uppercase muted subtitle with 1.5 letter-spacing
- *   Optional right-side accessory (search icon, settings cog, etc.)
- *
- * Don't deviate from this in individual tabs.
+ * PageHeader — F1-style: a small control row (team pill, actions) over a big, heavy,
+ * italic uppercase title. Every tab uses it so the app reads as one publication.
  */
 
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { rinkGlass } from '../constants/theme';
+import { colors, display } from './coach/ui';
 
 interface PageHeaderProps {
   title: string;
-  /** Comma- or space-separated tokens; rendered uppercase. The first token is bright, the rest are muted, separated by middle dots. */
+  /** Optional muted line under the title. */
   subtitle?: string;
-  /** Optional right-side affordance (search button, etc.). */
+  /** Optional right-side affordance (buttons, a segmented control). */
   right?: React.ReactNode;
+  /** Optional control above the title (e.g. the team switcher). */
+  accessory?: React.ReactNode;
 }
 
-export default function PageHeader({ title, subtitle, right }: PageHeaderProps) {
+export default function PageHeader({ title, subtitle, right, accessory }: PageHeaderProps) {
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.row, { paddingTop: insets.top + 8 }]} testID="page-header">
-      <View style={styles.left}>
-        <Text style={styles.title} testID="page-header-title">
-          {title}
+    <View style={[styles.wrap, { paddingTop: insets.top + 6 }]} testID="page-header">
+      {accessory || right ? (
+        <View style={styles.controls}>
+          <View style={styles.accessory}>{accessory}</View>
+          {right ? <View style={styles.right}>{right}</View> : null}
+        </View>
+      ) : null}
+      <Text style={styles.title} testID="page-header-title" numberOfLines={1} adjustsFontSizeToFit>
+        {title}
+      </Text>
+      {subtitle ? (
+        <Text style={styles.subtitle} testID="page-header-subtitle">
+          {subtitle}
         </Text>
-        {subtitle ? (
-          <Text style={styles.subtitle} testID="page-header-subtitle">
-            {subtitle.toUpperCase()}
-          </Text>
-        ) : null}
-      </View>
-      {right ? <View style={styles.right}>{right}</View> : null}
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: {
+  wrap: {
     paddingHorizontal: 16,
-    paddingBottom: 10,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
+    paddingBottom: 12,
+    backgroundColor: colors.bg,
   },
-  left: {
-    flex: 1,
-    minWidth: 0,
-    paddingRight: 8,
+  controls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 40,
+    marginBottom: 6,
+  },
+  accessory: {
+    flexShrink: 1,
   },
   right: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     marginLeft: 8,
-    marginTop: 4,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: rinkGlass.textPrimary,
-    fontFamily: 'Display-Bold',
-    letterSpacing: 0.5,
-    flexShrink: 1,
+    ...display(38),
+    letterSpacing: -1,
+    textTransform: 'uppercase',
   },
   subtitle: {
-    fontSize: 10,
-    color: rinkGlass.textSecondary,
+    fontSize: 14,
+    color: colors.sub,
     marginTop: 2,
-    letterSpacing: 1.5,
-    lineHeight: 15,
-    flexShrink: 1,
   },
 });

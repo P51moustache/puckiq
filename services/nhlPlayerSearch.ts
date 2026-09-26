@@ -31,22 +31,52 @@ export function mapNhlSearchRow(row: NhlSearchRow): NhlSearchPlayer | null {
   };
 }
 
+function foldName(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+/**
+ * How well a name matches a typed query, higher is better:
+ * exact full name > every word prefixes a name part > surname prefix > anything else.
+ * The NHL search API matches on any word, so "Jake Oettinger" returns every Jake first.
+ */
+export function matchScore(name: string, query: string): number {
+  const full = foldName(name);
+  const q = foldName(query).replace(/\s+/g, ' ');
+  if (!q) return 0;
+  if (full === q) return 100;
+  const parts = full.split(/\s+/);
+  const words = q.split(' ');
+  const allWordsMatch = words.every((word) => parts.some((part) => part.startsWith(word)));
+  if (allWordsMatch && words.length > 1) return 80;
+  if (full.startsWith(q)) return 70;
+  const last = parts[parts.length - 1] ?? '';
+  if (last.startsWith(q)) return 60;
+  if (allWordsMatch) return 40;
+  return 0;
+}
+
 export function rankSearchResults(players: NhlSearchPlayer[], query: string): NhlSearchPlayer[] {
-  const q = query.trim().toLowerCase();
   return [...players].sort((a, b) => {
+    const scoreDiff = matchScore(b.name, query) - matchScore(a.name, query);
+    if (scoreDiff !== 0) return scoreDiff;
     if (a.active !== b.active) return a.active ? -1 : 1;
-    const aStarts = a.name.toLowerCase().startsWith(q) || a.name.toLowerCase().split(' ').pop()?.startsWith(q);
-    const bStarts = b.name.toLowerCase().startsWith(q) || b.name.toLowerCase().split(' ').pop()?.startsWith(q);
-    if (!!aStarts !== !!bStarts) return aStarts ? -1 : 1;
     return a.name.localeCompare(b.name);
   });
 }
+
+/** Ask the API for more than we show — its own ordering buries full-name matches. */
+const MIN_FETCH = 40;
 
 export async function searchNhlPlayers(query: string, limit = 20): Promise<NhlSearchPlayer[]> {
   const trimmed = query.trim();
   if (trimmed.length < 2) return [];
 
-  const url = `${NHL_PLAYER_SEARCH_URL}?culture=en-us&limit=${limit}&q=${encodeURIComponent(trimmed)}`;
+  const url = `${NHL_PLAYER_SEARCH_URL}?culture=en-us&limit=${Math.max(limit, MIN_FETCH)}&q=${encodeURIComponent(trimmed)}`;
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`NHL player search failed (${res.status})`);
@@ -56,5 +86,5 @@ export async function searchNhlPlayers(query: string, limit = 20): Promise<NhlSe
   const mapped = rows
     .map((row: NhlSearchRow) => mapNhlSearchRow(row))
     .filter((p: NhlSearchPlayer | null): p is NhlSearchPlayer => p !== null);
-  return rankSearchResults(mapped, trimmed);
+  return rankSearchResults(mapped, trimmed).slice(0, limit);
 }

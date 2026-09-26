@@ -5,8 +5,7 @@ import { StyleSheet } from 'react-native';
 export default function BlurTabBarBackground() {
   return (
     <BlurView
-      // Force dark theme for consistent app experience
-      tint="dark"
+      tint="systemChromeMaterialLight"
       intensity={100}
       style={StyleSheet.absoluteFill}
     />

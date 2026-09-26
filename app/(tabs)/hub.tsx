@@ -1,5 +1,6 @@
-import HubScreen from '../../components/HubScreen';
+import React from 'react';
+import SettingsScreen from '../../components/screens/SettingsScreen';
 
-export default function HubTab() {
-  return <HubScreen />;
+export default function SettingsTab() {
+  return <SettingsScreen />;
 }

@@ -62,3 +62,6 @@ node_modules
 .claude/
 CLAUDE.md
 .cursor/
+
+# Source art from the image generator (exports live in assets/images/art)
+generations/

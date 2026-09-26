@@ -4,7 +4,7 @@ import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import { Alert, Platform } from 'react-native';
 import { Session, User } from '@supabase/supabase-js';
-import { supabase } from '../../lib/supabase';
+import { isAppleSignInEnabled, supabase } from '../../lib/supabase';
 import AnalyticsService from '../../services/analytics/AnalyticsService';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -19,6 +19,8 @@ type AuthContextValue = {
   signInWithEmail: (email: string, password: string) => Promise<boolean>;
   signUpWithEmail: (email: string, password: string) => Promise<boolean>;
   signInWithApple: () => Promise<boolean>;
+  /** Apple sign-in works on this device AND is enabled in Supabase. */
+  appleSignInReady: boolean;
   signInWithGoogle: () => Promise<boolean>;
   signOut: () => Promise<void>;
   refreshSession: () => Promise<void>;
@@ -37,6 +39,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   const user = session?.user ?? null;
+  const [appleSignInReady, setAppleSignInReady] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    let cancelled = false;
+    Promise.all([AppleAuthentication.isAvailableAsync().catch(() => false), isAppleSignInEnabled()])
+      .then(([device, server]) => {
+        if (!cancelled) setAppleSignInReady(device && server);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleAuthChange = useCallback(async (nextSession: Session | null) => {
     setSession(nextSession);
@@ -44,7 +59,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (nextSession?.user) {
       analytics.setUserId(nextSession.user.id);
       analytics.setUserProperties({
-        email: nextSession.user.email || undefined,
         auth_provider: nextSession.user.app_metadata?.provider || 'unknown',
       });
     } else {
@@ -197,6 +211,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signInWithEmail,
     signUpWithEmail,
     signInWithApple,
+    appleSignInReady,
     signInWithGoogle,
     signOut,
     refreshSession,
@@ -209,6 +224,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signInWithEmail,
     signUpWithEmail,
     signInWithApple,
+    appleSignInReady,
     signInWithGoogle,
     signOut,
     refreshSession,

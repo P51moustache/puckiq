@@ -1,7 +1,7 @@
 {
   "name": "learning-project",
   "main": "expo-router/entry",
-  "version": "2.3.0",
+  "version": "3.0.0",
   "scripts": {
     "start": "EXPO_UNSTABLE_MCP_SERVER=1 expo start --ios",
     "reset-project": "node ./scripts/reset-project.js",
@@ -16,7 +16,6 @@
     "test:unit": "jest services/ hooks/",
     "test:integration": "jest __tests__/integration/",
     "test:component": "jest components/__tests__/",
-    "test:legacy": "jest --config jest.legacy.config.js",
     "test:all": "npm run lint && npm run test:coverage",
     "seed:games": "node scripts/sync/sync-games.mjs --full",
     "seed:all": "node scripts/sync/sync-all.mjs --full",
@@ -25,14 +24,13 @@
     "sync:standings": "node scripts/sync/sync-standings.mjs",
     "sync:teams": "node scripts/sync/sync-teams.mjs",
     "sync:players": "node scripts/sync/sync-players.mjs",
-    "sync:check": "node scripts/sync/sync-health.mjs"
+    "sync:check": "node scripts/sync/sync-health.mjs",
+    "smoke:coach": "jest --testMatch '**/scripts/smoke/coach.smoke.ts' --testPathIgnorePatterns /node_modules/"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
     "@expo/vector-icons": "^15.0.2",
     "@react-native-async-storage/async-storage": "^1.24.0",
-    "@react-native-community/slider": "5.0.1",
-    "@react-native-picker/picker": "2.11.1",
     "@react-navigation/bottom-tabs": "^7.3.10",
     "@react-navigation/elements": "^2.3.8",
     "@react-navigation/native": "^7.1.6",
@@ -61,7 +59,6 @@
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-native": "0.81.4",
-    "react-native-chart-kit": "^6.12.0",
     "react-native-gesture-handler": "~2.28.0",
     "react-native-purchases": "^9.15.1",
     "react-native-reanimated": "~4.1.0",

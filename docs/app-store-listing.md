@@ -1,103 +1,97 @@
-# PuckIQ - App Store Listing
+# PuckIQ 3.0 — App Store Listing
 
-## App Store Metadata
+## Metadata
 
-**Title:** PuckIQ — Fantasy Hockey AI
+**Name:** PuckIQ: Fantasy Hockey Coach
 
-**Subtitle:** ML-Powered Lineups & Predictions
+**Subtitle (30):** Lineups, streamers & scratches
 
-**Category:** Sports
+**Category:** Sports · Secondary: Utilities
 
-**Price:** Free (with In-App Purchases)
+**Price:** Free with In-App Purchases (PuckIQ Pro)
+
+**Support URL:** https://p51moustache.github.io/puckiq/support.html
+
+**Privacy Policy URL:** https://p51moustache.github.io/puckiq/privacy.html
+
+**Marketing URL:** https://p51moustache.github.io/puckiq/
+
+**Contact email:** zlce.app@gmail.com
 
 ---
+
+## Promotional text (170)
+
+New for 2026-27: the best lineup your league's slots allow, every night — plus pickups ranked by the empty slots they fill for YOUR team.
 
 ## Description
 
-PuckIQ is the smartest way to manage your fantasy hockey lineup. Powered by machine learning models trained on three seasons of NHL data, PuckIQ gives you an edge with data-driven start/sit recommendations, player projections, and game predictions — all updated daily.
+PuckIQ is the coach for your fantasy hockey team — in the Yahoo, ESPN, or Fantrax league you already play. Add your players once. Every night PuckIQ tells you who plays, who's scratched, and exactly what to change before lock.
 
-**Key Features:**
+TONIGHT
+• How many of your players play tonight, and when the first puck drops
+• Countdown to your first lock, and each player's puck-drop time
+• Scratches straight from the NHL game report — marked Confirmed only when the NHL posts them
+• Injury news filtered to your players only
+• Live stat lines while your games are on
+• Share tonight's lineup or your week as a card in your league chat
 
-- **Start/Sit Advisor** — Get clear recommendations on which players to start each night, based on matchup difficulty, recent form, and projected ice time.
-- **Player Projections** — Fantasy point projections for every skater and goalie, powered by LightGBM models and rolling performance trends.
-- **Game Predictions** — Win probabilities, spread, and totals for every NHL game, with accuracy tracked transparently.
-- **Waiver Wire Scout** — Find undervalued pickups before your leaguemates with trending player alerts and breakout detection.
-- **My Team Dashboard** — Import your roster and see a unified view of tonight's lineup decisions at a glance.
+YOUR WEEK
+• Every player's games, Monday to Sunday, with off-nights highlighted
+• PRO: games that actually count once your lineup slots fill up — see bench overflow and empty slots before they cost you
 
-**Free tier** includes game predictions, league leaders, and team stats. **PuckIQ Pro** unlocks personalized start/sit recommendations, advanced player projections, waiver wire alerts, and the full My Team experience.
+PICKUPS
+• Your top streamer, ranked by the value he adds to YOUR lineup — only nights he'd actually start for you
+• PRO: the full ranked list, filtered by position and night, hiding players your league already rosters
 
-Built by hockey fans, for hockey fans. No ads in Pro.
+PUCKIQ PRO
+• Tonight's best lineup for your league's exact positions (C, LW, RW, F, D, UTIL, G)
+• Every coach move before lock: overflow sits, empty slots, goalie start rates, injury checks
+• Week planner for this week and next
+• Head-to-head matchup: enter your opponent's roster once, then compare games that count day by day
+• Player trends and full game logs
+• NHL Edge telemetry: skating speed, shot speed, and danger-zone stats ranked against the league
+• Up to 5 leagues
 
----
+PuckIQ never logs in to your league or changes your lineup — you make the moves in your fantasy app. No ads.
 
-## Keywords
+Subscriptions: PuckIQ Pro is available as a yearly (season) or monthly auto-renewing subscription. Payment is charged to your Apple ID. Subscriptions renew automatically unless cancelled at least 24 hours before the end of the current period. Manage or cancel in your App Store account settings.
+
+Schedules, scratches, and stats come from public NHL data. PuckIQ is not affiliated with or endorsed by the NHL, Yahoo, ESPN, or Fantrax.
+
+## Keywords (100)
 
 ```
-fantasy hockey,NHL predictions,start sit,waiver wire,hockey analytics,player projections,ML
+fantasy hockey,nhl,lineup,start sit,streamers,waiver,goalie,yahoo,espn,fantrax,off nights,scratches
 ```
 
-_97 characters (100 max)_
+## Screenshots (6.9" and 6.5")
 
----
+| # | Screen | Caption |
+|---|--------|---------|
+| 1 | Tonight headline + moves | Know what to change before lock |
+| 2 | Best lineup (Pro) | The lineup your league's slots allow |
+| 3 | Week grid with overflow + empty | See the games that actually count |
+| 4 | Pickups | Streamers for YOUR empty nights |
+| 5 | Matchup | Win the games-played battle |
+| 6 | Player sheet + telemetry (Pro) | Speed, shots, and form vs the league |
 
-## Screenshots Plan
+Use a realistic roster during the regular season (not preseason) so every screen has games.
 
-Capture on iPhone 15 Pro (6.1") and iPhone 15 Pro Max (6.7") for App Store requirements. Use dark mode (default theme).
+## App Privacy
 
-| # | Screen | Content | Caption |
-|---|--------|---------|---------|
-| 1 | My Team | Roster with start/sit badges and tonight's games | "Know exactly who to start tonight" |
-| 2 | Today (Upcoming) | Game cards with win probabilities and spread | "ML-powered predictions for every game" |
-| 3 | Player Detail | Fantasy projections, recent stats, trend chart | "Deep projections for every player" |
-| 4 | Waiver Wire Scout | Trending players with pickup recommendations | "Find breakout players first" |
-| 5 | Onboarding | Welcome screen with feature highlights | "Your AI-powered fantasy hockey edge" |
+| Data | Purpose | Linked | Tracking |
+|---|---|---|---|
+| Email (optional sign-in) | Account / backup | Yes | No |
+| User ID (optional sign-in) | Account / backup | Yes | No |
+| Purchase history (RevenueCat) | Subscriptions | Yes | No |
+| User content: fantasy roster (optional backup) | App functionality | Yes | No |
+| Usage data: product interaction (screens, features used) | Analytics | No | No |
+| Identifiers: random app-generated install ID (for analytics) | Analytics | No | No |
 
-**Notes:**
-- Use real game data (not mock) for authentic feel
-- Ensure all scores/predictions reflect plausible outcomes
-- Add device frame overlays in post-processing
+No ads, no advertising ID (IDFA), no location, no contacts. Analytics go to PostHog with a random install ID —
+never the account ID, email, or roster — and can be turned off in Settings. The privacy policy must say so.
 
----
+## Review notes
 
-## Privacy Information
-
-### Data Collected
-
-| Data Type | Purpose | Linked to Identity |
-|-----------|---------|-------------------|
-| Email address | Account creation & authentication | Yes |
-| Analytics data (Firebase) | App improvement & crash reporting | No |
-| Push notification tokens | Delivering game alerts & lineup reminders | Yes |
-| Purchase history (RevenueCat) | Subscription management | Yes |
-| Device advertising ID | Ad personalization (free tier only) | No |
-
-### Data NOT Collected
-- Location data
-- Contacts
-- Health or fitness data
-- Financial information beyond purchases
-
-### Third-Party Services
-- **Firebase** — Analytics and crash reporting
-- **Supabase** — Backend data storage (NHL stats, predictions)
-- **RevenueCat** — Subscription management
-- **AdMob** — Advertising (free tier only)
-
-### Key Disclosures
-- Data is **not sold** to third parties
-- Users can request data deletion via in-app settings
-- Ad tracking requires explicit user consent (ATT prompt on iOS)
-- Analytics data is anonymized and aggregated
-
----
-
-## App Review Notes
-
-**Demo Account:** Not required. App functions without authentication for free-tier features.
-
-**Subscription Details:**
-- PuckIQ Pro: $4.99/month or $29.99/year
-- Free trial: 7 days
-- Managed via RevenueCat + Apple StoreKit 2
-
-**Content:** All NHL data is sourced from publicly available NHL APIs via a server-side sync pipeline. No user-generated content.
+No account needed. Add any NHL players on the Roster tab (search "McDavid"). Pro is a standard auto-renewing subscription; Restore Purchases is in Settings and on the paywall. Account deletion: Settings → Backup → Delete account (only shown when signed in).

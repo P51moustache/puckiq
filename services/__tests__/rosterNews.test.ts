@@ -1,6 +1,7 @@
 import {
   articleMentionsPlayer,
   extractTag,
+  clearRosterNewsCache,
   fetchRosterNews,
   filterNewsForRoster,
   matchArticleToRoster,
@@ -123,6 +124,7 @@ describe('fetchRosterNews', () => {
 
   afterEach(() => {
     global.fetch = originalFetch;
+    clearRosterNewsCache();
   });
 
   it('returns [] for an empty roster', async () => {

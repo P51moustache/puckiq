@@ -24,6 +24,9 @@ const MAPPING = {
   'person.crop.circle.fill': 'account-circle',
   'newspaper.fill': 'article',
   'flag.fill': 'flag',
+  'calendar': 'calendar-month',
+  'chart.line.uptrend.xyaxis': 'trending-up',
+  'gearshape.fill': 'settings',
 } as IconMapping;
 
 /**

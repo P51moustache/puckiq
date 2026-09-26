@@ -1,6 +1,5 @@
-import { DarkTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { Stack, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -8,24 +7,41 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AnalyticsProvider } from '../components/analytics/AnalyticsProvider';
-import { AuthProvider, useAuthContext } from '../components/auth/AuthProvider';
+import { AuthProvider } from '../components/auth/AuthProvider';
 import { SubscriptionProvider } from '../components/SubscriptionProvider';
-import { OnboardingFlow } from '../components/onboarding/OnboardingFlow';
-import { initializeNotifications } from '../services/notifications';
+import { TeamsProvider } from '../components/TeamsProvider';
+import { RemindersProvider } from '../components/RemindersProvider';
+import { PaywallProvider } from '../components/PaywallProvider';
+import { PlayerSheetProvider } from '../components/sheets/PlayerSheet';
+import CloudSync from '../components/CloudSync';
+import { CoachOnboarding } from '../components/onboarding/CoachOnboarding';
+import { ONBOARDING_KEY } from '../components/screens/SettingsScreen';
+import { pruneNhlDiskCache } from '../services/nhl/client';
+import { colors } from '../components/coach/ui';
+import { trackScreen } from '../services/analytics/track';
 
-const ONBOARDING_KEY = 'puckiq_onboarding_complete';
+const NAV_THEME = {
+  ...DefaultTheme,
+  colors: { ...DefaultTheme.colors, background: colors.bg, card: colors.card, text: colors.text, primary: colors.accent },
+};
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
 
 function AppContent() {
   const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
-  const { signInWithApple, signInWithGoogle } = useAuthContext();
+  const pathname = usePathname();
 
   useEffect(() => {
-    AsyncStorage.getItem(ONBOARDING_KEY).then((value) => {
-      setOnboardingComplete(value === 'true');
-    });
+    if (onboardingComplete) trackScreen(pathname === '/' ? '/tonight' : pathname);
+  }, [pathname, onboardingComplete]);
+
+  useEffect(() => {
+    AsyncStorage.getItem(ONBOARDING_KEY)
+      .then((value) => setOnboardingComplete(value === 'true'))
+      .catch(() => setOnboardingComplete(false));
+    // Housekeeping off the critical path.
+    pruneNhlDiskCache().catch(() => undefined);
   }, []);
 
   const handleOnboardingComplete = useCallback(async () => {
@@ -39,13 +55,7 @@ function AppContent() {
   }
 
   if (!onboardingComplete) {
-    return (
-      <OnboardingFlow
-        onComplete={handleOnboardingComplete}
-        onSignInWithApple={signInWithApple}
-        onSignInWithGoogle={signInWithGoogle}
-      />
-    );
+    return <CoachOnboarding onComplete={handleOnboardingComplete} />;
   }
 
   return (
@@ -54,49 +64,39 @@ function AppContent() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
       </Stack>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
     </>
   );
 }
 
 export default function RootLayout() {
-  const [loaded, error] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-    'Display-Bold': require('../assets/fonts/Oswald-Bold.ttf'),
-  });
-
   const analyticsConfig = useMemo(() => ({ enabled: true, debug: __DEV__ }), []);
 
-  // Expo Router uses Error Boundaries to catch errors in the navigation tree.
+  // The UI uses the system face (heavy italic) — no custom fonts to wait for.
   useEffect(() => {
-    if (error) throw error;
-  }, [error]);
-
-  useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
-      // Initialize notifications (schedule daily results if enabled)
-      initializeNotifications().catch((error) => {
-        console.log('[Notifications] Failed to initialize:', error);
-      });
-    }
-  }, [loaded]);
-
-  if (!loaded) {
-    return null;
-  }
+    SplashScreen.hideAsync();
+  }, []);
 
   return (
-    <AuthProvider>
-      <SubscriptionProvider>
-        <AnalyticsProvider config={analyticsConfig}>
-          <ThemeProvider value={DarkTheme}>
-            <SafeAreaProvider>
-              <AppContent />
-            </SafeAreaProvider>
-          </ThemeProvider>
-        </AnalyticsProvider>
-      </SubscriptionProvider>
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <SubscriptionProvider>
+          <AnalyticsProvider config={analyticsConfig}>
+            <TeamsProvider>
+              <RemindersProvider>
+                <PaywallProvider>
+                  <PlayerSheetProvider>
+                    <ThemeProvider value={NAV_THEME}>
+                      <CloudSync />
+                      <AppContent />
+                    </ThemeProvider>
+                  </PlayerSheetProvider>
+                </PaywallProvider>
+              </RemindersProvider>
+            </TeamsProvider>
+          </AnalyticsProvider>
+        </SubscriptionProvider>
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }

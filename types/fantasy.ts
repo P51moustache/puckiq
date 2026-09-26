@@ -17,6 +17,62 @@ export interface FantasyPlayer {
   teamAbbrev: string;
   position: string;        // NHL position (C, LW, RW, D, G)
   rosterPosition: RosterPosition;  // Fantasy roster slot
+  /** League eligibility when it differs from the NHL position (e.g. Yahoo C/LW). */
+  eligible?: SlotPosition[];
+  /** On the host's IR slot — never counts toward lineups. */
+  injuredReserve?: boolean;
+}
+
+/** A fantasy platform. We never write lineups there — we tell you what to change. */
+export type FantasyPlatform = 'yahoo' | 'espn' | 'fantrax' | 'other';
+
+/** Positions a player can be eligible for. */
+export type SlotPosition = 'C' | 'LW' | 'RW' | 'D' | 'G';
+
+/** Active lineup slot types. F = any forward, UTIL = any skater. */
+export type SlotKey = 'C' | 'LW' | 'RW' | 'F' | 'D' | 'UTIL' | 'G';
+
+export type LineupSlots = Record<SlotKey, number>;
+
+/** Points-league weights. Category leagues use these as a rough "value" proxy. */
+export interface ScoringWeights {
+  goals: number;
+  assists: number;
+  ppp: number;
+  shots: number;
+  hits: number;
+  blocks: number;
+  plusMinus: number;
+  wins: number;
+  saves: number;
+  goalsAgainst: number;
+  shutouts: number;
+}
+
+/** One fantasy team in one league. Pro can keep several. */
+export interface FantasyTeam {
+  id: string;
+  name: string;
+  platform: FantasyPlatform;
+  /** Teams in the league — sizes the "likely already rostered" pickup filter. */
+  leagueSize: number;
+  /** H2H weekly minimum goalie starts (Yahoo's default is 3). 0 = no minimum. */
+  minGoalieStarts: number;
+  slots: LineupSlots;
+  scoring: ScoringWeights;
+  players: FantasyPlayer[];
+  /** This week's head-to-head opponent (manual). */
+  opponentName: string;
+  opponent: FantasyPlayer[];
+  /** Pickups the user marked as already rostered in their league. */
+  hiddenPickupIds: number[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TeamsState {
+  activeTeamId: string | null;
+  teams: FantasyTeam[];
 }
 
 export interface FantasyRoster {

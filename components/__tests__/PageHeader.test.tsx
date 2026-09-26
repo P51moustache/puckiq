@@ -29,7 +29,16 @@ describe('PageHeader', () => {
     const header = tree.root.findAll((n: any) => n.props.testID === 'page-header')[0];
     const style = header.props.style;
     const flat = Array.isArray(style) ? Object.assign({}, ...style) : style;
-    expect(flat.paddingTop).toBe(67);
+    expect(flat.paddingTop).toBe(65);
+  });
+
+  it('renders the title in heavy caps', () => {
+    const tree = render(<PageHeader title="Tonight" />);
+    const title = tree.root.findAll((n: any) => n.props.testID === 'page-header-title')[0];
+    expect(title.props.children).toBe('Tonight');
+    const style = Array.isArray(title.props.style) ? Object.assign({}, ...title.props.style) : title.props.style;
+    expect(style.textTransform).toBe('uppercase');
+    expect(style.fontStyle).toBe('italic');
   });
 
   it('does not ellipsize the subtitle to one line', () => {
@@ -38,6 +47,6 @@ describe('PageHeader', () => {
     );
     const subtitle = tree.root.findAll((n: any) => n.props.testID === 'page-header-subtitle')[0];
     expect(subtitle.props.numberOfLines).toBeUndefined();
-    expect(subtitle.props.children).toBe('NOT A HOSTED LEAGUE');
+    expect(subtitle.props.children).toBe('Not a hosted league');
   });
 });

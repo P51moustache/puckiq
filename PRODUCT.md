@@ -1,95 +1,96 @@
 # PuckIQ — one job
 
-PuckIQ is for **managing MY fantasy hockey team**. It is not a league-wide NHL briefing hub, and it does not host a new Yahoo/ESPN-style league.
+PuckIQ is **the coach for MY fantasy hockey team**, in the Yahoo, ESPN, or Fantrax league I already play. It is not a league-wide NHL briefing hub, not a betting/picks product, and not a new league host.
 
-Left Wing Lock already owns generic goalie/line briefings. Friends already have a Yahoo or ESPN league — we attach to it later. This app only answers: *what should I do with MY roster tonight to be the best in THAT league?*
+It answers three questions, every day of the season:
 
-## Complaint-driven edges (2026)
+1. **Tonight** — who of mine plays, is anyone scratched, and what do I change before lock?
+2. **This week** — how many of my games actually count once my lineup slots fill up, and where are the holes?
+3. **Pickups** — who should I stream to fill *my* empty nights?
 
-These are the unique edges. They come from real host-app and briefing-app complaints. We do not copy those products. We do not scrape them.
+We never log in to or write to the league. The user makes the move in their host app. Last-minute scratches are a physics problem: we promise **personal and on time**, never "earlier than the NHL".
 
-### Yahoo / ESPN (the hosts people already use)
+## Data (public NHL only)
 
-We never become the host. Friends already play there. We tell you what to change in *their* app.
+| Need | Source | Confidence label |
+|---|---|---|
+| Schedule, off-nights | `api-web.nhle.com/v1/schedule/{date}` (calendar dates only, never `/now`) | — |
+| Tonight's slate, live state | `api-web.nhle.com/v1/score/{date}` | — |
+| Scratches | gamecenter `right-rail` | **Confirmed** (the only confirmed signal) |
+| Injury hints | ESPN NHL RSS filtered to MY players | **Likely** |
+| Live stat lines | gamecenter `boxscore` | — |
+| Season / last-14 / league pool | `api.nhle.com/stats/rest` (batched by player id) | — |
+| Current team (trades) | stats `skater/bios`, `goalie/bios` | — |
+| Player detail | `player/{id}/landing`, `game-log` | — |
+| Telemetry (speed, shot speed, zone time, goalie save % by danger) | `edge/skater-detail`, `edge/goalie-detail` (falls back to last season until the new one has games) | — |
 
-| What people complain about | Our edge |
-|---|---|
-| Injury / inactive / goalie alerts arrive **after lock** or never | Pro alerts are **only for MY players**, aimed at **before that player’s game locks**. Home shows a **lock countdown per player** (puck-drop = lock). |
-| Apps **crash or freeze** when changing lineup last-minute | **v1 never writes the Yahoo/ESPN lineup.** Coach says what to change in their app. We must not crash. |
-| **Football-first UI**; hockey is a mode | We are **hockey-only**. Not a season-mode toggle inside a football app. |
-| Yahoo **paywalls “set lineup for the week”** and daily-login friction | **Free** shows the **whole week of MY games** with no paywall. No host login required to see your slate. |
-| **Full-screen ads** after roster moves | **No AdMob** (a previous launch crash). At most **one quiet ad slot later**, never an interstitial on a decision. |
-| Host **injury status lags 1–2 days** | Prefer **NHL official** game/roster endpoints (`api-web.nhle.com` score + gamecenter right-rail) for scratches. Label confidence **Confirmed / Likely / Unknown**. **Never fake Confirmed.** |
+Goalie starters are **never** claimed before puck drop — the NHL doesn't publish them. We show start share instead.
 
-### Left Wing Lock (the briefing people already pay $4/yr for)
+All NHL reads go through `services/nhl/client.ts`: memory + disk TTL cache, in-flight dedupe, 4-per-host concurrency cap, 429 backoff, stale-on-failure.
 
-LWL is the best **generic** goalie/line feed. It is not roster-aware. Competing on “who posted the scratch first for the whole league” is a losing game.
+## The engine (`services/fantasy/`)
 
-| What they are | Our edge |
-|---|---|
-| Whole-league goalie/line feed | We are **MY team**, not the whole league. Home is “3 of YOUR guys play tonight. 1 problem. 1 move.” — not a briefing newspaper. |
-| Last-minute scratches are a physics problem | Users already know this. **Do not promise earlier than the NHL.** Promise **quieter, personal, on time.** |
-
-## v1
-
-- **Manual roster** — search official NHL players, add ~12 names, persist on device.
-- **Tonight** — each of MY players: opponent, lock countdown, scratch/injury from public NHL data (`api-web.nhle.com`), start/sit leaning, confidence label. Headline is count + problems + one move.
-- **My week (Free)** — `api-web.nhle.com/v1/schedule/{YYYY-MM-DD}` mapped to MY roster teams. Whole week, no paywall. Calendar date only — do not use `/score/now` or `/schedule/now` (they jump to the next slate in the off-season).
-- **News** — public RSS filtered to names on MY roster. No Left Wing Lock, Daily Faceoff, or RotoWire.
-- **Coach** — sit / start / drop from MY roster + public NHL matchup/injury. Footer: change it in Yahoo or ESPN. We never write the lineup.
-- **Yahoo / ESPN sync** — interface is in the app (`services/fantasySync.ts`) and stubbed. OAuth is next, not this release. Even then, v1 does not push lineup writes.
-
-## Confidence (never fake Confirmed)
-
-| Label | When |
-|---|---|
-| **Confirmed** | Player is on the NHL gamecenter right-rail scratch list. Official game/roster endpoint only. |
-| **Likely** | Injury / scratch / out language in roster-filtered public news. Not an official lineup sheet. |
-| **Unknown** | Everything else — including a healthy skater with a game and no scratch posted. We do **not** label that Confirmed. Goalie starter is unknown until the NHL posts it. |
-
-Host apps lag 1–2 days. We prefer the NHL sheet when it exists. We still do not invent a confirmed healthy or a confirmed starter.
+- **Lineup** (`lineup.ts`) — league slots (C/LW/RW/F/D/UTIL/G). Greedy-by-value augmenting-path matching → the highest-value set of starters, who sits on overflow, which slots go empty.
+- **Week plan** (`weekPlan.ts`) — the lineup solved for each day: games, games that count, bench overflow, empty slots; whole week vs remaining.
+- **Form** (`form.ts`) — value per team game from transparent points weights; season blended with last season early on, 60/40 with last-14-days; goalie value × start share.
+- **Coach** (`coach.ts`) — tonight's moves: confirmed scratch → injury check → overflow sit → empty slot → goalie unconfirmed → no-game housekeeping.
+- **Pickups** (`pickups.ts`) — value added to MY lineup over the rest of the week, counting only nights he'd start (empty-slot fills first). Hides players a league of this size almost always rosters; "mark taken" hides the rest.
+- **Matchup** (`matchup.ts`) — my remaining games that count vs my opponent's (manual roster), same rules.
 
 ## Free vs Pro
 
-PuckIQ is a **subscription**, not a one-time price.
+PuckIQ is **free to download with a Pro subscription** (RevenueCat entitlement `pro`).
 
-Pro should feel like a **coach that makes you the best in YOUR league** — not another briefing hub.
-
-| | Free | Pro (`$14.99/yr` or `$1.99/mo` list) |
+| | Free | Pro |
 |---|---|---|
-| Manual roster + Tonight + filtered news | Yes | Yes |
-| Whole week of MY games | Yes — no paywall | Yes |
-| Lock countdown per player | Yes | Yes |
-| Confidence labels (Confirmed / Likely / Unknown) | Yes | Yes |
-| One sample coach suggestion | Yes | Full sit / start / drop list |
-| Coach suggestions (sit X / start Y / drop Z) from MY roster + public NHL matchup/injury | Sample only | Unlock |
-| Alerts: MY players only, **before that player’s game locks** (“your goalie isn’t confirmed”, “your winger is a scratch”, “better stream available”) | Copy + permission | Unlock (server push later) |
-| League screen: MY team vs a manually added opponent roster | Yes (manual) | Same + Yahoo attach later |
-| Invite friend / attach Yahoo league | Placeholder | Same until OAuth |
-| Yahoo / ESPN roster **read** (when OAuth ships) | — | Unlock |
-| Yahoo / ESPN lineup **write** | Never in v1 | Never in v1 |
-| Ads | May show one quiet, dismissible slot later — never an interstitial on a decision | None |
+| Roster from real NHL players | 1 team | Up to 5 teams |
+| Tonight: who plays, countdown, NHL scratch, injury news, live lines | Yes | Yes |
+| Week schedule grid + off-nights | Yes | Yes |
+| Coach moves | First move | Full list |
+| Tonight's best lineup (slot-aware) | — | Yes |
+| Games that count / overflow / empty slots, next week | — | Yes |
+| Pickups ranked for my holes | Top pick | Full list, by position and night |
+| Matchup: my usable games vs theirs | — | Yes |
+| Player trends: last-14 form, full game log | Last 5 games | Yes |
+| NHL Edge telemetry, league percentiles | Headline stat | Full panel |
+| Share cards (tonight, week) for league chats | Yes | Yes |
+| Lineup reminder before first puck | Yes | Yes |
 
-The coach is honest and simple: **has a game tonight + injury/scratch**. Not a fake neural net. No waivers engine, no scoring host, no social graph, no SMS invites.
+Free is genuinely useful on purpose — it builds the nightly habit. The coaching layer is what people pay for.
 
-Free is usable on purpose — the coaching layer and before-lock alerts are the reason to pay.
+**Pricing (recommendation):** $19.99 per season (annual) with a 7-day free trial, $4.99 monthly with no trial. Against a ~7-month season of monthly ($34.93), annual saves 43% — that is the "SAVE 43%" badge the paywall computes from live store prices. Prices live in App Store Connect; the app reads them from the store.
 
-RevenueCat is already in the repo (`services/subscription.ts`, entitlement `pro`). Settings shows Subscribe / Restore. The paywall UI is on unless `EXPO_PUBLIC_PAYWALL_ENABLED=0`. Store products still need to be created in App Store Connect + RevenueCat.
+**Grandfathering:** anyone who bought PuckIQ when it was a $1.99 paid app gets Pro free. `EXPO_PUBLIC_FREEMIUM_CUTOVER` = the date the App Store price went to Free; the app compares it with the receipt's original purchase date.
 
-**AdMob is not used.** A previous launch crash was tied to that SDK. Do not add `react-native-google-mobile-ads`, a `GADApplicationIdentifier`, or a test/real GAD app ID. `BannerAd` is a no-op. `SportsAdSlot` is a placeholder gated by `EXPO_PUBLIC_SHOW_AD_SLOT=1` (off by default). No ads mediation stack. Never a full-screen ad after a roster move.
+**No AdMob, ever.** A previous launch crash was tied to that SDK. `BannerAd` is a no-op; `SportsAdSlot` stays off.
 
-## Home screen
+## Accounts
 
-Not a briefing newspaper. One glance:
+Optional. Sign in with Apple/Google only to back up teams (`user_data`, owner-only RLS). Account deletion is in Settings (App Store 5.1.1(v)) via the `delete-account` edge function.
 
-> **3 of YOUR guys play tonight. 1 problem. 1 move.**
+## Analytics
 
-Then the week of MY games, then the one coach move (change it in Yahoo or ESPN), then MY players with lock countdown and confidence.
+Events go to PostHog over its HTTP batch API (`services/analytics/posthog.ts`), anonymously: a random install ID,
+never the account ID, email, or roster. Every event carries `is_pro`. Off until `EXPO_PUBLIC_POSTHOG_KEY` is set;
+users can turn it off in Settings.
 
-## App Store listing (later — not this PR)
+| Event | When | Properties |
+|---|---|---|
+| `$screen` | tab/route change | `$screen_name` |
+| `onboarding_step` / `onboarding_complete` | first run | `step` / `players`, `sample_team`, `reminders` |
+| `paywall_view` / `paywall_purchase` / `paywall_restore` | paywall | `source`, `plan`, `result` |
+| `player_open` | player sheet | `context` |
+| `pickup_add` | quick-add from Pickups | `when`, `rank` |
+| `share_card` | share sheet | `kind`, `outcome` |
+| `reminders_enable`, `team_add` | settings / onboarding | `granted` / `platform` |
 
-Live listing today is **paid $1.99** (`com.zlce.hockeystats`). Switching to freemium is an App Store Connect **price / availability** change plus a subscription product (yearly, cheap, hockey-season priced — $9.99–$19.99/yr range). Do not flip the live listing in this PR. After that change: free download, in-app Pro subscription, Restore Purchases already in the app.
+## Notifications
+
+Local only: one "set your lineup" reminder, 30/60/90 minutes before the first puck among my players. Permission is asked only when the user turns it on. (1.x–2.x scheduled a daily "Your Pick Results" push for a dead feature and asked for permission at launch; 3.0 clears those once.)
 
 ## Later
 
-Yahoo/ESPN OAuth **read** (attach the league they already play), deeper category-vs-category tools, and that one quiet ad slot if Free needs it. Not a second briefing product, not a new fantasy-league host, and not lineup writes into Yahoo/ESPN.
+1. **League import** — Yahoo Fantasy API (OAuth, needs a small token-exchange server), ESPN public-league reads, Fantrax. Real waiver availability replaces "likely rostered".
+2. **Server push** for MY players: scratch posted, goalie confirmed in warmups (edge function + pg_cron).
+3. **Categories-league mode** — per-category needs for H2H cats.
+4. Home-screen widget / Live Activity for tonight.

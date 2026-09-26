@@ -107,14 +107,23 @@ export function newsInjuryHintForPlayer(
   return null;
 }
 
+const FEED_TTL_MS = 5 * 60 * 1000;
+let feedCache: { items: ReturnType<typeof parseRssItems>; fetchedAt: number } | null = null;
+
+export function clearRosterNewsCache(): void {
+  feedCache = null;
+}
+
 export async function fetchRosterNews(roster: FantasyPlayer[]): Promise<RosterNewsItem[]> {
   if (roster.length === 0) return [];
-  const res = await fetch(ESPN_NHL_RSS_URL, {
-    headers: { Accept: 'application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8' },
-  });
-  if (!res.ok) {
-    throw new Error(`Roster news feed failed (${res.status})`);
+  if (!feedCache || Date.now() - feedCache.fetchedAt > FEED_TTL_MS) {
+    const res = await fetch(ESPN_NHL_RSS_URL, {
+      headers: { Accept: 'application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8' },
+    });
+    if (!res.ok) {
+      throw new Error(`Roster news feed failed (${res.status})`);
+    }
+    feedCache = { items: parseRssItems(await res.text()), fetchedAt: Date.now() };
   }
-  const xml = await res.text();
-  return filterNewsForRoster(parseRssItems(xml), roster);
+  return filterNewsForRoster(feedCache.items, roster);
 }

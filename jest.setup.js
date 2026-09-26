@@ -1,3 +1,4 @@
+/* global jest */
 // Disable Expo winter runtime for tests
 process.env.EXPO_USE_WINTER = 'false';
 process.env.EXPO_USE_METRO_WORKSPACE_ROOT = 'false';
@@ -85,11 +86,11 @@ jest.mock('expo-notifications', () => ({
   setNotificationHandler: jest.fn(),
 }));
 
-// Mock react-native-chart-kit
-jest.mock('react-native-chart-kit', () => ({
-  LineChart: 'LineChart',
-  BarChart: 'BarChart',
-}));
+// Mock expo-constants (ships untranspiled ESM)
+jest.mock('expo-constants', () => ({ __esModule: true, default: { expoConfig: { version: '3.0.0' } } }));
+
+// Mock expo-image (native view)
+jest.mock('expo-image', () => ({ Image: 'ExpoImage' }));
 
 // Mock react-native-view-shot
 jest.mock('react-native-view-shot', () => ({

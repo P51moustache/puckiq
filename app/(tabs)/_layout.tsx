@@ -4,89 +4,66 @@ import { Platform, View } from 'react-native';
 import { HapticTab } from '../../components/HapticTab';
 import { IconSymbol } from '../../components/ui/IconSymbol';
 import TabBarBackground from '../../components/ui/TabBarBackground';
-import { rinkGlass } from '../../constants/theme';
+import { colors } from '../../components/coach/ui';
 
-/** This week's lines is the only home. */
+/** Tonight is home. */
 export const unstable_settings = {
   initialRouteName: 'index',
 };
 
-const GlowDot = () => (
+/** F1-style red bar riding the top edge of the active tab. */
+const ActiveBar = () => (
   <View style={{
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: rinkGlass.blueLight,
-    marginTop: 3,
-    shadowColor: rinkGlass.blueLight,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 4,
-    elevation: 4,
+    position: 'absolute',
+    top: -8,
+    width: 22,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: colors.accent,
   }} />
 );
+
+type SymbolName = Parameters<typeof IconSymbol>[0]['name'];
+
+function tabIcon(name: SymbolName) {
+  const TabIcon = ({ color, focused }: { color: string; focused: boolean }) => (
+    <View style={{ alignItems: 'center' }}>
+      {focused && <ActiveBar />}
+      <IconSymbol size={24} name={name} color={color} />
+    </View>
+  );
+  return TabIcon;
+}
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: rinkGlass.blueLight,
-        tabBarInactiveTintColor: rinkGlass.textMuted,
+        tabBarActiveTintColor: colors.ink,
+        tabBarInactiveTintColor: colors.muted,
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarBackground: TabBarBackground,
         tabBarLabelStyle: {
           fontSize: 10,
-          fontWeight: '600',
+          fontWeight: '800',
         },
         tabBarStyle: Platform.select({
           ios: {
             position: 'absolute',
-            backgroundColor: rinkGlass.ice,
-            borderTopColor: rinkGlass.glassBorder,
+            borderTopColor: colors.border,
           },
           default: {
-            backgroundColor: rinkGlass.ice,
-            borderTopColor: rinkGlass.glassBorder,
+            backgroundColor: colors.card,
+            borderTopColor: colors.border,
           },
         }),
       }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Lines',
-          tabBarIcon: ({ color, focused }) => (
-            <View style={{ alignItems: 'center' }}>
-              <IconSymbol size={24} name="hockey.puck.fill" color={color} />
-              {focused && <GlowDot />}
-            </View>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="myteam"
-        options={{
-          title: 'Roster',
-          tabBarIcon: ({ color, focused }) => (
-            <View style={{ alignItems: 'center' }}>
-              <IconSymbol size={24} name="person.2.fill" color={color} />
-              {focused && <GlowDot />}
-            </View>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="hub"
-        options={{
-          title: 'Settings',
-          tabBarIcon: ({ color, focused }) => (
-            <View style={{ alignItems: 'center' }}>
-              <IconSymbol size={24} name="person.crop.circle.fill" color={color} />
-              {focused && <GlowDot />}
-            </View>
-          ),
-        }}
-      />
+      <Tabs.Screen name="index" options={{ title: 'Tonight', tabBarIcon: tabIcon('hockey.puck.fill') }} />
+      <Tabs.Screen name="week" options={{ title: 'Week', tabBarIcon: tabIcon('calendar') }} />
+      <Tabs.Screen name="pickups" options={{ title: 'Pickups', tabBarIcon: tabIcon('chart.line.uptrend.xyaxis') }} />
+      <Tabs.Screen name="myteam" options={{ title: 'Roster', tabBarIcon: tabIcon('person.2.fill') }} />
+      <Tabs.Screen name="hub" options={{ title: 'Settings', tabBarIcon: tabIcon('gearshape.fill') }} />
     </Tabs>
   );
 }

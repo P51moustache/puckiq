@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logEvent as webLogEvent, setUserId as webSetUserId, setUserProperties as webSetUserProperties } from 'firebase/analytics';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
+import { newInstallId, posthogConfig, sendToPostHog, type PostHogConfig } from './posthog';
 import { analytics as webAnalytics } from '../../lib/firebase';
 import {
     AnalyticsConfig,
@@ -14,6 +16,10 @@ import {
     UserProperties
 } from './types';
 
+const INSTALL_ID_KEY = 'analytics_install_id';
+const MAX_QUEUED_EVENTS = 200;
+const APP_VERSION = Constants.expoConfig?.version ?? 'unknown';
+
 class AnalyticsService {
   private static instance: AnalyticsService;
   private config: AnalyticsConfig;
@@ -22,6 +28,10 @@ class AnalyticsService {
   private flushTimer?: ReturnType<typeof setInterval>;
   private lastActivityTime: number = Date.now();
   private initialized: boolean = false;
+  private installId: string | null = null;
+  /** Stamped on every event, e.g. { is_pro: true } — lets you split any chart by plan. */
+  private superProperties: Record<string, string | number | boolean> = {};
+  private remote: PostHogConfig | null = posthogConfig();
 
   private constructor() {
     this.sessionId = this.generateSessionId();
@@ -57,6 +67,14 @@ class AnalyticsService {
         const parsed = JSON.parse(savedConfig);
         this.config = { ...this.config, ...parsed };
       }
+
+      // Anonymous install ID for remote analytics (never the account ID).
+      let installId = await AsyncStorage.getItem(INSTALL_ID_KEY);
+      if (!installId) {
+        installId = newInstallId();
+        await AsyncStorage.setItem(INSTALL_ID_KEY, installId);
+      }
+      this.installId = installId;
 
       // Load saved user ID
       const savedUserId = await AsyncStorage.getItem('analytics_user_id');
@@ -220,7 +238,7 @@ class AnalyticsService {
   trackSessionStart(): void {
     this.trackCustomEvent('session_start', {
       platform: Platform.OS,
-      app_version: '1.0.0', // You can get this from app.json
+      app_version: APP_VERSION,
     });
   }
 
@@ -235,7 +253,7 @@ class AnalyticsService {
   private addToQueue(event: AnalyticsEvent): void {
     if (!this.config.enabled) return;
 
-    this.eventQueue.push(event);
+    this.eventQueue.push({ ...this.superProperties, ...event } as AnalyticsEvent);
     this.log('Event added to queue:', event);
 
     // Auto-flush if queue is full
@@ -257,7 +275,7 @@ class AnalyticsService {
   }
 
   async flush(): Promise<void> {
-    if (this.eventQueue.length === 0) return;
+    if (!this.initialized || this.eventQueue.length === 0) return;
 
     const eventsToFlush = [...this.eventQueue];
     this.eventQueue = [];
@@ -276,13 +294,17 @@ class AnalyticsService {
         }
       }
 
-      // Always persist locally for debugging/offline analysis
-      await this.persistEvents(eventsToFlush);
+      if (Platform.OS !== 'web' && this.remote && this.installId) {
+        await sendToPostHog(this.remote, eventsToFlush, this.installId, { appVersion: APP_VERSION, os: Platform.OS });
+      }
+
+      // Keep a local copy in dev builds for debugging.
+      if (__DEV__) await this.persistEvents(eventsToFlush);
 
       this.log(`Flushed ${eventsToFlush.length} events`);
     } catch (error) {
-      // Re-add events to queue if flush failed
-      this.eventQueue.unshift(...eventsToFlush);
+      // Re-add events to queue if flush failed (offline) — capped so it can't grow forever.
+      this.eventQueue = [...eventsToFlush, ...this.eventQueue].slice(-MAX_QUEUED_EVENTS);
       console.error('Failed to flush analytics events:', error);
     }
   }
@@ -324,7 +346,16 @@ class AnalyticsService {
 
   setEnabled(enabled: boolean): void {
     this.config.enabled = enabled;
-    AsyncStorage.setItem('analytics_config', JSON.stringify(this.config));
+    if (!enabled) this.eventQueue = [];
+    AsyncStorage.setItem('analytics_config', JSON.stringify({ enabled }));
+  }
+
+  register(properties: Record<string, string | number | boolean>): void {
+    this.superProperties = { ...this.superProperties, ...properties };
+  }
+
+  isEnabled(): boolean {
+    return this.config.enabled;
   }
 
   setDebug(debug: boolean): void {

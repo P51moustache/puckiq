@@ -2,15 +2,15 @@ export default {
   expo: {
     name: "PuckIQ",
     slug: "learning-project",
-    version: "2.3.0",
+    version: "3.0.0",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     scheme: "learningproject",
-    userInterfaceStyle: "automatic",
+    userInterfaceStyle: "light",
     newArchEnabled: true,
     notification: {
       icon: "./assets/images/icon.png",
-      color: "#60a5fa"
+      color: "#E10600"
     },
     ios: {
       supportsTablet: true,
@@ -25,7 +25,7 @@ export default {
     android: {
       adaptiveIcon: {
         foregroundImage: "./assets/images/adaptive-icon.png",
-        backgroundColor: "#ffffff"
+        backgroundColor: "#14141C"
       },
       permissions: [
         "RECEIVE_BOOT_COMPLETED",
@@ -47,14 +47,15 @@ export default {
           image: "./assets/images/icon.png",
           imageWidth: 200,
           resizeMode: "contain",
-          backgroundColor: "#1a1d29"
+          // Matches the icon art's carbon background so the logo has no visible edge.
+          backgroundColor: "#14141C"
         }
       ],
       [
         "expo-notifications",
         {
           icon: "./assets/images/icon.png",
-          color: "#60a5fa",
+          color: "#E10600",
         }
       ]
     ],

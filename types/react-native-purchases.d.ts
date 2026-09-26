@@ -27,6 +27,9 @@ declare module 'react-native-purchases' {
     allPurchasedProductIdentifiers: string[];
     firstSeen: string;
     originalAppUserId: string;
+    /** iOS: when the app itself was first bought/downloaded (from the App Store receipt). */
+    originalPurchaseDate?: string | null;
+    originalApplicationVersion?: string | null;
   }
 
   export interface PurchasesOffering {
@@ -49,6 +52,9 @@ declare module 'react-native-purchases' {
     getOfferings(): Promise<PurchasesOfferings>;
     purchasePackage(pkg: PurchasesPackage): Promise<{ customerInfo: CustomerInfo }>;
     restorePurchases(): Promise<CustomerInfo>;
+    addCustomerInfoUpdateListener(listener: (info: CustomerInfo) => void): void;
+    removeCustomerInfoUpdateListener(listener: (info: CustomerInfo) => void): boolean;
+    isConfigured(): Promise<boolean>;
   }
 
   const Purchases: PurchasesStatic;

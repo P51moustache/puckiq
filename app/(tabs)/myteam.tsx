@@ -1,6 +1,6 @@
 import React from 'react';
-import MyTeamScreen from '../../components/MyTeamScreen';
+import RosterScreen from '../../components/screens/RosterScreen';
 
-export default function MyTeamTab() {
-  return <MyTeamScreen />;
+export default function RosterTab() {
+  return <RosterScreen />;
 }
