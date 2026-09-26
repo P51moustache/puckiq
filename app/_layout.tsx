@@ -4,7 +4,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AnalyticsProvider } from '../components/analytics/AnalyticsProvider';
@@ -32,8 +32,6 @@ SplashScreen.preventAutoHideAsync();
 function AppContent() {
   const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
   const pathname = usePathname();
-  // Status bar sits over the dark frame once the screen is wider than the column.
-  const framed = useWindowDimensions().width > MAX_COLUMN_WIDTH;
 
   useEffect(() => {
     if (onboardingComplete) trackScreen(pathname === '/' ? '/tonight' : pathname);
@@ -58,6 +56,7 @@ function AppContent() {
   }
 
   if (!onboardingComplete) {
+    // Onboarding is a one-hand flow: on iPad it sits in a centered column on carbon.
     return (
       <View style={styles.frame}>
         <View style={styles.column}>
@@ -68,20 +67,17 @@ function AppContent() {
   }
 
   return (
-    <View style={styles.frame}>
-      <View style={styles.column}>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="+not-found" />
-        </Stack>
-      </View>
-      <StatusBar style={framed ? 'light' : 'dark'} />
-    </View>
+    <>
+      <Stack>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="+not-found" />
+      </Stack>
+      <StatusBar style="dark" />
+    </>
   );
 }
 
-/** Phone-shaped column on iPad: the layouts are built for one hand, so keep them that width. */
-const MAX_COLUMN_WIDTH = 640;
+const ONBOARDING_MAX_WIDTH = 600;
 
 const styles = StyleSheet.create({
   frame: {
@@ -92,7 +88,7 @@ const styles = StyleSheet.create({
   column: {
     flex: 1,
     width: '100%',
-    maxWidth: MAX_COLUMN_WIDTH,
+    maxWidth: ONBOARDING_MAX_WIDTH,
     backgroundColor: colors.bg,
     overflow: 'hidden',
   },

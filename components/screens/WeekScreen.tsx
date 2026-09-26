@@ -25,9 +25,11 @@ import { PlayerAvatar } from '../coach/PlayerAvatar';
 import {
   Card,
   colors,
+  contentFrame,
   DarkCard,
   display,
   EmptyState,
+  ErrorState,
   GhostButton,
   LoadingRows,
   Pill,
@@ -35,7 +37,6 @@ import {
   SectionLabel,
   SegmentedControl,
   StatCell,
-  ErrorState,
 } from '../coach/ui';
 import { ART, ART_ASPECT } from '../../constants/art';
 
@@ -134,7 +135,7 @@ export default function WeekScreen() {
       />
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, contentFrame]}
         refreshControl={<RefreshControl refreshing={week.refreshing} onRefresh={week.refresh} tintColor={colors.accent} />}
       >
         {emptyThisWeek && choice === 'this' ? (

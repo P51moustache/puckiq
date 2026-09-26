@@ -21,7 +21,7 @@ import PlayerSearchSheet, { toFantasyPlayer, type SearchMode } from '../sheets/P
 import LeagueSettingsSheet from '../sheets/LeagueSettingsSheet';
 import TeamSwitcher from '../coach/TeamSwitcher';
 import { PlayerAvatar, PlayerName } from '../coach/PlayerAvatar';
-import { Card, ColdBadge, colors, display, EmptyState, GhostButton, HotBadge, IconButton, LoadingRows, PrimaryButton, SectionLabel } from '../coach/ui';
+import { Card, ColdBadge, colors, Columns, contentFrame, display, EmptyState, GhostButton, HotBadge, IconButton, LoadingRows, PrimaryButton, SectionLabel } from '../coach/ui';
 import { ART } from '../../constants/art';
 
 type Group = 'F' | 'D' | 'G';
@@ -126,6 +126,13 @@ export default function RosterScreen() {
     );
   };
 
+  const renderGroup = (group: Group) => (groups[group].length > 0 ? (
+    <View key={group}>
+      <SectionLabel title={`${GROUP_TITLE[group]} (${groups[group].length})`} right={<Text style={styles.hint}>GAMES LEFT</Text>} />
+      <Card style={styles.groupCard}>{groups[group].map(renderRow)}</Card>
+    </View>
+  ) : null);
+
   if (!team || team.players.length === 0) {
     return (
       <View style={styles.container} testID="roster-empty">
@@ -150,7 +157,7 @@ export default function RosterScreen() {
       />
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, contentFrame]}
         refreshControl={<RefreshControl refreshing={week.refreshing} onRefresh={week.refresh} tintColor={colors.accent} />}
       >
         <Card style={styles.leagueCard} onPress={() => setSettingsOpen(true)} testID="roster-league-settings">
@@ -197,19 +204,21 @@ export default function RosterScreen() {
           </>
         ) : null}
 
-        {(['F', 'D', 'G'] as Group[]).map((group) => (groups[group].length > 0 ? (
-          <View key={group}>
-            <SectionLabel title={`${GROUP_TITLE[group]} (${groups[group].length})`} right={group === 'F' ? <Text style={styles.hint}>GAMES LEFT</Text> : null} />
-            <Card style={styles.groupCard}>{groups[group].map(renderRow)}</Card>
-          </View>
-        ) : null))}
-
-        {groups.IR.length > 0 ? (
-          <View>
-            <SectionLabel title={`IR (${groups.IR.length})`} />
-            <Card style={styles.groupCard}>{groups.IR.map(renderRow)}</Card>
-          </View>
-        ) : null}
+        <Columns
+          left={renderGroup('F')}
+          right={(
+            <>
+              {renderGroup('D')}
+              {renderGroup('G')}
+              {groups.IR.length > 0 ? (
+                <View>
+                  <SectionLabel title={`IR (${groups.IR.length})`} />
+                  <Card style={styles.groupCard}>{groups.IR.map(renderRow)}</Card>
+                </View>
+              ) : null}
+            </>
+          )}
+        />
 
         <Text style={styles.footer}>
           {team.players.length} of {MAX_ROSTER_PLAYERS} players · tap a player for eligibility, IR, and game log

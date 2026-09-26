@@ -10,6 +10,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
   type StyleProp,
   type TextStyle,
@@ -41,6 +42,44 @@ export const colors = {
   onInk: '#FFFFFF',
   onInkSub: '#A6A6B0',
 };
+
+/**
+ * iPad: at this width screens switch to two columns. iPad mini portrait is 744pt,
+ * every other iPad is wider; phones top out around 440pt.
+ */
+export const WIDE_MIN_WIDTH = 700;
+/** Content never gets wider than this, so landscape iPads stay readable. */
+export const CONTENT_MAX_WIDTH = 1160;
+
+export function useWide(): boolean {
+  return useWindowDimensions().width >= WIDE_MIN_WIDTH;
+}
+
+/** Centered, capped-width content column (spread into a contentContainerStyle). */
+export const contentFrame: ViewStyle = {
+  width: '100%',
+  maxWidth: CONTENT_MAX_WIDTH,
+  alignSelf: 'center',
+};
+
+/** Two columns side by side on iPad; stacked (left then right) on phones. */
+export function Columns({ left, right, style }: { left: React.ReactNode; right: React.ReactNode; style?: StyleProp<ViewStyle> }) {
+  const wide = useWide();
+  if (!wide) {
+    return (
+      <>
+        {left}
+        {right}
+      </>
+    );
+  }
+  return (
+    <View style={[styles.columns, style]}>
+      <View style={styles.column}>{left}</View>
+      <View style={styles.column}>{right}</View>
+    </View>
+  );
+}
 
 /** Big, heavy, italic — scoreboard numerals and page titles. */
 export function display(size: number): TextStyle {
@@ -81,9 +120,20 @@ export function toneColor(tone: Tone): string {
   }
 }
 
-export function SectionLabel({ title, right, style }: { title: string; right?: React.ReactNode; style?: StyleProp<ViewStyle> }) {
+export function SectionLabel({
+  title,
+  right,
+  style,
+  flush = false,
+}: {
+  title: string;
+  right?: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
+  /** No top margin — for a label that opens a column next to a card. */
+  flush?: boolean;
+}) {
   return (
-    <View style={[styles.sectionRow, style]}>
+    <View style={[styles.sectionRow, flush && styles.sectionFlush, style]}>
       <Text style={styles.sectionTitle}>{title}</Text>
       {right}
     </View>
@@ -514,6 +564,9 @@ const styles = StyleSheet.create({
     marginTop: 26,
     marginBottom: 10,
   },
+  sectionFlush: {
+    marginTop: 0,
+  },
   sectionTitle: {
     fontSize: 19,
     fontWeight: '800',
@@ -529,6 +582,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.ink,
     borderRadius: 22,
     padding: 18,
+  },
+  columns: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 20,
+  },
+  column: {
+    flex: 1,
+    minWidth: 0,
   },
   textured: {
     overflow: 'hidden',

@@ -29,6 +29,8 @@ import {
   Card,
   ColdBadge,
   colors,
+  Columns,
+  contentFrame,
   CountdownBar,
   DarkCard,
   display,
@@ -42,6 +44,7 @@ import {
   SectionLabel,
   SegmentedControl,
   StatCell,
+  useWide,
 } from '../coach/ui';
 import { ART, ART_ASPECT } from '../../constants/art';
 
@@ -82,6 +85,7 @@ function countdownText(startTimeUTC: string | null, now: Date): string {
 }
 
 export default function TonightScreen() {
+  const wide = useWide();
   const router = useRouter();
   const { team, ready } = useTeams();
   const { isPremium } = useSubscription();
@@ -209,7 +213,7 @@ export default function TonightScreen() {
       {header}
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, contentFrame]}
         refreshControl={<RefreshControl refreshing={view.refreshing} onRefresh={view.refresh} tintColor={colors.accent} />}
         showsVerticalScrollIndicator={false}
       >
@@ -227,6 +231,9 @@ export default function TonightScreen() {
 
         {view.error && !data ? <ErrorState body="Tonight’s games didn’t load. Check your connection and try again." onRetry={view.refresh} /> : null}
 
+        <Columns
+          left={(
+            <>
         {/* Hero */}
         <DarkCard texture style={styles.hero} testID="tonight-headline">
           <View style={styles.kickerRow}>
@@ -320,10 +327,14 @@ export default function TonightScreen() {
           </>
         ) : null}
 
+            </>
+          )}
+          right={(
+            <>
         {/* Best lineup */}
         {headlineCount > 0 && view.day ? (
           <>
-            <SectionLabel title="Best lineup" />
+            <SectionLabel title="Best lineup" flush={wide} />
             {isPremium ? (
               <DarkCard style={styles.lineup} testID="tonight-lineup">
                 {lineupRows.map((row) => (
@@ -449,6 +460,10 @@ export default function TonightScreen() {
             </Card>
           </>
         ) : null}
+
+            </>
+          )}
+        />
 
         <Text style={styles.sourceNote}>
           Scratches come from the NHL game report. The NHL doesn’t announce starting goalies before puck drop, so we don’t either.

@@ -19,6 +19,7 @@ jest.mock('react-native', () => {
     StyleSheet: { create: (s: any) => s, hairlineWidth: 0.5 },
     Platform: { OS: 'ios', select: (o: any) => o.ios },
     Linking: { openURL: jest.fn() },
+    useWindowDimensions: () => ({ width: mockWindowWidth, height: 900, scale: 3, fontScale: 1 }),
     Animated: {
       Value: AnimatedValue,
       View: passthrough('AnimatedView'),
@@ -47,6 +48,7 @@ jest.mock('../../share/ShareCards', () => {
 jest.mock('../../sheets/PlayerSheet', () => ({ usePlayerSheet: () => ({ openPlayer: mockOpenPlayer }) }));
 jest.mock('../../PaywallProvider', () => ({ usePaywall: () => ({ openPaywall: mockOpenPaywall }) }));
 
+let mockWindowWidth = 390;
 const mockOpenPlayer = jest.fn();
 const mockOpenPaywall = jest.fn();
 let mockIsPremium = false;
@@ -135,6 +137,7 @@ const allText = (tree: any) => tree.root.findAll((n: any) => n.type === 'Text')
 describe('TonightScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockWindowWidth = 390;
     mockIsPremium = false;
     mockTeam = { ...createTeam({ name: 'Beauties', players: players as any }) };
     mockView = view();
@@ -208,6 +211,17 @@ describe('TonightScreen', () => {
     const text = allText(render());
     expect(text).toContain('No games for your roster tonight.');
     expect(text).toContain('Next games: Thu Oct 15');
+  });
+
+  it('splits into two columns on iPad and stacks on phones', () => {
+    mockIsPremium = true;
+    const columnsIn = (tree: any) => tree.root.findAll((n: any) => n.type === 'View' && n.props.style?.[0]?.flexDirection === 'row' && n.props.style?.[0]?.gap === 20);
+    expect(columnsIn(render())).toHaveLength(0);
+    mockWindowWidth = 1032;
+    const wide = render();
+    expect(columnsIn(wide)).toHaveLength(1);
+    expect(byTestId(wide, 'tonight-headline')).toHaveLength(1);
+    expect(byTestId(wide, 'tonight-lineup')).toHaveLength(1);
   });
 
   it('opens the player sheet from a player card', () => {

@@ -20,7 +20,7 @@ import { usePaywall } from '../PaywallProvider';
 import { usePlayerSheet } from '../sheets/PlayerSheet';
 import TeamSwitcher from '../coach/TeamSwitcher';
 import { PlayerAvatar, PlayerName } from '../coach/PlayerAvatar';
-import { Card, ColdBadge, colors, display, EmptyState, ErrorState, HotBadge, LoadingRows, Pill, PrimaryButton, SegmentedControl } from '../coach/ui';
+import { Card, ColdBadge, colors, contentFrame, display, EmptyState, ErrorState, HotBadge, LoadingRows, Pill, PrimaryButton, SegmentedControl, useWide } from '../coach/ui';
 import * as Haptics from 'expo-haptics';
 import { ART } from '../../constants/art';
 import { track } from '../../services/analytics/track';
@@ -43,10 +43,10 @@ function slotToFilter(slot: string | undefined): PickupFilter {
   return 'ALL';
 }
 
-function PickupCard({ row, onPress, onAdd }: { row: PickupRow; onPress: () => void; onAdd: () => void }) {
+function PickupCard({ row, onPress, onAdd, grid = false }: { row: PickupRow; onPress: () => void; onAdd: () => void; grid?: boolean }) {
   const rate = row.form.recentRate ?? row.form.seasonRate;
   return (
-    <Card onPress={onPress} style={styles.card} testID={`pickup-${row.playerId}`}>
+    <Card onPress={onPress} style={[styles.card, grid && styles.cardGrid]} testID={`pickup-${row.playerId}`}>
       <View style={styles.row}>
         <PlayerAvatar playerId={row.playerId} team={row.team} position={row.position} size={58} />
         <View style={styles.text}>
@@ -100,6 +100,7 @@ function PickupCard({ row, onPress, onAdd }: { row: PickupRow; onPress: () => vo
 }
 
 export default function PickupsScreen() {
+  const wide = useWide();
   const params = useLocalSearchParams<{ slot?: string; date?: string }>();
   const { team, ready, updateTeam } = useTeams();
   const { isPremium } = useSubscription();
@@ -163,9 +164,12 @@ export default function PickupsScreen() {
     <View style={styles.container} testID="pickups-screen">
       <PageHeader title="Pickups" accessory={<TeamSwitcher />} />
       <FlatList
+        key={wide ? 'grid' : 'list'}
         data={visible}
+        numColumns={wide ? 2 : 1}
+        columnWrapperStyle={wide ? styles.gridRow : undefined}
         keyExtractor={(row) => String(row.playerId)}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, contentFrame]}
         refreshControl={<RefreshControl refreshing={view.refreshing} onRefresh={view.refresh} tintColor={colors.accent} />}
         ListHeaderComponent={(
           <View>
@@ -226,6 +230,7 @@ export default function PickupsScreen() {
         }
         renderItem={({ item, index }) => (
           <PickupCard
+            grid={wide}
             row={item}
             onPress={() => openPlayer(item.playerId, 'pickup')}
             onAdd={() => {
@@ -325,6 +330,14 @@ const styles = StyleSheet.create({
   card: {
     marginBottom: 12,
     padding: 12,
+  },
+  cardGrid: {
+    flex: 1,
+    // Capped so a lone last card doesn't stretch across both columns; the 1.4% left over is the gutter.
+    maxWidth: '49.3%',
+  },
+  gridRow: {
+    justifyContent: 'space-between',
   },
   row: {
     flexDirection: 'row',

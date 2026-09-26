@@ -22,7 +22,19 @@ import { useSubscription } from '../SubscriptionProvider';
 import { usePaywall } from '../PaywallProvider';
 import { useReminders } from '../RemindersProvider';
 import LeagueSettingsSheet from '../sheets/LeagueSettingsSheet';
-import { Card, colors, display, GhostButton, Pill, PrimaryButton, ProBadge, SectionLabel } from '../coach/ui';
+import {
+  Card,
+  colors,
+  Columns,
+  contentFrame,
+  display,
+  GhostButton,
+  Pill,
+  PrimaryButton,
+  ProBadge,
+  SectionLabel,
+  useWide,
+} from '../coach/ui';
 import AnalyticsService from '../../services/analytics/AnalyticsService';
 import { posthogConfig } from '../../services/analytics/posthog';
 
@@ -51,6 +63,7 @@ function Row({ icon, label, detail, onPress, right, testID }: {
 }
 
 export default function SettingsScreen() {
+  const wide = useWide();
   const { user, signInWithApple, appleSignInReady, signOut } = useAuthContext();
   const { isPremium, status, applyStatus } = useSubscription();
   const { openPaywall } = usePaywall();
@@ -139,7 +152,10 @@ export default function SettingsScreen() {
   return (
     <View style={styles.container} testID="settings-screen">
       <PageHeader title="Settings" />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.content, contentFrame]} showsVerticalScrollIndicator={false}>
+        <Columns
+          left={(
+            <>
         {/* Plan */}
         <Card style={[styles.planCard, isPremium && styles.planCardPro]} testID="plan-section">
           <View style={styles.planHead}>
@@ -216,8 +232,12 @@ export default function SettingsScreen() {
           ) : null}
         </Card>
 
+            </>
+          )}
+          right={(
+            <>
         {/* Leagues */}
-        <SectionLabel title="Leagues" right={!isPremium ? <Text style={styles.limit}>1 on Free · 5 on Pro</Text> : null} />
+        <SectionLabel title="Leagues" flush={wide} right={!isPremium ? <Text style={styles.limit}>1 on Free · 5 on Pro</Text> : null} />
         <Card style={styles.listCard}>
           {teams.map((row) => (
             <Row
@@ -302,6 +322,9 @@ export default function SettingsScreen() {
           <Row icon="document-text-outline" label="Terms of use" onPress={() => Linking.openURL(TERMS_URL)} />
           <Row icon="information-circle-outline" label="Version" right={<Text style={styles.version}>{version}</Text>} />
         </Card>
+            </>
+          )}
+        />
         <Text style={styles.disclaimer}>
           Schedules, scratches, and stats come from public NHL data. PuckIQ is not affiliated with or endorsed by the NHL, Yahoo, ESPN, or Fantrax, and never signs in to or changes your fantasy league.
         </Text>

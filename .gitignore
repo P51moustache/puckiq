@@ -66,5 +66,7 @@ CLAUDE.md
 # Source art from the image generator (exports live in assets/images/art)
 generations/
 
-# Rendered App Store screenshots (regenerate with scripts/store/frame_screenshots.py)
-store/screenshots/
+
+# Marketing binaries (screenshots, videos) — regenerate, don't commit
+marketing/screenshots/
+marketing/videos/

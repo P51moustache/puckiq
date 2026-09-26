@@ -6,7 +6,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, display } from './coach/ui';
+import { colors, contentFrame, display } from './coach/ui';
 
 interface PageHeaderProps {
   title: string;
@@ -22,7 +22,7 @@ export default function PageHeader({ title, subtitle, right, accessory }: PageHe
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.wrap, { paddingTop: insets.top + 6 }]} testID="page-header">
+    <View style={[styles.wrap, contentFrame, { paddingTop: insets.top + 6 }]} testID="page-header">
       {accessory || right ? (
         <View style={styles.controls}>
           <View style={styles.accessory}>{accessory}</View>
