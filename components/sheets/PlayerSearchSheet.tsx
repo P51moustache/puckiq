@@ -51,6 +51,9 @@ export default function PlayerSearchSheet({ visible, mode, onClose }: PlayerSear
   const [results, setResults] = useState<NhlSearchPlayer[]>([]);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Edited locally and saved once: saving the team re-plans the week and queues a
+  // backup, and doing that per keystroke drops letters.
+  const [opponentName, setOpponentName] = useState(team?.opponentName ?? '');
   const requestId = useRef(0);
 
   useEffect(() => {
@@ -58,8 +61,21 @@ export default function PlayerSearchSheet({ visible, mode, onClose }: PlayerSear
       setQuery(initialQuery);
       setResults([]);
       setError(null);
+      setOpponentName(team?.opponentName ?? '');
     }
+    // Reset only when the sheet opens, not on every team change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, initialQuery]);
+
+  const saveOpponentName = () => {
+    const next = opponentName.trim();
+    if (team && next !== team.opponentName) updateTeam((current) => ({ ...current, opponentName: next }));
+  };
+
+  const close = () => {
+    if (mode.kind === 'add' && mode.list === 'opponent') saveOpponentName();
+    onClose();
+  };
 
   useEffect(() => {
     const trimmed = query.trim();
@@ -107,7 +123,7 @@ export default function PlayerSearchSheet({ visible, mode, onClose }: PlayerSear
     : mode.list === 'opponent' ? 'Opponent’s players' : 'Add players';
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose} testID="player-search-sheet">
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={close} testID="player-search-sheet">
       <View style={styles.container}>
         <View style={styles.header}>
           <View style={styles.headerText}>
@@ -120,7 +136,7 @@ export default function PlayerSearchSheet({ visible, mode, onClose }: PlayerSear
               <Text style={styles.subtitle}>Pick the NHL player this name refers to.</Text>
             )}
           </View>
-          <Pressable onPress={onClose} hitSlop={10} testID="player-search-done" accessibilityRole="button">
+          <Pressable onPress={close} hitSlop={10} testID="player-search-done" accessibilityRole="button">
             <Text style={styles.done}>Done</Text>
           </Pressable>
         </View>
@@ -151,8 +167,9 @@ export default function PlayerSearchSheet({ visible, mode, onClose }: PlayerSear
         {mode.kind === 'add' && mode.list === 'opponent' && team ? (
           <TextInput
             style={styles.opponentName}
-            value={team.opponentName}
-            onChangeText={(text) => updateTeam((current) => ({ ...current, opponentName: text.slice(0, 40) }))}
+            value={opponentName}
+            onChangeText={(text) => setOpponentName(text.slice(0, 40))}
+            onEndEditing={saveOpponentName}
             placeholder="Opponent’s team name (optional)"
             placeholderTextColor={colors.muted}
             testID="opponent-name-input"

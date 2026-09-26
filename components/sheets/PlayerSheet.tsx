@@ -3,8 +3,8 @@
  * and the roster actions that make sense from where it was opened.
  */
 
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
-import { Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import { Alert, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { FantasyPlayer, SlotPosition } from '../../types/fantasy';
 import { usePlayerDetail } from '../../hooks/usePlayerDetail';
@@ -23,11 +23,12 @@ import type { GoalieLine, SkaterLine } from '../../services/nhl/stats';
 import { useTeams } from '../TeamsProvider';
 import { useSubscription } from '../SubscriptionProvider';
 import { usePaywall } from '../PaywallProvider';
+import type { PaywallSource } from '../../constants/monetization';
 import { splitName } from '../coach/PlayerAvatar';
 import { Image } from 'expo-image';
 import { teamTile } from '../../constants/teamTiles';
 import { USE_NHL_HEADSHOTS } from '../../constants/legal';
-import { Card, colors, display, ErrorBanner, GhostButton, LoadingRows, Pill, PrimaryButton, ProLockCard, SectionLabel, StatCell } from '../coach/ui';
+import { Card, colors, display, ErrorBanner, GhostButton, LoadingRows, Pill, PrimaryButton, ProLockCard, SectionLabel, StatCell, useWide } from '../coach/ui';
 import { track } from '../../services/analytics/track';
 
 export type PlayerSheetContext = 'roster' | 'opponent' | 'pickup' | 'browse';
@@ -45,6 +46,24 @@ const SheetContext = createContext<PlayerSheetContextValue | undefined>(undefine
 
 export function PlayerSheetProvider({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState<OpenArgs | null>(null);
+  const { openPaywall } = usePaywall();
+  // iOS can't present the paywall modal over this sheet, so close the sheet first and
+  // open the paywall once it has finished dismissing.
+  const pendingPaywall = useRef<PaywallSource | null>(null);
+  const upsell = useCallback((source: PaywallSource) => {
+    if (Platform.OS === 'ios') {
+      pendingPaywall.current = source;
+      setOpen(null);
+    } else {
+      setOpen(null);
+      openPaywall(source);
+    }
+  }, [openPaywall]);
+  const handleDismiss = useCallback(() => {
+    const source = pendingPaywall.current;
+    pendingPaywall.current = null;
+    if (source) openPaywall(source);
+  }, [openPaywall]);
   const openPlayer = useCallback((playerId: number, context: PlayerSheetContext = 'browse') => {
     track('player_open', { context });
     setOpen({ playerId, context });
@@ -58,8 +77,9 @@ export function PlayerSheetProvider({ children }: { children: React.ReactNode })
         animationType="slide"
         presentationStyle="pageSheet"
         onRequestClose={() => setOpen(null)}
+        onDismiss={handleDismiss}
       >
-        {open ? <PlayerSheetBody {...open} onClose={() => setOpen(null)} /> : null}
+        {open ? <PlayerSheetBody {...open} onClose={() => setOpen(null)} onUpsell={upsell} /> : null}
       </Modal>
     </SheetContext.Provider>
   );
@@ -149,10 +169,10 @@ function ValueBars({ rows, values, color }: { rows: GameLogRow[]; values: number
   );
 }
 
-function PlayerSheetBody({ playerId, context, onClose }: OpenArgs & { onClose: () => void }) {
+function PlayerSheetBody({ playerId, context, onClose, onUpsell }: OpenArgs & { onClose: () => void; onUpsell: (source: PaywallSource) => void }) {
+  const wide = useWide();
   const { team, updateTeam } = useTeams();
   const { isPremium } = useSubscription();
-  const { openPaywall } = usePaywall();
   const scoring = team?.scoring ?? DEFAULT_SCORING;
   const detail = usePlayerDetail(playerId, scoring);
   const today = useNhlToday();
@@ -274,7 +294,13 @@ function PlayerSheetBody({ playerId, context, onClose }: OpenArgs & { onClose: (
                   {rosterPlayer?.injuredReserve ? <Pill label="ON IR" tone="warn" solid /> : null}
                 </View>
                 {profile.headshot && USE_NHL_HEADSHOTS ? (
-                  <Image source={{ uri: profile.headshot }} style={styles.heroImage} contentFit="contain" contentPosition="bottom" transition={150} />
+                  <Image
+                    source={{ uri: profile.headshot }}
+                    style={[styles.heroImage, wide && styles.heroImageWide]}
+                    contentFit="contain"
+                    contentPosition="bottom"
+                    transition={150}
+                  />
                 ) : null}
               </View>
             </View>
@@ -343,7 +369,7 @@ function PlayerSheetBody({ playerId, context, onClose }: OpenArgs & { onClose: (
             {edge.loading || edge.data ? (
               <>
                 <SectionLabel title="Telemetry" right={!isPremium ? <Pill label="PRO" tone="accent" /> : null} />
-                <EdgePanel edge={edge.data} loading={edge.loading} isPro={isPremium} onUnlock={() => openPaywall('player_edge')} />
+                <EdgePanel edge={edge.data} loading={edge.loading} isPro={isPremium} onUnlock={() => onUpsell('player_edge')} />
               </>
             ) : null}
 
@@ -369,7 +395,7 @@ function PlayerSheetBody({ playerId, context, onClose }: OpenArgs & { onClose: (
               <ProLockCard
                 title="Recent form & trend"
                 detail="Last-14-day value, hot/cold trend, and goalie start share."
-                onPress={() => openPaywall('player_trends')}
+                onPress={() => onUpsell('player_trends')}
               />
             )}
 
@@ -410,7 +436,7 @@ function PlayerSheetBody({ playerId, context, onClose }: OpenArgs & { onClose: (
               ))}
             </Card>
             {!isPremium && logRows.length > FREE_LOG_ROWS ? (
-              <Pressable onPress={() => openPaywall('player_trends')} style={styles.moreLog}>
+              <Pressable onPress={() => onUpsell('player_trends')} style={styles.moreLog}>
                 <Text style={styles.moreLogText}>See all {logRows.length} games with Pro</Text>
               </Pressable>
             ) : null}
@@ -545,6 +571,11 @@ const styles = StyleSheet.create({
     width: 180,
     height: 190,
     marginRight: -18,
+  },
+  heroImageWide: {
+    width: 260,
+    height: 250,
+    marginRight: 24,
   },
   bigStats: {
     flexDirection: 'row',

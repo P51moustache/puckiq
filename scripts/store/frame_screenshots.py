@@ -34,10 +34,11 @@ PHONE = [
 ]
 
 IPAD = [
-    ('02-tonight.png', 'TONIGHT', 'KNOW WHAT TO CHANGE|BEFORE LOCK.'),
-    ('04-week.png', 'WEEK PLANNER · PRO', 'SEE THE GAMES THAT|ACTUALLY COUNT.'),
+    ('02-tonight.png', 'TONIGHT', 'KNOW WHAT TO FIX|BEFORE LOCK.'),
+    ('04-week.png', 'WEEK PLANNER · PRO', 'GAMES THAT|ACTUALLY COUNT.'),
     ('05-pickups.png', 'PICKUPS', 'STREAMERS FOR YOUR|EMPTY NIGHTS.'),
-    ('06-player.png', 'NHL EDGE · PRO', 'SPEED, SHOTS & ZONE|TIME, RANKED.'),
+    ('10-roster.png', 'YOUR ROSTER', 'EVERY PLAYER,|EVERY GAME LEFT.'),
+    ('06-player.png', 'NHL EDGE · PRO', 'SPEED & SHOTS,|RANKED.'),
 ]
 
 
