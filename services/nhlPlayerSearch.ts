@@ -72,11 +72,15 @@ export function rankSearchResults(players: NhlSearchPlayer[], query: string): Nh
 /** Ask the API for more than we show — its own ordering buries full-name matches. */
 const MIN_FETCH = 40;
 
-export async function searchNhlPlayers(query: string, limit = 20): Promise<NhlSearchPlayer[]> {
+/**
+ * `activeOnly` filters on the server: the API caps results before any client filter, and
+ * short queries fill that cap with retired players ("mcd" → 40 retirees, no McDavid).
+ */
+export async function searchNhlPlayers(query: string, limit = 20, { activeOnly = true } = {}): Promise<NhlSearchPlayer[]> {
   const trimmed = query.trim();
   if (trimmed.length < 2) return [];
 
-  const url = `${NHL_PLAYER_SEARCH_URL}?culture=en-us&limit=${Math.max(limit, MIN_FETCH)}&q=${encodeURIComponent(trimmed)}`;
+  const url = `${NHL_PLAYER_SEARCH_URL}?culture=en-us&limit=${Math.max(limit, MIN_FETCH)}&q=${encodeURIComponent(trimmed)}${activeOnly ? '&active=true' : ''}`;
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`NHL player search failed (${res.status})`);

@@ -7,7 +7,7 @@ import React, { useMemo, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { FantasyPlayer } from '../../types/fantasy';
-import { useWeekData } from '../../hooks/useCoach';
+import { useNhlToday, useWeekData, useWeekHasGamesLeft } from '../../hooks/useCoach';
 import { findExactNhlMatches } from '../../services/fantasy/autoLink';
 import { basePositions, isGoalie, isNhlLinked, positionLabel } from '../../services/fantasy/positions';
 import { formatValue } from '../../services/fantasy/scoring';
@@ -20,6 +20,7 @@ import { usePlayerSheet } from '../sheets/PlayerSheet';
 import PlayerSearchSheet, { toFantasyPlayer, type SearchMode } from '../sheets/PlayerSearchSheet';
 import LeagueSettingsSheet from '../sheets/LeagueSettingsSheet';
 import TeamSwitcher from '../coach/TeamSwitcher';
+import SampleTeamNotice from '../coach/SampleTeamNotice';
 import { PlayerAvatar, PlayerName } from '../coach/PlayerAvatar';
 import { Card, ColdBadge, colors, Columns, contentFrame, display, EmptyState, GhostButton, HotBadge, IconButton, LoadingRows, PrimaryButton, SectionLabel } from '../coach/ui';
 import { ART } from '../../constants/art';
@@ -37,7 +38,9 @@ const GROUP_TITLE: Record<Group, string> = { F: 'Forwards', D: 'Defense', G: 'Go
 export default function RosterScreen() {
   const { team, ready, updateTeam } = useTeams();
   const { openPlayer } = usePlayerSheet();
-  const week = useWeekData(team, 0);
+  // Preseason, All-Star break, Sunday night: count next week's games instead of a column of zeros.
+  const lookAhead = useWeekHasGamesLeft(useNhlToday()) === false;
+  const week = useWeekData(team, lookAhead ? 1 : 0);
   const [search, setSearch] = useState<SearchMode | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [linking, setLinking] = useState(false);
@@ -117,8 +120,8 @@ export default function RosterScreen() {
           </Text>
         </View>
         <View style={styles.rowRight}>
-          {games ? <Text style={styles.games}>{games.remainingGames}</Text> : null}
-          {games ? <Text style={styles.gamesLabel}>LEFT</Text> : null}
+          {games ? <Text style={styles.games}>{lookAhead ? games.games : games.remainingGames}</Text> : null}
+          {games ? <Text style={styles.gamesLabel}>{lookAhead ? 'NEXT WK' : 'LEFT'}</Text> : null}
         </View>
         {form?.trend === 'hot' ? <HotBadge /> : null}
         {form?.trend === 'cold' ? <ColdBadge /> : null}
@@ -128,7 +131,7 @@ export default function RosterScreen() {
 
   const renderGroup = (group: Group) => (groups[group].length > 0 ? (
     <View key={group}>
-      <SectionLabel title={`${GROUP_TITLE[group]} (${groups[group].length})`} right={<Text style={styles.hint}>GAMES LEFT</Text>} />
+      <SectionLabel title={`${GROUP_TITLE[group]} (${groups[group].length})`} right={<Text style={styles.hint}>{lookAhead ? 'GAMES NEXT WEEK' : 'GAMES LEFT'}</Text>} />
       <Card style={styles.groupCard}>{groups[group].map(renderRow)}</Card>
     </View>
   ) : null);
@@ -160,6 +163,8 @@ export default function RosterScreen() {
         contentContainerStyle={[styles.content, contentFrame]}
         refreshControl={<RefreshControl refreshing={week.refreshing} onRefresh={week.refresh} tintColor={colors.accent} />}
       >
+        <SampleTeamNotice />
+
         <Card style={styles.leagueCard} onPress={() => setSettingsOpen(true)} testID="roster-league-settings">
           <View style={styles.leagueText}>
             <Text style={styles.leagueTitle}>{PLATFORM_LABEL[team.platform]} league rules</Text>

@@ -3,7 +3,7 @@
  * before typing their own team. Ids are NHL player ids; teams as of 2026-09.
  */
 
-import type { FantasyPlayer } from '../types/fantasy';
+import type { FantasyPlayer, FantasyTeam } from '../types/fantasy';
 
 type Row = [number, string, string, string];
 
@@ -35,3 +35,26 @@ export const SAMPLE_PLAYERS: FantasyPlayer[] = ROWS.map(([playerId, playerName, 
   position,
   rosterPosition: 'BN',
 }));
+
+const SAMPLE_IDS = new Set(ROWS.map(([playerId]) => playerId));
+
+/** A real roster won't share 8 of these exact 16 stars, so this many means the sample is loaded. */
+export const SAMPLE_THRESHOLD = 8;
+
+export function sampleCount(players: FantasyPlayer[]): number {
+  return players.filter((player) => SAMPLE_IDS.has(player.playerId)).length;
+}
+
+export function hasSamplePlayers(team: FantasyTeam | null): boolean {
+  return !!team && sampleCount(team.players) >= SAMPLE_THRESHOLD;
+}
+
+/** Drop the sample players (keeping anyone the user added) and the sample name. */
+export function withoutSample(team: FantasyTeam): FantasyTeam {
+  return {
+    ...team,
+    name: team.name === SAMPLE_TEAM_NAME ? 'My Team' : team.name,
+    players: team.players.filter((player) => !SAMPLE_IDS.has(player.playerId)),
+    updatedAt: new Date().toISOString(),
+  };
+}

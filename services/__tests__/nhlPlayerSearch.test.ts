@@ -65,6 +65,14 @@ describe('searchNhlPlayers', () => {
     expect(results[0].playerId).toBe(8478402);
   });
 
+  it('asks the server for active players only, unless told otherwise', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => [] });
+    await searchNhlPlayers('mcd');
+    expect(global.fetch).toHaveBeenLastCalledWith(expect.stringContaining('&active=true'));
+    await searchNhlPlayers('mcd', 20, { activeOnly: false });
+    expect(global.fetch).toHaveBeenLastCalledWith(expect.not.stringContaining('active=true'));
+  });
+
   it('throws when the search endpoint fails', async () => {
     global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 500 });
     await expect(searchNhlPlayers('mcdavid')).rejects.toThrow('NHL player search failed');

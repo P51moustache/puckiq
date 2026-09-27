@@ -53,14 +53,16 @@ export default function WeekScreen() {
   const { isPremium } = useSubscription();
   const { openPaywall } = usePaywall();
   const { openPlayer } = usePlayerSheet();
-  const [choice, setChoice] = useState<WeekChoice>('this');
+  const today = useNhlToday();
+  // Preseason, All-Star break, Sunday night: next week is the only week that matters, so it's free
+  // and it's where the screen opens.
+  const emptyThisWeek = useWeekHasGamesLeft(today) === false;
+  const [picked, setChoice] = useState<WeekChoice | null>(null);
+  const choice: WeekChoice = picked ?? (emptyThisWeek ? 'next' : 'this');
   const [addingOpponent, setAddingOpponent] = useState(false);
   const [sharing, setSharing] = useState(false);
   const week = useWeekData(team, choice === 'this' ? 0 : 1);
   const plan = week.plan;
-  const today = useNhlToday();
-  // Preseason, All-Star break, Sunday night: next week is the only week that matters, so it's free.
-  const emptyThisWeek = useWeekHasGamesLeft(today) === false;
 
   const rows = useMemo(() => {
     if (!team || !plan) return [] as FantasyPlayer[];

@@ -22,6 +22,7 @@ import { usePaywall } from '../PaywallProvider';
 import { usePlayerSheet } from '../sheets/PlayerSheet';
 import PlayerSearchSheet from '../sheets/PlayerSearchSheet';
 import TeamSwitcher from '../coach/TeamSwitcher';
+import SampleTeamNotice from '../coach/SampleTeamNotice';
 import { ShareButton, ShareCardSheet, type ShareCardContent } from '../share/ShareCards';
 import { PlayerAvatar, PlayerName, TeamChip } from '../coach/PlayerAvatar';
 import { formatPuckDrop, formatValue, gameClock, liveLineText, liveLineValue, useNow } from '../coach/format';
@@ -234,6 +235,8 @@ export default function TonightScreen() {
         <Columns
           left={(
             <>
+        <SampleTeamNotice />
+
         {/* Hero */}
         <DarkCard texture style={styles.hero} testID="tonight-headline">
           <View style={styles.kickerRow}>
@@ -272,10 +275,22 @@ export default function TonightScreen() {
             </>
           ) : (
             <>
-              <Text style={styles.heroQuiet}>No games for your roster {night === 'tonight' ? 'tonight.' : 'tomorrow.'}</Text>
-              <Text style={styles.heroSub}>
-                {data?.nextDate ? `Next games: ${niceDate(data.nextDate)}` : 'Check the Week tab for the schedule.'}
-              </Text>
+              {data && data.games.length === 0 && data.preseasonGames > 0 ? (
+                <>
+                  <Text style={styles.heroQuiet} testID="tonight-preseason">Preseason {night === 'tonight' ? 'tonight.' : 'tomorrow.'}</Text>
+                  <Text style={styles.heroSub}>
+                    {data.preseasonGames} exhibition {data.preseasonGames === 1 ? 'game doesn’t' : 'games don’t'} count in fantasy.
+                    {data.nextDate ? ` Fantasy starts ${niceDate(data.nextDate)}.` : ''}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.heroQuiet}>No games for your roster {night === 'tonight' ? 'tonight.' : 'tomorrow.'}</Text>
+                  <Text style={styles.heroSub}>
+                    {data?.nextDate ? `Next games: ${niceDate(data.nextDate)}` : 'Check the Week tab for the schedule.'}
+                  </Text>
+                </>
+              )}
             </>
           )}
         </DarkCard>

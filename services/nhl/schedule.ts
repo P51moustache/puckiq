@@ -9,6 +9,7 @@ import { addDays, weekDates, weekdayAbbrev } from './dates';
 export const NHL_WEB_API = 'https://api-web.nhle.com';
 
 /** Regular season. Preseason (1) and playoffs (3) never count toward fantasy weeks. */
+export const PRESEASON = 1;
 export const REGULAR_SEASON = 2;
 
 /** Fewer than half the league playing. Off-night starts rarely collide with the rest of your lineup. */

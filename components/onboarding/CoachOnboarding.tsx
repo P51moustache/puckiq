@@ -292,10 +292,8 @@ export function CoachOnboarding({ onComplete }: CoachOnboardingProps) {
           {roster.length === 0 ? (
             <Pressable
               onPress={() => {
-                updateTeam((current) => ({
-                  ...addPlayers(current, SAMPLE_PLAYERS),
-                  name: name.trim() ? current.name : SAMPLE_TEAM_NAME,
-                }));
+                // Always named as a sample, so it never passes for the user's own team.
+                updateTeam((current) => ({ ...addPlayers(current, SAMPLE_PLAYERS), name: SAMPLE_TEAM_NAME }));
                 setUsedSample(true);
                 setStep('reminders');
               }}

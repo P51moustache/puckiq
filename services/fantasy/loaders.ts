@@ -15,6 +15,7 @@ import {
   isGameFinal,
   isGameStarted,
   opponentOf,
+  PRESEASON,
   type NhlGame,
   type WeekSchedule,
 } from '../nhl/schedule';
@@ -118,6 +119,8 @@ export interface NightData {
   news: RosterNewsItem[];
   /** Next date any fantasy game is played, when this night has none. */
   nextDate: string | null;
+  /** Exhibition games on this date — they don't count, but say so instead of "no games". */
+  preseasonGames: number;
 }
 
 export function statusFor(
@@ -195,7 +198,9 @@ export async function loadNight(
   const anyGame = Object.keys(playerGames).length > 0;
   const nextDate = anyGame ? null : await findNextFantasyDate(addDays(date, 1)).catch(() => null);
 
-  return { date, games, playerGames, statuses, liveLines, news, nextDate };
+  const preseasonGames = slate.filter((game) => game.gameType === PRESEASON && game.scheduleState === 'OK').length;
+
+  return { date, games, playerGames, statuses, liveLines, news, nextDate, preseasonGames };
 }
 
 // ---------------------------------------------------------------------------
