@@ -88,24 +88,23 @@ nhl,start sit,waiver wire,pickups,goalie,yahoo,espn,fantrax,off night,roster,mat
 
 ## Screenshots
 
-Rendered with `python3 scripts/store/frame_screenshots.py` into `store/screenshots/` (not committed).
+Rendered with `python3 scripts/store/campaign_screenshots.py` into `marketing/screenshots/app-store-v2/`
+(not committed), in the style of the approved Bench Games ad. Uploaded 2026-09-27.
 iPhone 6.9" (1320×2868) is the only iPhone size App Store Connect requires; iPad 13" (2064×2752) is required because the app supports iPad.
+Every Pro feature carries a PRO tag or a "with Pro" line; free limits are in `constants/monetization.ts`.
 
-| # | iPhone | Caption |
-|---|--------|---------|
-| 1 | Tonight, 37 min to lock, coach moves | Know what to fix before lock |
-| 2 | Best lineup grid (Pro) | The lineup your slots allow |
-| 3 | Week grid with bench overflow | Games that actually count |
-| 4 | Pickups | Streamers for your empty nights |
-| 5 | Player page | Form, logs & this week |
-| 6 | NHL Edge panel (Pro) | Speed & shots, ranked |
-| 7 | Share card | Talk trash in the group chat |
-| 8 | Reminder preview | Never miss lineup lock |
+| # | iPhone | Headline | Tag |
+|---|--------|----------|-----|
+| 1 | Puck art + week card (41 count, 7 lost to bench) | Your bench is costing you. | WEEK PLANNER · PRO |
+| 2 | Tonight, coach move lifted out | Know what to fix before lock. | 01 / TONIGHT (every move with Pro) |
+| 3 | 41 of 48 left this week count, −7 benched | The games that count. | 02 / WEEK · PRO |
+| 4 | Pickups, Kreider card lifted out | Find games that fit. | 03 / PICKUPS · PRO |
+| 5 | Best lineup grid | The lineup your slots allow. | 04 / BEST LINEUP · PRO |
+| 6 | Player page + NHL Edge card | Scout every player. | 05 / PLAYERS (logs, form, Edge with Pro) |
+| 7 | Share card | Talk trash in the group chat. | 06 / SHARE |
+| 8 | Three phones | Make every game count. | Free to download; Pro unlocks the full coach |
 
-iPad: Tonight, Week, Pickups, player page with NHL Edge.
-
-Captured on a dev build with `EXPO_PUBLIC_DEV_DATE=2026-10-13 EXPO_PUBLIC_DEV_NOW=2026-10-13T21:22:00Z EXPO_PUBLIC_DEV_PRO=1`
-(a real schedule night, 38 minutes before first puck) and the simulator in Eastern time.
+iPad: bench hero, Tonight, Week (Pro), Pickups (Pro), Roster.
 
 ## App Privacy
 
