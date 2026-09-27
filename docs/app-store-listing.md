@@ -122,8 +122,18 @@ never the account ID, email, or roster — and can be turned off in Settings. Th
 
 ## Review notes
 
-No account needed. On first launch tap "Just looking? Try a sample team" to load a full roster, or search any NHL player on the Roster tab. The NHL regular season starts in October; before then, screens show last season's stats and the next scheduled games.
+As submitted with build 27 (2026-09-27):
 
-Pro is a standard auto-renewing subscription; Restore Purchases is in Settings and on the paywall.
+```
+PuckIQ 3.0 is a fantasy hockey coach: it helps users manage the roster they already play in Yahoo/ESPN/Fantrax. Users add their players by searching NHL players; the app never signs in to or changes a fantasy league. No betting, picks, odds, or real-money contests.
 
-Sign in with Apple is optional and only backs up your teams. Account deletion: Settings → Backup → Delete account (shown when signed in).
+No account needed. On first launch tap "Set up my team", then on the players step tap "Just looking? Try a sample team" to load a full roster (a card offers "Remove sample players" later). Or search any NHL player (e.g. "McDavid").
+
+The NHL regular season starts September 29. Before opening night the app shows last season's stats (labeled 2025-26) and looks ahead to opening week.
+
+PuckIQ is now free to download (it was a paid app). PuckIQ Pro is an auto-renewing subscription: Season (yearly, 7-day free trial) or Monthly. Open the paywall from Settings > See Pro or any PRO card (e.g. Tonight > Best lineup). Restore Purchases is on the paywall and in Settings. People who bought the old paid app keep Pro automatically (checked from the App Store receipt).
+
+Sign in with Apple is optional and only backs up teams. Account deletion: Settings > Backup > Delete account (shown when signed in). Feedback: Settings > About > Send feedback.
+
+The iOS 26 launch crash from the 2.3.0 review is fixed in this build.
+```
