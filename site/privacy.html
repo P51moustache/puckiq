@@ -39,19 +39,22 @@
       <p>To learn which features are useful, the app sends usage events to <strong>PostHog</strong>: screens viewed and features used (for example, opening a player, adding a pickup, sharing a card, viewing the Pro screen), whether you're on Pro, the app version, and your device's operating system. These events are tied to a random ID created when you install the app. They are <strong>not</strong> linked to your account, email, or roster, and are never used for advertising.</p>
       <p>Turn this off in <strong>Settings → About → Share anonymous usage stats</strong>.</p>
 
+      <h2>Feedback</h2>
+      <p>If you use <strong>Settings → About → Send feedback</strong>, we receive your message, the kind of feedback you picked, and, only if you type one, your email address so we can reply. The app attaches its version, your iOS version, your device model, and whether you're on Pro so we can reproduce problems. If you're signed in, the message is linked to your account ID. Feedback is stored with <strong>Supabase</strong> and used only to fix and improve PuckIQ.</p>
+
       <h2>Hockey data</h2>
       <p>The app loads schedules, scores, and stats from the NHL's public data services, player photos from the NHL's image servers, and news headlines from ESPN's public feed. Like any website, those servers see your device's IP address when the app requests data. We don't send them anything about you.</p>
 
       <h2>Service providers</h2>
       <ul>
         <li><strong>Apple</strong>: purchases and Sign in with Apple</li>
-        <li><strong>Supabase</strong>: optional account and team backup</li>
+        <li><strong>Supabase</strong>: optional account, team backup, and feedback you send</li>
         <li><strong>RevenueCat</strong>: subscription status</li>
         <li><strong>PostHog</strong>: anonymous usage stats</li>
       </ul>
 
       <h2>Retention</h2>
-      <p>Your backup is kept until you delete your account. Anonymous usage events are kept only as long as they're useful for improving the app.</p>
+      <p>Your backup is kept until you delete your account. Feedback is kept until it's no longer needed to follow up or improve the app; email us to have yours deleted sooner. Anonymous usage events are kept only as long as they're useful for improving the app.</p>
 
       <h2>Children</h2>
       <p>PuckIQ is not directed to children under 13, and we don't knowingly collect personal information from them.</p>

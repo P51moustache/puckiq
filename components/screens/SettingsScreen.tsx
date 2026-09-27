@@ -22,6 +22,7 @@ import { useSubscription } from '../SubscriptionProvider';
 import { usePaywall } from '../PaywallProvider';
 import { useReminders } from '../RemindersProvider';
 import LeagueSettingsSheet from '../sheets/LeagueSettingsSheet';
+import FeedbackSheet from '../sheets/FeedbackSheet';
 import {
   Card,
   colors,
@@ -37,6 +38,7 @@ import {
 } from '../coach/ui';
 import AnalyticsService from '../../services/analytics/AnalyticsService';
 import { posthogConfig } from '../../services/analytics/posthog';
+import { track } from '../../services/analytics/track';
 
 const ANALYTICS_REMOTE = posthogConfig() !== null;
 
@@ -72,6 +74,7 @@ export default function SettingsScreen() {
   const [shareUsage, setShareUsage] = useState(() => AnalyticsService.getInstance().isEnabled());
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [restoring, setRestoring] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const version = Constants.expoConfig?.version ?? '';
 
   const toggleReminders = async (on: boolean) => {
@@ -297,6 +300,16 @@ export default function SettingsScreen() {
         {/* About */}
         <SectionLabel title="About" />
         <Card style={styles.listCard}>
+          <Row
+            icon="chatbubble-ellipses-outline"
+            label="Send feedback"
+            detail="Report a bug or tell us what to build next."
+            onPress={() => {
+              track('feedback_opened', { source: 'settings' });
+              setFeedbackOpen(true);
+            }}
+            testID="feedback-link"
+          />
           {SUPPORT_EMAIL ? (
             <Row icon="mail-outline" label="Contact support" onPress={() => Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=PuckIQ ${version}`)} testID="support-link" />
           ) : null}
@@ -337,6 +350,7 @@ export default function SettingsScreen() {
       </ScrollView>
 
       <LeagueSettingsSheet visible={!!editingTeam} team={editingTeam} onClose={() => setEditingTeamId(null)} />
+      <FeedbackSheet visible={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
     </View>
   );
 }
