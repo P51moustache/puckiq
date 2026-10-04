@@ -49,6 +49,8 @@ declare module 'react-native-purchases' {
   interface PurchasesStatic {
     configure(config: { apiKey: string; appUserID?: string }): Promise<void>;
     getCustomerInfo(): Promise<CustomerInfo>;
+    syncPurchasesForResult(): Promise<{ customerInfo: CustomerInfo }>;
+    checkTrialOrIntroductoryPriceEligibility(productIdentifiers: string[]): Promise<Record<string, { status: number; description: string }>>;
     getOfferings(): Promise<PurchasesOfferings>;
     purchasePackage(pkg: PurchasesPackage): Promise<{ customerInfo: CustomerInfo }>;
     restorePurchases(): Promise<CustomerInfo>;

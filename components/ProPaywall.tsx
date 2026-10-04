@@ -28,7 +28,8 @@ import {
 } from '../constants/monetization';
 import { PRIVACY_URL, TERMS_URL } from '../constants/legal';
 import { ART } from '../constants/art';
-import { FREE_STATUS, getOfferings, purchasePackage, restorePurchases } from '../services/subscription';
+import { FREE_STATUS, getOfferings, getTrialEligibility, purchasePackage, restorePurchases } from '../services/subscription';
+import { proAccessCopy } from '../services/proAccessCopy';
 import AnalyticsService from '../services/analytics/AnalyticsService';
 import { useSubscription } from './SubscriptionProvider';
 import { BrandMark, colors, PrimaryButton } from './coach/ui';
@@ -69,15 +70,20 @@ export default function ProPaywall({ visible, onClose, source = 'settings' }: Pr
   const [restoring, setRestoring] = useState(false);
   const [plan, setPlan] = useState<Plan>('annual');
   const [packages, setPackages] = useState<{ annual: PurchasesPackage | null; monthly: PurchasesPackage | null }>({ annual: null, monthly: null });
+  const [trialEligibility, setTrialEligibility] = useState<Record<string, boolean>>({});
   const busy = purchasing || restoring;
 
   useEffect(() => {
     if (!visible) return;
     AnalyticsService.getInstance().trackCustomEvent('paywall_view', { source });
     let cancelled = false;
+    setTrialEligibility({});
     getOfferings().then((offerings) => {
       if (cancelled) return;
-      setPackages({ annual: offerings?.current?.annual ?? null, monthly: offerings?.current?.monthly ?? null });
+      const next = { annual: offerings?.current?.annual ?? null, monthly: offerings?.current?.monthly ?? null };
+      setPackages(next);
+      const ids = Object.values(next).flatMap((pkg) => pkg?.product?.identifier ? [pkg.product.identifier] : []);
+      getTrialEligibility(ids).then((eligible) => { if (!cancelled) setTrialEligibility(eligible); });
     });
     return () => {
       cancelled = true;
@@ -87,7 +93,7 @@ export default function ProPaywall({ visible, onClose, source = 'settings' }: Pr
   const selected = plan === 'annual' ? packages.annual : packages.monthly;
   const annualPrice = packagePrice(packages.annual) ?? LIST_PRICE_ANNUAL;
   const monthlyPrice = packagePrice(packages.monthly) ?? LIST_PRICE_MONTHLY;
-  const trial = trialLabel(selected);
+  const trial = selected?.product?.identifier && trialEligibility[selected.product.identifier] === true ? trialLabel(selected) : null;
   const renewal = plan === 'annual' ? `${annualPrice}/year` : `${monthlyPrice}/month`;
 
   const savings = useMemo(() => {
@@ -168,7 +174,7 @@ export default function ProPaywall({ visible, onClose, source = 'settings' }: Pr
             <View style={styles.activeCard} testID="pro-active">
               <Ionicons name="checkmark-circle" size={18} color={colors.good} />
               <Text style={styles.activeText}>
-                {status.source === 'legacy' ? 'Pro is included with your original purchase.' : 'You’re on Pro.'}
+                {proAccessCopy(status)}
               </Text>
             </View>
           ) : null}

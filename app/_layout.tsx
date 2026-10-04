@@ -16,10 +16,14 @@ import { PaywallProvider } from '../components/PaywallProvider';
 import { PlayerSheetProvider } from '../components/sheets/PlayerSheet';
 import CloudSync from '../components/CloudSync';
 import { CoachOnboarding } from '../components/onboarding/CoachOnboarding';
-import { ONBOARDING_KEY } from '../components/screens/SettingsScreen';
+import { ONBOARDING_KEY } from '../constants/release';
+import { LEGACY_ACTIVITY_KEYS } from '../services/releaseNotice';
+import { ReleaseNotice } from '../components/release/ReleaseNotice';
+import { LEGACY_ROSTER_KEY } from '../services/teams';
 import { pruneNhlDiskCache } from '../services/nhl/client';
 import { colors } from '../components/coach/ui';
-import { trackScreen } from '../services/analytics/track';
+import { useUsageJourney } from '../hooks/useUsageJourney';
+import { TeamActivity } from '../components/analytics/TeamActivity';
 
 const NAV_THEME = {
   ...DefaultTheme,
@@ -31,15 +35,18 @@ SplashScreen.preventAutoHideAsync();
 
 function AppContent() {
   const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
+  const [hadSavedSetup, setHadSavedSetup] = useState(false);
   const pathname = usePathname();
 
-  useEffect(() => {
-    if (onboardingComplete) trackScreen(pathname === '/' ? '/tonight' : pathname);
-  }, [pathname, onboardingComplete]);
+  useUsageJourney(onboardingComplete === null ? null : onboardingComplete ? (pathname === '/' ? '/tonight' : pathname) : '/onboarding');
 
   useEffect(() => {
-    AsyncStorage.getItem(ONBOARDING_KEY)
-      .then((value) => setOnboardingComplete(value === 'true'))
+    AsyncStorage.multiGet([ONBOARDING_KEY, LEGACY_ROSTER_KEY, ...LEGACY_ACTIVITY_KEYS])
+      .then((entries) => {
+        const values = new Map(entries);
+        setHadSavedSetup(values.get(ONBOARDING_KEY) === 'true' || Boolean(values.get(LEGACY_ROSTER_KEY)) || LEGACY_ACTIVITY_KEYS.some((key) => Boolean(values.get(key))));
+        setOnboardingComplete(values.get(ONBOARDING_KEY) === 'true');
+      })
       .catch(() => setOnboardingComplete(false));
     // Housekeeping off the critical path.
     pruneNhlDiskCache().catch(() => undefined);
@@ -73,6 +80,7 @@ function AppContent() {
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="dark" />
+      <ReleaseNotice hadSavedSetup={hadSavedSetup} />
     </>
   );
 }
@@ -108,6 +116,7 @@ export default function RootLayout() {
         <SubscriptionProvider>
           <AnalyticsProvider config={analyticsConfig}>
             <TeamsProvider>
+              <TeamActivity />
               <RemindersProvider>
                 <PaywallProvider>
                   <PlayerSheetProvider>

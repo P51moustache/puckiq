@@ -39,6 +39,7 @@ import {
   StatCell,
 } from '../coach/ui';
 import { ART, ART_ASPECT } from '../../constants/art';
+import { trackedChoice } from '../../services/analytics/selection';
 
 type WeekChoice = 'this' | 'next';
 
@@ -128,7 +129,7 @@ export default function WeekScreen() {
         right={(
           <SegmentedControl<WeekChoice>
             value={choice}
-            onChange={onChoice}
+            onChange={trackedChoice('week', 'week', onChoice)}
             options={[{ value: 'this', label: 'This' }, { value: 'next', label: 'Next', locked: !isPremium && !emptyThisWeek }]}
             testID="week-toggle"
             style={{ width: 136 }}

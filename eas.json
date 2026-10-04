@@ -11,8 +11,10 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_POSTHOG_KEY": "phc_y99ukqMCfSFnPAuzPBVHmuRzMvyap6eP73bGwamZGJZb",
-        "EXPO_PUBLIC_REVENUECAT_IOS_KEY": "appl_DmSCPcUJqWaNRAIQEmTzTytzuBK"
+        "EXPO_PUBLIC_POSTHOG_KEY": "phc_ttJv9hmRAvnTxLZ7MNTgacsuZKKTXwRpFKUnPHejraDx",
+        "EXPO_PUBLIC_REVENUECAT_IOS_KEY": "appl_DmSCPcUJqWaNRAIQEmTzTytzuBK",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://yobqysvorsmcoselrtuq.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlvYnF5c3ZvcnNtY29zZWxydHVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2MTg2OTYsImV4cCI6MjA3OTE5NDY5Nn0.ZZdMRtg9DBiBXBqvSEOG-EqoZk_yfpr4N6Eb5i0Os0E"
       }
     },
     "production": {
@@ -25,9 +27,11 @@
       },
       "env": {
         "NODE_ENV": "production",
-        "EXPO_PUBLIC_POSTHOG_KEY": "phc_y99ukqMCfSFnPAuzPBVHmuRzMvyap6eP73bGwamZGJZb",
+        "EXPO_PUBLIC_POSTHOG_KEY": "phc_ttJv9hmRAvnTxLZ7MNTgacsuZKKTXwRpFKUnPHejraDx",
         "EXPO_PUBLIC_FREEMIUM_CUTOVER": "2026-09-27T01:00:00Z",
-        "EXPO_PUBLIC_REVENUECAT_IOS_KEY": "appl_DmSCPcUJqWaNRAIQEmTzTytzuBK"
+        "EXPO_PUBLIC_REVENUECAT_IOS_KEY": "appl_DmSCPcUJqWaNRAIQEmTzTytzuBK",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://yobqysvorsmcoselrtuq.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlvYnF5c3ZvcnNtY29zZWxydHVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2MTg2OTYsImV4cCI6MjA3OTE5NDY5Nn0.ZZdMRtg9DBiBXBqvSEOG-EqoZk_yfpr4N6Eb5i0Os0E"
       }
     }
   },

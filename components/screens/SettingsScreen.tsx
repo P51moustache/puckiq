@@ -8,11 +8,9 @@ import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { FREE_FEATURES } from '../../constants/monetization';
-import { MANAGE_SUBSCRIPTIONS_URL, PRIVACY_URL, SUPPORT_EMAIL, TERMS_URL } from '../../constants/legal';
+import { PRIVACY_URL, SUPPORT_EMAIL, TERMS_URL } from '../../constants/legal';
 import { deleteAccount } from '../../services/cloudBackup';
 import { REMINDER_OPTIONS } from '../../services/lineupReminders';
-import { restorePurchases } from '../../services/subscription';
 import { PLATFORM_LABEL, teamLimit } from '../../services/teams';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import PageHeader from '../PageHeader';
@@ -28,10 +26,7 @@ import {
   colors,
   Columns,
   contentFrame,
-  display,
   GhostButton,
-  Pill,
-  PrimaryButton,
   ProBadge,
   SectionLabel,
   useWide,
@@ -40,9 +35,13 @@ import AnalyticsService from '../../services/analytics/AnalyticsService';
 import { posthogConfig } from '../../services/analytics/posthog';
 import { track } from '../../services/analytics/track';
 
+import { ONBOARDING_KEY } from '../../constants/release';
+import { PlanCard } from '../settings/PlanCard';
+import { ReleaseNotice } from '../release/ReleaseNotice';
+
 const ANALYTICS_REMOTE = posthogConfig() !== null;
 
-export const ONBOARDING_KEY = 'puckiq_onboarding_complete';
+export { ONBOARDING_KEY } from '../../constants/release';
 
 function Row({ icon, label, detail, onPress, right, testID }: {
   icon: keyof typeof Ionicons.glyphMap;
@@ -67,13 +66,13 @@ function Row({ icon, label, detail, onPress, right, testID }: {
 export default function SettingsScreen() {
   const wide = useWide();
   const { user, signInWithApple, appleSignInReady, signOut } = useAuthContext();
-  const { isPremium, status, applyStatus } = useSubscription();
+  const { isPremium } = useSubscription();
   const { openPaywall } = usePaywall();
   const { teams, team, setActiveTeam, addTeam } = useTeams();
   const reminders = useReminders();
   const [shareUsage, setShareUsage] = useState(() => AnalyticsService.getInstance().isEnabled());
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
-  const [restoring, setRestoring] = useState(false);
+  const [releaseOpen, setReleaseOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const version = Constants.expoConfig?.version ?? '';
 
@@ -88,21 +87,6 @@ export default function SettingsScreen() {
         { text: 'Not now', style: 'cancel' },
         { text: 'Open Settings', onPress: () => Linking.openSettings() },
       ]);
-    }
-  };
-
-  const handleRestore = async () => {
-    setRestoring(true);
-    try {
-      const restored = await restorePurchases();
-      if (restored.isPro) {
-        applyStatus(restored);
-        Alert.alert('Pro restored', 'Welcome back.');
-      } else {
-        Alert.alert('Nothing to restore', 'No active PuckIQ Pro subscription was found for this Apple ID.');
-      }
-    } finally {
-      setRestoring(false);
     }
   };
 
@@ -159,43 +143,7 @@ export default function SettingsScreen() {
         <Columns
           left={(
             <>
-        {/* Plan */}
-        <Card style={[styles.planCard, isPremium && styles.planCardPro]} testID="plan-section">
-          <View style={styles.planHead}>
-            {isPremium ? <ProBadge /> : <Pill label="FREE" tone="muted" solid />}
-            <Text style={styles.planTitle} testID="plan-tier">
-              {isPremium ? 'PuckIQ Pro' : 'PuckIQ Free'}
-            </Text>
-          </View>
-          {isPremium ? (
-            <Text style={styles.planCopy}>
-              {status.source === 'legacy'
-                ? 'Included with your original PuckIQ purchase. Thanks for being early.'
-                : status.source === 'developer'
-                  ? 'Developer override (local build only).'
-                  : status.expiresAt
-                    ? `${status.willRenew ? 'Renews' : 'Ends'} ${new Date(status.expiresAt).toLocaleDateString()}.`
-                    : 'Every coach tool is unlocked.'}
-            </Text>
-          ) : (
-            <>
-              {FREE_FEATURES.map((line) => (
-                <Text key={line} style={styles.freeLine}>· {line}</Text>
-              ))}
-              <PrimaryButton label="See Pro" icon="flash" onPress={() => openPaywall('settings')} style={styles.planButton} testID="settings-subscribe" />
-            </>
-          )}
-          <View style={styles.planLinks}>
-            <Pressable onPress={handleRestore} disabled={restoring} hitSlop={6} testID="settings-restore">
-              <Text style={styles.link}>{restoring ? 'Restoring…' : 'Restore purchases'}</Text>
-            </Pressable>
-            {status.source === 'subscription' ? (
-              <Pressable onPress={() => Linking.openURL(MANAGE_SUBSCRIPTIONS_URL)} hitSlop={6}>
-                <Text style={styles.link}>Manage subscription</Text>
-              </Pressable>
-            ) : null}
-          </View>
-        </Card>
+        <PlanCard />
 
         {/* Reminders */}
         <SectionLabel title="Lineup reminders" />
@@ -300,6 +248,7 @@ export default function SettingsScreen() {
         {/* About */}
         <SectionLabel title="About" />
         <Card style={styles.listCard}>
+          <Row icon="sparkles-outline" label="What’s new in PuckIQ 3.0" detail="See your new coach and early-user benefits." onPress={() => setReleaseOpen(true)} testID="release-notes-link" />
           <Row
             icon="chatbubble-ellipses-outline"
             label="Send feedback"
@@ -350,6 +299,7 @@ export default function SettingsScreen() {
       </ScrollView>
 
       <LeagueSettingsSheet visible={!!editingTeam} team={editingTeam} onClose={() => setEditingTeamId(null)} />
+      {releaseOpen ? <ReleaseNotice hadSavedSetup replay onClose={() => setReleaseOpen(false)} /> : null}
       <FeedbackSheet visible={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
     </View>
   );
@@ -363,46 +313,6 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 16,
     paddingBottom: 120,
-  },
-  planCard: {
-    marginTop: 4,
-    backgroundColor: colors.ink,
-    borderRadius: 22,
-    padding: 18,
-  },
-  planCardPro: {},
-  planHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  planTitle: {
-    ...display(26),
-    color: colors.onInk,
-  },
-  planCopy: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.onInkSub,
-  },
-  freeLine: {
-    fontSize: 14,
-    lineHeight: 22,
-    color: colors.onInkSub,
-  },
-  planButton: {
-    marginTop: 14,
-  },
-  planLinks: {
-    flexDirection: 'row',
-    gap: 18,
-    marginTop: 14,
-  },
-  link: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: colors.onInk,
   },
   row: {
     flexDirection: 'row',

@@ -67,6 +67,7 @@ class AnalyticsService {
         const parsed = JSON.parse(savedConfig);
         this.config = { ...this.config, ...parsed };
       }
+      if (!this.config.enabled) this.eventQueue = [];
 
       // Anonymous install ID for remote analytics (never the account ID).
       let installId = await AsyncStorage.getItem(INSTALL_ID_KEY);
@@ -95,7 +96,7 @@ class AnalyticsService {
 
   // Session management
   private generateSessionId(): string {
-    return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return newInstallId();
   }
 
   private updateActivity(): void {
@@ -275,7 +276,7 @@ class AnalyticsService {
   }
 
   async flush(): Promise<void> {
-    if (!this.initialized || this.eventQueue.length === 0) return;
+    if (!this.initialized || !this.config.enabled || this.eventQueue.length === 0) return;
 
     const eventsToFlush = [...this.eventQueue];
     this.eventQueue = [];

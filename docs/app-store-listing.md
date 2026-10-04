@@ -1,5 +1,8 @@
 # PuckIQ 3.0 — App Store Listing
 
+October 4 revision: description and What’s New below have been applied to the pending 3.0 listing following the user's upload/submission instruction. They require the replacement build before release.
+See `marketing/finished/app-store/coach-launch/listing-audit.md` for the audit and remaining submission checks.
+
 ## Metadata
 
 **Name:** PuckIQ: Fantasy Hockey Coach
@@ -26,16 +29,18 @@ New season, new PuckIQ: who plays, who to sit, and who to stream before lock —
 
 ## What's New (3.0)
 
-PuckIQ 3.0 is a brand-new app — rebuilt as a nightly coach for your fantasy hockey team.
+PuckIQ 3.0 is a brand-new app — rebuilt as a nightly coach for your fantasy hockey team. Fantasy coaching replaces the earlier game-prediction and pick-tracking screens.
 
 • Tonight: who plays, a countdown to lock, NHL scratch checks, and exactly who to sit
 • Best lineup: the lineup your league's slots allow, filled slot by slot
 • Week planner: games that actually count once your slots fill up — this week and next
 • Pickups: streamers ranked by the empty nights they fill for YOUR team
 • Player pages with game logs and NHL Edge speed and shot stats
-• Share cards for the league chat, lineup reminders, and a whole new look
+• Share cards for the league chat, lineup reminders, a new look, and a welcome-back tour
 
 PuckIQ is now free to download, with PuckIQ Pro for the full coaching tools. Bought PuckIQ before? Pro is included — if it doesn't show, tap Restore Purchases in Settings.
+
+Existing free users who downloaded before October 4, 2026 receive a 30-day Pro thank-you gift, with no automatic charge. Earlier paid customers keep Pro with no end date.
 
 ## Description
 
@@ -43,7 +48,7 @@ PuckIQ is the coach for your fantasy hockey team — in the Yahoo, ESPN, or Fant
 
 TONIGHT
 • How many of your players play tonight, with a countdown to your first lock
-• Coach moves before lock: who to sit when your slots are full, and which slots sit empty
+• One free coach move every day; Pro unlocks every recommendation before lock, including overflow sits and empty slots
 • Scratches straight from the NHL game report — marked Confirmed only when the NHL posts them
 • Injury news filtered to your players only
 • Live stat lines while your games are on
@@ -55,7 +60,7 @@ YOUR WEEK
 
 PICKUPS
 • Your top streamer, ranked by the value he adds to YOUR lineup — only nights he'd actually start for you
-• PRO: the full ranked list, filtered by position and night, hiding players your league already rosters
+• PRO: the full ranked list, filtered by position and night, with an estimate of likely-rostered players based on league size; hide unavailable players manually
 
 SHARE
 • Turn tonight's lineup or your week into a card for the league group chat

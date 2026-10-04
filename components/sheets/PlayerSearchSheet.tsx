@@ -23,6 +23,7 @@ import { positionLabel } from '../../services/fantasy/positions';
 import { useTeams } from '../TeamsProvider';
 import { PlayerAvatar, PlayerName } from '../coach/PlayerAvatar';
 import { colors } from '../coach/ui';
+import { track } from '../../services/analytics/track';
 
 export type SearchMode =
   | { kind: 'add'; list: 'players' | 'opponent' }
@@ -55,9 +56,11 @@ export default function PlayerSearchSheet({ visible, mode, onClose }: PlayerSear
   // backup, and doing that per keystroke drops letters.
   const [opponentName, setOpponentName] = useState(team?.opponentName ?? '');
   const requestId = useRef(0);
+  const list = mode.kind === 'add' ? mode.list : 'players';
 
   useEffect(() => {
     if (visible) {
+      track('player_search_open', { mode: mode.kind, list });
       setQuery(initialQuery);
       setResults([]);
       setError(null);
@@ -73,6 +76,7 @@ export default function PlayerSearchSheet({ visible, mode, onClose }: PlayerSear
   };
 
   const close = () => {
+    track('player_search_close', { mode: mode.kind, list });
     if (mode.kind === 'add' && mode.list === 'opponent') saveOpponentName();
     onClose();
   };
@@ -87,22 +91,24 @@ export default function PlayerSearchSheet({ visible, mode, onClose }: PlayerSear
     const id = ++requestId.current;
     setSearching(true);
     const timer = setTimeout(async () => {
+      const startedAt = Date.now();
       try {
         const found = await searchNhlPlayers(trimmed, 25);
         if (id !== requestId.current) return;
         setResults(found);
+        track('player_search', { query_length: trimmed.length, results: found.length, duration_ms: Date.now() - startedAt, result: 'success', list });
         setError(null);
       } catch {
         if (id !== requestId.current) return;
         setError('NHL search is unavailable. Check your connection.');
+        track('player_search', { query_length: trimmed.length, duration_ms: Date.now() - startedAt, result: 'error', list });
       } finally {
         if (id === requestId.current) setSearching(false);
       }
     }, 250);
     return () => clearTimeout(timer);
-  }, [query, visible]);
+  }, [query, visible, list]);
 
-  const list = mode.kind === 'add' ? mode.list : 'players';
   const onList = useMemo(() => new Set((team?.[list] ?? []).map((player) => player.playerId)), [team, list]);
   const count = team?.[list].length ?? 0;
   const full = count >= MAX_ROSTER_PLAYERS;
@@ -110,6 +116,7 @@ export default function PlayerSearchSheet({ visible, mode, onClose }: PlayerSear
   const handlePick = (result: NhlSearchPlayer) => {
     if (!team) return;
     if (mode.kind === 'link') {
+      track('player_link', { source: 'legacy_roster' });
       updateTeam((current) => replacePlayer(current, mode.player.playerId, toFantasyPlayer(result)));
       onClose();
       return;
