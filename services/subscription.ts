@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import Purchases, { PurchasesPackage, CustomerInfo, PurchasesOfferings } from 'react-native-purchases';
 import { loyaltyExpiration } from './loyaltyAccess';
+import { appDownloadTimestamp } from './appDownloadDate';
 
 const LOG_PREFIX = '[SUBSCRIPTION]';
 export const PRO_ENTITLEMENT = 'pro';
@@ -83,8 +84,8 @@ export function isLegacyPurchaser(
 ): boolean {
   if (!cutoverIso || !info.originalPurchaseDate) return false;
   const cutover = Date.parse(cutoverIso);
-  const purchased = Date.parse(info.originalPurchaseDate);
-  if (!Number.isFinite(cutover) || !Number.isFinite(purchased)) return false;
+  const purchased = appDownloadTimestamp(info.originalPurchaseDate);
+  if (!Number.isFinite(cutover) || purchased === null) return false;
   // Optional end date (e.g. "free Pro through the 2026-27 season"). Unset = no end.
   if (untilIso) {
     const until = Date.parse(untilIso);

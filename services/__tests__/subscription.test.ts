@@ -98,6 +98,14 @@ describe('subscription service', () => {
     expect(sub.statusFromCustomerInfo({ ...freeInfo, originalPurchaseDate: '2025-12-01T00:00:00Z' } as never, '2026-10-01').source).toBe('legacy');
   });
 
+  it('keeps sandbox reviewers free until they purchase a subscription', () => {
+    const sub = freshModule();
+    const sandboxInfo = { ...freeInfo, originalPurchaseDate: '2013-08-01T07:00:00Z', firstSeen: '2026-10-04T00:00:00Z' };
+    expect(sub.isLegacyPurchaser(sandboxInfo, '2026-09-27T01:00:00Z')).toBe(false);
+    expect(sub.statusFromCustomerInfo(sandboxInfo as never, '2026-09-27T01:00:00Z', new Date('2026-10-05'))).toEqual(sub.FREE_STATUS);
+    expect(sub.statusFromCustomerInfo({ ...sandboxInfo, entitlements: proInfo.entitlements } as never, '2026-09-27T01:00:00Z').source).toBe('subscription');
+  });
+
   it('syncs a missing app receipt before deciding whether an old paid buyer has Pro', async () => {
     process.env.EXPO_PUBLIC_FREEMIUM_CUTOVER = '2026-09-27T01:00:00Z';
     const sub = freshModule();

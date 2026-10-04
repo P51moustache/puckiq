@@ -1,4 +1,5 @@
 import { LOYALTY_CAMPAIGN } from '../constants/release';
+import { appDownloadTimestamp } from './appDownloadDate';
 
 export interface LoyaltyReceipt {
   originalPurchaseDate?: string | null;
@@ -15,9 +16,9 @@ export interface LoyaltyCampaign {
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export function isReturningDownload(date: string | null | undefined, cutoff: string = LOYALTY_CAMPAIGN.downloadedBefore): boolean {
-  const downloaded = Date.parse(date ?? '');
+  const downloaded = appDownloadTimestamp(date);
   const before = Date.parse(cutoff);
-  return Number.isFinite(downloaded) && Number.isFinite(before) && downloaded < before;
+  return downloaded !== null && Number.isFinite(before) && downloaded < before;
 }
 
 /**
