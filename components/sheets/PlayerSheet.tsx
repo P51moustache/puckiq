@@ -16,6 +16,7 @@ import { addPlayers, hidePickup, removePlayer, updatePlayer } from '../../servic
 import { mondayOf, seasonIdFor, seasonLabel, shortDate } from '../../services/nhl/dates';
 import { fetchPlayerEdge } from '../../services/nhl/edge';
 import { useResource } from '../../hooks/useResource';
+import { useHideAllowance } from '../../hooks/useHideAllowance';
 import { EdgePanel } from '../coach/EdgePanel';
 import { fantasyGamesOn, gameForTeam, isOffNight, opponentOf } from '../../services/nhl/schedule';
 import type { GameLogRow } from '../../services/nhl/player';
@@ -173,6 +174,7 @@ function PlayerSheetBody({ playerId, context, onClose, onUpsell }: OpenArgs & { 
   const wide = useWide();
   const { team, updateTeam } = useTeams();
   const { isPremium } = useSubscription();
+  const hides = useHideAllowance(isPremium);
   const scoring = team?.scoring ?? DEFAULT_SCORING;
   const detail = usePlayerDetail(playerId, scoring);
   const today = useNhlToday();
@@ -338,6 +340,11 @@ function PlayerSheetBody({ playerId, context, onClose, onUpsell }: OpenArgs & { 
                     icon="eye-off-outline"
                     tone="ink"
                     onPress={() => {
+                      if (!hides.allowed) {
+                        onUpsell('pickups_hide');
+                        return;
+                      }
+                      hides.record();
                       updateTeam((current) => hidePickup(current, playerId));
                       onClose();
                     }}
