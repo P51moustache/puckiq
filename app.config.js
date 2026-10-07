@@ -2,7 +2,7 @@ export default {
   expo: {
     name: "PuckIQ",
     slug: "learning-project",
-    version: "3.0.0",
+    version: "3.1.0",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     // `puckiq://` for links (puckiq://join/ABC234); `learningproject` stays for the Google
