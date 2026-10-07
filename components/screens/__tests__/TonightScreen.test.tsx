@@ -12,6 +12,8 @@ jest.mock('react-native', () => {
     View: passthrough('View'),
     Text: passthrough('Text'),
     ScrollView: passthrough('ScrollView'),
+    Modal: passthrough('Modal'),
+    AppState: { currentState: 'active', addEventListener: () => ({ remove: jest.fn() }) },
     RefreshControl: (props: any) => React.createElement('RefreshControl', props),
     Pressable: ({ children, style, ...props }: any) =>
       React.createElement('Pressable', props, typeof children === 'function' ? children({ pressed: false }) : children),
@@ -58,9 +60,16 @@ let mockTeam: any = null;
 jest.mock('../../TeamsProvider', () => ({ useTeams: () => ({ team: mockTeam, ready: true }) }));
 
 let mockView: any = null;
+let mockRecapView: any = null;
 jest.mock('../../../hooks/useCoach', () => ({
-  useNight: () => mockView,
+  useNight: (_team: unknown, offset = 0) => (offset === -1 ? mockRecapView ?? mockView : mockView),
   useNhlToday: () => '2026-10-13',
+}));
+const mockSetFollowing = jest.fn();
+let mockFollowSupported = false;
+jest.mock('../../../hooks/useNightLive', () => ({
+  useNightPublisher: () => ({ supported: mockFollowSupported, following: false, setFollowing: mockSetFollowing }),
+  useGoalHaptics: () => undefined,
 }));
 
 // @ts-expect-error no types for react-test-renderer
@@ -69,6 +78,8 @@ import React from 'react';
 import TonightScreen from '../TonightScreen';
 import { buildSkaterForm } from '../../../services/fantasy/form';
 import { createTeam } from '../../../services/teams';
+import { buildNightScore } from '../../../services/fantasy/nightScore';
+import { DEFAULT_SCORING } from '../../../services/fantasy/scoring';
 
 const players = [
   { playerId: 8478402, playerName: 'Connor McDavid', teamAbbrev: 'EDM', position: 'C', rosterPosition: 'BN' },
@@ -141,6 +152,12 @@ describe('TonightScreen', () => {
     mockIsPremium = false;
     mockTeam = { ...createTeam({ name: 'Beauties', players: players as any }) };
     mockView = view();
+    mockRecapView = null;
+    mockFollowSupported = false;
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it('asks for a roster when the team is empty', () => {
@@ -228,5 +245,77 @@ describe('TonightScreen', () => {
     const tree = render();
     act(() => { byTestId(tree, 'tonight-player-8478402')[0].props.onPress(); });
     expect(mockOpenPlayer).toHaveBeenCalledWith(8478402, 'roster');
+  });
+
+  /** A night with McDavid's game under way (or over) and a box-score line for him. */
+  function nightWith(state: 'LIVE' | 'OFF', mcdavid: Record<string, number>) {
+    const base = view();
+    const liveGame = {
+      id: 1, date: '2026-10-13', gameType: 2, startTimeUTC: '2026-10-13T23:00:00Z', state, scheduleState: 'OK',
+      home: 'EDM', away: 'TOR', homeScore: 3, awayScore: 1, period: state === 'LIVE' ? 2 : 3, clock: state === 'LIVE' ? '10:15' : '00:00', inIntermission: false,
+    };
+    const line = {
+      playerId: 8478402, isGoalie: false, goals: 0, assists: 0, points: 0, shots: 0, hits: 0, blocks: 0, plusMinus: 0,
+      powerPlayGoals: 0, pim: 0, toi: '20:00', saves: 0, shotsAgainst: 0, goalsAgainst: 0, ...mcdavid,
+    };
+    const data = {
+      ...base.night.data,
+      games: [liveGame],
+      playerGames: { 8478402: { ...game(1, 'TOR', state), state } },
+      statuses: new Map(),
+      liveLines: new Map([[8478402, line]]),
+    };
+    const score = buildNightScore({
+      players: players as any, playerGames: data.playerGames, games: data.games as any, lines: data.liveLines as any,
+      scoring: DEFAULT_SCORING, slots: mockTeam.slots, day: base.day as any,
+    });
+    return view({ night: { data, loading: false, error: null }, score, moves: [] });
+  }
+
+  it('turns the hero into a live scoreboard once games start', () => {
+    mockIsPremium = true;
+    mockFollowSupported = true;
+    mockView = nightWith('LIVE', { goals: 2, assists: 1, shots: 4 }); // 6 + 2 + 2 = 10
+    const tree = render();
+    const text = allText(tree);
+    expect(byTestId(tree, 'tonight-points')[0].props.children).toBe('10.0');
+    expect(text).toContain('from your lineup');
+    expect(text).toContain('LIVE · TUE OCT 13');
+    expect(text).toContain('P2 10:15');
+    expect(text).toContain('3-POINT NIGHT');
+    expect(byTestId(tree, 'big-night-8478402')).toHaveLength(1);
+    act(() => { byTestId(tree, 'tonight-follow')[0].props.onPress(); });
+    expect(mockSetFollowing).toHaveBeenCalledWith(true);
+  });
+
+  it('leads the morning with last night’s recap and grades the lineup for Pro', () => {
+    jest.useFakeTimers({ now: new Date('2026-10-14T13:00:00Z') }); // 9 AM ET
+    mockIsPremium = true;
+    mockRecapView = { ...nightWith('OFF', { goals: 1, shots: 2 }), date: '2026-10-13' };
+    const tree = render();
+    expect(byTestId(tree, 'tonight-recap')).toHaveLength(1);
+    expect(byTestId(tree, 'recap-points')[0].props.children).toBe('4.0');
+    expect(byTestId(tree, 'recap-hindsight')).toHaveLength(1);
+    expect(allText(tree)).toContain('LAST NIGHT · TUE OCT 13');
+    act(() => { byTestId(tree, 'recap-share')[0].props.onPress(); });
+    const sheets = tree.root.findAll((n: any) => n.type === 'ShareCardSheet');
+    const recapSheet = sheets.find((n: any) => n.props.visible);
+    expect(recapSheet.props.content).toMatchObject({ kind: 'recap', count: '4.0', countSuffix: 'PTS' });
+  });
+
+  it('shows free users the recap points with a Pro grade link, not the grade', () => {
+    jest.useFakeTimers({ now: new Date('2026-10-14T13:00:00Z') });
+    mockRecapView = { ...nightWith('OFF', { goals: 1, shots: 2 }), date: '2026-10-13' };
+    const tree = render();
+    expect(byTestId(tree, 'recap-hindsight')).toHaveLength(0);
+    expect(allText(tree)).toContain('from your players');
+    act(() => { byTestId(tree, 'recap-unlock')[0].props.onPress(); });
+    expect(mockOpenPaywall).toHaveBeenCalledWith('recap');
+  });
+
+  it('hides the recap after noon Eastern', () => {
+    jest.useFakeTimers({ now: new Date('2026-10-14T17:00:00Z') }); // 1 PM ET
+    mockRecapView = { ...nightWith('OFF', { goals: 1 }), date: '2026-10-13' };
+    expect(byTestId(render(), 'tonight-recap')).toHaveLength(0);
   });
 });

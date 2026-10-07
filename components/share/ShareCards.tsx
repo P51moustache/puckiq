@@ -26,10 +26,11 @@ export interface ShareCardPlayer {
 
 export interface ShareCardContent {
   /** Which card, for analytics. */
-  kind: 'tonight' | 'week';
+  kind: 'tonight' | 'week' | 'recap' | 'room';
   kicker: string;
   teamName: string;
-  count: number;
+  /** The big numeral: a count ("16") or points ("31.5"). */
+  count: number | string;
   countSuffix?: string;
   caption: string;
   players: ShareCardPlayer[];

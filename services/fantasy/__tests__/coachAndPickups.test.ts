@@ -62,6 +62,38 @@ describe('buildCoachMoves', () => {
     expect(moves[0]).toMatchObject({ kind: 'scratch', title: 'Bench Scratch Dman' });
   });
 
+  it('groups two or more open positions into one empty-slot move with a link per slot', () => {
+    const lonely = [player(8470201, 'Only Center', 'EDM', 'C')];
+    const lonelyValues = new Map([[8470201, 3]]);
+    const lonelyForms = new Map([[8470201, formWithValue(8470201, 3)]]);
+    const lonelyPlan = buildWeekPlan({ schedule, players: lonely, slots, values: lonelyValues, today: TODAY });
+    const lonelyGames = Object.fromEntries(lonely.map((p) => [p.playerId, lonelyPlan.players[p.playerId]?.byDate[TODAY]]));
+    const empties = buildCoachMoves({ day: lonelyPlan.days[0], players: lonely, games: lonelyGames, statuses: new Map(), forms: lonelyForms })
+      .filter((move) => move.kind === 'empty');
+    expect(empties).toHaveLength(1);
+    expect(empties[0].title).toBe('2 empty slots tonight: D · G');
+    expect(empties[0].slots).toEqual(['D', 'G']);
+  });
+
+  it('groups several overflow sits into one move with every benched player', () => {
+    const crowded = [
+      player(8470101, 'Top Center', 'EDM', 'C'),
+      player(8470102, 'Second Center', 'TOR', 'C'),
+      player(8470103, 'Third Center', 'BOS', 'C'),
+    ];
+    const crowdedValues = new Map([[8470101, 5], [8470102, 2], [8470103, 1]]);
+    const crowdedForms = new Map(crowded.map((p) => [p.playerId, formWithValue(p.playerId, crowdedValues.get(p.playerId)!)]));
+    const crowdedPlan = buildWeekPlan({ schedule, players: crowded, slots, values: crowdedValues, today: TODAY });
+    const crowdedDay = crowdedPlan.days[0];
+    const crowdedGames = Object.fromEntries(crowded.map((p) => [p.playerId, crowdedPlan.players[p.playerId]?.byDate[TODAY]]));
+    const grouped = buildCoachMoves({ day: crowdedDay, players: crowded, games: crowdedGames, statuses: new Map(), forms: crowdedForms })
+      .filter((move) => move.kind === 'overflow');
+    expect(grouped).toHaveLength(1);
+    expect(grouped[0].title).toBe('Sit 2: S. Center, T. Center');
+    expect(grouped[0].playerIds.sort()).toEqual([8470102, 8470103]);
+    expect(grouped[0].detail).toContain('slots at their positions are full');
+  });
+
   it('sits the lower-value centre on overflow and names who blocks him', () => {
     const overflow = moves.find((move) => move.kind === 'overflow');
     expect(overflow?.title).toBe('Sit Depth Center');

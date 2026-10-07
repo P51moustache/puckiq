@@ -21,6 +21,8 @@ export interface CoachMove {
   playerIds: number[];
   /** Empty-slot moves point at Pickups for this position. */
   slot?: SlotKey;
+  /** A grouped empty-slot move lists every open position. */
+  slots?: SlotKey[];
 }
 
 export interface PlayerStatus {
@@ -49,9 +51,84 @@ function lastName(name: string): string {
   return parts[parts.length - 1] ?? name;
 }
 
+/** Last names, with a first initial where two share one ("J. Hughes, Q. Hughes"). */
+function shortNames(fullNames: string[]): string[] {
+  const lasts = fullNames.map(lastName);
+  return fullNames.map((full, index) => {
+    const clash = lasts.some((other, j) => j !== index && other === lasts[index]);
+    const first = full.trim().split(/\s+/)[0] ?? '';
+    return clash && first && first !== lasts[index] ? `${first[0]}. ${lasts[index]}` : lasts[index];
+  });
+}
+
 function joinNames(names: string[], max = 3): string {
   if (names.length <= max) return names.join(', ');
   return `${names.slice(0, max).join(', ')} +${names.length - max}`;
+}
+
+/**
+ * Everyone who plays but has no slot, as ONE move: "Sit 3: Scheifele, Larkin, Hughes" reads in
+ * a glance, where three near-identical cards read like a wall. One player keeps the named form
+ * with the starters who outrank him.
+ */
+function overflowMove(
+  day: DayPlan,
+  byId: Map<number, FantasyPlayer>,
+  forms: Map<number, PlayerForm>,
+  when: string,
+): CoachMove | null {
+  const benched = day.bench.filter((id) => byId.has(id));
+  if (benched.length === 0) return null;
+  if (benched.length > 1) {
+    const names = shortNames(benched.map((id) => nameOf(byId, id)));
+    return {
+      id: `overflow-${benched.join('-')}`,
+      kind: 'overflow',
+      severity: 2,
+      title: `Sit ${benched.length}: ${joinNames(names)}`,
+      detail: `They play ${when}, but your slots at their positions are full with higher-value players.`,
+      playerIds: benched,
+    };
+  }
+  const id = benched[0];
+  const player = byId.get(id)!;
+  const mine = forms.get(id)?.value ?? 0;
+  const names = day.starters
+    .filter((seat) => (forms.get(seat.playerId)?.value ?? 0) >= mine && seat.playerId !== id)
+    .map((seat) => seat.playerId)
+    .filter((starterId) => byId.get(starterId)?.position === player.position)
+    .map((starterId) => lastName(nameOf(byId, starterId)));
+  return {
+    id: `overflow-${id}`,
+    kind: 'overflow',
+    severity: 2,
+    title: `Sit ${player.playerName}`,
+    detail: names.length > 0
+      ? `No slot left. ${joinNames(names)} ${names.length === 1 ? 'has' : 'have'} more value ${when}.`
+      : `Your eligible slots are full with higher-value players ${when}.`,
+    playerIds: [id],
+  };
+}
+
+/**
+ * Two or more open positions read as one move ("3 empty slots tonight: RW · D · G") with a
+ * pickup link per position, instead of a stack of identical cards. One position keeps its own card.
+ */
+function emptySlotsMove(counts: Map<SlotKey, number>, when: string): CoachMove | null {
+  if (counts.size < 2) return null;
+  const entries = [...counts];
+  const total = entries.reduce((sum, [, count]) => sum + count, 0);
+  const label = entries.map(([slot, count]) => (count > 1 ? `${count} ${slot}` : slot)).join(' · ');
+  return {
+    id: `empty-${entries.map(([slot]) => slot).join('-')}`,
+    kind: 'empty',
+    severity: 2,
+    title: `${total} empty slots ${when}: ${label}`,
+    detail: `Nobody eligible of yours is left to play at these spots ${when}. Each streamer adds a game you’d otherwise lose.`,
+    playerIds: [],
+    slot: entries[0][0],
+    slots: entries.map(([slot]) => slot),
+  };
 }
 
 export function buildCoachMoves({ day, players, games, statuses, forms, when = 'tonight' }: CoachInput): CoachMove[] {
@@ -86,33 +163,14 @@ export function buildCoachMoves({ day, players, games, statuses, forms, when = '
     }
   }
 
-  for (const id of day.bench) {
-    const player = byId.get(id);
-    if (!player) continue;
-    const mine = forms.get(id)?.value ?? 0;
-    const blockers = day.starters
-      .filter((seat) => (forms.get(seat.playerId)?.value ?? 0) >= mine && seat.playerId !== id)
-      .map((seat) => seat.playerId)
-      .filter((starterId) => {
-        const starter = byId.get(starterId);
-        return !!starter && starter.position === player.position;
-      });
-    const names = blockers.map((starterId) => lastName(nameOf(byId, starterId)));
-    moves.push({
-      id: `overflow-${id}`,
-      kind: 'overflow',
-      severity: 2,
-      title: `Sit ${player.playerName}`,
-      detail: names.length > 0
-        ? `No slot left. ${joinNames(names)} ${names.length === 1 ? 'has' : 'have'} more value ${when}.`
-        : `Your eligible slots are full with higher-value players ${when}.`,
-      playerIds: [id],
-    });
-  }
+  const overflow = overflowMove(day, byId, forms, when);
+  if (overflow) moves.push(overflow);
 
   const emptyCounts = new Map<SlotKey, number>();
   for (const slot of day.empty) emptyCounts.set(slot, (emptyCounts.get(slot) ?? 0) + 1);
-  for (const [slot, count] of emptyCounts) {
+  const grouped = emptySlotsMove(emptyCounts, when);
+  if (grouped) moves.push(grouped);
+  for (const [slot, count] of grouped ? [] : emptyCounts) {
     moves.push({
       id: `empty-${slot}`,
       kind: 'empty',

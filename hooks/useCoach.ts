@@ -18,6 +18,7 @@ import {
   type NightData,
 } from '../services/fantasy/loaders';
 import { compareWeeks, type MatchupSummary } from '../services/fantasy/matchup';
+import { buildNightScore, type NightScore } from '../services/fantasy/nightScore';
 import { likelyRosteredIds, rankPickups, type PickupRow } from '../services/fantasy/pickups';
 import { buildWeekPlan, type DayPlan, type WeekPlan } from '../services/fantasy/weekPlan';
 import { addDays, mondayOf, todayNhl, appNow } from '../services/nhl/dates';
@@ -135,22 +136,28 @@ export interface NightView {
   day: DayPlan | null;
   moves: CoachMove[];
   liveGames: boolean;
+  /** Box-score points for the night (null until the night and lineup inputs load). */
+  score: NightScore | null;
   loading: boolean;
   refreshing: boolean;
   error: string | null;
   refresh: () => Promise<void>;
 }
 
-/** Tonight (dayOffset 0) or tomorrow (1): games, statuses, the lineup, coach moves. */
-export function useNight(team: FantasyTeam | null, dayOffset = 0): NightView {
+/**
+ * Tonight (dayOffset 0), tomorrow (1), or last night (-1, the morning recap): games, statuses,
+ * the lineup, coach moves (tonight and tomorrow only) and the night's score.
+ */
+export function useNight(team: FantasyTeam | null, dayOffset = 0, enabled = true): NightView {
   const today = useNhlToday();
   const date = addDays(today, dayOffset);
   const monday = mondayOf(date);
   // Same key as the Week tab, so both tabs share one forms load.
   const forms = useTeamForms(team, today, true);
   const schedule = useWeekSchedule(monday);
-  const key = team ? `night|${date}|${rosterKey(team, false)}` : null;
-  const night = useResource(key, (force) => loadNight(team!.players, date, { force, live: dayOffset === 0 }));
+  const key = team && enabled ? `night|${date}|${rosterKey(team, false)}` : null;
+  // Box scores load for tonight (live) and last night (the recap); tomorrow has none yet.
+  const night = useResource(key, (force) => loadNight(team!.players, date, { force, live: dayOffset <= 0, news: dayOffset >= 0 }));
 
   const liveGames = useMemo(
     () => !!night.data && Object.values(night.data.playerGames).some((game) => game && isGameStarted(game) && !isGameFinal(game)),
@@ -186,7 +193,7 @@ export function useNight(team: FantasyTeam | null, dayOffset = 0): NightView {
   }, [team, schedule.data, forms.data, night.data, date]);
 
   const moves = useMemo(() => {
-    if (!team || !day || !night.data || !forms.data) return [];
+    if (dayOffset < 0 || !team || !day || !night.data || !forms.data) return [];
     return buildCoachMoves({
       day,
       players: team.players.filter((player) => !player.injuredReserve),
@@ -197,6 +204,25 @@ export function useNight(team: FantasyTeam | null, dayOffset = 0): NightView {
     });
   }, [team, day, night.data, forms.data, dayOffset]);
 
+  const score = useMemo(() => {
+    if (!team || !night.data) return null;
+    const scratched = new Set(
+      [...night.data.statuses.values()]
+        .filter((status) => status.signal === 'scratch' && status.confidence === 'confirmed')
+        .map((status) => status.playerId),
+    );
+    return buildNightScore({
+      players: team.players,
+      playerGames: night.data.playerGames,
+      games: night.data.games,
+      lines: night.data.liveLines,
+      scoring: team.scoring,
+      slots: team.slots,
+      day,
+      scratched,
+    });
+  }, [team, night.data, day]);
+
   return {
     date,
     night,
@@ -204,6 +230,7 @@ export function useNight(team: FantasyTeam | null, dayOffset = 0): NightView {
     day,
     moves,
     liveGames,
+    score,
     loading: night.loading || forms.loading || schedule.loading,
     refreshing: night.refreshing,
     error: night.error ?? forms.error ?? schedule.error,
@@ -212,6 +239,8 @@ export function useNight(team: FantasyTeam | null, dayOffset = 0): NightView {
     },
   };
 }
+
+const NO_IDS = new Set<number>();
 
 export interface PickupsView {
   rows: PickupRow[];
@@ -229,12 +258,14 @@ export function usePickups(
   onlyDate?: string,
   hideOwned = true,
   weekOffset = 0,
+  /** Players a League Room knows are rostered in this league — always hidden. */
+  roomTaken: Set<number> = NO_IDS,
 ): PickupsView {
   const today = useNhlToday();
   const week = useWeekData(team, weekOffset);
   const exclude = useMemo(
-    () => new Set([...(team?.players ?? []).map((p) => p.playerId), ...(team?.hiddenPickupIds ?? [])]),
-    [team],
+    () => new Set([...(team?.players ?? []).map((p) => p.playerId), ...(team?.hiddenPickupIds ?? []), ...roomTaken]),
+    [team, roomTaken],
   );
   const key = team && enabled ? `pool|${today}|${JSON.stringify(team.scoring)}` : null;
   const pool = useResource(key, (force) => loadPickupPool(today, team!.scoring, new Set<number>(), { force }));

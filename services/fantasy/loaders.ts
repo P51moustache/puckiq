@@ -149,12 +149,14 @@ export function statusFor(
 export async function loadNight(
   players: FantasyPlayer[],
   date: string,
-  options: { force?: boolean; live?: boolean } = {},
+  options: { force?: boolean; live?: boolean; news?: boolean } = {},
 ): Promise<NightData> {
   const linked = players.filter((player) => isNhlLinked(player) && player.teamAbbrev);
+  // Injury news only matters before a night is played; the recap of last night skips it.
+  const wantNews = options.news !== false && linked.length > 0;
   const [slate, news] = await Promise.all([
     fetchDaySlate(date, { force: options.force }),
-    linked.length > 0 ? fetchRosterNews(linked).catch(() => [] as RosterNewsItem[]) : Promise.resolve([] as RosterNewsItem[]),
+    wantNews ? fetchRosterNews(linked).catch(() => [] as RosterNewsItem[]) : Promise.resolve([] as RosterNewsItem[]),
   ]);
   const games = slate.filter(isFantasyGame);
 
