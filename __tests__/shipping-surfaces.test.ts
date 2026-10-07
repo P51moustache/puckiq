@@ -4,13 +4,14 @@ import path from 'path';
 const repoRoot = path.join(__dirname, '..');
 const tabsDir = path.join(repoRoot, 'app/(tabs)');
 
-const SHIPPED_TAB_FILES = ['_layout.tsx', 'hub.tsx', 'index.tsx', 'myteam.tsx', 'pickups.tsx', 'week.tsx'];
-const KILLED_ROUTES = ['news', 'league', 'players', 'stats', 'models', 'teams'];
+const SHIPPED_TAB_FILES = ['_layout.tsx', 'index.tsx', 'league.tsx', 'myteam.tsx', 'pickups.tsx', 'week.tsx'];
+// 'league' was the 2.x league-wide briefing; the name now belongs to the League Room tab.
+const KILLED_ROUTES = ['news', 'players', 'stats', 'models', 'teams', 'hub'];
 
 describe('PuckIQ 3 shipping surfaces', () => {
-  it('registers Tonight / Week / Pickups / Roster / Settings and nothing else', () => {
+  it('registers Tonight / Week / Pickups / League / Roster and nothing else', () => {
     const layout = fs.readFileSync(path.join(tabsDir, '_layout.tsx'), 'utf8');
-    for (const title of ['Tonight', 'Week', 'Pickups', 'Roster', 'Settings']) {
+    for (const title of ['Tonight', 'Week', 'Pickups', 'League', 'Roster']) {
       expect(layout).toMatch(new RegExp(`title: '${title}'`));
     }
     expect(layout).not.toMatch(/href:\s*null/);
@@ -22,6 +23,14 @@ describe('PuckIQ 3 shipping surfaces', () => {
   it('does not keep pick-edge route files that Expo Router can deep-link', () => {
     const files = fs.readdirSync(tabsDir).filter((name) => !name.startsWith('.') && name !== '__tests__');
     expect(files.sort()).toEqual([...SHIPPED_TAB_FILES].sort());
+  });
+
+  it('keeps Settings one tap away from every tab, as its own route', () => {
+    expect(fs.existsSync(path.join(repoRoot, 'app/settings.tsx'))).toBe(true);
+    const header = fs.readFileSync(path.join(repoRoot, 'components/PageHeader.tsx'), 'utf8');
+    expect(header).toMatch(/page-header-settings/);
+    const layout = fs.readFileSync(path.join(tabsDir, '_layout.tsx'), 'utf8');
+    expect(layout).toMatch(/SettingsLauncherProvider/);
   });
 
   it('opens on Tonight', () => {

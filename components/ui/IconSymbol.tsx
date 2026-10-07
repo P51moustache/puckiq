@@ -27,6 +27,7 @@ const MAPPING = {
   'calendar': 'calendar-month',
   'chart.line.uptrend.xyaxis': 'trending-up',
   'gearshape.fill': 'settings',
+  'trophy.fill': 'emoji-events',
 } as IconMapping;
 
 /**

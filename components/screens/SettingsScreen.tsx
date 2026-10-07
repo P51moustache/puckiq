@@ -26,6 +26,7 @@ import {
   Card,
   colors,
   Columns,
+  IconButton,
   contentFrame,
   GhostButton,
   ProBadge,
@@ -64,7 +65,7 @@ function Row({ icon, label, detail, onPress, right, testID }: {
   );
 }
 
-export default function SettingsScreen() {
+export default function SettingsScreen({ onBack }: { onBack?: () => void } = {}) {
   const wide = useWide();
   const { user, signInWithApple, appleSignInReady, signOut } = useAuthContext();
   const { isPremium } = useSubscription();
@@ -139,7 +140,10 @@ export default function SettingsScreen() {
 
   return (
     <View style={styles.container} testID="settings-screen">
-      <PageHeader title="Settings" />
+      <PageHeader
+        title="Settings"
+        accessory={onBack ? <IconButton icon="chevron-back" label="Back" onPress={onBack} testID="settings-back" /> : undefined}
+      />
       <ScrollView contentContainerStyle={[styles.content, contentFrame]} showsVerticalScrollIndicator={false}>
         <Columns
           left={(

@@ -12,6 +12,8 @@ import { filterPickups, type PickupFilter, type PickupRow } from '../../services
 import { formatValue } from '../../services/fantasy/scoring';
 import { positionLabel } from '../../services/fantasy/positions';
 import { addPlayers, unhideAllPickups } from '../../services/teams';
+import { HowItWorksButton } from '../sheets/HowItWorksSheet';
+import { useRoomTakenIds } from '../league/LeagueProvider';
 import { addDays, mondayOf, previousSeasonId, seasonIdFor, seasonLabel } from '../../services/nhl/dates';
 import PageHeader from '../PageHeader';
 import { useTeams } from '../TeamsProvider';
@@ -128,7 +130,8 @@ export default function PickupsScreen() {
   }, [gamesLeftThisWeek, when]);
 
   const onlyDate = when === 'today' ? today : when === 'tomorrow' ? tomorrow : undefined;
-  const view = usePickups(team, true, onlyDate, hideOwned, when === 'next' ? 1 : 0);
+  const roomTaken = useRoomTakenIds();
+  const view = usePickups(team, true, onlyDate, hideOwned, when === 'next' ? 1 : 0, roomTaken);
   const rows = useMemo(() => filterPickups(view.rows, filter).filter((row) => row.gain > 0 || row.usableGames > 0), [view.rows, filter]);
   const visible = isPremium ? rows : rows.slice(0, FREE_VISIBLE);
   const hiddenCount = team?.hiddenPickupIds.length ?? 0;
@@ -174,9 +177,23 @@ export default function PickupsScreen() {
         refreshControl={<RefreshControl refreshing={view.refreshing} onRefresh={view.refresh} tintColor={colors.accent} />}
         ListHeaderComponent={(
           <View>
-            <Text style={styles.lede}>
-              Ranked by what they add to YOUR lineup — only nights they’d actually start for you.
-            </Text>
+            <View style={styles.ledeRow}>
+              <Text style={styles.lede}>
+                Ranked by what they add to YOUR lineup — only nights they’d actually start for you.
+              </Text>
+              <HowItWorksButton
+                topic="pickups"
+                extra={hideOwned ? [`Hiding players a ${team.leagueSize}-team league almost always rosters.`] : []}
+              />
+            </View>
+            {roomTaken.size > 0 ? (
+              <View style={styles.roomNote} testID="pickups-room-taken">
+                <Ionicons name="trophy" size={13} color={colors.ink} />
+                <Text style={styles.roomNoteText}>
+                  League Room: hiding {roomTaken.size} players your league-mates roster
+                </Text>
+              </View>
+            ) : null}
             <SegmentedControl<When> value={when} onChange={trackedChoice<When>('pickups', 'period', setWhen)} options={whenOptions} testID="pickups-when" />
             {gamesLeftThisWeek === false ? (
               <Text style={styles.basis}>No NHL games left this week — ranking for next week.</Text>
@@ -206,11 +223,6 @@ export default function PickupsScreen() {
                 <Text style={styles.filterText}>{hideOwned ? 'Available' : 'Everyone'}</Text>
               </Pressable>
             </View>
-            {hideOwned ? (
-              <Text style={styles.ownedNote}>
-                Hiding players a {team.leagueSize}-team league almost always rosters. Change league size in League settings.
-              </Text>
-            ) : null}
             {!view.hasCurrentSeason && !view.loading ? (
               <Text style={styles.basis}>Using {basisLabel} numbers until this season has games.</Text>
             ) : null}
@@ -281,7 +293,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 130,
   },
+  roomNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: colors.raised,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    marginBottom: 10,
+  },
+  roomNoteText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.ink,
+  },
+  ledeRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
   lede: {
+    flex: 1,
     fontSize: 14,
     lineHeight: 20,
     color: colors.sub,
@@ -316,11 +350,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 5,
     paddingHorizontal: 12,
-  },
-  ownedNote: {
-    fontSize: 12,
-    color: colors.muted,
-    marginBottom: 10,
   },
   basis: {
     fontSize: 12,

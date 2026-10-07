@@ -4,7 +4,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { StyleSheet, View } from 'react-native';
+import { LogBox, StyleSheet, View } from 'react-native';
 import 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AnalyticsProvider } from '../components/analytics/AnalyticsProvider';
@@ -13,6 +13,7 @@ import { SubscriptionProvider } from '../components/SubscriptionProvider';
 import { TeamsProvider } from '../components/TeamsProvider';
 import { RemindersProvider } from '../components/RemindersProvider';
 import { AlertsProvider } from '../components/AlertsProvider';
+import { LeagueProvider } from '../components/league/LeagueProvider';
 import { PaywallProvider } from '../components/PaywallProvider';
 import { PlayerSheetProvider } from '../components/sheets/PlayerSheet';
 import CloudSync from '../components/CloudSync';
@@ -30,6 +31,11 @@ const NAV_THEME = {
   ...DefaultTheme,
   colors: { ...DefaultTheme.colors, background: colors.bg, card: colors.card, text: colors.text, primary: colors.accent },
 };
+
+// Two URL schemes on purpose: `puckiq://` (League Room invites) and `learningproject://` (older
+// links and the auth redirect). Expo Linking warns once per launch that it picked the first;
+// that's the intended choice, so keep the dev overlay quiet about it.
+LogBox.ignoreLogs(['Linking found multiple possible URI schemes']);
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -78,6 +84,8 @@ function AppContent() {
     <>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="settings" options={{ headerShown: false }} />
+        <Stack.Screen name="join/[code]" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="dark" />
@@ -118,18 +126,20 @@ export default function RootLayout() {
           <AnalyticsProvider config={analyticsConfig}>
             <TeamsProvider>
               <TeamActivity />
-              <RemindersProvider>
-                <AlertsProvider>
-                  <PaywallProvider>
-                    <PlayerSheetProvider>
-                      <ThemeProvider value={NAV_THEME}>
-                        <CloudSync />
-                        <AppContent />
-                      </ThemeProvider>
-                    </PlayerSheetProvider>
-                  </PaywallProvider>
-                </AlertsProvider>
-              </RemindersProvider>
+              <LeagueProvider>
+                <RemindersProvider>
+                  <AlertsProvider>
+                    <PaywallProvider>
+                      <PlayerSheetProvider>
+                        <ThemeProvider value={NAV_THEME}>
+                          <CloudSync />
+                          <AppContent />
+                        </ThemeProvider>
+                      </PlayerSheetProvider>
+                    </PaywallProvider>
+                  </AlertsProvider>
+                </RemindersProvider>
+              </LeagueProvider>
             </TeamsProvider>
           </AnalyticsProvider>
         </SubscriptionProvider>
