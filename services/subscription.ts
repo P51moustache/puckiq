@@ -1,10 +1,12 @@
 import { Platform } from 'react-native';
 import Purchases, { PurchasesPackage, CustomerInfo, PurchasesOfferings } from 'react-native-purchases';
+import { loyaltyExpiration } from './loyaltyAccess';
+import { appDownloadTimestamp } from './appDownloadDate';
 
 const LOG_PREFIX = '[SUBSCRIPTION]';
 export const PRO_ENTITLEMENT = 'pro';
 
-export type ProSource = 'subscription' | 'legacy' | 'developer' | null;
+export type ProSource = 'subscription' | 'legacy' | 'loyalty' | 'developer' | null;
 
 export interface ProStatus {
   isPro: boolean;
@@ -17,6 +19,26 @@ export interface ProStatus {
 export const FREE_STATUS: ProStatus = { isPro: false, source: null, expiresAt: null, willRenew: false };
 
 let configured = false;
+let receiptSync: Promise<CustomerInfo> | null = null;
+
+/** Paid-app migration: upload a missing receipt without an automatic Restore prompt. */
+async function customerInfo(): Promise<CustomerInfo> {
+  const info = await Purchases.getCustomerInfo();
+  if (Platform.OS !== 'ios' || info.originalPurchaseDate || info.entitlements?.active?.[PRO_ENTITLEMENT]) return info;
+  if (!receiptSync) {
+    receiptSync = Purchases.syncPurchasesForResult().then((result) => result.customerInfo).catch((error) => {
+      receiptSync = null;
+      console.warn(`${LOG_PREFIX} Receipt sync unavailable:`, error);
+      return info;
+    });
+  }
+  return receiptSync ?? info;
+}
+
+export async function getOriginalDownloadDate(): Promise<string | null> {
+  if (!configured || Platform.OS !== 'ios') return null;
+  try { return (await customerInfo()).originalPurchaseDate ?? null; } catch { return null; }
+}
 
 /**
  * Initialize RevenueCat with platform-specific API key.
@@ -62,8 +84,8 @@ export function isLegacyPurchaser(
 ): boolean {
   if (!cutoverIso || !info.originalPurchaseDate) return false;
   const cutover = Date.parse(cutoverIso);
-  const purchased = Date.parse(info.originalPurchaseDate);
-  if (!Number.isFinite(cutover) || !Number.isFinite(purchased)) return false;
+  const purchased = appDownloadTimestamp(info.originalPurchaseDate);
+  if (!Number.isFinite(cutover) || purchased === null) return false;
   // Optional end date (e.g. "free Pro through the 2026-27 season"). Unset = no end.
   if (untilIso) {
     const until = Date.parse(untilIso);
@@ -72,7 +94,7 @@ export function isLegacyPurchaser(
   return purchased < cutover;
 }
 
-export function statusFromCustomerInfo(info: CustomerInfo, cutoverIso?: string): ProStatus {
+export function statusFromCustomerInfo(info: CustomerInfo, cutoverIso?: string, now: Date = new Date()): ProStatus {
   const entitlement = info.entitlements?.active?.[PRO_ENTITLEMENT];
   if (entitlement) {
     return {
@@ -82,17 +104,18 @@ export function statusFromCustomerInfo(info: CustomerInfo, cutoverIso?: string):
       willRenew: entitlement.willRenew === true,
     };
   }
-  if (Platform.OS === 'ios' && isLegacyPurchaser(info, cutoverIso ?? process.env.EXPO_PUBLIC_FREEMIUM_CUTOVER)) {
+  if (Platform.OS === 'ios' && isLegacyPurchaser(info, cutoverIso ?? process.env.EXPO_PUBLIC_FREEMIUM_CUTOVER, now)) {
     return { isPro: true, source: 'legacy', expiresAt: null, willRenew: false };
   }
+  const giftEnd = Platform.OS === 'ios' ? loyaltyExpiration(info, now) : null;
+  if (giftEnd) return { isPro: true, source: 'loyalty', expiresAt: giftEnd, willRenew: false };
   return FREE_STATUS;
 }
 
 export async function getProStatus(): Promise<ProStatus> {
   if (!configured) return FREE_STATUS;
   try {
-    const customerInfo: CustomerInfo = await Purchases.getCustomerInfo();
-    return statusFromCustomerInfo(customerInfo);
+    return statusFromCustomerInfo(await customerInfo());
   } catch (error) {
     console.warn(`${LOG_PREFIX} Failed to check pro status:`, error);
     return FREE_STATUS;
@@ -135,6 +158,17 @@ export async function getOfferings(): Promise<PurchasesOfferings | null> {
     console.warn(`${LOG_PREFIX} Failed to fetch offerings:`, error);
     return null;
   }
+}
+
+const INTRO_OFFER_ELIGIBLE = 2; // RevenueCat INTRO_ELIGIBILITY_STATUS_ELIGIBLE.
+
+/** Only promise the App Store trial when this Apple ID is eligible for it. */
+export async function getTrialEligibility(productIds: string[]): Promise<Record<string, boolean>> {
+  if (!configured || !productIds.length) return {};
+  try {
+    const result = await Purchases.checkTrialOrIntroductoryPriceEligibility(productIds);
+    return Object.fromEntries(Object.entries(result).map(([id, value]) => [id, value.status === INTRO_OFFER_ELIGIBLE]));
+  } catch { return {}; }
 }
 
 export type PurchaseResult = 'purchased' | 'cancelled' | 'failed';

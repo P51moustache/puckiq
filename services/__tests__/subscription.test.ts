@@ -8,6 +8,8 @@ const mockGetCustomerInfo = jest.fn();
 const mockGetOfferings = jest.fn();
 const mockPurchasePackage = jest.fn();
 const mockRestorePurchases = jest.fn();
+const mockSyncPurchases = jest.fn();
+const mockTrialEligibility = jest.fn();
 
 jest.mock('react-native-purchases', () => ({
   __esModule: true,
@@ -17,6 +19,8 @@ jest.mock('react-native-purchases', () => ({
     getOfferings: mockGetOfferings,
     purchasePackage: mockPurchasePackage,
     restorePurchases: mockRestorePurchases,
+    syncPurchasesForResult: mockSyncPurchases,
+    checkTrialOrIntroductoryPriceEligibility: mockTrialEligibility,
     addCustomerInfoUpdateListener: jest.fn(),
     removeCustomerInfoUpdateListener: jest.fn(),
   },
@@ -46,6 +50,7 @@ describe('subscription service', () => {
     (Platform as { OS: string }).OS = 'ios';
     process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY = 'ios_key_123';
     delete process.env.EXPO_PUBLIC_FREEMIUM_CUTOVER;
+    mockSyncPurchases.mockResolvedValue({ customerInfo: freeInfo });
   });
 
   it('configures RevenueCat once with the platform key', async () => {
@@ -91,6 +96,43 @@ describe('subscription service', () => {
     expect(sub.isLegacyPurchaser({ originalPurchaseDate: '2026-10-05T00:00:00Z' }, '2026-10-01')).toBe(false);
     expect(sub.isLegacyPurchaser({ originalPurchaseDate: '2026-03-01T00:00:00Z' }, undefined)).toBe(false);
     expect(sub.statusFromCustomerInfo({ ...freeInfo, originalPurchaseDate: '2025-12-01T00:00:00Z' } as never, '2026-10-01').source).toBe('legacy');
+  });
+
+  it('keeps sandbox reviewers free until they purchase a subscription', () => {
+    const sub = freshModule();
+    const sandboxInfo = { ...freeInfo, originalPurchaseDate: '2013-08-01T07:00:00Z', firstSeen: '2026-10-04T00:00:00Z' };
+    expect(sub.isLegacyPurchaser(sandboxInfo, '2026-09-27T01:00:00Z')).toBe(false);
+    expect(sub.statusFromCustomerInfo(sandboxInfo as never, '2026-09-27T01:00:00Z', new Date('2026-10-05'))).toEqual(sub.FREE_STATUS);
+    expect(sub.statusFromCustomerInfo({ ...sandboxInfo, entitlements: proInfo.entitlements } as never, '2026-09-27T01:00:00Z').source).toBe('subscription');
+  });
+
+  it('syncs a missing app receipt before deciding whether an old paid buyer has Pro', async () => {
+    process.env.EXPO_PUBLIC_FREEMIUM_CUTOVER = '2026-09-27T01:00:00Z';
+    const sub = freshModule();
+    await sub.initializeSubscription();
+    mockGetCustomerInfo.mockResolvedValue(freeInfo);
+    mockSyncPurchases.mockResolvedValueOnce({ customerInfo: { ...freeInfo, originalPurchaseDate: '2025-12-01' } });
+    await expect(sub.getProStatus()).resolves.toMatchObject({ isPro: true, source: 'legacy' });
+    await sub.getProStatus();
+    expect(mockSyncPurchases).toHaveBeenCalledTimes(1);
+    expect(mockRestorePurchases).not.toHaveBeenCalled();
+  });
+
+  it('gives an existing free downloader a nonrenewing gift without purchasing anything', () => {
+    const sub = freshModule();
+    const info = { ...freeInfo, originalPurchaseDate: '2026-09-29', firstSeen: '2026-10-06T12:00:00Z' };
+    expect(sub.statusFromCustomerInfo(info as never, '2026-09-27', new Date('2026-10-06T12:00:00Z'))).toEqual({
+      isPro: true, source: 'loyalty', expiresAt: '2026-11-05T12:00:00.000Z', willRenew: false,
+    });
+    expect(sub.statusFromCustomerInfo(info as never, '2026-09-27', new Date('2026-11-05T12:00:00Z'))).toEqual(sub.FREE_STATUS);
+    expect(mockPurchasePackage).not.toHaveBeenCalled();
+  });
+
+  it('promises an introductory trial only to eligible customers', async () => {
+    const sub = freshModule();
+    await sub.initializeSubscription();
+    mockTrialEligibility.mockResolvedValueOnce({ annual: { status: 2 }, previous: { status: 1 }, unknown: { status: 0 } });
+    await expect(sub.getTrialEligibility(['annual', 'previous', 'unknown'])).resolves.toEqual({ annual: true, previous: false, unknown: false });
   });
 
   it('only grandfathers on iOS (the paid app was iOS-only)', () => {

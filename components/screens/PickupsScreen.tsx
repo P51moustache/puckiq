@@ -24,6 +24,7 @@ import { Card, ColdBadge, colors, contentFrame, display, EmptyState, ErrorState,
 import * as Haptics from 'expo-haptics';
 import { ART } from '../../constants/art';
 import { track } from '../../services/analytics/track';
+import { trackedChoice } from '../../services/analytics/selection';
 
 type When = 'week' | 'next' | 'today' | 'tomorrow';
 
@@ -176,7 +177,7 @@ export default function PickupsScreen() {
             <Text style={styles.lede}>
               Ranked by what they add to YOUR lineup — only nights they’d actually start for you.
             </Text>
-            <SegmentedControl<When> value={when} onChange={setWhen} options={whenOptions} testID="pickups-when" />
+            <SegmentedControl<When> value={when} onChange={trackedChoice<When>('pickups', 'period', setWhen)} options={whenOptions} testID="pickups-when" />
             {gamesLeftThisWeek === false ? (
               <Text style={styles.basis}>No NHL games left this week — ranking for next week.</Text>
             ) : null}
@@ -184,7 +185,7 @@ export default function PickupsScreen() {
               {FILTERS.map((option) => (
                 <Pressable
                   key={option.value}
-                  onPress={() => setFilter(option.value)}
+                  onPress={() => trackedChoice<PickupFilter>('pickups', 'position', setFilter)(option.value)}
                   style={[styles.filter, filter === option.value && styles.filterOn]}
                   accessibilityRole="button"
                   accessibilityState={{ selected: filter === option.value }}
@@ -194,7 +195,7 @@ export default function PickupsScreen() {
                 </Pressable>
               ))}
               <Pressable
-                onPress={() => setHideOwned((value) => !value)}
+                onPress={() => { track('pickup_ownership_filter', { hide_owned: !hideOwned }); setHideOwned(!hideOwned); }}
                 style={[styles.filter, styles.ownedToggle]}
                 accessibilityRole="switch"
                 accessibilityState={{ checked: hideOwned }}

@@ -4,10 +4,11 @@ const mockPurchase = jest.fn().mockResolvedValue('failed');
 const mockRestore = jest.fn().mockResolvedValue({ isPro: false, source: null, expiresAt: null, willRenew: false });
 const mockGetOfferings = jest.fn().mockResolvedValue({
   current: {
-    monthly: { identifier: 'monthly', product: { priceString: '$4.99', price: 4.99 } },
-    annual: { identifier: 'annual', product: { priceString: '$19.99', price: 19.99, introPrice: { price: 0, periodUnit: 'WEEK', periodNumberOfUnits: 1 } } },
+    monthly: { identifier: 'monthly', product: { identifier: 'monthly', priceString: '$4.99', price: 4.99 } },
+    annual: { identifier: 'annual', product: { identifier: 'annual', priceString: '$19.99', price: 19.99, introPrice: { price: 0, periodUnit: 'WEEK', periodNumberOfUnits: 1 } } },
   },
 });
+const mockTrialEligibility = jest.fn().mockResolvedValue({ annual: true, monthly: false });
 let mockStatus = { isPro: false, source: null as string | null, expiresAt: null, willRenew: false };
 
 jest.mock('../SubscriptionProvider', () => ({
@@ -18,6 +19,7 @@ jest.mock('../../services/subscription', () => ({
   purchasePackage: (...args: any[]) => mockPurchase(...args),
   restorePurchases: (...args: any[]) => mockRestore(...args),
   getOfferings: (...args: any[]) => mockGetOfferings(...args),
+  getTrialEligibility: (...args: any[]) => mockTrialEligibility(...args),
 }));
 
 jest.mock('react-native', () => {
@@ -153,6 +155,13 @@ describe('ProPaywall', () => {
     const tree = await render();
     expect(find(tree, 'pro-active')).toHaveLength(1);
     expect(find(tree, 'pro-subscribe')).toHaveLength(0);
-    expect(texts(tree)).toContain('included with your original purchase');
+    expect(texts(tree)).toContain('Included with your original PuckIQ purchase');
+  });
+
+  it('does not advertise a trial to an ineligible returning subscriber', async () => {
+    mockTrialEligibility.mockResolvedValueOnce({ annual: false, monthly: false });
+    const tree = await render();
+    expect(texts(tree)).not.toContain('7-day free trial');
+    expect(find(tree, 'pro-subscribe')).toHaveLength(1);
   });
 });

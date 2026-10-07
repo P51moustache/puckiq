@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { AppState } from 'react-native';
 import { useAuthContext } from './auth/AuthProvider';
 import {
   FREE_STATUS,
@@ -72,6 +73,22 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   const applyStatus = useCallback((next: ProStatus) => {
     setStatus(developerOverride() ?? next);
   }, []);
+
+  // Recheck on foreground and at gift expiry, including offline cached receipts.
+  useEffect(() => {
+    const listener = AppState.addEventListener('change', (next) => {
+      if (next === 'active') void checkProStatus();
+    });
+    return () => listener.remove();
+  }, [checkProStatus]);
+
+  useEffect(() => {
+    if (status.source !== 'loyalty' || !status.expiresAt) return;
+    // setTimeout cannot represent more than ~24.8 days; recheck daily instead.
+    const delay = Math.max(1000, Math.min(24 * 60 * 60 * 1000, Date.parse(status.expiresAt) - Date.now()));
+    const timer = setTimeout(() => { void checkProStatus(); }, delay);
+    return () => clearTimeout(timer);
+  }, [status, checkProStatus]);
 
   useEffect(() => {
     AnalyticsService.getInstance().register({ is_pro: status.isPro });

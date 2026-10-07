@@ -18,7 +18,12 @@ export interface PostHogConfig {
  * EXPO_PUBLIC_POSTHOG_DEV=1, so real usage data stays clean.
  */
 export function posthogConfig(
-  env: Record<string, string | undefined> = process.env,
+  // Expo only embeds public values referenced directly through process.env.
+  env: Record<string, string | undefined> = {
+    EXPO_PUBLIC_POSTHOG_KEY: process.env.EXPO_PUBLIC_POSTHOG_KEY,
+    EXPO_PUBLIC_POSTHOG_HOST: process.env.EXPO_PUBLIC_POSTHOG_HOST,
+    EXPO_PUBLIC_POSTHOG_DEV: process.env.EXPO_PUBLIC_POSTHOG_DEV,
+  },
   isDev: boolean = typeof __DEV__ !== 'undefined' && __DEV__,
 ): PostHogConfig | null {
   const apiKey = env.EXPO_PUBLIC_POSTHOG_KEY?.trim();
@@ -60,6 +65,7 @@ export function toPostHogEvent(event: AnalyticsEvent, distinctId: string, app: A
   const { properties: _nested, ...top } = rest as Record<string, unknown>;
   const base = {
     session_id: sessionId,
+    $session_id: sessionId,
     $app_version: app.appVersion,
     $os: app.os,
     $lib: 'puckiq',
@@ -109,5 +115,6 @@ export async function sendToPostHog(
 /** Random, app-generated install ID (not the IDFA/IDFV) — resets on reinstall. */
 export function newInstallId(random: () => number = Math.random): string {
   const hex = () => Math.floor(random() * 0x10000).toString(16).padStart(4, '0');
-  return `${hex()}${hex()}-${hex()}-4${hex().slice(1)}-${hex()}-${hex()}${hex()}${hex()}`;
+  const variant = () => ((Math.floor(random() * 0x10000) & 0x3fff) | 0x8000).toString(16);
+  return `${hex()}${hex()}-${hex()}-4${hex().slice(1)}-${variant()}-${hex()}${hex()}${hex()}`;
 }

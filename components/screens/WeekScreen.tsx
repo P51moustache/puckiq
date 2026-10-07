@@ -4,6 +4,7 @@
  */
 
 import React, { useMemo, useState } from 'react';
+import { trackedChoice } from '../../services/analytics/selection';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -128,7 +129,7 @@ export default function WeekScreen() {
         right={(
           <SegmentedControl<WeekChoice>
             value={choice}
-            onChange={onChoice}
+            onChange={trackedChoice('week', 'week', onChoice)}
             options={[{ value: 'this', label: 'This' }, { value: 'next', label: 'Next', locked: !isPremium && !emptyThisWeek }]}
             testID="week-toggle"
             style={{ width: 136 }}

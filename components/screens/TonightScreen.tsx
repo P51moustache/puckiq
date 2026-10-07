@@ -4,6 +4,7 @@
  */
 
 import React, { useMemo, useState } from 'react';
+import { trackedChoice } from '../../services/analytics/selection';
 import { Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -143,7 +144,7 @@ export default function TonightScreen() {
       right={team && team.players.length > 0 ? (
         <SegmentedControl<Night>
           value={night}
-          onChange={setNight}
+          onChange={trackedChoice<Night>('tonight', 'night', setNight)}
           options={[{ value: 'tonight', label: 'Today' }, { value: 'tomorrow', label: 'Next' }]}
           testID="night-toggle"
           style={styles.toggle}

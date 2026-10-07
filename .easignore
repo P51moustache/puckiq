@@ -1,0 +1,88 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.keystore
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# Playwright MCP debug artifacts
+.playwright-mcp/
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+app-example
+.env
+
+# Claude Code local files (personal preferences)
+CLAUDE.local.md
+
+# Test coverage
+coverage/
+*.lcov
+GoogleService-Info.plist
+
+# ML pipeline
+ml/.venv/
+ml/.env
+ml/.cache/
+ml/**/__pycache__/
+ml/**/*.pyc
+ml/baselines_results.json
+node_modules
+.claude/
+CLAUDE.md
+.cursor/
+
+# Source art from the image generator (exports live in assets/images/art)
+generations/
+
+
+# Marketing binaries (screenshots, videos) — regenerate, don't commit
+marketing/screenshots/
+marketing/videos/
+
+# Delivery media is not part of the application bundle.
+/marketing/
+
+# The cloud build uses working files; repository history adds several MB.
+/.git
+
+# .easignore must also exclude generated native dependencies and local builds.
+/ios/Pods/
+/ios/build/
+/ios/DerivedData/
+/ios/**/xcuserdata/
+/ios/.xcode.env.local
+/android/.gradle/
+/android/build/
+/android/app/build/
