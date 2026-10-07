@@ -3,9 +3,9 @@
  * on the date string itself so device timezone never shifts a game to the wrong day.
  */
 
-import { getNhlCalendarDate } from '../nhlDate';
+import { getEtHour, getNhlCalendarDate, getNhlGameDay } from '../nhlDate';
 
-export { getNhlCalendarDate };
+export { getEtHour, getNhlCalendarDate, getNhlGameDay };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEKDAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'] as const;
@@ -103,6 +103,7 @@ export function appNow(): Date {
   return new Date(Date.now() + DEV_CLOCK_OFFSET_MS);
 }
 
+/** The coach's "today": the NHL game day, which rolls over at 6 AM Eastern (see nhlDate.ts). */
 export function todayNhl(now: Date = new Date()): string {
-  return devDate() ?? getNhlCalendarDate(now);
+  return devDate() ?? getNhlGameDay(now);
 }
