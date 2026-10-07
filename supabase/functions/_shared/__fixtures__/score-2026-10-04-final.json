@@ -1,0 +1,575 @@
+{
+  "prevDate": "2026-10-03",
+  "currentDate": "2026-10-04",
+  "nextDate": "2026-10-05",
+  "games": [
+    {
+      "id": 2026020035,
+      "gameType": 2,
+      "gameDate": "2026-10-04",
+      "startTimeUTC": "2026-10-04T17:00:00Z",
+      "gameState": "OFF",
+      "gameScheduleState": "OK",
+      "awayTeam": {
+        "id": 52,
+        "abbrev": "WPG",
+        "score": 3
+      },
+      "homeTeam": {
+        "id": 17,
+        "abbrev": "DET",
+        "score": 2
+      },
+      "clock": {
+        "timeRemaining": "00:00",
+        "secondsRemaining": 0,
+        "running": false,
+        "inIntermission": false
+      },
+      "period": 3,
+      "periodDescriptor": {
+        "number": 3,
+        "periodType": "REG",
+        "maxRegulationPeriods": 3
+      },
+      "gameOutcome": {
+        "lastPeriodType": "REG"
+      },
+      "goals": [
+        {
+          "period": 1,
+          "periodDescriptor": {
+            "number": 1,
+            "periodType": "REG",
+            "maxRegulationPeriods": 3
+          },
+          "timeInPeriod": "13:04",
+          "playerId": 8482149,
+          "teamAbbrev": "WPG",
+          "awayScore": 1,
+          "homeScore": 0,
+          "goalsToDate": 1
+        },
+        {
+          "period": 1,
+          "periodDescriptor": {
+            "number": 1,
+            "periodType": "REG",
+            "maxRegulationPeriods": 3
+          },
+          "timeInPeriod": "14:36",
+          "playerId": 8478398,
+          "teamAbbrev": "WPG",
+          "awayScore": 2,
+          "homeScore": 0,
+          "goalsToDate": 2
+        },
+        {
+          "period": 2,
+          "periodDescriptor": {
+            "number": 2,
+            "periodType": "REG",
+            "maxRegulationPeriods": 3
+          },
+          "timeInPeriod": "05:41",
+          "playerId": 8478398,
+          "teamAbbrev": "WPG",
+          "awayScore": 3,
+          "homeScore": 0,
+          "goalsToDate": 3
+        },
+        {
+          "period": 2,
+          "periodDescriptor": {
+            "number": 2,
+            "periodType": "REG",
+            "maxRegulationPeriods": 3
+          },
+          "timeInPeriod": "16:52",
+          "playerId": 8478042,
+          "teamAbbrev": "DET",
+          "awayScore": 3,
+          "homeScore": 1,
+          "goalsToDate": 1
+        },
+        {
+          "period": 3,
+          "periodDescriptor": {
+            "number": 3,
+            "periodType": "REG",
+            "maxRegulationPeriods": 3
+          },
+          "timeInPeriod": "04:56",
+          "playerId": 8484471,
+          "teamAbbrev": "DET",
+          "awayScore": 3,
+          "homeScore": 2,
+          "goalsToDate": 1
+        }
+      ]
+    },
+    {
+      "id": 2026020036,
+      "gameType": 2,
+      "gameDate": "2026-10-04",
+      "startTimeUTC": "2026-10-04T22:00:00Z",
+      "gameState": "OFF",
+      "gameScheduleState": "OK",
+      "awayTeam": {
+        "id": 68,
+        "abbrev": "UTA",
+        "score": 2
+      },
+      "homeTeam": {
+        "id": 3,
+        "abbrev": "NYR",
+        "score": 4
+      },
+      "clock": {
+        "timeRemaining": "00:00",
+        "secondsRemaining": 0,
+        "running": false,
+        "inIntermission": false
+      },
+      "period": 3,
+      "periodDescriptor": {
+        "number": 3,
+        "periodType": "REG",
+        "maxRegulationPeriods": 3
+      },
+      "gameOutcome": {
+        "lastPeriodType": "REG"
+      },
+      "goals": [
+        {
+          "period": 1,
+          "periodDescriptor": {
+            "number": 1,
+            "periodType": "REG",
+            "maxRegulationPeriods": 3
+          },
+          "timeInPeriod": "17:18",
+          "playerId": 8478882,
+          "teamAbbrev": "NYR",
+          "awayScore": 0,
+          "homeScore": 1,
+          "goalsToDate": 1
+        },
+        {
+          "period": 2,
+          "periodDescriptor": {
+            "number": 2,
+            "periodType": "REG",
+            "maxRegulationPeriods": 3
+          },
+          "timeInPeriod": "14:29",
+          "playerId": 8477951,
+          "teamAbbrev": "UTA",
+          "awayScore": 1,
+          "homeScore": 1,
+          "goalsToDate": 4
+        },
+        {
+          "period": 3,
+          "periodDescriptor": {
+            "number": 3,
+            "periodType": "REG",
+            "maxRegulationPeriods": 3
+          },
+          "timeInPeriod": "03:15",
+          "playerId": 8484210,
+          "teamAbbrev": "NYR",
+          "awayScore": 1,
+          "homeScore": 2,
+          "goalsToDate": 2
+        },
+        {
+          "period": 3,
+          "periodDescriptor": {
+            "number": 3,
+            "periodType": "REG",
+            "maxRegulationPeriods": 3
+          },
+          "timeInPeriod": "12:47",
+          "playerId": 8476468,
+          "teamAbbrev": "NYR",
+          "awayScore": 1,
+          "homeScore": 3,
+          "goalsToDate": 1
+        },
+        {
+          "period": 3,
+          "periodDescriptor": {
+            "number": 3,
+            "periodType": "REG",
+            "maxRegulationPeriods": 3
+          },
+          "timeInPeriod": "14:57",
+          "playerId": 8479369,
+          "teamAbbrev": "UTA",
+          "awayScore": 2,
+          "homeScore": 3,
+          "goalsToDate": 1
+        },
+        {
+          "period": 3,
+          "periodDescriptor": {
+            "number": 3,
+            "periodType": "REG",
+            "maxRegulationPeriods": 3
+          },
+          "timeInPeriod": "18:45",
+          "playerId": 8480009,
+          "teamAbbrev": "NYR",
+          "awayScore": 2,
+          "homeScore": 4,
+          "goalsToDate": 3
+        }
+      ]
+    },
+    {
+      "id": 2026020037,
+      "gameType": 2,
+      "gameDate": "2026-10-04",
+      "startTimeUTC": "2026-10-05T00:00:00Z",
+      "gameState": "OFF",
+      "gameScheduleState": "OK",
+      "awayTeam": {
+        "id": 13,
+        "abbrev": "FLA",
+        "score": 2
+      },
+      "homeTeam": {
+        "id": 24,
+        "abbrev": "ANA",
+        "score": 3
+      },
+      "clock": {
+        "timeRemaining": "00:46",
+        "secondsRemaining": 46,
+        "running": false,
+        "inIntermission": false
+      },
+      "period": 4,
+      "periodDescriptor": {
+        "number": 4,
+        "periodType": "OT",
+        "maxRegulationPeriods": 3
+      },
+      "gameOutcome": {
+        "lastPeriodType": "OT",
+        "otPeriods": 1
+      },
+      "goals": [
+        {
+          "period": 1,
+          "periodDescriptor": {
+            "number": 1,
+            "periodType": "REG",
+            "maxRegulationPeriods": 3
+          },
+          "timeInPeriod": "16:18",
+          "playerId": 8483445,
+          "teamAbbrev": "ANA",
+          "awayScore": 0,
+          "homeScore": 1,
+          "goalsToDate": 1
+        },
+        {
+          "period": 1,
+          "periodDescriptor": {
+            "number": 1,
+            "periodType": "REG",
+            "maxRegulationPeriods": 3
+          },
+          "timeInPeriod": "17:09",
+          "playerId": 8477409,
+          "teamAbbrev": "FLA",
+          "awayScore": 1,
+          "homeScore": 1,
+          "goalsToDate": 1
+        },
+        {
+          "period": 2,
+          "periodDescriptor": {
+            "number": 2,
+            "periodType": "REG",
+            "maxRegulationPeriods": 3
+          },
+          "timeInPeriod": "00:47",
+          "playerId": 8483445,
+          "teamAbbrev": "ANA",
+          "awayScore": 1,
+          "homeScore": 2,
+          "goalsToDate": 2
+        },
+        {
+          "period": 3,
+          "periodDescriptor": {
+            "number": 3,
+            "periodType": "REG",
+            "maxRegulationPeriods": 3
+          },
+          "timeInPeriod": "18:10",
+          "playerId": 8473419,
+          "teamAbbrev": "FLA",
+          "awayScore": 2,
+          "homeScore": 2,
+          "goalsToDate": 1
+        },
+        {
+          "period": 4,
+          "periodDescriptor": {
+            "number": 4,
+            "periodType": "OT",
+            "maxRegulationPeriods": 3
+          },
+          "timeInPeriod": "04:14",
+          "playerId": 8475798,
+          "teamAbbrev": "ANA",
+          "awayScore": 2,
+          "homeScore": 3,
+          "goalsToDate": 1
+        }
+      ]
+    },
+    {
+      "id": 2026020038,
+      "gameType": 2,
+      "gameDate": "2026-10-04",
+      "startTimeUTC": "2026-10-05T00:00:00Z",
+      "gameState": "OFF",
+      "gameScheduleState": "OK",
+      "awayTeam": {
+        "id": 20,
+        "abbrev": "CGY",
+        "score": 1
+      },
+      "homeTeam": {
+        "id": 55,
+        "abbrev": "SEA",
+        "score": 6
+      },
+      "clock": {
+        "timeRemaining": "00:00",
+        "secondsRemaining": 0,
+        "running": false,
+        "inIntermission": false
+      },
+      "period": 3,
+      "periodDescriptor": {
+        "number": 3,
+        "periodType": "REG",
+        "maxRegulationPeriods": 3
+      },
+      "gameOutcome": {
+        "lastPeriodType": "REG"
+      },
+      "goals": [
+        {
+          "period": 1,
+          "periodDescriptor": {
+            "number": 1,
+            "periodType": "REG",
+            "maxRegulationPeriods": 3
+          },
+          "timeInPeriod": "02:22",
+          "playerId": 8484800,
+          "teamAbbrev": "SEA",
+          "awayScore": 0,
+          "homeScore": 1,
+          "goalsToDate": 1
+        },
+        {
+          "period": 1,
+          "periodDescriptor": {
+            "number": 1,
+            "periodType": "REG",
+            "maxRegulationPeriods": 3
+          },
+          "timeInPeriod": "04:40",
+          "playerId": 8482713,
+          "teamAbbrev": "SEA",
+          "awayScore": 0,
+          "homeScore": 2,
+          "goalsToDate": 1
+        },
+        {
+          "period": 1,
+          "periodDescriptor": {
+            "number": 1,
+            "periodType": "REG",
+            "maxRegulationPeriods": 3
+          },
+          "timeInPeriod": "07:40",
+          "playerId": 8482259,
+          "teamAbbrev": "SEA",
+          "awayScore": 0,
+          "homeScore": 3,
+          "goalsToDate": 2
+        },
+        {
+          "period": 2,
+          "periodDescriptor": {
+            "number": 2,
+            "periodType": "REG",
+            "maxRegulationPeriods": 3
+          },
+          "timeInPeriod": "11:58",
+          "playerId": 8483524,
+          "teamAbbrev": "SEA",
+          "awayScore": 0,
+          "homeScore": 4,
+          "goalsToDate": 1
+        },
+        {
+          "period": 2,
+          "periodDescriptor": {
+            "number": 2,
+            "periodType": "REG",
+            "maxRegulationPeriods": 3
+          },
+          "timeInPeriod": "19:34",
+          "playerId": 8482713,
+          "teamAbbrev": "SEA",
+          "awayScore": 0,
+          "homeScore": 5,
+          "goalsToDate": 2
+        },
+        {
+          "period": 3,
+          "periodDescriptor": {
+            "number": 3,
+            "periodType": "REG",
+            "maxRegulationPeriods": 3
+          },
+          "timeInPeriod": "14:25",
+          "playerId": 8480028,
+          "teamAbbrev": "CGY",
+          "awayScore": 1,
+          "homeScore": 5,
+          "goalsToDate": 1
+        },
+        {
+          "period": 3,
+          "periodDescriptor": {
+            "number": 3,
+            "periodType": "REG",
+            "maxRegulationPeriods": 3
+          },
+          "timeInPeriod": "15:04",
+          "playerId": 8474586,
+          "teamAbbrev": "SEA",
+          "awayScore": 1,
+          "homeScore": 6,
+          "goalsToDate": 2
+        }
+      ]
+    },
+    {
+      "id": 2026020039,
+      "gameType": 2,
+      "gameDate": "2026-10-04",
+      "startTimeUTC": "2026-10-05T01:00:00Z",
+      "gameState": "OFF",
+      "gameScheduleState": "OK",
+      "awayTeam": {
+        "id": 54,
+        "abbrev": "VGK",
+        "score": 3
+      },
+      "homeTeam": {
+        "id": 23,
+        "abbrev": "VAN",
+        "score": 2
+      },
+      "clock": {
+        "timeRemaining": "00:00",
+        "secondsRemaining": 0,
+        "running": false,
+        "inIntermission": false
+      },
+      "period": 3,
+      "periodDescriptor": {
+        "number": 3,
+        "periodType": "REG",
+        "maxRegulationPeriods": 3
+      },
+      "gameOutcome": {
+        "lastPeriodType": "REG"
+      },
+      "goals": [
+        {
+          "period": 1,
+          "periodDescriptor": {
+            "number": 1,
+            "periodType": "REG",
+            "maxRegulationPeriods": 3
+          },
+          "timeInPeriod": "18:52",
+          "playerId": 8481032,
+          "teamAbbrev": "VAN",
+          "awayScore": 0,
+          "homeScore": 1,
+          "goalsToDate": 4
+        },
+        {
+          "period": 2,
+          "periodDescriptor": {
+            "number": 2,
+            "periodType": "REG",
+            "maxRegulationPeriods": 3
+          },
+          "timeInPeriod": "09:01",
+          "playerId": 8478483,
+          "teamAbbrev": "VGK",
+          "awayScore": 1,
+          "homeScore": 1,
+          "goalsToDate": 1
+        },
+        {
+          "period": 2,
+          "periodDescriptor": {
+            "number": 2,
+            "periodType": "REG",
+            "maxRegulationPeriods": 3
+          },
+          "timeInPeriod": "14:30",
+          "playerId": 8478109,
+          "teamAbbrev": "VGK",
+          "awayScore": 2,
+          "homeScore": 1,
+          "goalsToDate": 2
+        },
+        {
+          "period": 2,
+          "periodDescriptor": {
+            "number": 2,
+            "periodType": "REG",
+            "maxRegulationPeriods": 3
+          },
+          "timeInPeriod": "17:54",
+          "playerId": 8483476,
+          "teamAbbrev": "VAN",
+          "awayScore": 2,
+          "homeScore": 2,
+          "goalsToDate": 2
+        },
+        {
+          "period": 2,
+          "periodDescriptor": {
+            "number": 2,
+            "periodType": "REG",
+            "maxRegulationPeriods": 3
+          },
+          "timeInPeriod": "18:28",
+          "playerId": 8483553,
+          "teamAbbrev": "VGK",
+          "awayScore": 3,
+          "homeScore": 2,
+          "goalsToDate": 1
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "gameInfo": {
+    "awayTeam": {
+      "scratches": [
+        {
+          "id": 8481517,
+          "firstName": {
+            "default": "Brett"
+          },
+          "lastName": {
+            "default": "Leason"
+          }
+        },
+        {
+          "id": 8482700,
+          "firstName": {
+            "default": "Nolan"
+          },
+          "lastName": {
+            "default": "Allan"
+          }
+        },
+        {
+          "id": 8484801,
+          "firstName": {
+            "default": "Macklin"
+          },
+          "lastName": {
+            "default": "Celebrini"
+          }
+        }
+      ]
+    },
+    "homeTeam": {
+      "scratches": [
+        {
+          "id": 8476278,
+          "firstName": {
+            "default": "Colin"
+          },
+          "lastName": {
+            "default": "Blackwell"
+          }
+        },
+        {
+          "id": 8478476,
+          "firstName": {
+            "default": "Kyle"
+          },
+          "lastName": {
+            "default": "Capobianco"
+          }
+        }
+      ]
+    }
+  }
+}

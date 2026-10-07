@@ -1,0 +1,55 @@
+{
+  "prevDate": "2026-10-05",
+  "currentDate": "2026-10-06",
+  "nextDate": "2026-10-07",
+  "games": [
+    {
+      "id": 2026020044,
+      "gameType": 2,
+      "gameDate": "2026-10-06",
+      "startTimeUTC": "2026-10-06T23:00:00Z",
+      "gameState": "FUT",
+      "gameScheduleState": "OK",
+      "awayTeam": {
+        "id": 18,
+        "abbrev": "NSH"
+      },
+      "homeTeam": {
+        "id": 10,
+        "abbrev": "TOR"
+      }
+    },
+    {
+      "id": 2026020050,
+      "gameType": 2,
+      "gameDate": "2026-10-06",
+      "startTimeUTC": "2026-10-07T00:00:00Z",
+      "gameState": "FUT",
+      "gameScheduleState": "OK",
+      "awayTeam": {
+        "id": 19,
+        "abbrev": "STL"
+      },
+      "homeTeam": {
+        "id": 16,
+        "abbrev": "CHI"
+      }
+    },
+    {
+      "id": 2026020051,
+      "gameType": 2,
+      "gameDate": "2026-10-06",
+      "startTimeUTC": "2026-10-07T01:40:00Z",
+      "gameState": "FUT",
+      "gameScheduleState": "OK",
+      "awayTeam": {
+        "id": 54,
+        "abbrev": "VGK"
+      },
+      "homeTeam": {
+        "id": 55,
+        "abbrev": "SEA"
+      }
+    }
+  ]
+}

@@ -10,14 +10,15 @@
   <header><div class="wrap">
     <div class="kicker">PUCKIQ</div>
     <h1>Privacy policy</h1>
-    <p>Effective September 26, 2026</p>
+    <p>Effective October 6, 2026</p>
     <nav><a href="index.html">Home</a><a href="support.html">Support</a></nav>
   </div></header>
   <main class="wrap">
     <section>
       <h2>The short version</h2>
       <ul>
-        <li>PuckIQ works without an account. Your roster and settings stay on your phone unless you turn on backup.</li>
+        <li>PuckIQ works without an account. Your roster and settings stay on your phone unless you turn on backup or join a League Room.</li>
+        <li>A League Room shares your team only with the members of that room. Player alerts use only your phone's push token and the NHL players you follow.</li>
         <li>No ads. No tracking across other apps or websites. We never sell your data.</li>
         <li>Anonymous usage stats help us improve the app, and you can turn them off in Settings.</li>
         <li>PuckIQ never signs in to your fantasy league and never changes your lineup.</li>
@@ -26,11 +27,25 @@
 
     <section>
       <h2>What stays on your device</h2>
-      <p>The players you add, your league's lineup slots and scoring, and your preferences are stored on your phone. Lineup reminders are scheduled on your phone by iOS; we don't use push notification servers.</p>
+      <p>The players you add, your league's lineup slots and scoring, and your preferences are stored on your phone. Lineup reminders are scheduled on your phone by iOS. Player alerts, if you turn them on, come from our server (see below).</p>
 
       <h2>Optional account and backup</h2>
-      <p>If you choose <strong>Continue with Apple</strong> in Settings, Apple shares a user identifier and an email address with us (you can choose Apple's private relay address). We use them only to back up your teams and restore them on a new phone. The account and backup are stored with <strong>Supabase</strong>, our backend provider.</p>
-      <p>Delete your account any time in <strong>Settings → Backup → Delete account</strong>. That permanently removes the account and its backup. Teams on your phone stay.</p>
+      <p>If you choose <strong>Continue with Apple</strong> in Settings, Apple shares a user identifier and an email address with us (you can choose Apple's private relay address). We use them only to back up your teams, restore them on a new phone, and, if you use one, to run your League Room. The account and backup are stored with <strong>Supabase</strong>, our backend provider.</p>
+      <p>Delete your account any time in <strong>Settings → Backup → Delete account</strong>. That permanently removes the account, its backup, and your League Room memberships. Teams on your phone stay.</p>
+
+      <h2>League Room</h2>
+      <p>A League Room is optional and needs the account above. When you create or join one, we store, linked to your account ID:</p>
+      <ul>
+        <li>the room's name, invite code, and league settings (platform, league size, lineup slots, scoring) and any dues setup the owner adds (amount, deadline, payouts, a link to where the pot is held);</li>
+        <li>your team name and roster (NHL player IDs and names, with their teams and positions);</li>
+        <li>who plays whom this week;</li>
+        <li>dues-paid checkmarks (PuckIQ never handles money);</li>
+        <li>the preset reactions members send each other (there is no free-text chat). Reactions are deleted after 7 days.</li>
+      </ul>
+      <p>Only members of that room can see it. Your team and reactions are deleted when you leave the room, when the room's owner removes you, or when you delete your account. A room is deleted when its last member leaves.</p>
+
+      <h2>Player alerts</h2>
+      <p>If you turn on scratch or goal alerts, the app sends our server your phone's push token (issued by Apple through <strong>Expo</strong>, which delivers the notifications), the NHL player IDs you follow, which alerts you want, and the app version. They are not linked to your account. We use them only to send you an alert when one of those players is scratched or scores, plus a short log of alerts already sent so you never get the same one twice; that log is deleted after a few days. Turning alerts off removes your push token, your player list, and that log.</p>
 
       <h2>Purchases</h2>
       <p>PuckIQ Pro is sold through Apple. We never see your payment details. <strong>RevenueCat</strong> processes your subscription status using Apple's purchase receipts and an app user ID: an anonymous ID, or your PuckIQ account ID if you've signed in.</p>
@@ -48,19 +63,20 @@
       <h2>Service providers</h2>
       <ul>
         <li><strong>Apple</strong>: purchases and Sign in with Apple</li>
-        <li><strong>Supabase</strong>: optional account, team backup, and feedback you send</li>
+        <li><strong>Supabase</strong>: optional account, team backup, League Room, player alert settings, and feedback you send</li>
+        <li><strong>Expo</strong>: delivers player alerts to your phone through Apple's push service</li>
         <li><strong>RevenueCat</strong>: subscription status</li>
         <li><strong>PostHog</strong>: anonymous usage stats</li>
       </ul>
 
       <h2>Retention</h2>
-      <p>Your backup is kept until you delete your account. Feedback is kept until it's no longer needed to follow up or improve the app; email us to have yours deleted sooner. Anonymous usage events are kept only as long as they're useful for improving the app.</p>
+      <p>Your backup is kept until you delete your account. League Room data is kept while you're a member (reactions for 7 days). Player alert settings are kept until you turn alerts off, or until Apple tells us the push token no longer works. Feedback is kept until it's no longer needed to follow up or improve the app; email us to have yours deleted sooner. Anonymous usage events are kept only as long as they're useful for improving the app.</p>
 
       <h2>Children</h2>
       <p>PuckIQ is not directed to children under 13, and we don't knowingly collect personal information from them.</p>
 
       <h2>Your choices and rights</h2>
-      <p>You can use PuckIQ without an account, turn off usage stats, and delete your account in the app. To ask about or request deletion of any data we hold, email <a href="mailto:zlce.app@gmail.com">zlce.app@gmail.com</a>.</p>
+      <p>You can use PuckIQ without an account, turn off usage stats, leave a League Room, turn off player alerts, and delete your account in the app. To ask about or request deletion of any data we hold, email <a href="mailto:zlce.app@gmail.com">zlce.app@gmail.com</a>.</p>
 
       <h2>Changes</h2>
       <p>If this policy changes, we'll update it here and change the effective date above.</p>
