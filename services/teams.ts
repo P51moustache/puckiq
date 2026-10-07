@@ -88,21 +88,33 @@ export function createTeam(input: {
   };
 }
 
-function sanitizePlayer(raw: any): FantasyPlayer | null {
-  const playerId = Number(raw?.playerId);
-  const playerName = typeof raw?.playerName === 'string' ? raw.playerName.trim() : '';
-  if (!Number.isFinite(playerId) || playerId <= 0 || !playerName) return null;
-  const eligible = Array.isArray(raw?.eligible)
-    ? (raw.eligible as unknown[]).filter((pos): pos is SlotPosition => SLOT_POSITIONS.includes(pos as SlotPosition))
-    : undefined;
+const ROSTER_POSITIONS: FantasyPlayer['rosterPosition'][] = ['C', 'LW', 'RW', 'D', 'G', 'BN', 'IR'];
+
+/**
+ * One player from untrusted JSON (storage, backup, a League Room), or null when it isn't a usable
+ * player: a positive integer id and a name; team upper-cased; known eligibility only (deduped);
+ * the IR flag only when true. The single sanitiser for every place a roster comes from.
+ */
+export function sanitizePlayer(raw: unknown): FantasyPlayer | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const row = raw as Record<string, unknown>;
+  const playerId = Number(row.playerId);
+  const playerName = typeof row.playerName === 'string' ? row.playerName.trim() : '';
+  if (!Number.isSafeInteger(playerId) || playerId <= 0 || !playerName) return null;
+  const eligible = Array.isArray(row.eligible)
+    ? [...new Set((row.eligible as unknown[]).filter((pos): pos is SlotPosition => SLOT_POSITIONS.includes(pos as SlotPosition)))]
+    : [];
+  const rosterPosition = ROSTER_POSITIONS.includes(row.rosterPosition as FantasyPlayer['rosterPosition'])
+    ? (row.rosterPosition as FantasyPlayer['rosterPosition'])
+    : 'BN';
   return {
     playerId,
     playerName,
-    teamAbbrev: typeof raw?.teamAbbrev === 'string' ? raw.teamAbbrev.toUpperCase() : '',
-    position: typeof raw?.position === 'string' ? raw.position : '',
-    rosterPosition: raw?.rosterPosition ?? 'BN',
-    ...(eligible && eligible.length > 0 ? { eligible } : {}),
-    ...(raw?.injuredReserve === true ? { injuredReserve: true } : {}),
+    teamAbbrev: typeof row.teamAbbrev === 'string' ? row.teamAbbrev.trim().toUpperCase() : '',
+    position: typeof row.position === 'string' ? row.position : '',
+    rosterPosition,
+    ...(eligible.length > 0 ? { eligible } : {}),
+    ...(row.injuredReserve === true ? { injuredReserve: true } : {}),
   };
 }
 
@@ -133,9 +145,11 @@ function sanitizeTeam(raw: any): FantasyTeam | null {
     players: sanitizePlayers(raw.players),
     opponentName: typeof raw.opponentName === 'string' ? raw.opponentName : '',
     opponent: sanitizePlayers(raw.opponent),
+    ...(raw.opponentSource === 'room' || raw.opponentSource === 'manual' ? { opponentSource: raw.opponentSource } : {}),
     hiddenPickupIds: Array.isArray(raw.hiddenPickupIds)
       ? raw.hiddenPickupIds.map(Number).filter((id: number) => Number.isFinite(id) && id > 0)
       : [],
+    ...(typeof raw.roomId === 'string' && raw.roomId ? { roomId: raw.roomId } : {}),
     createdAt: typeof raw.createdAt === 'string' ? raw.createdAt : stamp,
     updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : stamp,
   };
@@ -235,6 +249,29 @@ export function hidePickup(team: FantasyTeam, playerId: number): FantasyTeam {
 
 export function unhideAllPickups(team: FantasyTeam): FantasyTeam {
   return touch(team, { hiddenPickupIds: [] });
+}
+
+/** Link a team to a League Room (or unlink with null). Unlinking drops a room-synced opponent. */
+export function setTeamRoom(team: FantasyTeam, roomId: string | null): FantasyTeam {
+  if (roomId) return touch(team, { roomId });
+  const { roomId: _dropped, ...rest } = team;
+  const fromRoom = team.opponentSource === 'room';
+  return touch(rest as FantasyTeam, fromRoom ? { opponent: [], opponentName: '', opponentSource: 'manual' } : {});
+}
+
+/**
+ * Apply this week's opponent from the room. Skips the write when nothing changed, so a
+ * polling room doesn't churn `updatedAt` (and cloud backup) every refresh.
+ */
+export function applyRoomOpponent(team: FantasyTeam, name: string, players: FantasyPlayer[]): FantasyTeam {
+  const next = sanitizePlayers(players);
+  const same =
+    team.opponentSource === 'room' &&
+    team.opponentName === name &&
+    team.opponent.length === next.length &&
+    team.opponent.every((player, index) => player.playerId === next[index]?.playerId && player.teamAbbrev === next[index]?.teamAbbrev);
+  if (same) return team;
+  return touch(team, { opponentName: name, opponent: next, opponentSource: 'room' });
 }
 
 export function upsertTeam(state: TeamsState, team: FantasyTeam): TeamsState {

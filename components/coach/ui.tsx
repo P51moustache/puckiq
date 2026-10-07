@@ -41,6 +41,8 @@ export const colors = {
   inkRaised: '#24242E',
   onInk: '#FFFFFF',
   onInkSub: '#A6A6B0',
+  /** F1 live-timing purple ("fastest"): top-10% telemetry and big nights. */
+  elite: '#A155F7',
 };
 
 /**

@@ -12,7 +12,7 @@ import { colors, DarkCard, display, Skeleton } from './ui';
 
 /** F1 live-timing palette: purple fastest, green personal best, amber slower. */
 export const TIER_COLOR: Record<EdgeTier, string> = {
-  elite: '#A155F7',
+  elite: colors.elite,
   good: '#22C55E',
   below: '#F5A524',
 };

@@ -49,4 +49,10 @@ export type PaywallSource =
   | 'player_edge'
   | 'teams'
   | 'settings'
-  | 'onboarding';
+  | 'onboarding'
+  /** Morning recap's "see how your lineup graded". */
+  | 'recap'
+  /** Free tier's third "mark taken" in a week. */
+  | 'pickups_hide'
+  /** League Room trade finder. */
+  | 'trade_finder';

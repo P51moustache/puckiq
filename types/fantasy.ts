@@ -61,11 +61,15 @@ export interface FantasyTeam {
   slots: LineupSlots;
   scoring: ScoringWeights;
   players: FantasyPlayer[];
-  /** This week's head-to-head opponent (manual). */
+  /** This week's head-to-head opponent (typed in, or synced from the League Room). */
   opponentName: string;
   opponent: FantasyPlayer[];
+  /** Where the opponent came from. Room opponents refresh themselves; manual ones never change on their own. */
+  opponentSource?: 'manual' | 'room';
   /** Pickups the user marked as already rostered in their league. */
   hiddenPickupIds: number[];
+  /** The League Room this team belongs to, if any. */
+  roomId?: string;
   createdAt: string;
   updatedAt: string;
 }
