@@ -40,8 +40,9 @@ describe('PuckIQ 3 shipping surfaces', () => {
     const monetization = fs.readFileSync(path.join(repoRoot, 'constants/monetization.ts'), 'utf8');
     expect(monetization).toMatch(/EXPO_PUBLIC_PAYWALL_ENABLED !== '0'/);
     const settings = fs.readFileSync(path.join(repoRoot, 'components/screens/SettingsScreen.tsx'), 'utf8');
-    expect(settings).toMatch(/settings-subscribe/);
-    expect(settings).toMatch(/settings-restore/);
+    const planCard = fs.readFileSync(path.join(repoRoot, 'components/settings/PlanCard.tsx'), 'utf8');
+    expect(planCard).toMatch(/settings-subscribe/);
+    expect(planCard).toMatch(/settings-restore/);
     expect(settings).toMatch(/delete-account-button/);
 
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
