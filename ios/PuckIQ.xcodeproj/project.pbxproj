@@ -7,29 +7,103 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		037F8CD6D40EFDF1DFF645D2 /* AppGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F8436A5D099EB7EE04128B6 /* AppGroup.swift */; };
+		0532AE0D34E2833EFFE73C42 /* NativeSelfTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FA3D2CCEB9DDDCD012580AC /* NativeSelfTest.swift */; };
+		07767988870E0F668EFC9C60 /* WidgetSnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9B7EC1C7026425F9D57E2E6 /* WidgetSnapshotStore.swift */; };
+		0BF3AD3158C19118DDC3C0F0 /* PuckIQWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53053D2609CDC5E860EE3D98 /* PuckIQWidgetsBundle.swift */; };
 		0D3463858416967E8FAB60E8 /* libPods-PuckIQ.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 9881873FCC4E587DAAED174E /* libPods-PuckIQ.a */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
+		1A4B419E8AA60F5057BAA6D3 /* NightActivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01DDD84ED05E2CD023ABDE50 /* NightActivityController.swift */; };
+		1EAC53195D797A2DDF5622A8 /* TonightPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 667E5DA23949C327AF789AB6 /* TonightPresentation.swift */; };
 		2E24D6827795852F6FD55D27 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 4ED432DD06E9B8332741E715 /* PrivacyInfo.xcprivacy */; };
+		3037B52369BCEADB1DB0C3E1 /* TonightWidgetViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3616EE9F82C7F192F238E367 /* TonightWidgetViews.swift */; };
+		304E12EC710D813754F7046A /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = AFBD3B5744194DFE0A473B1F /* PrivacyInfo.xcprivacy */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
+		50D68BE6755F34C19080054A /* AppGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F8436A5D099EB7EE04128B6 /* AppGroup.swift */; };
+		564096D7E638BA7E8BC568BD /* NhlGameDay.swift in Sources */ = {isa = PBXBuildFile; fileRef = D045C3A6A4205F2FEACEA4B3 /* NhlGameDay.swift */; };
+		7D85CF98C779AD8A7903FD00 /* WidgetSnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9B7EC1C7026425F9D57E2E6 /* WidgetSnapshotStore.swift */; };
 		7DA1170E90A4AB262213C420 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6312A9FC6D8E316E3408152 /* ExpoModulesProvider.swift */; };
+		8418F9FADEB671453608937B /* WidgetSamples.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65D39CD79B1E93E6A93A9572 /* WidgetSamples.swift */; };
+		94525F63E7416AE50955F867 /* WidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F4BCEEA55D0BBB65D8F886C /* WidgetSnapshot.swift */; };
+		A1EA80B045AB07D0397368D4 /* BroadcastStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F0098C6E569EFE03708B30A /* BroadcastStyle.swift */; };
+		A5598FB04E6257492EBDED15 /* PuckIQWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A3F89CC065849B149CA3547A /* PuckIQWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		A831BD231D762D8F15940BDE /* PuckIQNative.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8A87E721C315748FE206BA3 /* PuckIQNative.swift */; };
+		A9363E0E036508D82EF311C9 /* TonightPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 667E5DA23949C327AF789AB6 /* TonightPresentation.swift */; };
+		AACD6AEE65B2BCF7AB457507 /* PuckIQNightAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4B15B747F8648F0FDCF7DDF /* PuckIQNightAttributes.swift */; };
+		AB8FB4F2AD004006DB0AA87A /* TonightWidgetViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3616EE9F82C7F192F238E367 /* TonightWidgetViews.swift */; };
+		AD939D1827726C501607D747 /* NightActivityViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF7F2CB00D7D7A54156906F2 /* NightActivityViews.swift */; };
+		B540C1C9A704597E1FAFEABF /* WidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F4BCEEA55D0BBB65D8F886C /* WidgetSnapshot.swift */; };
+		B5C5D8CB21901F19C3095E86 /* PuckIQNightAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4B15B747F8648F0FDCF7DDF /* PuckIQNightAttributes.swift */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
+		CC1B7AA7B08817076B12F9FC /* NightActivityViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF7F2CB00D7D7A54156906F2 /* NightActivityViews.swift */; };
+		D1CB7EFE7593A3F0FF7F9542 /* NhlGameDay.swift in Sources */ = {isa = PBXBuildFile; fileRef = D045C3A6A4205F2FEACEA4B3 /* NhlGameDay.swift */; };
+		D73A1E34CC064BF331138436 /* BroadcastStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F0098C6E569EFE03708B30A /* BroadcastStyle.swift */; };
+		E0F6781B2AC3B419351A3D7C /* WidgetSamples.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65D39CD79B1E93E6A93A9572 /* WidgetSamples.swift */; };
+		ED402A89D1AEA60B41EF56C7 /* PuckIQNative.m in Sources */ = {isa = PBXBuildFile; fileRef = 2DB6C99B2BF5F8A42C014508 /* PuckIQNative.m */; };
+		F09F5AFAFE17450A8B32D7E9 /* NightLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = B335E0012BC9486411D587E6 /* NightLiveActivity.swift */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
+		FAF0360FD0B93739E5AABA44 /* TonightWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CB2343F70BE109A08ADE0A5 /* TonightWidget.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		1D7D72D61A32DC139A8C0499 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 9C2C1469D97A9E993511E0E7;
+			remoteInfo = PuckIQWidgets;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		D651AFFC15CEF498685B294E /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				A5598FB04E6257492EBDED15 /* PuckIQWidgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		01DDD84ED05E2CD023ABDE50 /* NightActivityController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NightActivityController.swift; sourceTree = "<group>"; };
+		0FA3D2CCEB9DDDCD012580AC /* NativeSelfTest.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NativeSelfTest.swift; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* PuckIQ.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PuckIQ.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = PuckIQ/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = PuckIQ/Info.plist; sourceTree = "<group>"; };
+		1F8436A5D099EB7EE04128B6 /* AppGroup.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppGroup.swift; sourceTree = "<group>"; };
+		2CB2343F70BE109A08ADE0A5 /* TonightWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TonightWidget.swift; sourceTree = "<group>"; };
+		2DB6C99B2BF5F8A42C014508 /* PuckIQNative.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = PuckIQNative.m; sourceTree = "<group>"; };
+		3616EE9F82C7F192F238E367 /* TonightWidgetViews.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TonightWidgetViews.swift; sourceTree = "<group>"; };
 		4ED432DD06E9B8332741E715 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = PuckIQ/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		4F0098C6E569EFE03708B30A /* BroadcastStyle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BroadcastStyle.swift; sourceTree = "<group>"; };
+		4F4BCEEA55D0BBB65D8F886C /* WidgetSnapshot.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WidgetSnapshot.swift; sourceTree = "<group>"; };
+		53053D2609CDC5E860EE3D98 /* PuckIQWidgetsBundle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PuckIQWidgetsBundle.swift; sourceTree = "<group>"; };
 		5E7642DA0A15F7222EABAA0D /* Pods-PuckIQ.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PuckIQ.debug.xcconfig"; path = "Target Support Files/Pods-PuckIQ/Pods-PuckIQ.debug.xcconfig"; sourceTree = "<group>"; };
+		65D39CD79B1E93E6A93A9572 /* WidgetSamples.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WidgetSamples.swift; sourceTree = "<group>"; };
+		667E5DA23949C327AF789AB6 /* TonightPresentation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TonightPresentation.swift; sourceTree = "<group>"; };
 		9055E0DD09402D7FA4AE0602 /* Pods-PuckIQ.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PuckIQ.release.xcconfig"; path = "Target Support Files/Pods-PuckIQ/Pods-PuckIQ.release.xcconfig"; sourceTree = "<group>"; };
 		9881873FCC4E587DAAED174E /* libPods-PuckIQ.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-PuckIQ.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A3F89CC065849B149CA3547A /* PuckIQWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PuckIQWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = PuckIQ/SplashScreen.storyboard; sourceTree = "<group>"; };
+		AF7F2CB00D7D7A54156906F2 /* NightActivityViews.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NightActivityViews.swift; sourceTree = "<group>"; };
+		AFBD3B5744194DFE0A473B1F /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		B335E0012BC9486411D587E6 /* NightLiveActivity.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NightLiveActivity.swift; sourceTree = "<group>"; };
+		B6EC46A49FA546A2DC71C79E /* PuckIQWidgets.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = PuckIQWidgets.entitlements; sourceTree = "<group>"; };
+		B9B7EC1C7026425F9D57E2E6 /* WidgetSnapshotStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WidgetSnapshotStore.swift; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
 		C6312A9FC6D8E316E3408152 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-PuckIQ/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
+		C8A87E721C315748FE206BA3 /* PuckIQNative.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PuckIQNative.swift; sourceTree = "<group>"; };
+		D045C3A6A4205F2FEACEA4B3 /* NhlGameDay.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NhlGameDay.swift; sourceTree = "<group>"; };
+		D8517FB4180B308B6AE6B661 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = PuckIQ/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* PuckIQ-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "PuckIQ-Bridging-Header.h"; path = "PuckIQ/PuckIQ-Bridging-Header.h"; sourceTree = "<group>"; };
+		F4B15B747F8648F0FDCF7DDF /* PuckIQNightAttributes.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PuckIQNightAttributes.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -38,6 +112,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				0D3463858416967E8FAB60E8 /* libPods-PuckIQ.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5B51B2C87F2D01A198DC1597 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -54,8 +135,27 @@
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
 				4ED432DD06E9B8332741E715 /* PrivacyInfo.xcprivacy */,
+				7E5BB6505755E71237F84C1E /* Native */,
 			);
 			name = PuckIQ;
+			sourceTree = "<group>";
+		};
+		1B131047761094C4E437239D /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				1F8436A5D099EB7EE04128B6 /* AppGroup.swift */,
+				4F4BCEEA55D0BBB65D8F886C /* WidgetSnapshot.swift */,
+				B9B7EC1C7026425F9D57E2E6 /* WidgetSnapshotStore.swift */,
+				D045C3A6A4205F2FEACEA4B3 /* NhlGameDay.swift */,
+				667E5DA23949C327AF789AB6 /* TonightPresentation.swift */,
+				65D39CD79B1E93E6A93A9572 /* WidgetSamples.swift */,
+				F4B15B747F8648F0FDCF7DDF /* PuckIQNightAttributes.swift */,
+				4F0098C6E569EFE03708B30A /* BroadcastStyle.swift */,
+				3616EE9F82C7F192F238E367 /* TonightWidgetViews.swift */,
+				AF7F2CB00D7D7A54156906F2 /* NightActivityViews.swift */,
+			);
+			name = Shared;
+			path = Shared;
 			sourceTree = "<group>";
 		};
 		2D16E6871FA4F8E400B85C8A /* Frameworks */ = {
@@ -75,6 +175,18 @@
 			name = ExpoModulesProviders;
 			sourceTree = "<group>";
 		};
+		7E5BB6505755E71237F84C1E /* Native */ = {
+			isa = PBXGroup;
+			children = (
+				C8A87E721C315748FE206BA3 /* PuckIQNative.swift */,
+				2DB6C99B2BF5F8A42C014508 /* PuckIQNative.m */,
+				01DDD84ED05E2CD023ABDE50 /* NightActivityController.swift */,
+				0FA3D2CCEB9DDDCD012580AC /* NativeSelfTest.swift */,
+			);
+			name = Native;
+			path = PuckIQ/Native;
+			sourceTree = "<group>";
+		};
 		832341AE1AAA6A7D00B99B32 /* Libraries */ = {
 			isa = PBXGroup;
 			children = (
@@ -86,6 +198,8 @@
 			isa = PBXGroup;
 			children = (
 				13B07FAE1A68108700A75B9A /* PuckIQ */,
+				1B131047761094C4E437239D /* Shared */,
+				CA1763C4BC24BDA7ADCEB1FB /* PuckIQWidgets */,
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
@@ -101,6 +215,7 @@
 			isa = PBXGroup;
 			children = (
 				13B07F961A680F5B00A75B9A /* PuckIQ.app */,
+				A3F89CC065849B149CA3547A /* PuckIQWidgets.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -124,6 +239,20 @@
 			path = PuckIQ/Supporting;
 			sourceTree = "<group>";
 		};
+		CA1763C4BC24BDA7ADCEB1FB /* PuckIQWidgets */ = {
+			isa = PBXGroup;
+			children = (
+				53053D2609CDC5E860EE3D98 /* PuckIQWidgetsBundle.swift */,
+				2CB2343F70BE109A08ADE0A5 /* TonightWidget.swift */,
+				B335E0012BC9486411D587E6 /* NightLiveActivity.swift */,
+				D8517FB4180B308B6AE6B661 /* Info.plist */,
+				B6EC46A49FA546A2DC71C79E /* PuckIQWidgets.entitlements */,
+				AFBD3B5744194DFE0A473B1F /* PrivacyInfo.xcprivacy */,
+			);
+			name = PuckIQWidgets;
+			path = PuckIQWidgets;
+			sourceTree = "<group>";
+		};
 		E571987D0691011EB9E15442 /* PuckIQ */ = {
 			isa = PBXGroup;
 			children = (
@@ -144,6 +273,7 @@
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
+				D651AFFC15CEF498685B294E /* Embed Foundation Extensions */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
 				F3F7D168A5C26CF0CA3B5F73 /* [CP] Embed Pods Frameworks */,
@@ -151,11 +281,29 @@
 			buildRules = (
 			);
 			dependencies = (
+				3327058026054AA0F95384EA /* PBXTargetDependency */,
 			);
 			name = PuckIQ;
 			productName = PuckIQ;
 			productReference = 13B07F961A680F5B00A75B9A /* PuckIQ.app */;
 			productType = "com.apple.product-type.application";
+		};
+		9C2C1469D97A9E993511E0E7 /* PuckIQWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AD935DF0722D06FE9961C80B /* Build configuration list for PBXNativeTarget "PuckIQWidgets" */;
+			buildPhases = (
+				48CF6D8BF280329C9FFA5F46 /* Sources */,
+				5B51B2C87F2D01A198DC1597 /* Frameworks */,
+				612D8F49719648C198A069EA /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PuckIQWidgets;
+			productName = PuckIQWidgets;
+			productReference = A3F89CC065849B149CA3547A /* PuckIQWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -184,6 +332,7 @@
 			projectRoot = "";
 			targets = (
 				13B07F861A680F5B00A75B9A /* PuckIQ */,
+				9C2C1469D97A9E993511E0E7 /* PuckIQWidgets */,
 			);
 		};
 /* End PBXProject section */
@@ -197,6 +346,14 @@
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
 				2E24D6827795852F6FD55D27 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		612D8F49719648C198A069EA /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				304E12EC710D813754F7046A /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -347,10 +504,53 @@
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
 				7DA1170E90A4AB262213C420 /* ExpoModulesProvider.swift in Sources */,
+				A831BD231D762D8F15940BDE /* PuckIQNative.swift in Sources */,
+				ED402A89D1AEA60B41EF56C7 /* PuckIQNative.m in Sources */,
+				1A4B419E8AA60F5057BAA6D3 /* NightActivityController.swift in Sources */,
+				0532AE0D34E2833EFFE73C42 /* NativeSelfTest.swift in Sources */,
+				50D68BE6755F34C19080054A /* AppGroup.swift in Sources */,
+				B540C1C9A704597E1FAFEABF /* WidgetSnapshot.swift in Sources */,
+				7D85CF98C779AD8A7903FD00 /* WidgetSnapshotStore.swift in Sources */,
+				D1CB7EFE7593A3F0FF7F9542 /* NhlGameDay.swift in Sources */,
+				A9363E0E036508D82EF311C9 /* TonightPresentation.swift in Sources */,
+				8418F9FADEB671453608937B /* WidgetSamples.swift in Sources */,
+				AACD6AEE65B2BCF7AB457507 /* PuckIQNightAttributes.swift in Sources */,
+				D73A1E34CC064BF331138436 /* BroadcastStyle.swift in Sources */,
+				3037B52369BCEADB1DB0C3E1 /* TonightWidgetViews.swift in Sources */,
+				CC1B7AA7B08817076B12F9FC /* NightActivityViews.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		48CF6D8BF280329C9FFA5F46 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0BF3AD3158C19118DDC3C0F0 /* PuckIQWidgetsBundle.swift in Sources */,
+				FAF0360FD0B93739E5AABA44 /* TonightWidget.swift in Sources */,
+				F09F5AFAFE17450A8B32D7E9 /* NightLiveActivity.swift in Sources */,
+				037F8CD6D40EFDF1DFF645D2 /* AppGroup.swift in Sources */,
+				94525F63E7416AE50955F867 /* WidgetSnapshot.swift in Sources */,
+				07767988870E0F668EFC9C60 /* WidgetSnapshotStore.swift in Sources */,
+				564096D7E638BA7E8BC568BD /* NhlGameDay.swift in Sources */,
+				1EAC53195D797A2DDF5622A8 /* TonightPresentation.swift in Sources */,
+				E0F6781B2AC3B419351A3D7C /* WidgetSamples.swift in Sources */,
+				B5C5D8CB21901F19C3095E86 /* PuckIQNightAttributes.swift in Sources */,
+				A1EA80B045AB07D0397368D4 /* BroadcastStyle.swift in Sources */,
+				AB8FB4F2AD004006DB0AA87A /* TonightWidgetViews.swift in Sources */,
+				AD939D1827726C501607D747 /* NightActivityViews.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		3327058026054AA0F95384EA /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = PuckIQWidgets;
+			target = 9C2C1469D97A9E993511E0E7 /* PuckIQWidgets */;
+			targetProxy = 1D7D72D61A32DC139A8C0499 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
@@ -418,6 +618,64 @@
 				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Release;
+		};
+		71D5448F53AEB872C39DE802 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = PuckIQWidgets/PuckIQWidgets.entitlements;
+				CURRENT_PROJECT_VERSION = 4;
+				DEVELOPMENT_TEAM = LY4Y98UN7L;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = PuckIQWidgets/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 2.3.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.zlce.hockeystats.widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Release;
+		};
+		7CB8E9BCA05D434AC30A7887 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = PuckIQWidgets/PuckIQWidgets.entitlements;
+				CURRENT_PROJECT_VERSION = 4;
+				DEVELOPMENT_TEAM = LY4Y98UN7L;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = PuckIQWidgets/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 2.3.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.zlce.hockeystats.widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Debug;
 		};
 		83CBBA201A601CBA00E9B192 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -554,6 +812,15 @@
 			buildConfigurations = (
 				83CBBA201A601CBA00E9B192 /* Debug */,
 				83CBBA211A601CBA00E9B192 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AD935DF0722D06FE9961C80B /* Build configuration list for PBXNativeTarget "PuckIQWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				71D5448F53AEB872C39DE802 /* Release */,
+				7CB8E9BCA05D434AC30A7887 /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

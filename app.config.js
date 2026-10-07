@@ -5,7 +5,9 @@ export default {
     version: "3.0.0",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
-    scheme: "learningproject",
+    // `puckiq://` for links (puckiq://join/ABC234); `learningproject` stays for the Google
+    // sign-in redirect (components/auth/AuthProvider.tsx) and links already out there.
+    scheme: ["puckiq", "learningproject"],
     userInterfaceStyle: "light",
     newArchEnabled: true,
     notification: {
@@ -65,7 +67,25 @@ export default {
     extra: {
       router: {},
       eas: {
-        projectId: "b8956511-618d-4670-90a8-035892a7d4c0"
+        projectId: "b8956511-618d-4670-90a8-035892a7d4c0",
+        // Widget + Live Activity extension. Bare-workflow builds read targets and entitlements from
+        // ios/PuckIQ.xcodeproj (the app target's dependencies); this list is what EAS uses if
+        // the project ever builds without the committed ios/ directory.
+        build: {
+          experimental: {
+            ios: {
+              appExtensions: [
+                {
+                  targetName: "PuckIQWidgets",
+                  bundleIdentifier: "com.zlce.hockeystats.widgets",
+                  entitlements: {
+                    "com.apple.security.application-groups": ["group.com.zlce.hockeystats"]
+                  }
+                }
+              ]
+            }
+          }
+        }
       }
     }
   }

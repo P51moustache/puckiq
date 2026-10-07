@@ -29,6 +29,11 @@ public class AppDelegate: ExpoAppDelegate {
       launchOptions: launchOptions)
 #endif
 
+#if DEBUG
+    // Widget + Live Activity bridge check; only with the `-PuckIQSelfTest YES` launch flag.
+    NativeSelfTest.scheduleIfRequested()
+#endif
+
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
