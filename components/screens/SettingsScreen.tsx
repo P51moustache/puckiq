@@ -21,6 +21,7 @@ import { usePaywall } from '../PaywallProvider';
 import { useReminders } from '../RemindersProvider';
 import LeagueSettingsSheet from '../sheets/LeagueSettingsSheet';
 import FeedbackSheet from '../sheets/FeedbackSheet';
+import { AlertsCard } from '../settings/AlertsCard';
 import {
   Card,
   colors,
@@ -182,6 +183,8 @@ export default function SettingsScreen() {
             <Text style={styles.warn} onPress={() => Linking.openSettings()}>Notifications are blocked in iOS Settings. Tap to open.</Text>
           ) : null}
         </Card>
+
+        <AlertsCard />
 
             </>
           )}

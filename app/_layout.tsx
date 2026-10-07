@@ -12,6 +12,7 @@ import { AuthProvider } from '../components/auth/AuthProvider';
 import { SubscriptionProvider } from '../components/SubscriptionProvider';
 import { TeamsProvider } from '../components/TeamsProvider';
 import { RemindersProvider } from '../components/RemindersProvider';
+import { AlertsProvider } from '../components/AlertsProvider';
 import { PaywallProvider } from '../components/PaywallProvider';
 import { PlayerSheetProvider } from '../components/sheets/PlayerSheet';
 import CloudSync from '../components/CloudSync';
@@ -118,14 +119,16 @@ export default function RootLayout() {
             <TeamsProvider>
               <TeamActivity />
               <RemindersProvider>
-                <PaywallProvider>
-                  <PlayerSheetProvider>
-                    <ThemeProvider value={NAV_THEME}>
-                      <CloudSync />
-                      <AppContent />
-                    </ThemeProvider>
-                  </PlayerSheetProvider>
-                </PaywallProvider>
+                <AlertsProvider>
+                  <PaywallProvider>
+                    <PlayerSheetProvider>
+                      <ThemeProvider value={NAV_THEME}>
+                        <CloudSync />
+                        <AppContent />
+                      </ThemeProvider>
+                    </PlayerSheetProvider>
+                  </PaywallProvider>
+                </AlertsProvider>
               </RemindersProvider>
             </TeamsProvider>
           </AnalyticsProvider>
