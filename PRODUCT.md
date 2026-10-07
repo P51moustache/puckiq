@@ -53,8 +53,17 @@ PuckIQ is **free to download with a Pro subscription** (RevenueCat entitlement `
 | Matchup: my usable games vs theirs | — | Yes |
 | Player trends: last-14 form, full game log | Last 5 games | Yes |
 | NHL Edge telemetry, league percentiles | Headline stat | Full panel |
-| Share cards (tonight, week) for league chats | Yes | Yes |
+| Share cards (tonight, week, last night) for league chats | Yes | Yes |
 | Lineup reminder before first puck | Yes | Yes |
+| Live night: points from my players, live / final / to go, top performer, goal haptic | Yes | Yes |
+| Live night by lineup: lineup points, points with no slot, live points on the lineup board | — | Yes |
+| Morning recap (until noon ET): last night's points and leaders, share card | Yes | Yes |
+| Hindsight grade: share of the best possible lineup the pre-game lineup captured | — | Yes |
+| Home-screen + Lock Screen widgets, Live Activity on game nights | Yes | Yes |
+| Player alerts: scratch (NHL game report) and goal pushes for my players | Yes | Yes |
+| League Room: real availability, automatic opponent, game-night board, reactions, Monday recap, dues tracker | Yes | Yes |
+| League Room trade finder (win-win swaps for both lineups) | — | Yes |
+| "Already taken" on Pickups | 2 a week | Unlimited |
 
 Free is genuinely useful on purpose — it builds the nightly habit. The coaching layer is what people pay for.
 
@@ -84,13 +93,30 @@ users can turn it off in Settings.
 | `share_card` | share sheet | `kind`, `outcome` |
 | `reminders_enable`, `team_add` | settings / onboarding | `granted` / `platform` |
 
+## The nightly loop
+
+PuckIQ follows the whole night, not just the hour before lock:
+
+- **Game day.** "Today" is the NHL game day, which rolls over at 6 AM Eastern (`services/nhlDate.ts`), so a 10:30 PM ET puck drop stays on Tonight until it ends.
+- **Before lock.** Who plays, the coach's moves (repeated sits and empty slots are grouped into one card each), the best lineup.
+- **Live.** The hero becomes the night's scoreboard; players sort by live points like a timing tower; hat tricks, three-point nights, 40-save nights and shutouts get the F1 purple. One source of truth: `services/fantasy/nightScore.ts`.
+- **Recap.** From 6 AM to noon ET, last night leads Tonight with points, leaders and (Pro) the hindsight grade.
+- **Off the app.** Widgets and the Live Activity render the same score (`services/widgets/snapshot.ts` → `services/native/widgetBridge.ts`).
+
+## League Room
+
+A private room for the league people already play in (not a hosted league, no chat, no money). Every league-mate who joins makes everyone's coach more accurate: their rostered players are *taken* for Pickups, the weekly opponent fills in by itself, and the room gets a game-night board, preset reactions, a Monday recap card, a dues checklist, and (Pro) a trade finder. Rooms need Sign in with Apple. Invite: `https://p51moustache.github.io/puckiq/join.html?code=ABC234` or `puckiq://join/ABC234`. Schema, RPCs and rules: `docs/plans/2026-10-06-season-two.md`.
+
 ## Notifications
 
-Local only: one "set your lineup" reminder, 30/60/90 minutes before the first puck among my players. Permission is asked only when the user turns it on. (1.x–2.x scheduled a daily "Your Pick Results" push for a dead feature and asked for permission at launch; 3.0 clears those once.)
+- **Lineup reminder** (local): one "set your lineup" reminder, 30/60/90 minutes before the first puck among my players.
+- **Player alerts** (server push): a scratch from the NHL game report or a goal by one of my players. The device registers its Expo push token and the NHL player ids it follows with the `register-alerts` function; `live-poller` (Supabase cron, every minute) watches the games. No account needed.
+
+Permission is asked only when the user turns one on. (1.x–2.x scheduled a daily "Your Pick Results" push for a dead feature and asked for permission at launch; 3.0 clears those once.)
 
 ## Later
 
-1. **League import** — Yahoo Fantasy API (OAuth, needs a small token-exchange server), ESPN public-league reads, Fantrax. Real waiver availability replaces "likely rostered".
-2. **Server push** for MY players: scratch posted, goalie confirmed in warmups (edge function + pg_cron).
+1. **League import** — Yahoo Fantasy API (OAuth, needs a small token-exchange server), ESPN public-league reads, Fantrax. The League Room already gives real availability for leagues whose members join.
+2. **Live Activity server updates** — the app updates it while running; APNs pushes from `live-poller` need an APNs auth key.
 3. **Categories-league mode** — per-category needs for H2H cats.
-4. Home-screen widget / Live Activity for tonight.
+4. **Goalie confirmed in warmups** alerts.

@@ -15,6 +15,9 @@ The release build sends anonymous events to [PuckIQ in PostHog](https://us.posth
 | Paid access | `paywall_view`, `paywall_purchase`, `paywall_restore`; entry point, selected plan, outcome, Pro status |
 | Retention and sharing | `release_notice_view`, `release_notice_dismiss`, `loyalty_restore`, `share_card`, `sample_team_cleared`, `reminders_enable`; welcome replay, outcome, card kind, reminder permission |
 | Feedback | `feedback_opened`, `feedback_sent`; category and delivery channel |
+| Live nights | `live_view` (once per game day when games are live), `recap_view` (once per recap), `live_activity_start` / `live_activity_stop` (`phase`) |
+| League Room | `room_create`, `room_join` (`source`: link or code), `room_leave`, `room_reaction`, `room_dues_edit`, `trade_finder_open`, `trade_idea_view` — never names, codes or rosters |
+| Alerts | `alerts_enable` (`granted`, `supported`, `scratches`, `goals`) |
 
 Roster events describe committed state changes, including changes restored from backup. They do not promise that every state change was a manual tap. Initial local roster loading is skipped. Screen duration counts active foreground segments and excludes time in the background. Searches log lengths and counts, never search text. Existing telemetry contains screen and selected feature events; this is not a recording of every gesture.
 
