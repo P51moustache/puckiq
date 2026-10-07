@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <meta name="referrer" content="no-referrer">
+  <title>Join a League Room · PuckIQ</title>
+  <meta name="description" content="You're invited to a PuckIQ League Room.">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .invite { text-align: center; padding: 10px 20px 22px; }
+    .code {
+      display: inline-block; margin: 14px 0 8px; padding: 12px 18px 14px; border-radius: 14px;
+      background: var(--ink); color: #fff; border-bottom: 4px solid var(--red);
+      font-size: clamp(36px, 12vw, 56px); line-height: 1; font-weight: 900; font-style: italic;
+      letter-spacing: .14em; font-variant-numeric: tabular-nums;
+    }
+    .label { font-size: 12px; font-weight: 900; letter-spacing: .18em; color: var(--sub); }
+    .buttons { display: flex; flex-direction: column; gap: 10px; max-width: 360px; margin: 22px auto 12px; }
+    .button {
+      display: block; padding: 15px 18px; border-radius: 14px; text-decoration: none;
+      font-weight: 900; font-style: italic; text-transform: uppercase; letter-spacing: .03em;
+    }
+    .button.primary { background: var(--red); color: #fff; }
+    .button.secondary { background: var(--card); color: var(--ink); border: 2px solid var(--ink); }
+    .invite p { margin: 8px auto; max-width: 460px; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <header><div class="wrap">
+    <div class="kicker">PUCKIQ · LEAGUE ROOM</div>
+    <h1>You're invited</h1>
+    <p>Join your league's room in PuckIQ.</p>
+    <nav><a href="index.html">Home</a><a href="support.html">Support</a><a href="privacy.html">Privacy</a></nav>
+  </div></header>
+  <main class="wrap">
+    <section class="invite">
+      <div id="invite" hidden>
+        <div class="code" id="code"></div>
+        <div class="label">INVITE CODE</div>
+        <div class="buttons">
+          <a class="button primary" id="open" href="#">Open in PuckIQ</a>
+          <a class="button secondary" href="https://apps.apple.com/app/id6751451560">Get PuckIQ on the App Store</a>
+        </div>
+        <p class="muted">New to PuckIQ? Install it, then tap Open in PuckIQ again, or enter the code under <strong>League → Join with code</strong>.</p>
+      </div>
+      <div id="no-code">
+        <h2>Need the room code?</h2>
+        <p>Ask whoever invited you for the 6-character code, then enter it in PuckIQ under <strong>League → Join with code</strong>.</p>
+        <div class="buttons">
+          <a class="button secondary" href="https://apps.apple.com/app/id6751451560">Get PuckIQ on the App Store</a>
+        </div>
+      </div>
+      <p>A League Room is a private room for the fantasy league you already play in: everyone's rosters sync, so pickups know who's taken and your weekly opponent fills itself in.</p>
+    </section>
+  </main>
+  <footer class="wrap">PuckIQ is not affiliated with or endorsed by the NHL, Yahoo, ESPN, or Fantrax.</footer>
+  <script>
+    (function () {
+      // ROOM_CODE_ALPHABET (no I, O, 0, 1) x 6. Anything else is never rendered.
+      var VALID_CODE = /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/;
+      var code = (new URLSearchParams(window.location.search).get('code') || '').trim().toUpperCase();
+      if (!VALID_CODE.test(code)) return;
+      document.getElementById('code').textContent = code;
+      document.getElementById('open').setAttribute('href', 'puckiq://join/' + code);
+      document.getElementById('invite').hidden = false;
+      document.getElementById('no-code').hidden = true;
+    })();
+  </script>
+</body>
+</html>
