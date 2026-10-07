@@ -2,7 +2,7 @@ export default {
   expo: {
     name: "PuckIQ",
     slug: "learning-project",
-    version: "3.0.0",
+    version: "3.0.1",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     scheme: "learningproject",
