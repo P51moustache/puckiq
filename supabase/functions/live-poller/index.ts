@@ -1,6 +1,8 @@
 // live-poller: scratch and goal pushes on NHL game nights. pg_cron calls it every minute
-// (supabase/cron/live-poller.sql) with the service-role key. Deploy WITH JWT verification (the
-// default); the handler also requires the service_role claim, so the public anon key cannot run it.
+// (supabase/cron/live-poller.sql) with a single-use ticket minted in Postgres
+// (public.issue_poller_ticket). Deploy with JWT verification OFF: the ticket is the only way in —
+// it can only be minted with SQL access to the project and is redeemed once, within two minutes —
+// so no service-role key ever has to be copied into Vault, a file or cron.job.
 //
 // One run: NHL game day -> /v1/score/{day} -> stop unless a game is live, starts within 90 minutes or
 // just ended -> per game, read right-rail (scratches) and play-by-play (goals) only as planned ->
@@ -17,7 +19,8 @@ import {
   EXPO_BATCH_SIZE,
   EXPO_PUSH_URL,
   NHL_WEB_API,
-  bearerRole,
+  parseTicket,
+  TICKET_MAX_AGE_MS,
   buildAlerts,
   chunk,
   deviceFromRow,
@@ -237,8 +240,22 @@ async function poll(now: Date) {
   };
 }
 
+/** Redeem a cron ticket: delete it if it exists and is fresh. True exactly once per ticket. */
+async function redeemTicket(db: Db, ticket: string, now: Date): Promise<boolean> {
+  const cutoff = new Date(now.getTime() - TICKET_MAX_AGE_MS).toISOString();
+  const { data, error } = await db
+    .from("poller_tickets")
+    .delete()
+    .eq("ticket", ticket)
+    .gte("created_at", cutoff)
+    .select("ticket");
+  if (error) console.error(`[live-poller] ticket check failed: ${error.message}`);
+  return !error && (data?.length ?? 0) === 1;
+}
+
 Deno.serve(async (req: Request) => {
-  if (bearerRole(req.headers.get("Authorization")) !== "service_role") {
+  const ticket = parseTicket(await req.json().catch(() => null));
+  if (!ticket || !(await redeemTicket(connect(), ticket, new Date()))) {
     return json({ error: "forbidden" }, 403);
   }
   try {

@@ -646,18 +646,19 @@ export async function mapLimit<T, R>(items: T[], limit: number, task: (item: T) 
 }
 
 /**
- * The role claim of a bearer JWT. Only meaningful behind the Edge gateway's JWT verification
- * (verify_jwt on), which has already checked the signature.
+ * How long a cron ticket stays redeemable. pg_cron fires every minute and pg_net sends within
+ * seconds, so two minutes covers a slow queue without leaving tickets lying around.
  */
-export function bearerRole(authorization: string | null): string | null {
-  const token = (authorization ?? '').replace(/^Bearer\s+/i, '');
-  const payload = token.split('.')[1];
-  if (!payload) return null;
-  try {
-    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(payload.length / 4) * 4, '=');
-    const claims = asRecord(JSON.parse(atob(base64)));
-    return typeof claims?.role === 'string' ? claims.role : null;
-  } catch {
-    return null;
-  }
+export const TICKET_MAX_AGE_MS = 2 * 60 * 1000;
+
+const TICKET_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * The single-use ticket the cron job mints in Postgres (public.issue_poller_ticket) and sends in
+ * the request body. Only something that can run SQL in the project can mint one, so the poller
+ * needs no shared secret. Null unless the body carries a well-formed uuid.
+ */
+export function parseTicket(body: unknown): string | null {
+  const ticket = asRecord(body)?.ticket;
+  return typeof ticket === 'string' && TICKET_PATTERN.test(ticket) ? ticket.toLowerCase() : null;
 }

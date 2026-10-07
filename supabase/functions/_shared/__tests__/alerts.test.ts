@@ -7,7 +7,8 @@ import {
   GameMemory,
   GoalAlertEvent,
   ScoreGame,
-  bearerRole,
+  parseTicket,
+  TICKET_MAX_AGE_MS,
   buildAlerts,
   chunk,
   deviceFromRow,
@@ -417,13 +418,12 @@ describe('rows, Expo and plumbing', () => {
     expect(await mapLimit([], 4, async () => 1)).toEqual([]);
   });
 
-  it('reads the role claim from a bearer token', () => {
-    const jwt = (claims: object) =>
-      `header.${Buffer.from(JSON.stringify(claims)).toString('base64').replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_')}.sig`;
-    expect(bearerRole(`Bearer ${jwt({ role: 'service_role', iss: 'supabase' })}`)).toBe('service_role');
-    expect(bearerRole(`bearer ${jwt({ role: 'anon' })}`)).toBe('anon');
-    expect(bearerRole('Bearer not-a-jwt')).toBeNull();
-    expect(bearerRole('Bearer a.!!!.c')).toBeNull();
-    expect(bearerRole(null)).toBeNull();
+  it('accepts only a well-formed uuid ticket from the cron body', () => {
+    expect(parseTicket({ ticket: '0F8FAD5B-D9CB-469F-A165-70867728950E' })).toBe('0f8fad5b-d9cb-469f-a165-70867728950e');
+    expect(parseTicket({ ticket: 'not-a-uuid' })).toBeNull();
+    expect(parseTicket({ ticket: 42 })).toBeNull();
+    expect(parseTicket({})).toBeNull();
+    expect(parseTicket(null)).toBeNull();
+    expect(TICKET_MAX_AGE_MS).toBe(120_000);
   });
 });

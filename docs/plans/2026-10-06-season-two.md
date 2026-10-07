@@ -86,7 +86,9 @@ RPCs (`security definer`, `set search_path = public`, `auth.uid()` required, ret
   Expo push to devices whose `player_ids` overlap; dedupe through `alert_log`. Copy: "🚨 Connor McDavid scores (2) ·
   EDM 3–1 LAK · P2 10:15" and "Scratched: Mark Scheifele is out tonight (NHL game report)". Exits early when no
   game is within 90 minutes or live.
-- Cron SQL with the service key in Vault ships as a template (`supabase/cron/live-poller.sql`), never with a secret.
+- Cron SQL ships as a template (`supabase/cron/live-poller.sql`). Each call carries a single-use ticket
+  minted by `public.issue_poller_ticket()` (migration 20261006000200) and redeemed once by the
+  function (deployed with JWT verification off), so no service-role key is stored anywhere.
 
 ## 3. Widgets and Live Activity (Native)
 

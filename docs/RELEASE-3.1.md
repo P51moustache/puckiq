@@ -15,15 +15,12 @@ the rest if 3.1 needs more review time.
 
 ## Steps that need you
 
-1. **Supabase (League Room + alerts).** Run `scripts/supabase/deploy-season-two.sh`. It logs in
-   (browser), links the project (asks for the database password), shows `db push --dry-run` and
-   then pushes — it applies every pending migration: the two new ones, plus
-   `20260926000000_app_feedback.sql` if that was never pushed; stop if the dry run lists anything
-   older — and deploys `register-alerts` (`--no-verify-jwt`) and `live-poller`. Then, in the SQL
-   editor: store the **legacy service_role key** in Vault as `puckiq_service_role_key` (one line,
-   in the comments of `supabase/cron/live-poller.sql`) and run that file to schedule the poller and
-   the daily retention cleanup. Until this is done the app degrades gracefully: League shows
-   "almost here" and alerts don't register.
+1. **Supabase (League Room + alerts).** Apply the three `20261006*` migrations, deploy
+   `register-alerts` and `live-poller` (both with JWT verification off), then run
+   `supabase/cron/live-poller.sql` in the SQL editor to schedule the poller and the daily retention
+   cleanup. `scripts/supabase/deploy-season-two.sh` does the CLI part. No secret is involved: each
+   cron call carries a single-use ticket minted in Postgres. Until this is done the app degrades
+   gracefully: League shows "almost here" and alerts don't register.
 2. **App Group + widget signing** (Apple Developer portal, team LY4Y98UN7L): register App Group
    `group.com.zlce.hockeystats`, then enable App Groups with that group on `com.zlce.hockeystats`
    and on `com.zlce.hockeystats.widgets` (register that App ID if EAS hasn't). Alternatively run the

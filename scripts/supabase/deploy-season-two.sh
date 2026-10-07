@@ -46,6 +46,7 @@ cat <<'EOF'
 `db push` applies EVERY local migration missing from the project's migration history. Expected:
   supabase/migrations/20261006000000_league_rooms.sql  League Room tables, RLS, RPCs
   supabase/migrations/20261006000100_alerts.sql        alert_devices, live_game_state, alert_log
+  supabase/migrations/20261006000200_poller_tickets.sql  single-use tickets for the cron job
   supabase/migrations/20260926000000_app_feedback.sql  only if it was never pushed
 If the dry run lists anything older, answer "n" at the next prompt and repair the history first
 (supabase migration repair --status applied <version>) for migrations already applied by hand.
@@ -56,17 +57,16 @@ supabase db push
 step "4/6 Deploy register-alerts (public endpoint, JWT verification off)"
 supabase functions deploy register-alerts --no-verify-jwt --use-api --project-ref "$PROJECT_REF"
 
-step "5/6 Deploy live-poller (JWT verification on; only the service role may call it)"
-supabase functions deploy live-poller --use-api --project-ref "$PROJECT_REF"
+step "5/6 Deploy live-poller (JWT verification off; it only runs with a single-use cron ticket)"
+supabase functions deploy live-poller --no-verify-jwt --use-api --project-ref "$PROJECT_REF"
 
-step "6/6 Schedule the poller (manual: the service-role key goes into Vault, never into a file)"
+step "6/6 Schedule the poller (manual, in the SQL editor; no secrets involved)"
 cat <<EOF
 In https://supabase.com/dashboard/project/$PROJECT_REF/sql/new :
-  a) Store the legacy service_role key once (paste it over the placeholder, run, clear the editor):
-       select vault.create_secret('<SERVICE_ROLE_KEY>', 'puckiq_service_role_key', 'live-poller cron auth');
-  b) Paste and run supabase/cron/live-poller.sql. It schedules the every-minute poller and a daily
-     retention cleanup (the privacy policy relies on it); unschedule lines are at the bottom.
-  c) A minute later: select status_code, left(content::text, 200), created
+  a) Paste and run supabase/cron/live-poller.sql. It schedules the every-minute poller (each call
+     carries a single-use ticket from public.issue_poller_ticket) and a daily retention cleanup
+     (the privacy policy relies on it); unschedule lines are at the bottom.
+  b) A minute later: select status_code, left(content::text, 200), created
                        from net._http_response order by created desc limit 3;
      Expect 200 {"ok":true,...}.
 Optional: if the Expo project enforces push security, also run
