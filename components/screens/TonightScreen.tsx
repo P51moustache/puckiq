@@ -159,6 +159,8 @@ export default function TonightScreen() {
       ? recapShareContent({ team, data, score, isPro: isPremium })
       : tonightShareContent({ team, data, date: view.date, playing, total, forms, when: night });
   const recapShare = recapScore && recap.night.data ? recapShareContent({ team, data: recap.night.data, score: recapScore, isPro: isPremium }) : null;
+  // Moves only help while something can still change: once every game has started, nothing can.
+  const locked = !!score && score.phase !== 'pre' && score.upcoming === 0;
   const movesTitle = firstPuck ? 'Before lock' : started && score!.phase === 'live' ? 'Tonight · live' : isTonight ? 'Tonight’s calls' : 'Tomorrow’s calls';
 
   return (
@@ -220,7 +222,7 @@ export default function TonightScreen() {
               {data && playing.length === 0 ? (
                 <Image source={ART.noGames} style={styles.quietArt} contentFit="contain" accessible={false} testID="tonight-no-games-art" />
               ) : null}
-              {playing.length > 0 && view.moves.length > 0 && score?.phase !== 'final' ? (
+              {playing.length > 0 && view.moves.length > 0 && !locked ? (
                 <CoachMovesSection
                   title={movesTitle}
                   moves={moves}

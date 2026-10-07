@@ -288,6 +288,15 @@ describe('TonightScreen', () => {
     expect(mockSetFollowing).toHaveBeenCalledWith(true);
   });
 
+  it('drops the coach moves once every game has started', () => {
+    mockIsPremium = true;
+    const live = nightWith('LIVE', { goals: 1 });
+    mockView = { ...live, moves: view().moves };
+    const tree = render();
+    expect(byTestId(tree, 'move-scratch')).toHaveLength(0);
+    expect(byTestId(tree, 'move-empty')).toHaveLength(0);
+  });
+
   it('leads the morning with last night’s recap and grades the lineup for Pro', () => {
     jest.useFakeTimers({ now: new Date('2026-10-14T13:00:00Z') }); // 9 AM ET
     mockIsPremium = true;
