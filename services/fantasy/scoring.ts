@@ -1,9 +1,10 @@
 /**
  * Fantasy value per game. Transparent weights (shown in League settings), not a black box.
- * Defaults mirror a common Yahoo points setup; category leagues can use them as a proxy.
+ * DEFAULT_SCORING is a generic points setup (category leagues can use it as a proxy); a new
+ * Yahoo team starts on Yahoo's own defaults (YAHOO_POINTS_SCORING).
  */
 
-import type { ScoringWeights } from '../../types/fantasy';
+import type { FantasyPlatform, ScoringWeights } from '../../types/fantasy';
 
 export const DEFAULT_SCORING: ScoringWeights = {
   goals: 3,
@@ -18,6 +19,33 @@ export const DEFAULT_SCORING: ScoringWeights = {
   goalsAgainst: -1,
   shutouts: 3,
 };
+
+/**
+ * Yahoo's default head-to-head points (help.yahoo.com/kb/SLN6815, checked 2026-10-10), so a Yahoo
+ * points league's live totals match the Yahoo app out of the box. Yahoo scores no hits.
+ */
+export const YAHOO_POINTS_SCORING: ScoringWeights = {
+  goals: 6,
+  assists: 4,
+  ppp: 2,
+  shots: 0.9,
+  hits: 0,
+  blocks: 1,
+  plusMinus: 2,
+  wins: 5,
+  saves: 0.6,
+  goalsAgainst: -3,
+  shutouts: 5,
+};
+
+/** The scoring a new team on this platform starts with. Only Yahoo's defaults are verified. */
+export function scoringPresetFor(platform: FantasyPlatform): ScoringWeights {
+  return platform === 'yahoo' ? { ...YAHOO_POINTS_SCORING } : { ...DEFAULT_SCORING };
+}
+
+export function sameScoring(a: ScoringWeights, b: ScoringWeights): boolean {
+  return SCORING_FIELDS.every((field) => a[field.key] === b[field.key]);
+}
 
 export const SCORING_FIELDS: Array<{ key: keyof ScoringWeights; label: string; goalie: boolean }> = [
   { key: 'goals', label: 'Goal', goalie: false },

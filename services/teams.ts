@@ -10,6 +10,7 @@ import type {
   FantasyRoster,
   FantasyTeam,
   LineupSlots,
+  ScoringWeights,
   SlotPosition,
   TeamsState,
 } from '../types/fantasy';
@@ -67,6 +68,7 @@ export function createTeam(input: {
   platform?: FantasyPlatform;
   leagueSize?: number;
   slots?: LineupSlots;
+  scoring?: ScoringWeights;
   players?: FantasyPlayer[];
   now?: Date;
 }): FantasyTeam {
@@ -78,7 +80,7 @@ export function createTeam(input: {
     leagueSize: sanitizeLeagueSize(input.leagueSize),
     minGoalieStarts: 0,
     slots: sanitizeSlots(input.slots ?? STANDARD_SLOTS),
-    scoring: { ...DEFAULT_SCORING },
+    scoring: sanitizeScoring(input.scoring ?? DEFAULT_SCORING),
     players: (input.players ?? []).slice(0, MAX_ROSTER_PLAYERS),
     opponentName: '',
     opponent: [],

@@ -9,7 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { FantasyPlatform, FantasyTeam, LineupSlots, ScoringWeights } from '../../types/fantasy';
 import { LINEUP_PRESETS, MAX_SLOTS_PER_TYPE, presetFor, totalSlots } from '../../services/fantasy/lineup';
 import { SLOT_ORDER } from '../../services/fantasy/positions';
-import { DEFAULT_SCORING, SCORING_FIELDS } from '../../services/fantasy/scoring';
+import { DEFAULT_SCORING, SCORING_FIELDS, scoringPresetFor } from '../../services/fantasy/scoring';
 import { DEFAULT_LEAGUE_SIZE, MAX_LEAGUE_SIZE, MAX_MIN_GOALIE_STARTS, MIN_LEAGUE_SIZE, PLATFORM_LABEL } from '../../services/teams';
 import { useTeams } from '../TeamsProvider';
 import { Card, colors, display, SectionLabel } from '../coach/ui';
@@ -216,8 +216,8 @@ export default function LeagueSettingsSheet({ visible, team, onClose }: LeagueSe
           <SectionLabel
             title="Scoring"
             right={(
-              <Pressable onPress={() => setScoring(DEFAULT_SCORING)} hitSlop={8}>
-                <Text style={styles.reset}>Reset</Text>
+              <Pressable onPress={() => setScoring(scoringPresetFor(platform))} hitSlop={8} accessibilityLabel={platform === 'yahoo' ? 'Reset to Yahoo defaults' : 'Reset scoring'}>
+                <Text style={styles.reset}>{platform === 'yahoo' ? 'Yahoo defaults' : 'Reset'}</Text>
               </Pressable>
             )}
           />

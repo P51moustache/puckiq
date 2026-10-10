@@ -6,7 +6,7 @@
  * paths yields the highest-value set of starters — not just the largest.
  */
 
-import type { LineupSlots, SlotKey } from '../../types/fantasy';
+import type { FantasyPlatform, LineupSlots, SlotKey } from '../../types/fantasy';
 import { SLOT_ORDER } from './positions';
 
 export interface LineupPreset {
@@ -17,11 +17,19 @@ export interface LineupPreset {
 }
 
 export const STANDARD_SLOTS: LineupSlots = { C: 2, LW: 2, RW: 2, F: 0, D: 4, UTIL: 1, G: 2 };
+/** Yahoo's default hockey lineup (help.yahoo.com/kb/SLN6815, checked 2026-10-10): no Util slot. */
+export const YAHOO_SLOTS: LineupSlots = { C: 2, LW: 2, RW: 2, F: 0, D: 4, UTIL: 0, G: 2 };
 
 export const LINEUP_PRESETS: LineupPreset[] = [
   {
+    id: 'yahoo',
+    label: 'Yahoo default',
+    detail: '2 C · 2 LW · 2 RW · 4 D · 2 G',
+    slots: YAHOO_SLOTS,
+  },
+  {
     id: 'standard',
-    label: 'Standard',
+    label: 'Standard + Util',
     detail: '2 C · 2 LW · 2 RW · 4 D · 1 UTIL · 2 G',
     slots: STANDARD_SLOTS,
   },
@@ -38,6 +46,11 @@ export const LINEUP_PRESETS: LineupPreset[] = [
     slots: { C: 3, LW: 3, RW: 3, F: 0, D: 5, UTIL: 1, G: 2 },
   },
 ];
+
+/** The lineup a new team on this platform starts with. Only Yahoo's default is verified. */
+export function slotsPresetFor(platform: FantasyPlatform): LineupSlots {
+  return platform === 'yahoo' ? { ...YAHOO_SLOTS } : { ...STANDARD_SLOTS };
+}
 
 export const MAX_SLOTS_PER_TYPE = 8;
 

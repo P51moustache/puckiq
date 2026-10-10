@@ -25,7 +25,8 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ART, ART_ASPECT } from '../../constants/art';
 import type { FantasyPlatform, LineupSlots, NhlSearchPlayer } from '../../types/fantasy';
-import { LINEUP_PRESETS } from '../../services/fantasy/lineup';
+import { LINEUP_PRESETS, presetFor, slotsPresetFor } from '../../services/fantasy/lineup';
+import { DEFAULT_SCORING, sameScoring, scoringPresetFor } from '../../services/fantasy/scoring';
 import { positionLabel } from '../../services/fantasy/positions';
 import { searchNhlPlayers } from '../../services/nhlPlayerSearch';
 import { addPlayers, PLATFORM_LABEL, removePlayer } from '../../services/teams';
@@ -63,7 +64,7 @@ export function CoachOnboarding({ onComplete }: CoachOnboardingProps) {
   const reminders = useReminders();
   const [step, setStep] = useState<Step>('welcome');
   const [platform, setPlatform] = useState<FantasyPlatform>(team?.platform ?? 'yahoo');
-  const [slots, setSlots] = useState<LineupSlots>(team?.slots ?? LINEUP_PRESETS[0].slots);
+  const [slots, setSlots] = useState<LineupSlots>(team?.slots ?? slotsPresetFor(team?.platform ?? 'yahoo'));
   const [name, setName] = useState(team?.name && team.name !== 'My Team' ? team.name : '');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<NhlSearchPlayer[]>([]);
@@ -108,10 +109,15 @@ export function CoachOnboarding({ onComplete }: CoachOnboardingProps) {
 
   const finishLeague = () => {
     const teamName = name.trim() || 'My Team';
+    // A new team starts on its platform's own scoring (Yahoo's defaults), unless the user already
+    // set custom scoring in an earlier pass through setup.
     if (teams.length === 0) {
-      addTeam({ name: teamName, platform, slots });
+      addTeam({ name: teamName, platform, slots, scoring: scoringPresetFor(platform) });
     } else {
-      updateTeam((current) => ({ ...current, name: teamName, platform, slots, updatedAt: new Date().toISOString() }));
+      updateTeam((current) => {
+        const untouched = sameScoring(current.scoring, DEFAULT_SCORING) || sameScoring(current.scoring, scoringPresetFor(current.platform));
+        return { ...current, name: teamName, platform, slots, scoring: untouched ? scoringPresetFor(platform) : current.scoring, updatedAt: new Date().toISOString() };
+      });
     }
     setStep('roster');
   };
@@ -203,7 +209,12 @@ export function CoachOnboarding({ onComplete }: CoachOnboardingProps) {
               {PLATFORMS.map((value) => (
                 <Pressable
                   key={value}
-                  onPress={() => setPlatform(value)}
+                  onPress={() => {
+                    // Follow the platform's default lineup unless the user picked another one.
+                    const followDefault = presetFor(slots)?.id === presetFor(slotsPresetFor(platform))?.id;
+                    setPlatform(value);
+                    if (followDefault) setSlots(slotsPresetFor(value));
+                  }}
                   style={[styles.chip, platform === value && styles.chipOn]}
                   testID={`onboarding-platform-${value}`}
                 >
@@ -218,7 +229,7 @@ export function CoachOnboarding({ onComplete }: CoachOnboardingProps) {
                 <Pressable key={preset.id} onPress={() => setSlots(preset.slots)} style={[styles.preset, on && styles.presetOn]} testID={`onboarding-preset-${preset.id}`}>
                   <Ionicons name={on ? 'radio-button-on' : 'radio-button-off'} size={18} color={on ? colors.accent : colors.muted} />
                   <View style={styles.flex}>
-                    <Text style={styles.presetLabel}>{preset.label}{preset.id === 'standard' ? ' (Yahoo & ESPN default)' : ''}</Text>
+                    <Text style={styles.presetLabel}>{preset.label}</Text>
                     <Text style={styles.presetDetail}>{preset.detail}</Text>
                   </View>
                 </Pressable>
