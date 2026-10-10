@@ -105,6 +105,17 @@ describe('buildCoachMoves', () => {
     expect(moves.find((move) => move.kind === 'off')?.detail).toContain('Off Winger');
   });
 
+  it('names a goalie likely to sit the second half of a back-to-back', () => {
+    const outlooks = new Map([[8470004, {
+      outlook: 'unlikely' as const, chance: 0.15, backToBack: 'second' as const,
+      reason: 'Started last night — backups usually get the second half of a back-to-back',
+    }]]);
+    const goalie = buildCoachMoves({ day, players: roster, games, statuses, forms, goalieOutlooks: outlooks }).find((move) => move.kind === 'goalie');
+    expect(goalie?.title).toBe('Starter Goalie: backup likely tonight');
+    expect(goalie?.detail).toContain('Started last night');
+    expect(goalie?.detail).not.toContain('confirmed');
+  });
+
   it('shows free users only the first move', () => {
     expect(visibleMoves(moves, false)).toHaveLength(1);
     expect(visibleMoves(moves, true)).toHaveLength(moves.length);
@@ -134,6 +145,44 @@ describe('rankPickups', () => {
     expect(row.gain).toBeCloseTo(row.form.value);
     expect(filterPickups(rows, 'D')).toEqual([]);
     expect(filterPickups(rows, 'F')).toHaveLength(1);
+  });
+});
+
+describe('rankPickups — goalies night by night', () => {
+  // NSH plays Monday and Tuesday: a back-to-back. My only goalie (BOS) plays Monday.
+  const gSlots: LineupSlots = { C: 0, LW: 0, RW: 0, F: 0, D: 0, UTIL: 0, G: 1 };
+  const b2b = week(MON, {
+    '2026-10-12': [game('2026-10-12', 'BOS', 'NSH'), ...busyNight('2026-10-12')],
+    '2026-10-13': [game('2026-10-13', 'NSH', 'CHI'), ...busyNight('2026-10-13')],
+    '2026-10-15': [game('2026-10-15', 'NSH', 'DAL'), ...busyNight('2026-10-15')],
+  });
+  const mine = [player(8470004, 'Starter Goalie', 'BOS', 'G')];
+  const goalieValues = new Map([[8470004, 4]]);
+  const goaliePlan = buildWeekPlan({ schedule: b2b, players: mine, slots: gSlots, values: goalieValues, today: TODAY });
+  const streamer = { ...formWithValue(9000003, 3, true), startShare: 0.7 };
+  const [row] = rankPickups({
+    schedule: b2b, plan: goaliePlan, roster: mine, slots: gSlots, values: goalieValues, today: TODAY,
+    candidates: [{ playerId: 9000003, name: 'Nash Goalie', team: 'NSH', position: 'G', form: streamer }],
+  });
+
+  it('values a streaming goalie less on his team’s back-to-back nights than on a regular night', () => {
+    const fills = row.days.filter((day) => day.fillsEmpty).map((day) => day.dayAbbrev);
+    expect(fills).toEqual(['TUE', 'THU']);
+    // Tuesday (second half of a back-to-back) is worth less than Thursday's full share.
+    expect(row.gain).toBeLessThan(2 * streamer.value);
+    expect(row.gain).toBeGreaterThan(streamer.value);
+  });
+
+  it('re-solves my goalie with the plan’s own chance for that night', () => {
+    const sitsMonday = rankPickups({
+      schedule: b2b, plan: goaliePlan, roster: mine, slots: gSlots, values: goalieValues, today: TODAY,
+      startShares: new Map([[8470004, 0.6]]),
+      startChanceOn: (id, date) => (id === 8470004 && date === '2026-10-12' ? 0.1 : undefined),
+      candidates: [{ playerId: 9000003, name: 'Nash Goalie', team: 'NSH', position: 'G', form: streamer }],
+    })[0];
+    // Monday my goalie likely sits (4 × 0.1/0.6 ≈ 0.7), so the streamer takes the slot.
+    expect(sitsMonday.days.find((day) => day.dayAbbrev === 'MON')?.usable).toBe(true);
+    expect(row.days.find((day) => day.dayAbbrev === 'MON')?.usable).toBe(false);
   });
 });
 

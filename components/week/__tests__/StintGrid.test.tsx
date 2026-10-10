@@ -11,7 +11,20 @@ import { scheduleRows } from '../stints';
 import { mockWindow } from './support/mocks';
 import { press, render, unmountAll } from './support/render';
 import { allText, byTestId, flatStyle, oneByTestId, textOf, type Node } from './support/tree';
-import { DRAISAITL, MATTHEWS, MCDAVID, ROSTER, nextWeekSchedule, planFor } from './support/weekFixtures';
+import {
+  DRAISAITL,
+  GOALIE_ROSTER,
+  MATTHEWS,
+  MCDAVID,
+  ROSTER,
+  SHESTERKIN,
+  SKINNER,
+  TODAY,
+  goalieBackToBackOn,
+  nextWeekSchedule,
+  planFor,
+  thisWeekSchedule,
+} from './support/weekFixtures';
 
 const plan = planFor(ROSTER);
 const rows = scheduleRows(ROSTER, plan);
@@ -142,6 +155,32 @@ describe('StintGrid — the week around the bars', () => {
   it('opens the player from his row', () => {
     press(oneByTestId(renderGrid(true), `week-row-${DRAISAITL}`));
     expect(onOpenPlayer).toHaveBeenCalledWith(DRAISAITL);
+  });
+
+  it('marks a goalie’s back-to-back nights “B2B” under the bar, faded once played', () => {
+    const goaliePlan = planFor(GOALIE_ROSTER, thisWeekSchedule(), TODAY, { backToBackOn: goalieBackToBackOn });
+    const root = render(<StintGrid plan={goaliePlan} rows={scheduleRows(GOALIE_ROSTER, goaliePlan)} detailed onOpenPlayer={onOpenPlayer} />);
+    const marks = root.findAll((node: Node) => typeof node.type === 'string' && /^week-b2b-/.test(node.props.testID ?? ''));
+    expect(marks.map((node: Node) => node.props.testID).sort()).toEqual([
+      `week-b2b-${SHESTERKIN}-2026-10-18`,
+      `week-b2b-${SKINNER}-2026-10-12`,
+      `week-b2b-${SKINNER}-2026-10-13`,
+    ]);
+    const sunday = oneByTestId(root, `week-b2b-${SHESTERKIN}-2026-10-18`);
+    expect(textOf(sunday)).toBe('B2B');
+    // It hangs below the bar without taking layout space, so the row's bars stay level.
+    expect(flatStyle(sunday.props.style)).toMatchObject({ position: 'absolute', top: '100%' });
+    expect(flatStyle(sunday.props.style).opacity).toBeUndefined();
+    expect(flatStyle(oneByTestId(root, `week-b2b-${SKINNER}-2026-10-12`).props.style).opacity).toBe(PAST_OPACITY);
+    // The bar itself is unchanged.
+    expect(barIn(cell(root, SKINNER, '2026-10-12')).props.testID).toBe('stint-count');
+    expect(oneByTestId(root, `week-row-${SHESTERKIN}`).props.accessibilityLabel).toBe(
+      'Igor Shesterkin: 2 games, 2 count. Back-to-back Sunday: teams usually split goalie starts',
+    );
+  });
+
+  it('has no back-to-back marks without the goalie data', () => {
+    expect(byTestId(renderGrid(true), `week-b2b-${SHESTERKIN}-2026-10-18`)).toHaveLength(0);
   });
 
   it('shows the opponent on phones and home/away with full names on iPad', () => {

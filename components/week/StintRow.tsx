@@ -1,6 +1,6 @@
 /**
- * One player's line in the stint chart: team tile and name, a bar per game day,
- * and his games for the week. Tapping it opens the player sheet.
+ * One player's line in the stint chart: team tile and name, a bar per game day (a goalie's
+ * back-to-back nights marked "B2B"), and his games for the week. Tapping it opens the player sheet.
  */
 
 import React from 'react';
@@ -10,6 +10,7 @@ import type { PlayerWeek } from '../../services/fantasy/weekPlan';
 import type { FantasyPlayer } from '../../types/fantasy';
 import { PlayerAvatar, PlayerName, splitName } from '../coach/PlayerAvatar';
 import { colors, display } from '../coach/ui';
+import { BackToBackMark } from './BackToBackMark';
 import { DayColumn } from './DayColumn';
 import { ROW_MIN_HEIGHT, type GridMetrics } from './gridMetrics';
 import { StintBar } from './StintBar';
@@ -51,17 +52,22 @@ export const StintRow = React.memo(function StintRow({ player, cells, summary, d
           <Text style={styles.pos}>{positionLabel(player)} · {player.teamAbbrev}</Text>
         </View>
       </View>
-      {cells.map((cell, index) => (
-        <DayColumn
-          key={cell.date}
-          offNight={cell.offNight}
-          now={index === nowColumn}
-          cap={first}
-          testID={`week-cell-${player.playerId}-${cell.date}`}
-        >
-          <StintBar cell={cell} team={player.teamAbbrev} metrics={metrics} hatchId={`hatch-${player.playerId}-${cell.date}`} />
-        </DayColumn>
-      ))}
+      {cells.map((cell, index) => {
+        const bar = <StintBar cell={cell} team={player.teamAbbrev} metrics={metrics} hatchId={`hatch-${player.playerId}-${cell.date}`} />;
+        return (
+          <DayColumn
+            key={cell.date}
+            offNight={cell.offNight}
+            now={index === nowColumn}
+            cap={first}
+            testID={`week-cell-${player.playerId}-${cell.date}`}
+          >
+            {cell.backToBack && cell.kind !== 'none' ? (
+              <BackToBackMark past={cell.past} testID={`week-b2b-${player.playerId}-${cell.date}`}>{bar}</BackToBackMark>
+            ) : bar}
+          </DayColumn>
+        );
+      })}
       <View style={[styles.total, { width: metrics.totalWidth }]}>
         <Text style={styles.totalText}>{summary?.games ?? 0}</Text>
       </View>

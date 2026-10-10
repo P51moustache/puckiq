@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { clearNhlMemoryCache, fetchJson, pruneNhlDiskCache, withQuery } from '../client';
 import { addDays, daysBetween, mondayOf, previousSeasonId, seasonIdFor, seasonLabel, weekRangeLabel, weekdayAbbrev } from '../dates';
-import { extractGameLines, extractScratchIds } from '../gamecenter';
+import { extractGameLines, extractScratchIds, extractStartingGoalies, fetchGameLines, fetchStartingGoalies, toiSeconds } from '../gamecenter';
 import { mapGameLog, mapLanding } from '../player';
 import { isFantasyGame, isOffNight, mapWeekPayload, normalizeGame } from '../schedule';
 import { mapGoalieRows, mapSkaterRows } from '../stats';
@@ -87,6 +87,112 @@ describe('gamecenter', () => {
     expect(lines.get(10)).toMatchObject({ points: 3, shots: 4 });
     expect(lines.get(30)).toMatchObject({ isGoalie: true, saves: 28 });
     expect(lines.has(31)).toBe(false);
+  });
+
+  it('flags who started in net and who got the decision (SEA @ DET, Oct 9: Gibson pulled for Tarasov)', () => {
+    const lines = extractGameLines({
+      playerByGameStats: {
+        awayTeam: {
+          forwards: [{ playerId: 8478407, goals: 1, toi: '17:40' }],
+          goalies: [
+            { playerId: 8475831, saves: 37, shotsAgainst: 40, goalsAgainst: 3, toi: '59:55', starter: true, decision: 'W' },
+            { playerId: 8478916, toi: '00:00', starter: false },
+          ],
+        },
+        homeTeam: {
+          goalies: [
+            { playerId: 8476434, saves: 10, shotsAgainst: 15, goalsAgainst: 5, toi: '34:05', starter: true, decision: 'L' },
+            { playerId: 8480193, saves: 8, shotsAgainst: 9, goalsAgainst: 1, toi: '25:55', starter: false },
+          ],
+        },
+      },
+    });
+    expect(lines.get(8475831)).toMatchObject({ starter: true, decision: 'W' });
+    expect(lines.get(8476434)).toMatchObject({ starter: true, decision: 'L' });
+    expect(lines.get(8480193)).toMatchObject({ starter: false });
+    expect(lines.get(8480193)).not.toHaveProperty('decision');
+    // The dressed backup who never played still gets no line.
+    expect(lines.has(8478916)).toBe(false);
+    // Skaters never carry goalie flags.
+    expect(lines.get(8478407)).not.toHaveProperty('starter');
+    expect(lines.get(8478407)).not.toHaveProperty('decision');
+  });
+
+  it('reads an overtime loss, and leaves the flags off when the box score is silent', () => {
+    const lines = extractGameLines({
+      playerByGameStats: {
+        homeTeam: { goalies: [{ playerId: 30, toi: '64:12', starter: true, decision: 'O' }] },
+        awayTeam: { goalies: [{ playerId: 40, toi: '20:00', decision: null }, { playerId: 50, toi: '40:00', decision: 'X' }] },
+      },
+    });
+    expect(lines.get(30)).toMatchObject({ starter: true, decision: 'O' });
+    expect(lines.get(40)).not.toHaveProperty('starter');
+    expect(lines.get(40)).not.toHaveProperty('decision');
+    expect(lines.get(50)).not.toHaveProperty('decision');
+  });
+
+  describe('starting goalies', () => {
+    const team = (abbrev: string, goalies: Array<{ playerId: number; toi: string; starter?: boolean }>) => ({ abbrev, goalies });
+    const box = (away: ReturnType<typeof team>, home: ReturnType<typeof team>) => ({
+      awayTeam: { abbrev: away.abbrev },
+      homeTeam: { abbrev: home.abbrev },
+      playerByGameStats: { awayTeam: { goalies: away.goalies }, homeTeam: { goalies: home.goalies } },
+    });
+    const originalFetch = global.fetch;
+    afterEach(() => {
+      global.fetch = originalFetch;
+      clearNhlMemoryCache();
+    });
+
+    it('takes the flagged starter from a final box score, even one who was pulled (SEA @ DET, Oct 9)', () => {
+      const starters = extractStartingGoalies(box(
+        team('SEA', [{ playerId: 8475831, toi: '59:55', starter: true }, { playerId: 8478916, toi: '00:00', starter: false }]),
+        team('DET', [{ playerId: 8476434, toi: '34:05', starter: true }, { playerId: 8480193, toi: '25:55', starter: false }]),
+      ));
+      expect([...starters]).toEqual([['DET', 8476434], ['SEA', 8475831]]);
+    });
+
+    it('reads a live box score (no flags yet) by the one goalie who has played (EDM @ SJS, Oct 10)', () => {
+      const starters = extractStartingGoalies(box(
+        team('EDM', [{ playerId: 8482221, toi: '00:00' }, { playerId: 8477465, toi: '19:36' }]),
+        team('SJS', [{ playerId: 8482137, toi: '19:36' }, { playerId: 8477968, toi: '00:00' }]),
+      ));
+      expect(starters.get('EDM')).toBe(8477465);
+      expect(starters.get('SJS')).toBe(8482137);
+    });
+
+    it('leaves out a team that pulled its goalie before the flags arrive (VAN @ NJD, Oct 10)', () => {
+      const starters = extractStartingGoalies(box(
+        team('VAN', [{ playerId: 8482447, toi: '19:51' }, { playerId: 8480947, toi: '05:27' }]),
+        team('NJD', [{ playerId: 8474596, toi: '25:18' }, { playerId: 8482076, toi: '00:00' }]),
+      ));
+      expect(starters.has('VAN')).toBe(false);
+      expect(starters.get('NJD')).toBe(8474596);
+      expect(extractStartingGoalies({}).size).toBe(0);
+    });
+
+    it('shares one box score request with the lines, and fails soft', async () => {
+      const payload = box(team('SEA', [{ playerId: 8475831, toi: '59:55', starter: true }]), team('DET', [{ playerId: 8476434, toi: '34:05', starter: true }]));
+      const fetchMock = jest.fn(async () => ({ ok: true, status: 200, json: async () => payload }));
+      global.fetch = fetchMock as unknown as typeof fetch;
+      const [lines, starters] = await Promise.all([
+        fetchGameLines(2026020066, { final: true }),
+        fetchStartingGoalies(2026020066, { final: true }),
+      ]);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(lines.get(8476434)).toMatchObject({ starter: true });
+      expect(starters.get('DET')).toBe(8476434);
+
+      global.fetch = jest.fn(async () => ({ ok: false, status: 404, json: async () => ({}) })) as unknown as typeof fetch;
+      expect((await fetchStartingGoalies(2026020999, { final: true })).size).toBe(0);
+    });
+  });
+
+  it('turns time on ice into seconds', () => {
+    expect(toiSeconds('34:05')).toBe(34 * 60 + 5);
+    expect(toiSeconds('00:00')).toBe(0);
+    expect(toiSeconds(undefined)).toBe(0);
+    expect(toiSeconds('bad')).toBe(0);
   });
 });
 

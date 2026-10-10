@@ -1,17 +1,16 @@
 /**
- * Screen-level data hooks. Each composes cached loaders; tabs that need the same
- * data (forms, this week's schedule) share one network call through the NHL client.
+ * Screen-level data hooks: the week (both sides of a matchup), a night (tonight, tomorrow, last
+ * night's recap) and pickups. They build on the shared data hooks in useTeamData.ts.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { AppState } from 'react-native';
 import type { FantasyTeam } from '../types/fantasy';
 import { buildCoachMoves, type CoachMove } from '../services/fantasy/coach';
+import { outlookChances, plannerGoalieInputs, type GoalieOutlook } from '../services/fantasy/goalieOutlook';
 import {
   loadNight,
   loadPickupPool,
-  loadPlayerForms,
-  loadWeekSchedule,
   startSharesOf,
   valuesOf,
   type FormsResult,
@@ -20,58 +19,25 @@ import {
 import { compareWeeks, type MatchupSummary } from '../services/fantasy/matchup';
 import { buildNightScore, type NightScore } from '../services/fantasy/nightScore';
 import { likelyRosteredIds, rankPickups, type PickupRow } from '../services/fantasy/pickups';
-import { buildWeekPlan, type DayPlan, type WeekPlan } from '../services/fantasy/weekPlan';
-import { addDays, mondayOf, todayNhl, appNow } from '../services/nhl/dates';
+import { buildWeekPlan, type DayPlan, type PlanInput, type WeekPlan } from '../services/fantasy/weekPlan';
+import { addDays, mondayOf, appNow } from '../services/nhl/dates';
 import { isGameFinal, isGameStarted, type WeekSchedule } from '../services/nhl/schedule';
+import { useGoalieOutlook } from './useGoalieOutlook';
 import { useResource, type Resource } from './useResource';
+import { rosterKey, useNhlToday, useTeamForms, useWeekGoalieNights, useWeekSchedule } from './useTeamData';
 
-/** NHL "today" that rolls over at midnight Eastern without an app restart. */
-export function useNhlToday(): string {
-  const [today, setToday] = useState(() => todayNhl());
-  useEffect(() => {
-    const tick = () => setToday(todayNhl());
-    const timer = setInterval(tick, 60_000);
-    const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') tick();
-    });
-    return () => {
-      clearInterval(timer);
-      sub.remove();
-    };
-  }, []);
-  return today;
-}
+// Screens and tests import the shared hooks from here too.
+export { useNhlToday, useTeamForms, useWeekHasGamesLeft, useWeekSchedule } from './useTeamData';
 
-function rosterKey(team: FantasyTeam | null, includeOpponent: boolean): string {
-  if (!team) return 'none';
-  const ids = team.players.map((player) => `${player.playerId}:${player.teamAbbrev}:${player.position}:${player.injuredReserve ? 1 : 0}`);
-  const opp = includeOpponent ? team.opponent.map((player) => `${player.playerId}:${player.teamAbbrev}`) : [];
-  return `${team.id}|${ids.join(',')}|${opp.join(',')}|${JSON.stringify(team.scoring)}`;
-}
-
-export function useTeamForms(team: FantasyTeam | null, today: string, includeOpponent = false): Resource<FormsResult> {
-  const key = team ? `forms|${today}|${rosterKey(team, includeOpponent)}` : null;
-  return useResource(key, (force) => {
-    const players = includeOpponent && team ? [...team.players, ...team.opponent] : team?.players ?? [];
-    return loadPlayerForms(players, team!.scoring, today, { force });
-  });
-}
-
-export function useWeekSchedule(monday: string): Resource<WeekSchedule> {
-  return useResource(`week|${monday}`, (force) => loadWeekSchedule(monday, { force }));
-}
-
-/** Does this week still have regular-season NHL games from `today` on? Null while loading. */
-export function useWeekHasGamesLeft(today: string): boolean | null {
-  const schedule = useWeekSchedule(mondayOf(today));
-  if (!schedule.data) return null;
-  return schedule.data.days.some((day) => day.date >= today && day.games.some((game) => game.gameType === 2 && game.scheduleState === 'OK'));
-}
+/** What both sides' plans were built with: values, start shares and each goalie's chance night by night. */
+export type WeekPlanInputs = Pick<PlanInput, 'values' | 'startShares' | 'startChanceOn' | 'backToBackOn'>;
 
 export interface WeekData {
   monday: string;
   schedule: Resource<WeekSchedule>;
   forms: Resource<FormsResult>;
+  /** Null until forms load. Pickups re-solve nights with the same inputs. */
+  planInputs: WeekPlanInputs | null;
   plan: WeekPlan | null;
   opponentPlan: WeekPlan | null;
   matchup: MatchupSummary | null;
@@ -86,36 +52,31 @@ export function useWeekData(team: FantasyTeam | null, weekOffset = 0): WeekData 
   const monday = addDays(mondayOf(today), weekOffset * 7);
   const schedule = useWeekSchedule(monday);
   const forms = useTeamForms(team, today, true);
+  const goalieNights = useWeekGoalieNights(team, monday, today);
+
+  // Shared by both sides: values, start shares, and each goalie's start chance night by night.
+  const planInputs = useMemo((): WeekPlanInputs | null => {
+    if (!forms.data) return null;
+    const startShares = startSharesOf(forms.data.forms);
+    return { values: valuesOf(forms.data.forms), startShares, ...plannerGoalieInputs(goalieNights.data, startShares) };
+  }, [forms.data, goalieNights.data]);
 
   const plan = useMemo(() => {
-    if (!team || !schedule.data || !forms.data) return null;
-    return buildWeekPlan({
-      schedule: schedule.data,
-      players: team.players,
-      slots: team.slots,
-      values: valuesOf(forms.data.forms),
-      startShares: startSharesOf(forms.data.forms),
-      today,
-    });
-  }, [team, schedule.data, forms.data, today]);
+    if (!team || !schedule.data || !planInputs) return null;
+    return buildWeekPlan({ schedule: schedule.data, players: team.players, slots: team.slots, today, ...planInputs });
+  }, [team, schedule.data, planInputs, today]);
 
   const opponentPlan = useMemo(() => {
-    if (!team || team.opponent.length === 0 || !schedule.data || !forms.data) return null;
-    return buildWeekPlan({
-      schedule: schedule.data,
-      players: team.opponent,
-      slots: team.slots,
-      values: valuesOf(forms.data.forms),
-      startShares: startSharesOf(forms.data.forms),
-      today,
-    });
-  }, [team, schedule.data, forms.data, today]);
+    if (!team || team.opponent.length === 0 || !schedule.data || !planInputs) return null;
+    return buildWeekPlan({ schedule: schedule.data, players: team.opponent, slots: team.slots, today, ...planInputs });
+  }, [team, schedule.data, planInputs, today]);
 
   const matchup = useMemo(() => (plan && opponentPlan ? compareWeeks(plan, opponentPlan) : null), [plan, opponentPlan]);
 
   return {
     monday,
     schedule,
+    planInputs,
     forms,
     plan,
     opponentPlan,
@@ -124,7 +85,7 @@ export function useWeekData(team: FantasyTeam | null, weekOffset = 0): WeekData 
     refreshing: schedule.refreshing || forms.refreshing,
     error: schedule.error ?? forms.error,
     refresh: async () => {
-      await Promise.all([schedule.refresh(), forms.refresh()]);
+      await Promise.all([schedule.refresh(), forms.refresh(), goalieNights.refresh()]);
     },
   };
 }
@@ -135,6 +96,8 @@ export interface NightView {
   forms: Resource<FormsResult>;
   day: DayPlan | null;
   moves: CoachMove[];
+  /** Goalies' estimated starts on this night (empty until loaded). The lineup prefers the likely starter. */
+  goalieOutlooks: ReadonlyMap<number, GoalieOutlook>;
   liveGames: boolean;
   /** Box-score points for the night (null until the night and lineup inputs load). */
   score: NightScore | null;
@@ -158,6 +121,7 @@ export function useNight(team: FantasyTeam | null, dayOffset = 0, enabled = true
   const key = team && enabled ? `night|${date}|${rosterKey(team, false)}` : null;
   // Box scores load for tonight (live) and last night (the recap); tomorrow has none yet.
   const night = useResource(key, (force) => loadNight(team!.players, date, { force, live: dayOffset <= 0, news: dayOffset >= 0 }));
+  const goalieOutlooks = useGoalieOutlook(enabled ? team : null, date);
 
   const liveGames = useMemo(
     () => !!night.data && Object.values(night.data.playerGames).some((game) => game && isGameStarted(game) && !isGameFinal(game)),
@@ -188,9 +152,18 @@ export function useNight(team: FantasyTeam | null, dayOffset = 0, enabled = true
         .map((status) => status.playerId),
     );
     const available = team.players.filter((player) => !scratched.has(player.playerId));
-    const plan = buildWeekPlan({ schedule: schedule.data, players: available, slots: team.slots, values: valuesOf(forms.data.forms), today: date });
+    const plan = buildWeekPlan({
+      schedule: schedule.data,
+      players: available,
+      slots: team.slots,
+      values: valuesOf(forms.data.forms),
+      startShares: startSharesOf(forms.data.forms),
+      // A goalie likely to sit (say, the second night of a back-to-back he started) loses his seat.
+      startChanceOn: outlookChances(goalieOutlooks, date),
+      today: date,
+    });
     return plan.days.find((entry) => entry.date === date) ?? null;
-  }, [team, schedule.data, forms.data, night.data, date]);
+  }, [team, schedule.data, forms.data, night.data, date, goalieOutlooks]);
 
   const moves = useMemo(() => {
     if (dayOffset < 0 || !team || !day || !night.data || !forms.data) return [];
@@ -200,9 +173,10 @@ export function useNight(team: FantasyTeam | null, dayOffset = 0, enabled = true
       games: night.data.playerGames,
       statuses: night.data.statuses,
       forms: forms.data.forms,
+      goalieOutlooks,
       when: dayOffset === 0 ? 'tonight' : 'tomorrow',
     });
-  }, [team, day, night.data, forms.data, dayOffset]);
+  }, [team, day, night.data, forms.data, dayOffset, goalieOutlooks]);
 
   const score = useMemo(() => {
     if (!team || !night.data) return null;
@@ -229,6 +203,7 @@ export function useNight(team: FantasyTeam | null, dayOffset = 0, enabled = true
     forms,
     day,
     moves,
+    goalieOutlooks,
     liveGames,
     score,
     loading: night.loading || forms.loading || schedule.loading,
@@ -283,11 +258,13 @@ export function usePickups(
       roster: team.players,
       slots: team.slots,
       values: valuesOf(week.forms.data.forms),
+      startShares: week.planInputs?.startShares,
+      startChanceOn: week.planInputs?.startChanceOn,
       candidates: pool.data.candidates.filter((candidate) => !exclude.has(candidate.playerId) && !owned.has(candidate.playerId)),
       today,
       onlyDate,
     });
-  }, [team, pool.data, week.plan, week.schedule.data, week.forms.data, exclude, owned, today, onlyDate]);
+  }, [team, pool.data, week.plan, week.planInputs, week.schedule.data, week.forms.data, exclude, owned, today, onlyDate]);
 
   return {
     rows,

@@ -1,11 +1,13 @@
 /**
  * The Week schedule as an F1 tyre-strategy chart: one strip per player across Mon–Sun.
- * Pure — which bar each day shows, how back-to-back bars join into one stint, where the
- * "now" line sits, and what a row says to VoiceOver. The grid components only render it.
+ * Pure — which bar each day shows, how back-to-back bars join into one stint, which goalie
+ * nights are back-to-backs, where the "now" line sits, and what a row says to VoiceOver.
+ * The grid components only render it.
  */
 
 import { isNhlLinked } from '../../services/fantasy/positions';
 import type { DayPlan, PlayerWeek, WeekPlan } from '../../services/fantasy/weekPlan';
+import type { BackToBackRole } from '../../services/nhl/goalieStarts';
 import type { FantasyPlayer } from '../../types/fantasy';
 
 /**
@@ -29,6 +31,8 @@ export interface StintCell {
   past: boolean;
   today: boolean;
   offNight: boolean;
+  /** His team's back-to-back role this night, when the plan carries it (goalies). */
+  backToBack: BackToBackRole | null;
 }
 
 /** Linked, active players: most games first, then by name. */
@@ -59,6 +63,7 @@ export function stintCells(plan: WeekPlan, playerId: number, detailed: boolean):
       past: day.isPast,
       today: day.isToday,
       offNight: day.offNight,
+      backToBack: game?.backToBack ?? null,
     };
   });
   return cells.map((cell, index) => ({
@@ -96,7 +101,24 @@ function plural(count: number, one: string, many: string): string {
   return `${count} ${count === 1 ? one : many}`;
 }
 
-/** What VoiceOver reads for a row: "Connor McDavid: 4 games, 3 count, 1 on the bench". */
+/** "Saturday", for VoiceOver. */
+function weekdayName(date: string): string {
+  return new Date(`${date}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
+}
+
+/** The nights the plan marks as back-to-backs (goalies), in date order. */
+export function backToBackDates(summary: PlayerWeek | undefined): string[] {
+  if (!summary) return [];
+  return Object.values(summary.byDate)
+    .filter((game) => game.backToBack)
+    .map((game) => game.date)
+    .sort();
+}
+
+/**
+ * What VoiceOver reads for a row: "Connor McDavid: 4 games, 3 count, 1 on the bench". A goalie's
+ * row adds his back-to-back nights, the "B2B" marks under his bars.
+ */
 export function rowAccessibilityLabel(name: string, summary: PlayerWeek | undefined, detailed: boolean): string {
   const games = summary?.games ?? 0;
   if (!summary || games === 0) return `${name}: no games`;
@@ -105,5 +127,9 @@ export function rowAccessibilityLabel(name: string, summary: PlayerWeek | undefi
     parts.push(plural(summary.starts, 'counts', 'count'));
     if (summary.benched > 0) parts.push(`${summary.benched} on the bench`);
   }
-  return `${name}: ${parts.join(', ')}`;
+  const backToBacks = backToBackDates(summary);
+  const note = backToBacks.length > 0
+    ? `. Back-to-back ${backToBacks.map(weekdayName).join(', ')}: teams usually split goalie starts`
+    : '';
+  return `${name}: ${parts.join(', ')}${note}`;
 }

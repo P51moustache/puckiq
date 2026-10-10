@@ -8,6 +8,8 @@ import type { FantasyPlayer, InjuryConfidence, InjurySignal, SlotKey } from '../
 import { formatPuckDrop } from '../nhl/dates';
 import type { PlayerForm } from './form';
 import type { DayPlan, PlayerGameDay } from './weekPlan';
+import { lastNameOf, shortNames } from './names';
+import type { GoalieOutlook } from './goalieOutlook';
 
 export type CoachMoveKind = 'scratch' | 'injury' | 'overflow' | 'empty' | 'goalie' | 'off' | 'clean';
 
@@ -38,27 +40,14 @@ export interface CoachInput {
   games: Record<number, PlayerGameDay | undefined>;
   statuses: Map<number, PlayerStatus>;
   forms: Map<number, PlayerForm>;
+  /** Goalies' estimated starts this night (back-to-backs); without one, the goalie move cites his start share. */
+  goalieOutlooks?: ReadonlyMap<number, GoalieOutlook>;
   /** How to name the night in copy: "tonight", "tomorrow". */
   when?: string;
 }
 
 function nameOf(players: Map<number, FantasyPlayer>, id: number): string {
   return players.get(id)?.playerName ?? 'Player';
-}
-
-function lastName(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  return parts[parts.length - 1] ?? name;
-}
-
-/** Last names, with a first initial where two share one ("J. Hughes, Q. Hughes"). */
-function shortNames(fullNames: string[]): string[] {
-  const lasts = fullNames.map(lastName);
-  return fullNames.map((full, index) => {
-    const clash = lasts.some((other, j) => j !== index && other === lasts[index]);
-    const first = full.trim().split(/\s+/)[0] ?? '';
-    return clash && first && first !== lasts[index] ? `${first[0]}. ${lasts[index]}` : lasts[index];
-  });
 }
 
 function joinNames(names: string[], max = 3): string {
@@ -97,7 +86,7 @@ function overflowMove(
     .filter((seat) => (forms.get(seat.playerId)?.value ?? 0) >= mine && seat.playerId !== id)
     .map((seat) => seat.playerId)
     .filter((starterId) => byId.get(starterId)?.position === player.position)
-    .map((starterId) => lastName(nameOf(byId, starterId)));
+    .map((starterId) => lastNameOf(nameOf(byId, starterId)));
   return {
     id: `overflow-${id}`,
     kind: 'overflow',
@@ -131,7 +120,7 @@ function emptySlotsMove(counts: Map<SlotKey, number>, when: string): CoachMove |
   };
 }
 
-export function buildCoachMoves({ day, players, games, statuses, forms, when = 'tonight' }: CoachInput): CoachMove[] {
+export function buildCoachMoves({ day, players, games, statuses, forms, goalieOutlooks, when = 'tonight' }: CoachInput): CoachMove[] {
   const byId = new Map(players.map((player) => [player.playerId, player]));
   const moves: CoachMove[] = [];
   const startersById = new Map(day.starters.map((seat) => [seat.playerId, seat.slot]));
@@ -192,12 +181,15 @@ export function buildCoachMoves({ day, players, games, statuses, forms, when = '
     const game = games[id];
     if (game && ['LIVE', 'CRIT', 'FINAL', 'OFF'].includes(game.state)) continue;
     const pct = Math.round(form.startShare * 100);
+    const outlook = goalieOutlooks?.get(id);
     moves.push({
       id: `goalie-${id}`,
       kind: 'goalie',
       severity: 3,
-      title: `${player.playerName}: starter not announced`,
-      detail: `The NHL doesn't post starters before puck drop. He's started ~${pct}% of his team's games.`,
+      title: outlook?.outlook === 'unlikely' ? `${player.playerName}: backup likely ${when}` : `${player.playerName}: starter not announced`,
+      detail: outlook?.backToBack
+        ? `${outlook.reason}. The NHL doesn't post starters before puck drop.`
+        : `The NHL doesn't post starters before puck drop. He's started ~${pct}% of his team's games.`,
       playerIds: [id],
     });
   }

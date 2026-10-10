@@ -41,3 +41,8 @@ export const OFF_NIGHT_TINT = '#F4F0E9';
 export const OFF_NIGHT_EDGE = '#DDD6CB';
 /** Bench hatching: stripe pitch and weight that stay crisp in an 18pt bar without turning into a flat tint. */
 export const HATCH = { pitch: 5, stroke: 1.5, opacity: 0.45, outline: 1.5 } as const;
+/**
+ * "B2B" under a goalie's bar: the bar labels' 9pt, 2pt below the bar. A 22pt iPad bar centred
+ * in a 48pt row ends 13pt above the row's edge, room for the gap and a 10pt line.
+ */
+export const BACK_TO_BACK_MARK = { size: 9, lineHeight: 10, gap: 2 } as const;

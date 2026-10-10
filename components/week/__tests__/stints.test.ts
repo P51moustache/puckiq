@@ -1,6 +1,7 @@
 import type { PlayerWeek } from '../../../services/fantasy/weekPlan';
 import { busyNight, game, player, week } from '../../../services/fantasy/__tests__/fixtures';
 import {
+  backToBackDates,
   barKind,
   barLabel,
   dayTotals,
@@ -12,6 +13,7 @@ import {
 } from '../stints';
 import {
   DRAISAITL,
+  GOALIE_ROSTER,
   MAKAR,
   MATTHEWS,
   MCDAVID,
@@ -19,9 +21,12 @@ import {
   ON_IR,
   ROSTER,
   SHESTERKIN,
+  SKINNER,
   TODAY,
+  goalieBackToBackOn,
   nextWeekSchedule,
   planFor,
+  thisWeekSchedule,
 } from './support/weekFixtures';
 
 const plan = planFor(ROSTER);
@@ -139,6 +144,34 @@ describe('rowAccessibilityLabel', () => {
   it('says when there are no games', () => {
     expect(rowAccessibilityLabel('Idle', undefined, true)).toBe('Idle: no games');
     expect(rowAccessibilityLabel('Idle', summary(0, 0, 0), true)).toBe('Idle: no games');
+  });
+});
+
+describe('goalie back-to-backs', () => {
+  const goaliePlan = planFor(GOALIE_ROSTER, thisWeekSchedule(), TODAY, { backToBackOn: goalieBackToBackOn });
+
+  it('carries each night’s back-to-back role into the strip', () => {
+    expect(stintCells(goaliePlan, SKINNER, true).map((cell) => cell.backToBack)).toEqual(['first', 'second', null, null, null, null, null]);
+    expect(stintCells(goaliePlan, SHESTERKIN, false).map((cell) => cell.backToBack)).toEqual([null, null, null, null, null, null, 'first']);
+  });
+
+  it('has none without back-to-back data', () => {
+    expect(stintCells(plan, SHESTERKIN, true).every((cell) => cell.backToBack === null)).toBe(true);
+    expect(backToBackDates(plan.players[SHESTERKIN])).toEqual([]);
+  });
+
+  it('lists the nights in date order', () => {
+    expect(backToBackDates(goaliePlan.players[SKINNER])).toEqual(['2026-10-12', '2026-10-13']);
+    expect(backToBackDates(undefined)).toEqual([]);
+  });
+
+  it('tells VoiceOver which nights are back-to-backs', () => {
+    expect(rowAccessibilityLabel('Stuart Skinner', goaliePlan.players[SKINNER], true)).toBe(
+      'Stuart Skinner: 3 games, 3 count. Back-to-back Monday, Tuesday: teams usually split goalie starts',
+    );
+    expect(rowAccessibilityLabel('Igor Shesterkin', goaliePlan.players[SHESTERKIN], false)).toBe(
+      'Igor Shesterkin: 2 games. Back-to-back Sunday: teams usually split goalie starts',
+    );
   });
 });
 

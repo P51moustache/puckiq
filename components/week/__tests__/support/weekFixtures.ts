@@ -14,8 +14,9 @@
 import type { WeekData } from '../../../../hooks/useCoach';
 import { compareWeeks } from '../../../../services/fantasy/matchup';
 import { DEFAULT_SCORING } from '../../../../services/fantasy/scoring';
-import { buildWeekPlan, type WeekPlan } from '../../../../services/fantasy/weekPlan';
+import { buildWeekPlan, type PlanInput, type WeekPlan } from '../../../../services/fantasy/weekPlan';
 import { addDays } from '../../../../services/nhl/dates';
+import type { BackToBackRole } from '../../../../services/nhl/goalieStarts';
 import type { WeekSchedule } from '../../../../services/nhl/schedule';
 import type { FantasyPlayer, FantasyTeam, LineupSlots } from '../../../../types/fantasy';
 import { busyNight, game, player, week } from '../../../../services/fantasy/__tests__/fixtures';
@@ -44,6 +45,22 @@ export const ROSTER: FantasyPlayer[] = [
   player(ON_IR, 'On Reserve', 'EDM', 'C', { injuredReserve: true }),
   player(1_756_000_000_000_001, 'Typed Name', '', 'C'),
 ];
+
+export const SKINNER = 8479973;
+
+/** ROSTER plus an Edmonton goalie, whose Monday–Tuesday back-to-back is already played. */
+export const GOALIE_ROSTER: FantasyPlayer[] = [...ROSTER, player(SKINNER, 'Stuart Skinner', 'EDM', 'G')];
+
+/** Goalie back-to-backs as useWeekData passes them: Skinner Mon–Tue, Shesterkin Sunday into next Monday. */
+const GOALIE_BACK_TO_BACKS: Record<string, BackToBackRole> = {
+  [`${SKINNER}|2026-10-12`]: 'first',
+  [`${SKINNER}|2026-10-13`]: 'second',
+  [`${SHESTERKIN}|2026-10-18`]: 'first',
+};
+
+export function goalieBackToBackOn(playerId: number, date: string): BackToBackRole | undefined {
+  return GOALIE_BACK_TO_BACKS[`${playerId}|${date}`];
+}
 
 export const OPPONENT: FantasyPlayer[] = [
   player(MACKINNON, 'Nathan MacKinnon', 'COL', 'C'),
@@ -84,8 +101,14 @@ export function nextWeekSchedule(): WeekSchedule {
   });
 }
 
-export function planFor(players: FantasyPlayer[], schedule: WeekSchedule = thisWeekSchedule(), today = TODAY): WeekPlan {
-  return buildWeekPlan({ schedule, players, slots: SLOTS, values: VALUES, today });
+/** `extra`: more planner inputs, e.g. goalies' back-to-back nights. */
+export function planFor(
+  players: FantasyPlayer[],
+  schedule: WeekSchedule = thisWeekSchedule(),
+  today = TODAY,
+  extra: Partial<PlanInput> = {},
+): WeekPlan {
+  return buildWeekPlan({ schedule, players, slots: SLOTS, values: VALUES, today, ...extra });
 }
 
 export function makeTeam(overrides: Partial<FantasyTeam> = {}): FantasyTeam {
