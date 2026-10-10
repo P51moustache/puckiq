@@ -24,11 +24,16 @@ interface CoreDetail {
   news: RosterNewsItem[];
 }
 
+export interface PlayerDetailResource extends Resource<PlayerDetail> {
+  /** His form has loaded (or failed): `data.form` is final, so calls built on it won't change. */
+  formSettled: boolean;
+}
+
 /**
  * Profile + game log (fast, api-web) render first; the stats-API form fills in after,
  * so a busy stats API never blanks the whole sheet.
  */
-export function usePlayerDetail(playerId: number | null, scoring: ScoringWeights): Resource<PlayerDetail> {
+export function usePlayerDetail(playerId: number | null, scoring: ScoringWeights): PlayerDetailResource {
   const today = useNhlToday();
 
   const core = useResource<CoreDetail>(playerId ? `player|${playerId}|${today}` : null, async (force) => {
@@ -59,7 +64,8 @@ export function usePlayerDetail(playerId: number | null, scoring: ScoringWeights
 
   const profile = core.data?.profile ?? null;
   const formKey = profile ? `playerform|${profile.playerId}|${profile.team}|${profile.position}|${today}|${JSON.stringify(scoring)}` : null;
-  const form = useResource<PlayerForm | null>(formKey, async (force) => {
+  // Wrapped so "loaded, no stats for him" ({ form: null }) differs from "not loaded" (null).
+  const form = useResource<{ form: PlayerForm | null }>(formKey, async (force) => {
     const asRosterPlayer: FantasyPlayer = {
       playerId: profile!.playerId,
       playerName: profile!.name,
@@ -68,11 +74,12 @@ export function usePlayerDetail(playerId: number | null, scoring: ScoringWeights
       rosterPosition: 'BN',
     };
     const forms = await loadPlayerForms([asRosterPlayer], scoring, today, { force });
-    return forms.forms.get(profile!.playerId) ?? null;
+    return { form: forms.forms.get(profile!.playerId) ?? null };
   });
 
   return {
-    data: core.data ? { ...core.data, form: form.data ?? null } : null,
+    data: core.data ? { ...core.data, form: form.data?.form ?? null } : null,
+    formSettled: form.data !== null || form.error !== null,
     error: core.error,
     loading: core.loading,
     refreshing: core.refreshing || form.refreshing,
