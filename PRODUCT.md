@@ -33,6 +33,7 @@ All NHL reads go through `services/nhl/client.ts`: memory + disk TTL cache, in-f
 - **Lineup** (`lineup.ts`) — league slots (C/LW/RW/F/D/UTIL/G). Greedy-by-value augmenting-path matching → the highest-value set of starters, who sits on overflow, which slots go empty.
 - **Week plan** (`weekPlan.ts`) — the lineup solved for each day: games, games that count, bench overflow, empty slots; whole week vs remaining.
 - **Form** (`form.ts`) — value per team game from transparent points weights; season blended with last season early on, 60/40 with last-14-days; goalie value × start share.
+- **Scoring** (`scoring.ts`, `categories.ts`) — a points league's per-stat points (Yahoo teams start on Yahoo's defaults), or a category league's categories weighted evenly: one standard deviation of each category's per-game rate among regular NHL players is worth the same, and GAA / SV% are measured against a league-average start. Everything downstream ranks by the same weights.
 - **Coach** (`coach.ts`) — tonight's moves: confirmed scratch → injury check → overflow sit → empty slot → goalie unconfirmed → no-game housekeeping.
 - **Pickups** (`pickups.ts`) — value added to MY lineup over the rest of the week, counting only nights he'd start (empty-slot fills first). Hides players a league of this size almost always rosters; "mark taken" hides the rest.
 - **Matchup** (`matchup.ts`) — my remaining games that count vs my opponent's (manual roster), same rules.
@@ -99,7 +100,8 @@ PuckIQ follows the whole night, not just the hour before lock:
 
 - **Game day.** "Today" is the NHL game day, which rolls over at 6 AM Eastern (`services/nhlDate.ts`), so a 10:30 PM ET puck drop stays on Tonight until it ends.
 - **Before lock.** Who plays, the coach's moves (repeated sits and empty slots are grouped into one card each), the best lineup.
-- **Live.** The hero becomes the night's scoreboard; players sort by live points like a timing tower; hat tricks, three-point nights, 40-save nights and shutouts get the F1 purple. One source of truth: `services/fantasy/nightScore.ts`.
+- **Live.** The hero becomes the night's scoreboard; players sort by live points like a timing tower; hat tricks, three-point nights, 40-save nights and shutouts get the F1 purple. One source of truth: `services/fantasy/nightScore.ts`. A category league sees its tallies instead (G, A, +/-, PPP, SOG, HIT · W, GAA, SV%, SO — `nightTallies.ts`), on Tonight, the recap, share cards, widgets and the Live Activity.
+- **Make the move.** "Make these moves in Yahoo" under the coach's moves opens the host app, or the team page pasted in League settings (`hostLinks.ts`).
 - **Recap.** From 6 AM to noon ET, last night leads Tonight with points, leaders and (Pro) the hindsight grade.
 - **Off the app.** Widgets and the Live Activity render the same score (`services/widgets/snapshot.ts` → `services/native/widgetBridge.ts`).
 
@@ -118,5 +120,5 @@ Permission is asked only when the user turns one on. (1.x–2.x scheduled a dail
 
 1. **League import** — Yahoo Fantasy API (OAuth, needs a small token-exchange server), ESPN public-league reads, Fantrax. The League Room already gives real availability for leagues whose members join.
 2. **Live Activity server updates** — the app updates it while running; APNs pushes from `live-poller` need an APNs auth key.
-3. **Categories-league mode** — per-category needs for H2H cats.
+3. **Categories v2** — live category standings against the opponent, goalie ratio protection, category-aware pickups ("you need hits").
 4. **Goalie confirmed in warmups** alerts.
