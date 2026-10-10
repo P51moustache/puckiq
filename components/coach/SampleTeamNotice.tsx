@@ -1,17 +1,20 @@
 /**
  * Shown while the onboarding sample roster is on the active team, so sample stars
- * never pass for the user's own players. One tap clears them and keeps anyone added.
+ * never pass for the user's own players. One tap swaps in the real roster (import, then the
+ * sample players go), or clears them and keeps anyone added.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { hasSamplePlayers, sampleCount, withoutSample } from '../../constants/sampleTeam';
 import { track } from '../../services/analytics/track';
 import { useTeams } from '../TeamsProvider';
-import { Card, colors, GhostButton } from './ui';
+import { Card, colors, GhostButton, PrimaryButton } from './ui';
+import { RosterImportSheet } from '../rosterImport/RosterImportSheet';
 
 export default function SampleTeamNotice({ style }: { style?: object }) {
   const { team, updateTeam } = useTeams();
+  const [importing, setImporting] = useState(false);
   if (!team || !hasSamplePlayers(team)) return null;
   const count = sampleCount(team.players);
   const own = team.players.length - count;
@@ -27,6 +30,16 @@ export default function SampleTeamNotice({ style }: { style?: object }) {
       <Text style={styles.body}>
         These are PuckIQ’s demo roster, not your team.{own > 0 ? ` The ${own} you added stay.` : ''}
       </Text>
+      <PrimaryButton label="Swap in your real roster" icon="scan-outline" onPress={() => setImporting(true)} style={styles.button} testID="sample-team-import" />
+      <RosterImportSheet
+        visible={importing}
+        source="sample"
+        onClose={() => setImporting(false)}
+        onAdded={(playerIds) => {
+          track('sample_team_cleared', { kept: own, via: 'import' });
+          updateTeam((current) => withoutSample(current, new Set(playerIds)));
+        }}
+      />
       <GhostButton
         label="Remove sample players"
         icon="trash-outline"

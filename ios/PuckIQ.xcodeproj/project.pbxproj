@@ -14,6 +14,7 @@
 		0D3463858416967E8FAB60E8 /* libPods-PuckIQ.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 9881873FCC4E587DAAED174E /* libPods-PuckIQ.a */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		1A4B419E8AA60F5057BAA6D3 /* NightActivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01DDD84ED05E2CD023ABDE50 /* NightActivityController.swift */; };
+		4F8C2A6E1D9B3C7E5A0F2D84 /* RosterScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E3A9C1D5B2F4E8A6C0D1B93 /* RosterScanner.swift */; };
 		1EAC53195D797A2DDF5622A8 /* TonightPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 667E5DA23949C327AF789AB6 /* TonightPresentation.swift */; };
 		2E24D6827795852F6FD55D27 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 4ED432DD06E9B8332741E715 /* PrivacyInfo.xcprivacy */; };
 		3037B52369BCEADB1DB0C3E1 /* TonightWidgetViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3616EE9F82C7F192F238E367 /* TonightWidgetViews.swift */; };
@@ -71,6 +72,7 @@
 
 /* Begin PBXFileReference section */
 		01DDD84ED05E2CD023ABDE50 /* NightActivityController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NightActivityController.swift; sourceTree = "<group>"; };
+		7E3A9C1D5B2F4E8A6C0D1B93 /* RosterScanner.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RosterScanner.swift; sourceTree = "<group>"; };
 		0FA3D2CCEB9DDDCD012580AC /* NativeSelfTest.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NativeSelfTest.swift; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* PuckIQ.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PuckIQ.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = PuckIQ/Images.xcassets; sourceTree = "<group>"; };
@@ -181,6 +183,7 @@
 				C8A87E721C315748FE206BA3 /* PuckIQNative.swift */,
 				2DB6C99B2BF5F8A42C014508 /* PuckIQNative.m */,
 				01DDD84ED05E2CD023ABDE50 /* NightActivityController.swift */,
+				7E3A9C1D5B2F4E8A6C0D1B93 /* RosterScanner.swift */,
 				0FA3D2CCEB9DDDCD012580AC /* NativeSelfTest.swift */,
 			);
 			name = Native;
@@ -507,6 +510,7 @@
 				A831BD231D762D8F15940BDE /* PuckIQNative.swift in Sources */,
 				ED402A89D1AEA60B41EF56C7 /* PuckIQNative.m in Sources */,
 				1A4B419E8AA60F5057BAA6D3 /* NightActivityController.swift in Sources */,
+				4F8C2A6E1D9B3C7E5A0F2D84 /* RosterScanner.swift in Sources */,
 				0532AE0D34E2833EFFE73C42 /* NativeSelfTest.swift in Sources */,
 				50D68BE6755F34C19080054A /* AppGroup.swift in Sources */,
 				B540C1C9A704597E1FAFEABF /* WidgetSnapshot.swift in Sources */,

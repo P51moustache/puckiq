@@ -1,6 +1,7 @@
 /**
  * First run: what PuckIQ does → your league's rules → your players → lock reminders.
- * No account required. Permission is only asked if the user taps "Remind me".
+ * No account required. Permission is only asked if the user taps "Remind me". Players come in
+ * by screenshot or pasted names (RosterImportSheet) or one by one through search.
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -34,6 +35,7 @@ import { useReminders } from '../RemindersProvider';
 import { toFantasyPlayer } from '../sheets/PlayerSearchSheet';
 import { PlayerAvatar, PlayerName, splitName } from '../coach/PlayerAvatar';
 import { BrandMark, colors, display, GhostButton, PrimaryButton } from '../coach/ui';
+import { RosterImportSheet } from '../rosterImport/RosterImportSheet';
 import { track } from '../../services/analytics/track';
 
 interface CoachOnboardingProps {
@@ -67,6 +69,7 @@ export function CoachOnboarding({ onComplete }: CoachOnboardingProps) {
   const [results, setResults] = useState<NhlSearchPlayer[]>([]);
   const [searching, setSearching] = useState(false);
   const [usedSample, setUsedSample] = useState(false);
+  const [importing, setImporting] = useState(false);
   const requestId = useRef(0);
 
   useEffect(() => {
@@ -231,6 +234,17 @@ export function CoachOnboarding({ onComplete }: CoachOnboardingProps) {
         <Animated.View entering={FadeIn.duration(300)} style={[styles.page, styles.rosterPage, { paddingBottom: insets.bottom + 20 }]}>
           <Text style={styles.stepTitle}>Add your players</Text>
           <Text style={styles.stepLede}>Everyone on your fantasy roster — bench too. {roster.length > 0 ? `${roster.length} added.` : ''}</Text>
+          <Pressable onPress={() => setImporting(true)} style={({ pressed }) => [styles.importCard, pressed && styles.importPressed]} accessibilityRole="button" testID="onboarding-import">
+            <View style={styles.importIcon}>
+              <Ionicons name="scan-outline" size={20} color={colors.onAccent} />
+            </View>
+            <View style={styles.flex}>
+              <Text style={styles.importTitle}>Import from screenshots</Text>
+              <Text style={styles.importDetail}>Fastest: your whole Yahoo, ESPN or Fantrax roster at once</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.onInkSub} />
+          </Pressable>
+          <RosterImportSheet visible={importing} source="onboarding" onClose={() => setImporting(false)} />
           <View style={styles.searchBox}>
             <Ionicons name="search" size={16} color={colors.muted} />
             <TextInput
@@ -348,6 +362,11 @@ export function CoachOnboarding({ onComplete }: CoachOnboardingProps) {
 }
 
 const styles = StyleSheet.create({
+  importCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 16, backgroundColor: colors.ink, marginBottom: 12 },
+  importPressed: { opacity: 0.85 },
+  importIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accent },
+  importTitle: { fontSize: 16, fontWeight: '800', color: colors.onInk },
+  importDetail: { fontSize: 13, lineHeight: 18, color: colors.onInkSub },
   container: {
     flex: 1,
     backgroundColor: colors.bg,

@@ -40,6 +40,10 @@ jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
 jest.mock('../../coach/TeamSwitcher', () => () => null);
 jest.mock('../../coach/PlayerAvatar', () => ({ PlayerAvatar: () => null, PlayerName: ({ name }: any) => { const React = require('react'); return React.createElement('Text', null, name); }, TeamChip: () => null }));
 jest.mock('../../sheets/PlayerSearchSheet', () => () => null);
+jest.mock('../../rosterImport/RosterImportSheet', () => {
+  const React = require('react');
+  return { RosterImportSheet: (props: any) => React.createElement('RosterImportSheet', props) };
+});
 jest.mock('../../share/ShareCards', () => {
   const React = require('react');
   return {
@@ -172,6 +176,10 @@ describe('TonightScreen', () => {
     const tree = render();
     expect(byTestId(tree, 'tonight-empty')).toHaveLength(1);
     expect(byTestId(tree, 'tonight-add-players')).toHaveLength(1);
+    const sheet = () => tree.root.findAll((n: any) => n.type === 'RosterImportSheet')[0];
+    expect(sheet().props.visible).toBe(false);
+    act(() => { byTestId(tree, 'tonight-import')[0].props.onPress(); });
+    expect(sheet().props).toMatchObject({ visible: true, source: 'tonight' });
   });
 
   it('leads with how many of my players play and the problem count', () => {

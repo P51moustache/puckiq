@@ -49,12 +49,15 @@ export function hasSamplePlayers(team: FantasyTeam | null): boolean {
   return !!team && sampleCount(team.players) >= SAMPLE_THRESHOLD;
 }
 
-/** Drop the sample players (keeping anyone the user added) and the sample name. */
-export function withoutSample(team: FantasyTeam): FantasyTeam {
+/**
+ * Drop the sample players (keeping anyone the user added) and the sample name. `keep` saves
+ * sample stars the user really has, e.g. McDavid found in their imported roster.
+ */
+export function withoutSample(team: FantasyTeam, keep: ReadonlySet<number> = new Set()): FantasyTeam {
   return {
     ...team,
     name: team.name === SAMPLE_TEAM_NAME ? 'My Team' : team.name,
-    players: team.players.filter((player) => !SAMPLE_IDS.has(player.playerId)),
+    players: team.players.filter((player) => !SAMPLE_IDS.has(player.playerId) || keep.has(player.playerId)),
     updatedAt: new Date().toISOString(),
   };
 }

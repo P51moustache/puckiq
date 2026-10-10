@@ -26,11 +26,12 @@ import { useSubscription } from '../SubscriptionProvider';
 import { usePaywall } from '../PaywallProvider';
 import { usePlayerSheet } from '../sheets/PlayerSheet';
 import PlayerSearchSheet from '../sheets/PlayerSearchSheet';
+import { RosterImportSheet } from '../rosterImport/RosterImportSheet';
 import TeamSwitcher from '../coach/TeamSwitcher';
 import SampleTeamNotice from '../coach/SampleTeamNotice';
 import { ShareCardSheet, type ShareCardContent } from '../share/ShareCards';
 import { useNow } from '../coach/format';
-import { Card, colors, Columns, contentFrame, EmptyState, ErrorState, LoadingRows, PrimaryButton, ProLockCard, SectionLabel, SegmentedControl, useWide } from '../coach/ui';
+import { Card, colors, Columns, contentFrame, EmptyState, ErrorState, GhostButton, LoadingRows, PrimaryButton, ProLockCard, SectionLabel, SegmentedControl, useWide } from '../coach/ui';
 import { ART } from '../../constants/art';
 import { TonightHero } from '../tonight/TonightHero';
 import { CoachMovesSection } from '../tonight/CoachMovesSection';
@@ -58,6 +59,7 @@ export default function TonightScreen() {
   const { openPlayer } = usePlayerSheet();
   const [night, setNight] = useState<Night>('tonight');
   const [adding, setAdding] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [sharing, setSharing] = useState<Sharing>(null);
   const now = useNow();
   const isTonight = night === 'tonight';
@@ -163,10 +165,16 @@ export default function TonightScreen() {
         <EmptyState
           art={ART.emptyRoster}
           title="Build your team"
-          body="Add the players on your Yahoo, ESPN, or Fantrax roster. PuckIQ tells you who plays, who’s scratched, and what to change before lock."
-          action={<PrimaryButton label="Add players" icon="add" onPress={() => setAdding(true)} testID="tonight-add-players" />}
+          body="Import your Yahoo, ESPN, or Fantrax roster from a screenshot, or search players. PuckIQ tells you who plays, who’s scratched, and what to change before lock."
+          action={(
+            <View style={styles.emptyActions}>
+              <PrimaryButton label="Import from screenshots" icon="scan-outline" onPress={() => setImporting(true)} testID="tonight-import" />
+              <GhostButton label="Search players" icon="search" tone="neutral" onPress={() => setAdding(true)} testID="tonight-add-players" />
+            </View>
+          )}
         />
         <PlayerSearchSheet visible={adding} mode={{ kind: 'add', list: 'players' }} onClose={() => setAdding(false)} />
+        <RosterImportSheet visible={importing} source="tonight" onClose={() => setImporting(false)} />
       </View>
     );
   }
@@ -343,6 +351,7 @@ function useAnalyticsOnce(event: string, key: string | null): void {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
+  emptyActions: { alignSelf: 'stretch', gap: 10 },
   padded: { paddingHorizontal: 16 },
   toggle: { width: 150 },
   scroll: { flex: 1 },

@@ -11,6 +11,7 @@ final class PuckIQNative: NSObject {
   private let snapshots: WidgetSnapshotStore
   private let activities: NightActivityController
   private let reloadWidgets: () -> Void
+  private let rosterScanner = RosterScanner()
 
   /// React Native creates the module with `init()`.
   override convenience init() {
@@ -57,6 +58,27 @@ final class PuckIQNative: NSObject {
         resolve(NSNumber(value: showing))
       } catch {
         reject("E_LIVE_ACTIVITY", error.localizedDescription, error)
+      }
+    }
+  }
+
+  /// Lets the user pick up to `maxImages` roster screenshots and reads their text on the device.
+  /// Resolves JSON `[[{text,x,y,width,height}]]` (one array per image), or null when cancelled.
+  /// The JS side is services/native/rosterScanner.ts.
+  @objc(scanRosterScreenshots:resolver:rejecter:)
+  func scanRosterScreenshots(_ maxImages: NSNumber, resolver resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock) {
+    rosterScanner.scan(maxImages: maxImages.intValue) { result in
+      switch result {
+      case .success(nil):
+        resolve(nil)
+      case .success(let images?):
+        do {
+          resolve(String(decoding: try JSONEncoder().encode(images), as: UTF8.self))
+        } catch {
+          reject("E_ROSTER_SCAN", error.localizedDescription, error)
+        }
+      case .failure(let error):
+        reject("E_ROSTER_SCAN", error.localizedDescription, error)
       }
     }
   }

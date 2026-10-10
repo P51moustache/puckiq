@@ -19,4 +19,8 @@ RCT_EXTERN_METHOD(endLiveActivity:(nullable NSString *)stateJson
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 
+RCT_EXTERN_METHOD(scanRosterScreenshots:(nonnull NSNumber *)maxImages
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+
 @end

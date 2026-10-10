@@ -18,6 +18,7 @@ import PageHeader from '../PageHeader';
 import { useTeams } from '../TeamsProvider';
 import { usePlayerSheet } from '../sheets/PlayerSheet';
 import PlayerSearchSheet, { toFantasyPlayer, type SearchMode } from '../sheets/PlayerSearchSheet';
+import { RosterImportSheet } from '../rosterImport/RosterImportSheet';
 import LeagueSettingsSheet from '../sheets/LeagueSettingsSheet';
 import TeamSwitcher from '../coach/TeamSwitcher';
 import SampleTeamNotice from '../coach/SampleTeamNotice';
@@ -42,6 +43,7 @@ export default function RosterScreen() {
   const lookAhead = useWeekHasGamesLeft(useNhlToday()) === false;
   const week = useWeekData(team, lookAhead ? 1 : 0);
   const [search, setSearch] = useState<SearchMode | null>(null);
+  const [importing, setImporting] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [linking, setLinking] = useState(false);
 
@@ -143,10 +145,16 @@ export default function RosterScreen() {
         <EmptyState
           art={ART.emptyRoster}
           title="Build your roster"
-          body="Search NHL players and add everyone on your fantasy team — bench and IR included."
-          action={<PrimaryButton label="Add players" icon="add" onPress={() => setSearch({ kind: 'add', list: 'players' })} testID="roster-add-first" />}
+          body="Screenshot your roster in Yahoo, ESPN or Fantrax and import it in one go — or search players one by one. Bench and IR too."
+          action={(
+            <View style={styles.emptyActions}>
+              <PrimaryButton label="Import from screenshots" icon="scan-outline" onPress={() => setImporting(true)} testID="roster-import-first" />
+              <GhostButton label="Search players" icon="search" tone="neutral" onPress={() => setSearch({ kind: 'add', list: 'players' })} testID="roster-add-first" />
+            </View>
+          )}
         />
         {search ? <PlayerSearchSheet visible mode={search} onClose={() => setSearch(null)} /> : null}
+        <RosterImportSheet visible={importing} source="roster" onClose={() => setImporting(false)} />
       </View>
     );
   }
@@ -156,7 +164,12 @@ export default function RosterScreen() {
       <PageHeader
         title="Roster"
         accessory={<TeamSwitcher />}
-        right={<IconButton icon="add" label="Add players" onPress={() => setSearch({ kind: 'add', list: 'players' })} testID="roster-add" />}
+        right={(
+          <View style={styles.headerActions}>
+            <IconButton icon="scan-outline" label="Import roster from screenshots" onPress={() => setImporting(true)} testID="roster-import" />
+            <IconButton icon="add" label="Add players" onPress={() => setSearch({ kind: 'add', list: 'players' })} testID="roster-add" />
+          </View>
+        )}
       />
       <ScrollView
         style={styles.scroll}
@@ -231,12 +244,15 @@ export default function RosterScreen() {
       </ScrollView>
 
       {search ? <PlayerSearchSheet visible mode={search} onClose={() => setSearch(null)} /> : null}
+      <RosterImportSheet visible={importing} source="roster" onClose={() => setImporting(false)} />
       <LeagueSettingsSheet visible={settingsOpen} team={team} onClose={() => setSettingsOpen(false)} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  emptyActions: { alignSelf: 'stretch', gap: 10 },
+  headerActions: { flexDirection: 'row', gap: 8 },
   container: {
     flex: 1,
     backgroundColor: colors.bg,

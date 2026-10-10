@@ -26,4 +26,10 @@ describe('sample team', () => {
   it('drops the sample name so the team reads as the user’s', () => {
     expect(withoutSample(team(SAMPLE_PLAYERS, SAMPLE_TEAM_NAME)).name).toBe('My Team');
   });
+
+  it('keeps sample stars the user really has', () => {
+    const mine = SAMPLE_PLAYERS[0];
+    const cleared = withoutSample(team(SAMPLE_PLAYERS), new Set([mine.playerId]));
+    expect(cleared.players.map((player) => player.playerId)).toEqual([mine.playerId]);
+  });
 });
