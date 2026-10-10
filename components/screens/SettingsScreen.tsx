@@ -156,7 +156,7 @@ export default function SettingsScreen({ onBack }: { onBack?: () => void } = {})
           <Row
             icon="alarm-outline"
             label="Remind me before first puck"
-            detail="One heads-up a night, only when your players play."
+            detail="Before first puck, with the swaps to make."
             right={(
               <Switch
                 value={reminders.settings.enabled && reminders.permission === 'granted'}
@@ -182,6 +182,24 @@ export default function SettingsScreen({ onBack }: { onBack?: () => void } = {})
                 );
               })}
             </View>
+          ) : null}
+          {reminders.settings.enabled ? (
+            <Row
+              icon="swap-horizontal-outline"
+              label="Only when my lineup needs a change"
+              detail="We name the swaps. Nights your lineup already works stay quiet."
+              right={(
+                <Switch
+                  value={reminders.settings.onlyWhenNeeded}
+                  onValueChange={(on) => {
+                    track('reminders_mode', { only_when_needed: on });
+                    reminders.update({ ...reminders.settings, onlyWhenNeeded: on });
+                  }}
+                  trackColor={{ true: colors.accent, false: colors.raised }}
+                  testID="reminders-needed-toggle"
+                />
+              )}
+            />
           ) : null}
           {reminders.settings.enabled ? (
             <Row

@@ -1,12 +1,14 @@
 /**
  * Keeps local lineup reminders in step with teams, settings, and the schedule.
- * Re-plans on launch, on foreground, and whenever a roster or setting changes.
+ * Re-plans on launch, on foreground, and whenever a roster, a team's league settings, or a
+ * reminder setting changes. Each plan loads the teams' lineups so reminders can name the moves;
+ * if that fails, reminders still go out with player counts.
  */
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { AppState } from 'react-native';
-import { addDays, mondayOf, todayNhl } from '../services/nhl/dates';
-import { fetchWeekSchedule } from '../services/nhl/schedule';
+import type { FantasyTeam } from '../types/fantasy';
+import { todayNhl } from '../services/nhl/dates';
 import {
   clearLegacyNotifications,
   DEFAULT_REMINDERS,
@@ -18,6 +20,7 @@ import {
   type PermissionState,
   type ReminderSettings,
 } from '../services/lineupReminders';
+import { loadReminderInputs } from '../services/reminders/reminderInputs';
 import { useTeams } from './TeamsProvider';
 import { track } from '../services/analytics/track';
 
@@ -40,8 +43,21 @@ interface RemindersContextValue {
 
 const RemindersContext = createContext<RemindersContextValue | undefined>(undefined);
 
+/** Everything about a team a reminder depends on: who plays, where they fit, and how they rank. */
+function teamSignature(team: FantasyTeam): string {
+  const players = team.players
+    .map((p) => `${p.playerId}${p.teamAbbrev}${p.position}${(p.eligible ?? []).join('/')}${p.injuredReserve ? 'ir' : ''}`)
+    .join(',');
+  return `${team.id}:${team.name}:${JSON.stringify(team.slots)}:${JSON.stringify(team.scoring)}:${players}`;
+}
+
+/** The team on screen first: its lineup loads share the screens' requests. */
+function activeFirst(teams: FantasyTeam[], activeId: string | undefined): FantasyTeam[] {
+  return [...teams].sort((a, b) => Number(b.id === activeId) - Number(a.id === activeId));
+}
+
 export function RemindersProvider({ children }: { children: React.ReactNode }) {
-  const { ready, teams } = useTeams();
+  const { ready, teams, team: activeTeam } = useTeams();
   const [settings, setSettings] = useState<ReminderSettings>(DEFAULT_REMINDERS);
   const [permission, setPermission] = useState<PermissionState>('undetermined');
   const [loaded, setLoaded] = useState(false);
@@ -60,10 +76,7 @@ export function RemindersProvider({ children }: { children: React.ReactNode }) {
     return () => sub.remove();
   }, []);
 
-  const rosterSignature = useMemo(
-    () => teams.map((team) => `${team.name}:${team.players.map((p) => `${p.playerId}${p.teamAbbrev}${p.injuredReserve ? 'ir' : ''}`).join(',')}`).join('|'),
-    [teams],
-  );
+  const teamsSignature = useMemo(() => teams.map(teamSignature).join('|'), [teams]);
 
   useEffect(() => {
     if (!loaded || !ready) return;
@@ -72,24 +85,21 @@ export function RemindersProvider({ children }: { children: React.ReactNode }) {
       const state = await getPermissionState();
       if (cancelled) return;
       setPermission(state);
-      if (!settings.enabled) {
+      if (!settings.enabled || state !== 'granted') {
+        // Clears anything still scheduled; nothing new is planned.
         await syncLineupReminders([], [], settings);
         return;
       }
-      const monday = mondayOf(todayNhl());
-      const schedules = await Promise.all([
-        fetchWeekSchedule(monday).catch(() => null),
-        fetchWeekSchedule(addDays(monday, 7)).catch(() => null),
-      ]);
+      const { schedules, lineups } = await loadReminderInputs(activeFirst(teams, activeTeam?.id), todayNhl());
       if (cancelled) return;
-      await syncLineupReminders(teams, schedules.filter((s): s is NonNullable<typeof s> => s !== null), settings);
+      await syncLineupReminders(teams, schedules, settings, lineups);
     })().catch((error) => console.warn('[REMINDERS] Sync failed:', error));
     return () => {
       cancelled = true;
     };
-    // teams is captured through rosterSignature.
+    // teams is captured through teamsSignature; the active team only orders the loads.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loaded, ready, rosterSignature, settings, foregroundTick]);
+  }, [loaded, ready, teamsSignature, settings, foregroundTick]);
 
   const update = useCallback(async (next: ReminderSettings) => {
     setSettings(next);

@@ -28,7 +28,7 @@ export function ReminderPromptCard({ onAccept, onDismiss }: { onAccept: () => Pr
         </View>
         <View style={styles.text}>
           <Text style={styles.title}>Want a heads-up tonight?</Text>
-          <Text style={styles.detail}>One before your first puck drop, and one when your night goes live.</Text>
+          <Text style={styles.detail}>Before your first puck drop when your lineup needs a change, and when your night goes live.</Text>
         </View>
       </View>
       <View style={styles.actions}>
