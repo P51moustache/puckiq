@@ -6,6 +6,9 @@ enum WidgetSamples {
 
   static let finishedNight = WidgetSnapshot.Live(points: 31.0, live: 0, final: 6, upcoming: 0, top: .init(name: "McDavid", line: "2G 2A"))
 
+  /// A category league's night: tallies lead instead of points.
+  static let categoryNight = WidgetSnapshot.Live(points: 18.2, live: 2, final: 3, upcoming: 1, top: .init(name: "Wilson", line: "1G · 6 HIT"), headline: "3G 5A")
+
   /// Tonight with 16 of 17 playing and first puck `firstPuckIn` seconds after `now`.
   static func snapshot(now: Date, firstPuckIn: TimeInterval = 37 * 60, live: WidgetSnapshot.Live? = nil) -> WidgetSnapshot {
     let firstPuck = now.addingTimeInterval(firstPuckIn)
@@ -35,6 +38,9 @@ enum WidgetSamples {
 extension WidgetSamples {
   static let liveState = PuckIQNightAttributes.ContentState(
     points: 23.5, live: 3, final: 2, upcoming: 1, topName: "McDavid", topLine: "2G 1A", clock: "P2 10:15")
+
+  static let categoryState = PuckIQNightAttributes.ContentState(
+    points: 18.2, live: 2, final: 3, upcoming: 1, topName: "Wilson", topLine: "1G · 6 HIT", clock: "P3 08:40", headline: "3G 5A")
 
   static func attributes(now: Date) -> PuckIQNightAttributes {
     PuckIQNightAttributes(teamName: "Ice Breakers", date: NhlGameDay.id(at: now))

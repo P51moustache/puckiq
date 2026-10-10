@@ -6,23 +6,29 @@
 import type { FantasyTeam } from '../../types/fantasy';
 import type { NightData } from '../fantasy/loaders';
 import { isNhlLinked } from '../fantasy/positions';
-import { gameClockText, headlinePoints, lineText, type NightScore } from '../fantasy/nightScore';
+import { gameClockText, headlinePoints, headlineRows, lineText, type NightScore } from '../fantasy/nightScore';
+import { isCategoryLeague } from '../fantasy/categories';
+import { lastNameOf } from '../fantasy/names';
+import { nightTallies, talliesHeadline } from '../fantasy/nightTallies';
 import { isGameStarted } from '../nhl/schedule';
 import type { LiveActivityState, WidgetSnapshot } from '../native/widgetBridge';
 
 /** The medium widget lists four; eight leaves room for a future large size. */
 export const MAX_WIDGET_PLAYERS = 8;
 
-function lastName(name: string): string {
-  return name.trim().split(/\s+/).slice(-1)[0] ?? name;
-}
-
 function topOf(score: NightScore, night: NightData, team: FantasyTeam): { name: string; line: string } | null {
   if (!score.top) return null;
   const player = team.players.find((row) => row.playerId === score.top!.playerId);
   const line = night.liveLines.get(score.top.playerId);
   if (!player) return null;
-  return { name: lastName(player.playerName), line: line ? lineText(line) : '' };
+  return { name: lastNameOf(player.playerName), line: line ? lineText(line) : '' };
+}
+
+/** A category league's "3G 5A" in place of points; nothing for a points league. */
+function headlineOf(score: NightScore, night: NightData, team: FantasyTeam, isPro: boolean): { headline?: string } {
+  if (!isCategoryLeague(team)) return {};
+  const headline = talliesHeadline(nightTallies(headlineRows(score, isPro), night.liveLines, team.categories ?? []));
+  return headline ? { headline } : {};
 }
 
 export function buildWidgetSnapshot(input: {
@@ -63,6 +69,7 @@ export function buildWidgetSnapshot(input: {
     live: score && score.phase !== 'pre'
       ? {
           points: headlinePoints(score, isPro),
+          ...headlineOf(score, night, team, isPro),
           live: score.live,
           final: score.final,
           upcoming: score.upcoming,
@@ -84,6 +91,7 @@ export function buildLiveActivityState(input: {
   const top = topOf(score, night, team);
   return {
     points: headlinePoints(score, isPro),
+    ...headlineOf(score, night, team, isPro),
     live: score.live,
     final: score.final,
     upcoming: score.upcoming,

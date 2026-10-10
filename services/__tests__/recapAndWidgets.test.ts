@@ -1,7 +1,7 @@
 import { buildNightScore, headlinePoints } from '../fantasy/nightScore';
 import { hasRecap, hindsightText, performerLine, recapLeaders, recapWindowOpen } from '../fantasy/recap';
 import { DEFAULT_SCORING } from '../fantasy/scoring';
-import { createTeam } from '../teams';
+import { createTeam, withLeagueFormat } from '../teams';
 import { buildLiveActivityState, buildWidgetSnapshot } from '../widgets/snapshot';
 import type { GameLine } from '../nhl/gamecenter';
 import type { NightData } from '../fantasy/loaders';
@@ -137,5 +137,17 @@ describe('widget snapshot and Live Activity state', () => {
     expect(buildLiveActivityState({ team, night: data, score, isPro: true })).toEqual({
       points: 6, live: 1, final: 1, upcoming: 1, topName: 'McDavid', topLine: '1G · 1A · 0 SOG', clock: 'P2 10:15',
     });
+  });
+
+  it('leads a category league’s widget and Live Activity with its tallies', () => {
+    const categories = withLeagueFormat(team, 'categories');
+    const data = night(
+      [nhlGame(1, 'EDM', 'LAK', { state: 'LIVE', period: 1, clock: '05:00' }), nhlGame(3, 'TBL', 'FLA', { state: 'LIVE', period: 1, clock: '04:00' })],
+      [[8478402, skater(8478402, { goals: 2 })], [8476453, skater(8476453, { assists: 3 })]],
+    );
+    const score = scoreOf(data);
+    expect(buildWidgetSnapshot({ team: categories, night: data, score, isPro: false, now }).live?.headline).toBe('2G 3A');
+    expect(buildLiveActivityState({ team: categories, night: data, score, isPro: false })?.headline).toBe('2G 3A');
+    expect(buildWidgetSnapshot({ team, night: data, score, isPro: false, now }).live).not.toHaveProperty('headline');
   });
 });

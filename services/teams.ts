@@ -5,17 +5,21 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type {
+  CategoryKey,
   FantasyPlatform,
   FantasyPlayer,
   FantasyRoster,
   FantasyTeam,
+  LeagueFormat,
   LineupSlots,
   ScoringWeights,
   SlotPosition,
   TeamsState,
 } from '../types/fantasy';
+import { categoryWeights, isCategoryLeague, sanitizeCategories } from './fantasy/categories';
+import { sanitizeTeamLink } from './fantasy/hostLinks';
 import { sanitizeSlots, STANDARD_SLOTS } from './fantasy/lineup';
-import { DEFAULT_SCORING, sanitizeScoring } from './fantasy/scoring';
+import { DEFAULT_SCORING, sanitizeScoring, scoringPresetFor } from './fantasy/scoring';
 
 export const TEAMS_STORAGE_KEY = 'puckiq_teams_v3';
 export const LEGACY_ROSTER_KEY = 'puckiq_fantasy_roster';
@@ -69,11 +73,14 @@ export function createTeam(input: {
   leagueSize?: number;
   slots?: LineupSlots;
   scoring?: ScoringWeights;
+  /** Categories derive the scoring; `scoring` is ignored then. */
+  format?: LeagueFormat;
+  categories?: CategoryKey[];
   players?: FantasyPlayer[];
   now?: Date;
 }): FantasyTeam {
   const stamp = (input.now ?? new Date()).toISOString();
-  return {
+  const team: FantasyTeam = {
     id: newId(),
     name: input.name?.trim() || 'My Team',
     platform: input.platform ?? 'yahoo',
@@ -88,6 +95,21 @@ export function createTeam(input: {
     createdAt: stamp,
     updatedAt: stamp,
   };
+  return input.format === 'categories' ? withLeagueFormat(team, 'categories', input.categories) : team;
+}
+
+/**
+ * Switch how a team's league scores. Categories set the planner's weights from the categories
+ * (Yahoo's defaults when none are given); switching back to points starts from the platform's
+ * points preset. Changing only the categories keeps the format.
+ */
+export function withLeagueFormat(team: FantasyTeam, format: LeagueFormat, categories?: CategoryKey[]): FantasyTeam {
+  if (format === 'categories') {
+    const counted = sanitizeCategories(categories ?? team.categories);
+    return { ...team, format, categories: counted, scoring: categoryWeights(counted) };
+  }
+  const { categories: _dropped, ...rest } = team;
+  return { ...rest, format, scoring: isCategoryLeague(team) ? scoringPresetFor(team.platform) : team.scoring };
 }
 
 const ROSTER_POSITIONS: FantasyPlayer['rosterPosition'][] = ['C', 'LW', 'RW', 'D', 'G', 'BN', 'IR'];
@@ -133,6 +155,17 @@ function sanitizePlayers(raw: unknown): FantasyPlayer[] {
   return out.slice(0, MAX_ROSTER_PLAYERS);
 }
 
+function teamLinkField(raw: unknown, platform: FantasyPlatform): Pick<FantasyTeam, 'teamLink'> {
+  const teamLink = sanitizeTeamLink(raw, platform);
+  return teamLink ? { teamLink } : {};
+}
+
+/** A category team's weights are always re-derived, so a stored team picks up any change to the derivation. */
+function categoryFields(raw: unknown): Pick<FantasyTeam, 'format' | 'categories' | 'scoring'> {
+  const categories = sanitizeCategories(raw);
+  return { format: 'categories', categories, scoring: categoryWeights(categories) };
+}
+
 function sanitizeTeam(raw: any): FantasyTeam | null {
   if (!raw || typeof raw !== 'object' || typeof raw.id !== 'string') return null;
   const stamp = new Date().toISOString();
@@ -144,6 +177,7 @@ function sanitizeTeam(raw: any): FantasyTeam | null {
     minGoalieStarts: sanitizeMinGoalieStarts(raw.minGoalieStarts),
     slots: sanitizeSlots(raw.slots),
     scoring: sanitizeScoring(raw.scoring),
+    ...(raw.format === 'categories' ? categoryFields(raw.categories) : {}),
     players: sanitizePlayers(raw.players),
     opponentName: typeof raw.opponentName === 'string' ? raw.opponentName : '',
     opponent: sanitizePlayers(raw.opponent),
@@ -152,6 +186,7 @@ function sanitizeTeam(raw: any): FantasyTeam | null {
       ? raw.hiddenPickupIds.map(Number).filter((id: number) => Number.isFinite(id) && id > 0)
       : [],
     ...(typeof raw.roomId === 'string' && raw.roomId ? { roomId: raw.roomId } : {}),
+    ...teamLinkField(raw.teamLink, PLATFORMS.includes(raw.platform) ? raw.platform : 'other'),
     createdAt: typeof raw.createdAt === 'string' ? raw.createdAt : stamp,
     updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : stamp,
   };

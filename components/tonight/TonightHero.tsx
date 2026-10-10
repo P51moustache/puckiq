@@ -1,17 +1,20 @@
 /**
  * The carbon hero at the top of Tonight. Before puck drop it counts who plays and runs the
- * lock countdown; once games start it becomes the night's scoreboard — points, live / final
- * / to-go, the top performer — and after the last horn, the hindsight grade (Pro).
+ * lock countdown; once games start it becomes the night's scoreboard — points (or a category
+ * league's tallies), live / final / to-go, the top performer — and after the last horn, the
+ * hindsight grade (Pro).
  */
 
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BIG_NIGHT_LABEL, gameClockText, headlinePoints, type NightScore } from '../../services/fantasy/nightScore';
+import type { CategoryTally } from '../../services/fantasy/nightTallies';
 import { formatValue } from '../../services/fantasy/scoring';
 import { ShareButton } from '../share/ShareCards';
 import { colors, CountdownBar, DarkCard, display, StatCell } from '../coach/ui';
 import { CountUp } from '../coach/motion';
+import { CategoryTallies } from './CategoryTallies';
 import { Kicker } from './Kicker';
 import type { FollowLive } from '../../hooks/useNightLive';
 import { countdownText, niceDate } from './nightText';
@@ -30,6 +33,8 @@ export interface TonightHeroProps {
   firstPuck: string | null;
   now: Date;
   score: NightScore | null;
+  /** A category league's tallies; the scoreboard shows these instead of points. */
+  tallies: CategoryTally[] | null;
   isPro: boolean;
   /** "McDavid · 2G · 1A · 4 SOG" for the top performer. */
   topLine: string | null;
@@ -90,25 +95,33 @@ function PreBody({ night, playingCount, total, problems, starters, emptySlots, f
   );
 }
 
-function LiveBody({ score, isPro, topLine, follow }: TonightHeroProps & { score: NightScore }) {
+function LiveBody({ score, tallies, isPro, topLine, follow }: TonightHeroProps & { score: NightScore }) {
   const points = headlinePoints(score, isPro);
   const lineupSplit = isPro && score.players.some((row) => row.role === 'starter');
   const topBig = score.top?.bigNight ?? null;
+  const from = lineupSplit ? 'from your lineup' : 'from your players';
   return (
     <>
-      <View style={styles.countRow}>
-        <CountUp value={points} format={formatValue} style={styles.bigPoints} testID="tonight-points" />
-        <View style={styles.countText}>
-          <Text style={styles.of}>PTS</Text>
-          <Text style={styles.caption}>{lineupSplit ? 'from your lineup' : 'from your players'}</Text>
+      {tallies ? (
+        <View style={styles.tallies}>
+          <CategoryTallies tallies={tallies} testID="tonight-tallies" />
+          <Text style={styles.talliesCaption}>{from.toUpperCase()}</Text>
         </View>
-      </View>
+      ) : (
+        <View style={styles.countRow}>
+          <CountUp value={points} format={formatValue} style={styles.bigPoints} testID="tonight-points" />
+          <View style={styles.countText}>
+            <Text style={styles.of}>PTS</Text>
+            <Text style={styles.caption}>{from}</Text>
+          </View>
+        </View>
+      )}
       <View style={styles.stats}>
         <StatCell dark value={String(score.live)} label="Live" tone={score.live > 0 ? 'accent' : 'neutral'} size={26} testID="tonight-live-count" />
         <StatCell dark value={String(score.final)} label="Final" size={26} />
         <StatCell dark value={String(score.upcoming)} label="To go" size={26} />
       </View>
-      {lineupSplit && score.benchPoints > 0 ? (
+      {lineupSplit && !tallies && score.benchPoints > 0 ? (
         <Text style={styles.bench} testID="tonight-bench-points">
           +{formatValue(score.benchPoints)} scored with no slot — overflow your lineup couldn’t use
         </Text>
@@ -185,6 +198,8 @@ const styles = StyleSheet.create({
   countText: { flex: 1, paddingBottom: 10 },
   of: { ...display(22), color: colors.onInkSub },
   caption: { fontSize: 15, fontWeight: '700', color: colors.onInk },
+  tallies: { gap: 8 },
+  talliesCaption: { fontSize: 11, fontWeight: '800', letterSpacing: 1, color: colors.onInkSub },
   stats: { flexDirection: 'row' },
   bench: { fontSize: 13, fontWeight: '700', color: colors.warn, marginTop: -4 },
   top: { flexDirection: 'row', alignItems: 'center', gap: 8 },

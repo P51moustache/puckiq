@@ -23,14 +23,14 @@ export const HOW_IT_WORKS: Record<HowItWorksTopic, { title: string; sections: Se
         title: 'Who plays and who’s out',
         lines: [
           'Scratches come from the NHL game report — the only confirmed signal. Injury news is matched to your players and labelled “likely”.',
-          'The NHL doesn’t announce starting goalies before puck drop, so we don’t either. We show how often each goalie has started instead.',
+          'The NHL doesn’t announce starting goalies before puck drop, so we don’t either. We estimate each goalie’s chance from how often he starts and whether his team is on a back-to-back.',
         ],
       },
       {
         title: 'Your night',
         lines: [
           'The night runs until 6 AM Eastern, so a late West Coast game stays on Tonight until it ends.',
-          'Live points use your league’s scoring on the box score. Box scores don’t list power-play assists, so live PPP counts power-play goals only.',
+          'Live points use your league’s scoring on the box score, with power-play assists from the game summary. A category league sees its categories instead.',
           'Hindsight shows how much of the best possible lineup — knowing the results — PuckIQ’s pre-game lineup captured.',
         ],
       },
@@ -53,6 +53,13 @@ export const HOW_IT_WORKS: Record<HowItWorksTopic, { title: string; sections: Se
       {
         title: 'Off-nights',
         lines: ['Off-nights have 7 or fewer NHL games. Fewer teams play, so streamers face less competition for your slots.'],
+      },
+      {
+        title: 'Goalies',
+        lines: [
+          'B2B under a goalie’s bar: his team plays back-to-back nights, when tandems usually split the starts.',
+          'Expected starts use each night’s chance: a bit above his usual share on ordinary nights, near half on back-to-backs, and low on the second night if he started the first.',
+        ],
       },
       {
         title: 'Matchup',

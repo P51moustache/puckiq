@@ -1,22 +1,26 @@
 /**
  * One of my players tonight: who he faces, his status, and — once his game starts — his
- * fantasy points, box-score line and game clock. Big nights get the F1 purple.
+ * fantasy points, box-score line and game clock. A category league skips the points and reads
+ * the line in its categories. Big nights get the F1 purple.
  */
 
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import type { FantasyPlayer, SlotKey } from '../../types/fantasy';
+import type { CategoryKey, FantasyPlayer, SlotKey } from '../../types/fantasy';
 import type { PlayerForm } from '../../services/fantasy/form';
 import type { PlayerStatus } from '../../services/fantasy/coach';
 import type { PlayerGameDay } from '../../services/fantasy/weekPlan';
 import type { GameLine } from '../../services/nhl/gamecenter';
 import { isGameFinal, isGameStarted, type NhlGame } from '../../services/nhl/schedule';
 import { BIG_NIGHT_LABEL, gameClockText, lineText, type PlayerNight } from '../../services/fantasy/nightScore';
+import { categoryLineText } from '../../services/fantasy/nightTallies';
 import { positionLabel } from '../../services/fantasy/positions';
 import { formatValue } from '../../services/fantasy/scoring';
 import { formatPuckDrop } from '../../services/nhl/dates';
 import { PlayerAvatar, PlayerName, TeamChip } from '../coach/PlayerAvatar';
 import type { MatchupTag } from '../../services/fantasy/matchupTag';
+import type { GoalieOutlook } from '../../services/fantasy/goalieOutlook';
+import { GoalieOutlookTag } from './GoalieOutlookTag';
 import { Card, ColdBadge, colors, display, HotBadge, Pill } from '../coach/ui';
 
 export function PlayerNightCard({
@@ -29,6 +33,8 @@ export function PlayerNightCard({
   night,
   slot,
   matchupTag,
+  goalieOutlook,
+  categories,
   isPro,
   onPress,
 }: {
@@ -41,6 +47,10 @@ export function PlayerNightCard({
   night: PlayerNight | undefined;
   slot: SlotKey | undefined;
   matchupTag: MatchupTag | null;
+  /** A goalie's estimated start tonight; absent until it loads (and for skaters). */
+  goalieOutlook?: GoalieOutlook;
+  /** A category league's categories; null in a points league. */
+  categories: CategoryKey[] | null;
   isPro: boolean;
   onPress: () => void;
 }) {
@@ -48,7 +58,8 @@ export function PlayerNightCard({
   const started = isGameStarted(current);
   const final = isGameFinal(current);
   const scratched = status?.signal === 'scratch' && status.confidence === 'confirmed';
-  const points = night?.points ?? null;
+  // A category league has no points to show; the line below carries the night.
+  const points = categories ? null : night?.points ?? null;
   const benched = isPro && night?.role === 'bench' && started;
   const bigNight = night?.bigNight ?? null;
   return (
@@ -87,11 +98,15 @@ export function PlayerNightCard({
         ) : null}
         {benched ? <Pill key="bench" label="NO SLOT · DIDN’T COUNT" tone="warn" /> : null}
         {status && status.confidence === 'likely' && !started ? <Pill key="inj" label={status.signal === 'dtd' ? 'DTD NEWS' : 'INJURY NEWS'} tone="warn" /> : null}
-        {!started && form?.isGoalie && !scratched ? <Pill key="gs" label={`STARTER TBD · ${Math.round(form.startShare * 100)}% GS`} tone="muted" /> : null}
+        {!started && !scratched && goalieOutlook ? (
+          <GoalieOutlookTag key="outlook" outlook={goalieOutlook} isPro={isPro} testID={`goalie-outlook-${player.playerId}`} style={styles.outlook} />
+        ) : !started && form?.isGoalie && !scratched ? (
+          <Pill key="gs" label={`STARTER TBD · ${Math.round(form.startShare * 100)}% GS`} tone="muted" />
+        ) : null}
         {!started && form && form.trend === 'hot' ? <HotBadge key="hot" /> : null}
         {!started && form && form.trend === 'cold' ? <ColdBadge key="cold" /> : null}
         {line ? (
-          <Text key="line" style={styles.line}>{lineText(line)}</Text>
+          <Text key="line" style={styles.line}>{categories ? categoryLineText(line, categories) : lineText(line)}</Text>
         ) : started && !scratched ? (
           <Text key="none" style={styles.muted}>Not in the box score yet</Text>
         ) : null}
@@ -128,4 +143,5 @@ const styles = StyleSheet.create({
   bigPillText: { fontSize: 10, fontWeight: '900', letterSpacing: 0.6, color: colors.onInk },
   line: { fontSize: 13, fontWeight: '700', color: colors.text },
   muted: { fontSize: 13, color: colors.muted },
+  outlook: { width: '100%' },
 });

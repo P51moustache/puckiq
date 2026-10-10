@@ -22,11 +22,13 @@ struct NightLockScreenView: View {
       }
       HStack(alignment: .bottom, spacing: 12) {
         HStack(alignment: .lastTextBaseline, spacing: 5) {
-          Text(state.pointsText)
+          Text(state.headlineText)
             .font(Broadcast.numerals(44))
             .foregroundStyle(Broadcast.white)
             .minimumScaleFactor(0.6)
-          Text("PTS").font(Broadcast.numerals(16)).foregroundStyle(Broadcast.sub)
+          if let unit = state.unit {
+            Text(unit).font(Broadcast.numerals(16)).foregroundStyle(Broadcast.sub)
+          }
         }
         .lineLimit(1)
         Spacer(minLength: 8)
@@ -83,14 +85,14 @@ struct NightTopLine: View {
 
 // MARK: - Dynamic Island
 
-/// Compact leading and minimal: the points.
+/// Compact leading and minimal: the points (a category league: "3G 5A").
 @available(iOS 16.1, *)
 struct NightIslandPoints: View {
   let state: PuckIQNightAttributes.ContentState
   var size: CGFloat = 15
 
   var body: some View {
-    Text(state.pointsText)
+    Text(state.headlineText)
       .font(Broadcast.numerals(size))
       .foregroundStyle(Broadcast.white)
       .lineLimit(1)
@@ -123,12 +125,12 @@ struct NightIslandExpandedPoints: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
-      Text(state.pointsText)
+      Text(state.headlineText)
         .font(Broadcast.numerals(34))
         .foregroundStyle(Broadcast.white)
         .lineLimit(1)
         .minimumScaleFactor(0.6)
-      Text("FANTASY PTS").font(Broadcast.label(9)).tracking(1).foregroundStyle(Broadcast.sub)
+      Text(state.unit == nil ? "TONIGHT" : "FANTASY PTS").font(Broadcast.label(9)).tracking(1).foregroundStyle(Broadcast.sub)
     }
   }
 }

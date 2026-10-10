@@ -1,18 +1,29 @@
 /**
- * Per-team league rules: platform, active lineup slots, scoring weights.
- * The planner, coach, and pickups all read these.
+ * Per-team league rules: platform, active lineup slots, and scoring (points per stat, or the
+ * categories a category league counts). The planner, coach, and pickups all read these.
  */
 
 import React, { useEffect, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import type { FantasyPlatform, FantasyTeam, LineupSlots, ScoringWeights } from '../../types/fantasy';
+import type { CategoryKey, FantasyPlatform, FantasyTeam, LeagueFormat, LineupSlots, ScoringWeights } from '../../types/fantasy';
 import { LINEUP_PRESETS, MAX_SLOTS_PER_TYPE, presetFor, totalSlots } from '../../services/fantasy/lineup';
 import { SLOT_ORDER } from '../../services/fantasy/positions';
-import { DEFAULT_SCORING, SCORING_FIELDS, scoringPresetFor } from '../../services/fantasy/scoring';
-import { DEFAULT_LEAGUE_SIZE, MAX_LEAGUE_SIZE, MAX_MIN_GOALIE_STARTS, MIN_LEAGUE_SIZE, PLATFORM_LABEL } from '../../services/teams';
+import { DEFAULT_SCORING, scoringPresetFor } from '../../services/fantasy/scoring';
+import { isCategoryLeague, YAHOO_DEFAULT_CATEGORIES } from '../../services/fantasy/categories';
+import { hostName, sanitizeTeamLink } from '../../services/fantasy/hostLinks';
+import {
+  DEFAULT_LEAGUE_SIZE,
+  MAX_LEAGUE_SIZE,
+  MAX_MIN_GOALIE_STARTS,
+  MIN_LEAGUE_SIZE,
+  PLATFORM_LABEL,
+  withLeagueFormat,
+} from '../../services/teams';
+import { track } from '../../services/analytics/track';
 import { useTeams } from '../TeamsProvider';
-import { Card, colors, display, SectionLabel } from '../coach/ui';
+import { Card, colors, SectionLabel } from '../coach/ui';
+import { ScoringSection } from './leagueSettings/ScoringSection';
+import { Stepper } from './leagueSettings/Stepper';
 
 const PLATFORMS: FantasyPlatform[] = ['yahoo', 'espn', 'fantrax', 'other'];
 
@@ -20,49 +31,6 @@ const SLOT_HELP: Record<string, string> = {
   F: 'Any forward',
   UTIL: 'Any skater',
 };
-
-function Stepper({
-  value,
-  onChange,
-  min = 0,
-  max,
-  step = 1,
-  format = (n: number) => String(n),
-  testID,
-}: {
-  value: number;
-  onChange: (value: number) => void;
-  min?: number;
-  max: number;
-  step?: number;
-  format?: (value: number) => string;
-  testID?: string;
-}) {
-  const round = (n: number) => Math.round(n * 100) / 100;
-  return (
-    <View style={styles.stepper} testID={testID}>
-      <Pressable
-        onPress={() => onChange(round(Math.max(min, value - step)))}
-        disabled={value <= min}
-        style={[styles.stepButton, value <= min && styles.stepDisabled]}
-        hitSlop={6}
-        accessibilityLabel="Decrease"
-      >
-        <Ionicons name="remove" size={16} color={colors.text} />
-      </Pressable>
-      <Text style={styles.stepValue}>{format(value)}</Text>
-      <Pressable
-        onPress={() => onChange(round(Math.min(max, value + step)))}
-        disabled={value >= max}
-        style={[styles.stepButton, value >= max && styles.stepDisabled]}
-        hitSlop={6}
-        accessibilityLabel="Increase"
-      >
-        <Ionicons name="add" size={16} color={colors.text} />
-      </Pressable>
-    </View>
-  );
-}
 
 interface LeagueSettingsSheetProps {
   visible: boolean;
@@ -76,7 +44,10 @@ export default function LeagueSettingsSheet({ visible, team, onClose }: LeagueSe
   const [platform, setPlatform] = useState<FantasyPlatform>(team?.platform ?? 'yahoo');
   const [slots, setSlots] = useState<LineupSlots>(team?.slots ?? LINEUP_PRESETS[0].slots);
   const [scoring, setScoring] = useState<ScoringWeights>(team?.scoring ?? DEFAULT_SCORING);
+  const [format, setFormat] = useState<LeagueFormat>(isCategoryLeague(team) ? 'categories' : 'points');
+  const [categories, setCategories] = useState<CategoryKey[]>(team?.categories ?? YAHOO_DEFAULT_CATEGORIES);
   const [leagueSize, setLeagueSize] = useState<number>(team?.leagueSize ?? DEFAULT_LEAGUE_SIZE);
+  const [teamLink, setTeamLink] = useState(team?.teamLink ?? '');
   const [minGoalieStarts, setMinGoalieStarts] = useState<number>(team?.minGoalieStarts ?? 0);
 
   useEffect(() => {
@@ -85,7 +56,10 @@ export default function LeagueSettingsSheet({ visible, team, onClose }: LeagueSe
       setPlatform(team.platform);
       setSlots(team.slots);
       setScoring(team.scoring);
+      setFormat(isCategoryLeague(team) ? 'categories' : 'points');
+      setCategories(team.categories ?? YAHOO_DEFAULT_CATEGORIES);
       setLeagueSize(team.leagueSize ?? DEFAULT_LEAGUE_SIZE);
+      setTeamLink(team.teamLink ?? '');
       setMinGoalieStarts(team.minGoalieStarts ?? 0);
     }
   }, [visible, team]);
@@ -97,17 +71,36 @@ export default function LeagueSettingsSheet({ visible, team, onClose }: LeagueSe
       Alert.alert('Add at least one slot', 'Your lineup needs at least one active slot.');
       return;
     }
-    updateTeam((current) => ({
-      ...current,
-      name: name.trim() || current.name,
-      platform,
-      leagueSize,
-      minGoalieStarts,
-      slots,
-      scoring,
-      updatedAt: new Date().toISOString(),
-    }), team.id);
+    const host = hostName(platform);
+    const link = host ? sanitizeTeamLink(teamLink, platform) : undefined;
+    if (host && teamLink.trim() && !link) {
+      Alert.alert(`That isn’t a ${host} link`, `Paste the address of your team’s page on the ${host} website, or leave it empty.`);
+      return;
+    }
+    if (format !== (isCategoryLeague(team) ? 'categories' : 'points')) track('league_format_set', { format, source: 'settings' });
+    updateTeam((current) => {
+      const { teamLink: _previous, ...rest } = current;
+      const next = {
+        ...rest,
+        name: name.trim() || current.name,
+        platform,
+        leagueSize,
+        minGoalieStarts,
+        slots,
+        ...(link ? { teamLink: link } : {}),
+        updatedAt: new Date().toISOString(),
+      };
+      return format === 'categories'
+        ? withLeagueFormat(next, 'categories', categories)
+        : { ...withLeagueFormat(next, 'points'), scoring };
+    }, team.id);
     onClose();
+  };
+
+  // A category team's stored weights are derived; switching to points starts from the platform's points.
+  const changeFormat = (next: LeagueFormat) => {
+    if (next === 'points' && isCategoryLeague(team) && format === 'categories') setScoring(scoringPresetFor(platform));
+    setFormat(next);
   };
 
   const confirmDelete = () => {
@@ -172,6 +165,25 @@ export default function LeagueSettingsSheet({ visible, team, onClose }: LeagueSe
               </View>
               <Stepper value={leagueSize} min={MIN_LEAGUE_SIZE} max={MAX_LEAGUE_SIZE} onChange={setLeagueSize} testID="league-size" />
             </View>
+            {hostName(platform) ? (
+              <View style={styles.linkBlock}>
+                <Text style={styles.rowLabel}>Team page link</Text>
+                <Text style={styles.rowHelp}>
+                  Optional. Paste your team’s page from the {hostName(platform)} website, and “Make these moves” on Tonight opens it.
+                </Text>
+                <TextInput
+                  value={teamLink}
+                  onChangeText={setTeamLink}
+                  placeholder="https://…"
+                  placeholderTextColor={colors.muted}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="url"
+                  style={styles.linkInput}
+                  testID="league-team-link"
+                />
+              </View>
+            ) : null}
           </Card>
 
           <SectionLabel title="Active lineup slots" />
@@ -213,32 +225,15 @@ export default function LeagueSettingsSheet({ visible, team, onClose }: LeagueSe
             <Text style={styles.footnote}>Bench and IR slots don’t matter here — only the slots that score.</Text>
           </Card>
 
-          <SectionLabel
-            title="Scoring"
-            right={(
-              <Pressable onPress={() => setScoring(scoringPresetFor(platform))} hitSlop={8} accessibilityLabel={platform === 'yahoo' ? 'Reset to Yahoo defaults' : 'Reset scoring'}>
-                <Text style={styles.reset}>{platform === 'yahoo' ? 'Yahoo defaults' : 'Reset'}</Text>
-              </Pressable>
-            )}
+          <ScoringSection
+            platform={platform}
+            format={format}
+            onFormat={changeFormat}
+            categories={categories}
+            onCategories={setCategories}
+            scoring={scoring}
+            onScoring={setScoring}
           />
-          <Card>
-            <Text style={styles.footnote}>
-              Points per stat. In a categories league, leave the defaults — they rank players the way most category setups do.
-            </Text>
-            {SCORING_FIELDS.map((field) => (
-              <View key={field.key} style={styles.row}>
-                <Text style={styles.rowLabel}>{field.label}</Text>
-                <Stepper
-                  value={scoring[field.key]}
-                  min={-10}
-                  max={20}
-                  step={field.key === 'saves' ? 0.1 : field.key === 'shots' || field.key === 'hits' || field.key === 'blocks' ? 0.1 : 0.5}
-                  format={(value) => (Number.isInteger(value) ? String(value) : value.toFixed(1))}
-                  onChange={(value) => setScoring((prev) => ({ ...prev, [field.key]: value }))}
-                />
-              </View>
-            ))}
-          </Card>
 
           {teams.length > 1 ? (
             <Pressable onPress={confirmDelete} style={styles.delete} testID="league-delete">
@@ -318,6 +313,19 @@ const styles = StyleSheet.create({
   platformTextOn: {
     color: colors.onInk,
   },
+  linkBlock: {
+    gap: 4,
+    paddingTop: 8,
+  },
+  linkInput: {
+    marginTop: 4,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: colors.text,
+    backgroundColor: colors.raised,
+  },
   sizeRow: {
     marginTop: 8,
   },
@@ -364,38 +372,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.muted,
   },
-  stepper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  stepButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.raised,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepDisabled: {
-    opacity: 0.35,
-  },
-  stepValue: {
-    ...display(18),
-    minWidth: 34,
-    textAlign: 'center',
-  },
   footnote: {
     fontSize: 12,
     lineHeight: 17,
     color: colors.muted,
     marginTop: 6,
     marginBottom: 4,
-  },
-  reset: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.accent,
   },
   delete: {
     alignItems: 'center',

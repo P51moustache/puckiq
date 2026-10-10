@@ -7,9 +7,8 @@ jest.mock('../../../services/nhl/schedule', () => ({
   ...jest.requireActual('../../../services/nhl/schedule'),
   fetchDaySlate: (...args: unknown[]) => mockFetchDaySlate(...args),
 }));
-jest.mock('../../../services/nhl/gamecenter', () => ({
-  ...jest.requireActual('../../../services/nhl/gamecenter'),
-  fetchGameLines: (...args: unknown[]) => mockFetchGameLines(...args),
+jest.mock('../../../services/nhl/powerPlay', () => ({
+  fetchScoringLines: (...args: unknown[]) => mockFetchGameLines(...args),
 }));
 
 import React from 'react';

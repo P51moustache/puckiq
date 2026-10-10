@@ -11,6 +11,7 @@ import { teamTile } from '../../constants/teamTiles';
 import { headshotUrl } from '../../services/nhl/player';
 import { seasonIdFor, todayNhl } from '../../services/nhl/dates';
 import { colors } from './ui';
+import { splitName } from '../../services/fantasy/names';
 
 interface PlayerAvatarProps {
   playerId: number;
@@ -48,11 +49,7 @@ export function PlayerAvatar({ playerId, team, position, size = 48, uri, shape =
   );
 }
 
-export function splitName(name: string): { first: string; last: string } {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length < 2) return { first: '', last: name.trim() };
-  return { first: parts.slice(0, -1).join(' '), last: parts[parts.length - 1] };
-}
+export { splitName };
 
 /** "Connor MCDAVID" — first name light, last name heavy caps (the F1 driver treatment). */
 export function PlayerName({

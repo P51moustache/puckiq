@@ -5,7 +5,8 @@
 
 import type { FantasyPlayer, FantasyTeam, InjuryConfidence, InjurySignal, RosterNewsItem, ScoringWeights } from '../../types/fantasy';
 import { addDays, previousSeasonId, seasonIdFor } from '../nhl/dates';
-import { fetchGameLines, fetchScratchIds, type GameLine } from '../nhl/gamecenter';
+import { fetchScratchIds, type GameLine } from '../nhl/gamecenter';
+import { fetchScoringLines } from '../nhl/powerPlay';
 import {
   fetchDaySlate,
   fetchWeekSchedule,
@@ -183,7 +184,7 @@ export async function loadNight(
   await Promise.all([...relevant.values()].map(async (game) => {
     if (!isGameFinal(game)) scratchByGame.set(game.id, await fetchScratchIds(game.id, { force: options.force }));
     if (options.live !== false && isGameStarted(game)) {
-      linesByGame.set(game.id, await fetchGameLines(game.id, { final: isGameFinal(game), force: options.force }));
+      linesByGame.set(game.id, await fetchScoringLines(game.id, { final: isGameFinal(game), force: options.force }));
     }
   }));
 

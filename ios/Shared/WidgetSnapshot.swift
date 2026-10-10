@@ -31,6 +31,15 @@ struct WidgetSnapshot: Codable, Equatable {
     let `final`: Int
     let upcoming: Int
     let top: Top?
+    /// A category league's tallies at a glance ("3G 5A"), shown instead of points.
+    var headline: String? = nil
+
+    /// What the night leads with: the category headline, else the points.
+    var headlineText: String { headline ?? PointsText.format(points) }
+    /// "PTS" after points; a category headline carries its own labels.
+    var unit: String? { headline == nil ? "PTS" : nil }
+    /// "23.5 PTS" or "3G 5A", for one-line spots.
+    var headlineWithUnit: String { unit.map { "\(headlineText) \($0)" } ?? headlineText }
   }
 
   let updatedAt: String

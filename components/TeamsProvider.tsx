@@ -67,7 +67,7 @@ export function TeamsProvider({ children }: { children: React.ReactNode }) {
 
   const addTeam = useCallback((input: Parameters<typeof buildTeam>[0]) => {
     const team = buildTeam(input);
-    track('team_add', { platform: team.platform });
+    track('team_add', { platform: team.platform, format: team.format ?? 'points' });
     setState((prev) => ({ ...upsertTeam(prev, team), activeTeamId: team.id }));
     return team;
   }, []);

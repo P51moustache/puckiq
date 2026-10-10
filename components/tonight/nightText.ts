@@ -23,7 +23,4 @@ export function countdownText(startTimeUTC: string | null, now: Date): string {
 }
 
 /** Last name only, for tight spots ("MCDAVID"). */
-export function lastNameOf(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  return parts[parts.length - 1] ?? name;
-}
+export { lastNameOf } from '../../services/fantasy/names';

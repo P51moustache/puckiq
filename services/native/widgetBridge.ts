@@ -17,6 +17,8 @@ export interface WidgetPlayer {
 
 export interface WidgetLive {
   points: number;
+  /** A category league leads with tallies ("3G 5A") instead of points; absent in a points league. */
+  headline?: string;
   live: number;
   final: number;
   upcoming: number;
@@ -39,6 +41,8 @@ export interface WidgetSnapshot {
 
 export interface LiveActivityState {
   points: number;
+  /** As WidgetLive.headline. */
+  headline?: string;
   live: number;
   final: number;
   upcoming: number;

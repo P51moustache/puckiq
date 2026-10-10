@@ -44,6 +44,8 @@ export interface PlayerNight {
   role: 'starter' | 'bench' | 'unplanned';
   slot: SlotKey | null;
   bigNight: BigNight | null;
+  /** His team won (final games only) — a goalie's win and shutout. */
+  won?: boolean;
 }
 
 export interface Hindsight {
@@ -117,6 +119,16 @@ export function gameClockText(game: { state: string; period?: number | null; clo
   return 'Live';
 }
 
+/**
+ * Did he win tonight? A box score that flags starters also names the goalie of record, so a goalie
+ * wins only with a "W" decision — a pulled starter doesn't share his reliever's win. Otherwise
+ * (skaters, older box scores) it's his team's result.
+ */
+function wonNight(line: GameLine | undefined, game: NhlGame, team: string): boolean {
+  if (line?.isGoalie && (line.decision !== undefined || line.starter !== undefined)) return line.decision === 'W';
+  return teamWon(game, team);
+}
+
 /** Did this player's team win? Only meaningful once the game is final. */
 export function teamWon(game: Pick<NhlGame, 'home' | 'away' | 'homeScore' | 'awayScore'>, team: string): boolean {
   if (game.homeScore == null || game.awayScore == null) return false;
@@ -126,16 +138,25 @@ export function teamWon(game: Pick<NhlGame, 'home' | 'away' | 'homeScore' | 'awa
   return mine > theirs;
 }
 
+/** A shutout is a win by the goalie who started and allowed nothing; a reliever's clean relief isn't one. */
+export function isShutout(line: GameLine, won: boolean): boolean {
+  return won && line.goalsAgainst === 0 && line.starter !== false;
+}
+
+/** Power-play points from a line: goals + assists once the game summary is merged in, else goals only. */
+export function powerPlayPointsOf(line: GameLine): number {
+  return line.powerPlayPoints ?? line.powerPlayGoals;
+}
+
 /**
- * Fantasy points from one box-score line. Box scores don't carry power-play assists, so PPP is
- * power-play goals. A goalie's win (and a shutout: a win with no goals against) only counts
- * once the game is final.
+ * Fantasy points from one box-score line. A goalie's win (and a shutout: a win with no goals
+ * against) only counts once the game is final.
  */
 export function linePoints(line: GameLine, scoring: ScoringWeights, opts: { final?: boolean; won?: boolean } = {}): number {
   if (line.isGoalie) {
     const won = !!opts.final && !!opts.won;
     return goaliePoints(
-      { wins: won ? 1 : 0, saves: line.saves, goalsAgainst: line.goalsAgainst, shutouts: won && line.goalsAgainst === 0 ? 1 : 0 },
+      { wins: won ? 1 : 0, saves: line.saves, goalsAgainst: line.goalsAgainst, shutouts: isShutout(line, won) ? 1 : 0 },
       scoring,
     );
   }
@@ -143,7 +164,7 @@ export function linePoints(line: GameLine, scoring: ScoringWeights, opts: { fina
     {
       goals: line.goals,
       assists: line.assists,
-      ppp: line.powerPlayGoals,
+      ppp: powerPlayPointsOf(line),
       shots: line.shots,
       hits: line.hits,
       blocks: line.blocks,
@@ -156,7 +177,7 @@ export function linePoints(line: GameLine, scoring: ScoringWeights, opts: { fina
 export function bigNightOf(line: GameLine | undefined, final: boolean, won: boolean): BigNight | null {
   if (!line) return null;
   if (line.isGoalie) {
-    if (final && won && line.goalsAgainst === 0) return 'shutout';
+    if (final && isShutout(line, won)) return 'shutout';
     return line.saves >= BIG_NIGHT_SAVES ? 'forty-saves' : null;
   }
   if (line.goals >= BIG_NIGHT_GOALS) return 'hat-trick';
@@ -202,7 +223,17 @@ function round1(value: number): number {
  * use this rule.
  */
 export function headlinePoints(score: NightScore, isPro: boolean): number {
-  return isPro && score.players.some((row) => row.role === 'starter') ? score.starterPoints : score.totalPoints;
+  return countsLineupOnly(score, isPro) ? score.starterPoints : score.totalPoints;
+}
+
+/** The players behind the headline (same rule): who has played so far, lineup only for Pro. */
+export function headlineRows(score: NightScore, isPro: boolean): PlayerNight[] {
+  const lineupOnly = countsLineupOnly(score, isPro);
+  return score.players.filter((row) => row.state !== 'upcoming' && (!lineupOnly || row.role === 'starter'));
+}
+
+function countsLineupOnly(score: NightScore, isPro: boolean): boolean {
+  return isPro && score.players.some((row) => row.role === 'starter');
 }
 
 export function buildNightScore(input: NightScoreInput): NightScore {
@@ -221,8 +252,8 @@ export function buildNightScore(input: NightScoreInput): NightScore {
     const game = gamesById.get(entry.gameId);
     const state = stateOf(game);
     const final = state === 'final';
-    const won = final && !!game && teamWon(game, player.teamAbbrev);
     const line = lines.get(player.playerId);
+    const won = final && !!game && wonNight(line, game, player.teamAbbrev);
     startByPlayer.set(player.playerId, entry.startTimeUTC ?? '');
     rows.push({
       playerId: player.playerId,
@@ -232,6 +263,7 @@ export function buildNightScore(input: NightScoreInput): NightScore {
       role: !day ? 'unplanned' : starters.has(player.playerId) ? 'starter' : bench.has(player.playerId) ? 'bench' : 'unplanned',
       slot: starters.get(player.playerId) ?? null,
       bigNight: state === 'upcoming' ? null : bigNightOf(line, final, won),
+      ...(final ? { won } : {}),
     });
   }
 

@@ -62,10 +62,40 @@ describe('linePoints', () => {
     expect(linePoints(skater(1, { goals: 2, assists: 1, powerPlayGoals: 1, shots: 4, hits: 2 }), DEFAULT_SCORING)).toBe(12);
   });
 
+  it('counts power-play assists once the game summary has filled them in', () => {
+    // 1 A (2) on the power play: PPP 1 (1) — the box score alone has no power-play goal.
+    expect(linePoints(skater(1, { assists: 1, powerPlayPoints: 1 }), DEFAULT_SCORING)).toBe(3);
+    expect(linePoints(skater(1, { assists: 1 }), DEFAULT_SCORING)).toBe(2);
+  });
+
   it('counts a goalie win and shutout only when final', () => {
     const line = goalie(4, { saves: 30, goalsAgainst: 0 });
     expect(linePoints(line, DEFAULT_SCORING, { final: false, won: true })).toBeCloseTo(6); // 30 × 0.2
     expect(linePoints(line, DEFAULT_SCORING, { final: true, won: true })).toBeCloseTo(14); // + win 5 + shutout 3
+  });
+});
+
+describe('goalie of record', () => {
+  it('gives the win to the goalie with the decision, not to a pulled starter', () => {
+    const starter = player(6, 'Jake Oettinger', 'DAL', 'G');
+    const reliever = player(7, 'Casey DeSmith', 'DAL', 'G');
+    const final = game(DATE, 'CHI', 'DAL', { id: 16, state: 'FINAL', homeScore: 5, awayScore: 4 });
+    const score = buildNightScore(input({
+      players: [starter, reliever],
+      playerGames: { 6: { gameId: 16, startTimeUTC: null }, 7: { gameId: 16, startTimeUTC: null } },
+      games: [final],
+      lines: new Map([
+        [6, goalie(6, { saves: 10, goalsAgainst: 4, toi: '25:00', starter: true })],
+        [7, goalie(7, { saves: 20, goalsAgainst: 0, toi: '35:00', starter: false, decision: 'W' })],
+      ]),
+      day: null,
+    }));
+    const byId = new Map(score.players.map((row) => [row.playerId, row]));
+    expect(byId.get(6)?.won).toBe(false);
+    expect(byId.get(7)?.won).toBe(true);
+    // DEFAULT_SCORING: the reliever's 20 saves (4) + win (5); the starter gets no win.
+    expect(byId.get(7)?.points).toBe(9);
+    expect(byId.get(6)?.points).toBe(-2);
   });
 });
 

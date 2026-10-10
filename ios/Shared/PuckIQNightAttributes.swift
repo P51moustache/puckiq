@@ -17,6 +17,8 @@ struct PuckIQNightAttributes: ActivityAttributes {
     var topLine: String?
     /// "P2 10:15", "INT 1", "Final": the most advanced clock among my games.
     var clock: String?
+    /// A category league's tallies at a glance ("3G 5A"), shown instead of points.
+    var headline: String? = nil
   }
 
   var teamName: String
@@ -29,6 +31,12 @@ extension PuckIQNightAttributes.ContentState {
   var isLive: Bool { live > 0 }
 
   var pointsText: String { PointsText.format(points) }
+
+  /// What the night leads with: the category headline, else the points.
+  var headlineText: String { headline ?? pointsText }
+
+  /// "PTS" after points; a category headline carries its own labels.
+  var unit: String? { headline == nil ? "PTS" : nil }
 
   /// Compact status: "3 LIVE", then "2 TO GO" between games, then "FINAL".
   var statusText: String {

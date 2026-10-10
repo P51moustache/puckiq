@@ -84,11 +84,11 @@ struct TonightHeroColumn: View {
       Spacer(minLength: 8)
       BroadcastBar(label: "Games on") { Text("LIVE") }
     case .live(let live):
-      PointsCount(points: live.points, top: showsTop ? live.top : nil)
+      PointsCount(live: live, top: showsTop ? live.top : nil)
       Spacer(minLength: 8)
       NightCountsRow(live: live.live, final: live.final, upcoming: live.upcoming)
     case .finished(let live):
-      PointsCount(points: live.points, top: showsTop ? live.top : nil)
+      PointsCount(live: live, top: showsTop ? live.top : nil)
       Spacer(minLength: 8)
       BroadcastBar(label: "All games", fill: Broadcast.carbonRaised) { Text("FINAL") }
     }
@@ -176,20 +176,22 @@ private struct PlayingCount: View {
   }
 }
 
-/// "23.5 PTS" and the top performer under it.
+/// "23.5 PTS" (or a category league's "3G 5A") and the top performer under it.
 @available(iOS 16.1, *)
 private struct PointsCount: View {
-  let points: Double
+  let live: WidgetSnapshot.Live
   let top: WidgetSnapshot.Live.Top?
 
   var body: some View {
     VStack(alignment: .leading, spacing: 2) {
       HStack(alignment: .lastTextBaseline, spacing: 4) {
-        Text(PointsText.format(points))
+        Text(live.headlineText)
           .font(Broadcast.numerals(42))
           .foregroundStyle(Broadcast.white)
           .minimumScaleFactor(0.6)
-        Text("PTS").font(Broadcast.numerals(15)).foregroundStyle(Broadcast.sub)
+        if let unit = live.unit {
+          Text(unit).font(Broadcast.numerals(15)).foregroundStyle(Broadcast.sub)
+        }
       }
       if let top {
         Text(top.summary).font(Broadcast.label(10)).foregroundStyle(Broadcast.sub)
@@ -322,11 +324,11 @@ struct TonightRectangularView: View {
       footnote("Games in progress")
     case .live(let live):
       headline("Live · \(live.live) in play")
-      Text("\(PointsText.format(live.points)) PTS").font(Broadcast.numerals(24)).lineLimit(1).minimumScaleFactor(0.7)
+      Text(live.headlineWithUnit).font(Broadcast.numerals(24)).lineLimit(1).minimumScaleFactor(0.7)
       footnote(live.top?.summary ?? "\(live.final) final · \(live.upcoming) to go")
     case .finished(let live):
       headline("Final")
-      Text("\(PointsText.format(live.points)) PTS").font(Broadcast.numerals(24)).lineLimit(1).minimumScaleFactor(0.7)
+      Text(live.headlineWithUnit).font(Broadcast.numerals(24)).lineLimit(1).minimumScaleFactor(0.7)
       footnote(live.top?.summary ?? "All games final")
     }
   }
@@ -363,9 +365,9 @@ struct TonightInlineView: View {
     case .underway(let playing, let total):
       Text("\(playing)/\(total) play · games on")
     case .live(let live):
-      Text("LIVE \(PointsText.format(live.points)) pts · \(live.live) in play")
+      Text("LIVE \(live.headlineWithUnit) · \(live.live) in play")
     case .finished(let live):
-      Text("FINAL \(PointsText.format(live.points)) pts")
+      Text("FINAL \(live.headlineWithUnit)")
     }
   }
 }

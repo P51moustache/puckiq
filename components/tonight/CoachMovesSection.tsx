@@ -1,6 +1,7 @@
 /**
  * "Before lock": the coach's moves for tonight or tomorrow. Grouped sits show the faces of
- * everyone who has no slot; free users see the first move and a Pro lock for the rest.
+ * everyone who has no slot; free users see the first move and a Pro lock for the rest. When
+ * there's something to change, one tap opens the host app (or the user's team page) to do it.
  */
 
 import React from 'react';
@@ -9,6 +10,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import type { FantasyPlayer, SlotKey } from '../../types/fantasy';
 import type { CoachMove } from '../../services/fantasy/coach';
+import type { HostLink } from '../../services/fantasy/hostLinks';
+import { track } from '../../services/analytics/track';
 import { STARTING_GOALIES_URL } from '../../constants/legal';
 import { ART, ART_ASPECT } from '../../constants/art';
 import { PlayerAvatar } from '../coach/PlayerAvatar';
@@ -27,6 +30,8 @@ const MOVE_ICON: Record<CoachMove['kind'], keyof typeof Ionicons.glyphMap> = {
 
 /** Faces on a grouped sit card: enough to recognise, never a second row. */
 const MAX_FACES = 5;
+/** Moves at or under this severity (scratch, injury, overflow, empty slot) need a change in the host app. */
+const MAX_ACTION_SEVERITY = 2;
 
 function moveColor(move: CoachMove): string {
   if (move.kind === 'clean') return colors.good;
@@ -41,6 +46,7 @@ export function CoachMovesSection({
   hiddenCount,
   when,
   byId,
+  host,
   onFindPickup,
   onUnlock,
 }: {
@@ -49,6 +55,8 @@ export function CoachMovesSection({
   hiddenCount: number;
   when: 'tonight' | 'tomorrow';
   byId: Map<number, FantasyPlayer>;
+  /** Where the moves get made; null for platforms PuckIQ can't open. */
+  host: HostLink | null;
   onFindPickup: (move: CoachMove, slot?: SlotKey) => void;
   onUnlock: () => void;
 }) {
@@ -99,6 +107,20 @@ export function CoachMovesSection({
             </View>
           </Card>
         ))}
+        {host && moves.some((move) => move.severity <= MAX_ACTION_SEVERITY) ? (
+          <Pressable
+            onPress={() => {
+              track('host_open', { host: host.name.toLowerCase(), team_page: host.teamPage });
+              Linking.openURL(host.url).catch(() => undefined);
+            }}
+            style={({ pressed }) => [styles.host, pressed && styles.pressed]}
+            accessibilityRole="link"
+            testID="tonight-open-host"
+          >
+            <Ionicons name="open-outline" size={16} color={colors.accent} />
+            <Text style={styles.hostText}>{host.teamPage ? `Make these moves on your ${host.name} team` : `Make these moves in ${host.name}`}</Text>
+          </Pressable>
+        ) : null}
         {hiddenCount > 0 ? (
           <ProLockCard
             title={`${hiddenCount} more ${hiddenCount === 1 ? 'move' : 'moves'} ${when}`}
@@ -114,6 +136,9 @@ export function CoachMovesSection({
 
 const styles = StyleSheet.create({
   stack: { gap: 10 },
+  host: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8 },
+  hostText: { fontSize: 14, fontWeight: '800', color: colors.accent },
+  pressed: { opacity: 0.6 },
   move: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
   icon: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   cleanArt: { width: 34, height: 34 / ART_ASPECT.goalLampBadge },

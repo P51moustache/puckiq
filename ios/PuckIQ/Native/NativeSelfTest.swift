@@ -130,6 +130,7 @@ private struct PreviewCase {
       PreviewCase(name: "Underway, no live data", snapshot: WidgetSamples.snapshot(now: now, firstPuckIn: -10 * 60)),
       PreviewCase(name: "Live", snapshot: WidgetSamples.snapshot(now: now, firstPuckIn: -hour, live: WidgetSamples.liveNight)),
       PreviewCase(name: "Final", snapshot: WidgetSamples.snapshot(now: now, firstPuckIn: -4 * hour, live: WidgetSamples.finishedNight)),
+      PreviewCase(name: "Live, category league", snapshot: WidgetSamples.snapshot(now: now, firstPuckIn: -hour, live: WidgetSamples.categoryNight)),
       PreviewCase(name: "No games", snapshot: tonight.with(playing: 0)),
       PreviewCase(name: "Stale (earlier game day)", snapshot: WidgetSamples.snapshot(now: now.addingTimeInterval(-24 * hour))),
       PreviewCase(name: "Empty (never set up)", snapshot: nil),
@@ -231,15 +232,12 @@ private struct LiveActivitySheet: View {
       lockScreen(attributes.teamName, live, stale: true)
       SheetLabel(text: "Lock Screen, final")
       lockScreen(attributes.teamName, finalState, stale: false)
+      SheetLabel(text: "Lock Screen, category league")
+      lockScreen(attributes.teamName, WidgetSamples.categoryState, stale: false)
       SheetLabel(text: "Dynamic Island, compact")
-      HStack {
-        NightIslandPoints(state: live)
-        Spacer()
-        NightIslandStatus(state: live)
-      }
-      .padding(.horizontal, 18)
-      .frame(width: 250, height: 37)
-      .background(Capsule().fill(Color.black))
+      compactIsland(live)
+      SheetLabel(text: "Dynamic Island, compact, category league")
+      compactIsland(WidgetSamples.categoryState)
       SheetLabel(text: "Dynamic Island, minimal")
       NightIslandPoints(state: live, size: 12)
         .frame(width: 37, height: 37)
@@ -260,6 +258,17 @@ private struct LiveActivitySheet: View {
     }
     .padding(20)
     .background(PreviewSize.paper)
+  }
+
+  private func compactIsland(_ state: PuckIQNightAttributes.ContentState) -> some View {
+    HStack {
+      NightIslandPoints(state: state)
+      Spacer()
+      NightIslandStatus(state: state)
+    }
+    .padding(.horizontal, 18)
+    .frame(width: 250, height: 37)
+    .background(Capsule().fill(Color.black))
   }
 
   private func lockScreen(_ teamName: String, _ state: PuckIQNightAttributes.ContentState, stale: Bool) -> some View {

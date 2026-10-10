@@ -34,7 +34,29 @@ export type SlotKey = 'C' | 'LW' | 'RW' | 'F' | 'D' | 'UTIL' | 'G';
 
 export type LineupSlots = Record<SlotKey, number>;
 
-/** Points-league weights. Category leagues use these as a rough "value" proxy. */
+/** How a league decides a head-to-head week: total fantasy points, or categories won. */
+export type LeagueFormat = 'points' | 'categories';
+
+/** The scoring categories PuckIQ can count from an NHL box score. */
+export type CategoryKey =
+  | 'goals'
+  | 'assists'
+  | 'points'
+  | 'plusMinus'
+  | 'ppp'
+  | 'shots'
+  | 'hits'
+  | 'blocks'
+  | 'wins'
+  | 'gaa'
+  | 'savePct'
+  | 'saves'
+  | 'shutouts';
+
+/**
+ * Per-stat weights behind every "value" the planner ranks by. A points league's are its scoring;
+ * a category league's are derived from its categories (services/fantasy/categories.ts).
+ */
 export interface ScoringWeights {
   goals: number;
   assists: number;
@@ -59,7 +81,12 @@ export interface FantasyTeam {
   /** H2H weekly minimum goalie starts (Yahoo's default is 3). 0 = no minimum. */
   minGoalieStarts: number;
   slots: LineupSlots;
+  /** The weights the planner ranks by. Derived from `categories` in a category league. */
   scoring: ScoringWeights;
+  /** Absent = points (every team saved before 3.2). */
+  format?: LeagueFormat;
+  /** The categories a category league counts, in display order. Only set when `format` is categories. */
+  categories?: CategoryKey[];
   players: FantasyPlayer[];
   /** This week's head-to-head opponent (typed in, or synced from the League Room). */
   opponentName: string;
@@ -70,6 +97,8 @@ export interface FantasyTeam {
   hiddenPickupIds: number[];
   /** The League Room this team belongs to, if any. */
   roomId?: string;
+  /** The team's page on its platform (pasted by the user), for "Open Yahoo". */
+  teamLink?: string;
   createdAt: string;
   updatedAt: string;
 }

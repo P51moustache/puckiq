@@ -15,10 +15,13 @@ import type { FantasyPlayer, SlotKey } from '../../types/fantasy';
 import { useNight } from '../../hooks/useCoach';
 import { useGoalHaptics, useNightPublisher } from '../../hooks/useNightLive';
 import { useTonightGuidance } from '../../hooks/useTonightGuidance';
+import { useNightTallies } from '../../hooks/useNightTallies';
 import { visibleMoves, type CoachMove } from '../../services/fantasy/coach';
 import { isNhlLinked } from '../../services/fantasy/positions';
 import { hasRecap, performerLine, recapWindowOpen } from '../../services/fantasy/recap';
 import { isGameStarted } from '../../services/nhl/schedule';
+import { isCategoryLeague } from '../../services/fantasy/categories';
+import { hostLinkFor } from '../../services/fantasy/hostLinks';
 import { track } from '../../services/analytics/track';
 import PageHeader from '../PageHeader';
 import { useTeams } from '../TeamsProvider';
@@ -108,6 +111,9 @@ export default function TonightScreen() {
   const guidance = useTonightGuidance({ team, view, night, playing, isPro: isPremium, showTomorrow, showPlayers });
 
   const recapScore = recapOpen && hasRecap(recap.score) ? recap.score : null;
+  const categories = isCategoryLeague(team) ? team?.categories ?? null : null;
+  const tallies = useNightTallies(team, score, data?.liveLines, isPremium);
+  const recapTallies = useNightTallies(team, recapScore, recap.night.data?.liveLines, isPremium);
   useAnalyticsOnce('recap_view', recapScore ? recap.date : null);
   useAnalyticsOnce('live_view', score?.phase === 'live' ? view.date : null);
 
@@ -231,6 +237,8 @@ export default function TonightScreen() {
                 <RecapCard
                   date={recap.date}
                   score={recapScore}
+                  tallies={recapTallies}
+                  lines={recap.night.data?.liveLines ?? new Map()}
                   isPro={isPremium}
                   byId={byId}
                   onShare={recapShare ? () => setSharing('recap') : null}
@@ -250,6 +258,7 @@ export default function TonightScreen() {
                 firstPuck={firstPuck}
                 now={now}
                 score={score}
+                tallies={tallies}
                 isPro={isPremium}
                 topLine={topLine}
                 quiet={data ? { preseasonGames: data.games.length === 0 ? data.preseasonGames : 0, nextDate: data.nextDate } : null}
@@ -269,6 +278,7 @@ export default function TonightScreen() {
                   hiddenCount={view.moves.length - moves.length}
                   when={night}
                   byId={byId}
+                  host={hostLinkFor(team)}
                   onFindPickup={findPickup}
                   onUnlock={() => openPaywall('tonight_moves')}
                 />
@@ -281,7 +291,14 @@ export default function TonightScreen() {
                 <>
                   <SectionLabel title="Best lineup" flush={wide} />
                   {isPremium ? (
-                    <LineupBoard day={view.day} byId={byId} games={data?.playerGames ?? {}} score={score} onOpenPlayer={(id) => openPlayer(id, 'roster', 'lineup')} />
+                    <LineupBoard
+                      day={view.day}
+                      byId={byId}
+                      games={data?.playerGames ?? {}}
+                      score={score}
+                      lines={categories ? data?.liveLines ?? null : null}
+                      onOpenPlayer={(id) => openPlayer(id, 'roster', 'lineup')}
+                    />
                   ) : (
                     <ProLockCard
                       title="Tonight’s best lineup"
@@ -312,6 +329,8 @@ export default function TonightScreen() {
                         night={nightById.get(player.playerId)}
                         slot={startersById.get(player.playerId)}
                         matchupTag={matchupTagFor(form, strength?.get(game.opponent))}
+                        goalieOutlook={view.goalieOutlooks.get(player.playerId)}
+                        categories={categories}
                         isPro={isPremium}
                         onPress={() => openPlayer(player.playerId, 'roster', 'tonight')}
                       />

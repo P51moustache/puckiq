@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -24,12 +25,13 @@ import { StatusBar } from 'expo-status-bar';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ART, ART_ASPECT } from '../../constants/art';
-import type { FantasyPlatform, LineupSlots, NhlSearchPlayer } from '../../types/fantasy';
+import type { FantasyPlatform, LeagueFormat, LineupSlots, NhlSearchPlayer } from '../../types/fantasy';
 import { LINEUP_PRESETS, presetFor, slotsPresetFor } from '../../services/fantasy/lineup';
 import { DEFAULT_SCORING, sameScoring, scoringPresetFor } from '../../services/fantasy/scoring';
+import { categoriesLabel, isCategoryLeague, YAHOO_DEFAULT_CATEGORIES } from '../../services/fantasy/categories';
 import { positionLabel } from '../../services/fantasy/positions';
 import { searchNhlPlayers } from '../../services/nhlPlayerSearch';
-import { addPlayers, PLATFORM_LABEL, removePlayer } from '../../services/teams';
+import { addPlayers, PLATFORM_LABEL, removePlayer, withLeagueFormat } from '../../services/teams';
 import { SAMPLE_PLAYERS, SAMPLE_TEAM_NAME } from '../../constants/sampleTeam';
 import { useTeams } from '../TeamsProvider';
 import { useReminders } from '../RemindersProvider';
@@ -37,6 +39,7 @@ import { toFantasyPlayer } from '../sheets/PlayerSearchSheet';
 import { PlayerAvatar, PlayerName, splitName } from '../coach/PlayerAvatar';
 import { BrandMark, colors, display, GhostButton, PrimaryButton } from '../coach/ui';
 import { RosterImportSheet } from '../rosterImport/RosterImportSheet';
+import { LeagueFormatPicker } from '../leagueFormat/LeagueFormatPicker';
 import { track } from '../../services/analytics/track';
 
 interface CoachOnboardingProps {
@@ -65,6 +68,7 @@ export function CoachOnboarding({ onComplete }: CoachOnboardingProps) {
   const [step, setStep] = useState<Step>('welcome');
   const [platform, setPlatform] = useState<FantasyPlatform>(team?.platform ?? 'yahoo');
   const [slots, setSlots] = useState<LineupSlots>(team?.slots ?? slotsPresetFor(team?.platform ?? 'yahoo'));
+  const [format, setFormat] = useState<LeagueFormat>(isCategoryLeague(team) ? 'categories' : 'points');
   const [name, setName] = useState(team?.name && team.name !== 'My Team' ? team.name : '');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<NhlSearchPlayer[]>([]);
@@ -109,14 +113,18 @@ export function CoachOnboarding({ onComplete }: CoachOnboardingProps) {
 
   const finishLeague = () => {
     const teamName = name.trim() || 'My Team';
-    // A new team starts on its platform's own scoring (Yahoo's defaults), unless the user already
-    // set custom scoring in an earlier pass through setup.
+    track('league_format_set', { format, source: 'onboarding' });
+    // A new team starts on its platform's own scoring (Yahoo's defaults) or, in a category league,
+    // its default categories — unless the user already set custom scoring in an earlier pass.
     if (teams.length === 0) {
-      addTeam({ name: teamName, platform, slots, scoring: scoringPresetFor(platform) });
+      addTeam({ name: teamName, platform, slots, scoring: scoringPresetFor(platform), format });
     } else {
       updateTeam((current) => {
+        const base = { ...current, name: teamName, platform, slots, updatedAt: new Date().toISOString() };
+        if (format === 'categories') return withLeagueFormat(base, 'categories');
+        if (isCategoryLeague(current)) return withLeagueFormat(base, 'points');
         const untouched = sameScoring(current.scoring, DEFAULT_SCORING) || sameScoring(current.scoring, scoringPresetFor(current.platform));
-        return { ...current, name: teamName, platform, slots, scoring: untouched ? scoringPresetFor(platform) : current.scoring, updatedAt: new Date().toISOString() };
+        return { ...base, scoring: untouched ? scoringPresetFor(platform) : current.scoring };
       });
     }
     setStep('roster');
@@ -189,12 +197,12 @@ export function CoachOnboarding({ onComplete }: CoachOnboardingProps) {
 
       {step === 'league' ? (
         <Animated.View entering={FadeIn.duration(300)} style={[styles.page, { paddingBottom: insets.bottom + 20 }]}>
-          <View style={styles.flex}>
+          <ScrollView style={styles.flex} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             {roomy ? (
               <Image source={ART.whiteboard} style={styles.whiteboard} contentFit="contain" accessible={false} testID="onboarding-whiteboard" />
             ) : null}
             <Text style={styles.stepTitle}>Your league</Text>
-            <Text style={styles.stepLede}>So the lineup math matches your league’s active slots.</Text>
+            <Text style={styles.stepLede}>So the lineup math matches your league’s scoring and active slots.</Text>
             <TextInput
               value={name}
               onChangeText={setName}
@@ -222,6 +230,13 @@ export function CoachOnboarding({ onComplete }: CoachOnboardingProps) {
                 </Pressable>
               ))}
             </View>
+            <Text style={styles.label}>HOW YOUR LEAGUE SCORES</Text>
+            <LeagueFormatPicker format={format} onChange={setFormat} />
+            {format === 'categories' ? (
+              <Text style={styles.formatHint} testID="onboarding-categories-hint">
+                {platform === 'yahoo' ? 'Yahoo’s default categories' : 'The usual categories'}: {categoriesLabel(YAHOO_DEFAULT_CATEGORIES)}. Change them in League settings.
+              </Text>
+            ) : null}
             <Text style={styles.label}>ACTIVE LINEUP</Text>
             {LINEUP_PRESETS.map((preset) => {
               const on = preset.slots === slots || JSON.stringify(preset.slots) === JSON.stringify(slots);
@@ -236,7 +251,7 @@ export function CoachOnboarding({ onComplete }: CoachOnboardingProps) {
               );
             })}
             <Text style={styles.fine}>You can fine-tune slots and scoring later in League settings.</Text>
-          </View>
+          </ScrollView>
           <PrimaryButton label="Continue" onPress={finishLeague} testID="onboarding-league-continue" />
         </Animated.View>
       ) : null}
@@ -339,7 +354,7 @@ export function CoachOnboarding({ onComplete }: CoachOnboardingProps) {
           <View style={styles.flex}>
             <Text style={styles.stepTitle}>Never miss lock</Text>
             <Text style={styles.stepLede}>
-              One heads-up an hour before your first player’s puck drop — only on nights your guys play.
+              An hour before your first puck drop, on nights your lineup needs a change. We name the swaps.
             </Text>
             <View style={styles.lockStage}>
               <Animated.View entering={FadeInDown.delay(150).duration(450)} style={styles.notice}>
@@ -351,10 +366,8 @@ export function CoachOnboarding({ onComplete }: CoachOnboardingProps) {
                     <Text style={styles.noticeApp}>PUCKIQ</Text>
                     <Text style={styles.noticeTime}>6:00 PM</Text>
                   </View>
-                  <Text style={styles.noticeTitle}>Set your lineup</Text>
-                  <Text style={styles.noticeBody}>
-                    {Math.min(Math.max(roster.length, 1), 6)} of your players play tonight. First puck 7:00 PM.
-                  </Text>
+                  <Text style={styles.noticeTitle}>Lineup change tonight</Text>
+                  <Text style={styles.noticeBody}>Start Hyman · bench Kreider. First puck 7:00 PM.</Text>
                 </View>
               </Animated.View>
               <Animated.View entering={FadeInDown.delay(300).duration(450)} style={styles.lockBar}>
@@ -545,6 +558,12 @@ const styles = StyleSheet.create({
   chips: {
     flexDirection: 'row',
     gap: 8,
+  },
+  formatHint: {
+    fontSize: 12,
+    lineHeight: 17,
+    color: colors.sub,
+    marginTop: 8,
   },
   chip: {
     flex: 1,

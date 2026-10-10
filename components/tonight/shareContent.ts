@@ -1,13 +1,16 @@
 /**
- * What Tonight's share cards say: tonight's lineup before lock, last night's result after.
+ * What Tonight's share cards say: tonight's lineup before lock, last night's result after
+ * (points, or a category league's tallies).
  */
 
 import type { FantasyPlayer, FantasyTeam } from '../../types/fantasy';
 import type { NightData } from '../../services/fantasy/loaders';
 import type { PlayerForm } from '../../services/fantasy/form';
-import { headlinePoints, type NightScore } from '../../services/fantasy/nightScore';
+import { headlinePoints, headlineRows, type NightScore } from '../../services/fantasy/nightScore';
+import { nightTallies, talliesLine, tileLineText } from '../../services/fantasy/nightTallies';
 import { performerLine, recapLeaders } from '../../services/fantasy/recap';
 import { formatValue } from '../../services/fantasy/scoring';
+import { isCategoryLeague } from '../../services/fantasy/categories';
 import type { ShareCardContent } from '../share/ShareCards';
 import { niceDate } from './nightText';
 
@@ -44,6 +47,9 @@ export function tonightShareContent(input: {
   };
 }
 
+/** Tallies after the lead one in a category recap's caption; more wraps past the card's count row. */
+const CAPTION_TALLIES = 5;
+
 export function recapShareContent(input: {
   team: FantasyTeam;
   data: NightData;
@@ -55,21 +61,24 @@ export function recapShareContent(input: {
   if (leaders.length === 0) return null;
   const byId = new Map(team.players.map((player) => [player.playerId, player]));
   const top = leaders[0];
+  const tallies = isCategoryLeague(team) ? nightTallies(headlineRows(score, isPro), data.liveLines, team.categories ?? []) : [];
+  const [lead, ...rest] = tallies;
   return {
     kind: 'recap',
     kicker: `LAST NIGHT · ${niceDate(data.date).toUpperCase()}`,
     teamName: team.name,
-    count: formatValue(headlinePoints(score, isPro)),
-    countSuffix: 'PTS',
-    caption: performerLine(top, byId.get(top.playerId), data.liveLines.get(top.playerId)),
+    count: lead ? lead.text : formatValue(headlinePoints(score, isPro)),
+    countSuffix: lead ? lead.short : 'PTS',
+    caption: lead ? talliesLine(rest, CAPTION_TALLIES) : performerLine(top, byId.get(top.playerId), data.liveLines.get(top.playerId)),
     players: leaders.map((row) => {
       const player = byId.get(row.playerId);
+      const line = data.liveLines.get(row.playerId);
       return {
         playerId: row.playerId,
         name: player?.playerName ?? '',
         team: player?.teamAbbrev ?? '',
         position: player?.position ?? '',
-        detail: `${formatValue(row.points ?? 0)} PTS`,
+        detail: lead ? (line ? tileLineText(line) : undefined) : `${formatValue(row.points ?? 0)} PTS`,
       };
     }),
   };

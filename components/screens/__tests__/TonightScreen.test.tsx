@@ -20,7 +20,7 @@ jest.mock('react-native', () => {
     ActivityIndicator: (props: any) => React.createElement('ActivityIndicator', props),
     StyleSheet: { create: (s: any) => s, hairlineWidth: 0.5 },
     Platform: { OS: 'ios', select: (o: any) => o.ios },
-    Linking: { openURL: jest.fn() },
+    Linking: { openURL: jest.fn(() => Promise.resolve()) },
     useWindowDimensions: () => ({ width: mockWindowWidth, height: 900, scale: 3, fontScale: 1 }),
     Animated: {
       Value: AnimatedValue,
@@ -71,6 +71,7 @@ jest.mock('../../../hooks/useCoach', () => ({
 }));
 let mockGuidance: any = null;
 jest.mock('../../../hooks/useTonightGuidance', () => ({ useTonightGuidance: () => mockGuidance }));
+let mockGoalieOutlooks = new Map<number, any>();
 const mockSetFollowing = jest.fn();
 let mockFollowSupported = false;
 jest.mock('../../../hooks/useNightLive', () => ({
@@ -124,6 +125,7 @@ function view(overrides: Partial<any> = {}) {
       { id: 'empty-D', kind: 'empty', severity: 2, title: '1 empty D slot tonight', detail: '…', playerIds: [], slot: 'D' },
       { id: 'off', kind: 'off', severity: 4, title: '1 with no game — keep them benched', detail: 'Cale Makar', playerIds: [8480012] },
     ],
+    goalieOutlooks: mockGoalieOutlooks,
     liveGames: false,
     loading: false,
     refreshing: false,
@@ -160,6 +162,7 @@ describe('TonightScreen', () => {
     mockView = view();
     mockRecapView = null;
     mockFollowSupported = false;
+    mockGoalieOutlooks = new Map();
     mockGuidance = {
       firstNight: { visible: false, done: [], quietNight: false, onStep: jest.fn(), onDismiss: jest.fn() },
       reminderPrompt: { visible: false, accept: jest.fn(() => Promise.resolve(true)), dismiss: jest.fn() },
@@ -213,6 +216,34 @@ describe('TonightScreen', () => {
     const tree = render();
     expect(byTestId(tree, 'move-clean-art')).toHaveLength(1);
     expect(allText(tree)).toContain('Lineup is clean');
+  });
+
+  it('opens the host app to make the moves, straight to the team page when there is one', () => {
+    const { Linking } = require('react-native');
+    mockTeam = { ...createTeam({ name: 'Beauties', players: players as any }), teamLink: 'https://hockey.fantasysports.yahoo.com/hockey/1/2' };
+    const tree = render();
+    const open = byTestId(tree, 'tonight-open-host')[0];
+    expect(allText(tree)).toContain('Make these moves on your Yahoo team');
+    act(() => { open.props.onPress(); });
+    expect(Linking.openURL).toHaveBeenCalledWith('https://hockey.fantasysports.yahoo.com/hockey/1/2');
+  });
+
+  it('tells a goalie’s start outlook before puck drop, with the percent for Pro', () => {
+    const gibson = { playerId: 8476434, playerName: 'John Gibson', teamAbbrev: 'DET', position: 'G', rosterPosition: 'BN' };
+    mockTeam = { ...createTeam({ name: 'Beauties', players: [...players, gibson] as any }) };
+    mockGoalieOutlooks = new Map([[8476434, {
+      outlook: 'unlikely', chance: 0.14, backToBack: 'second',
+      reason: 'Started last night — backups usually get the second half of a back-to-back',
+    }]]);
+    const base = view();
+    mockView = { ...base, night: { ...base.night, data: { ...base.night.data, playerGames: { ...base.night.data.playerGames, 8476434: game(2, 'MTL') } } } };
+    let tree = render();
+    expect(byTestId(tree, 'goalie-outlook-8476434')).toHaveLength(1);
+    expect(allText(tree)).toContain('B2B · BACKUP LIKELY');
+    expect(byTestId(tree, 'goalie-outlook-8476434-chance')).toHaveLength(0);
+    mockIsPremium = true;
+    tree = render();
+    expect(byTestId(tree, 'goalie-outlook-8476434-chance')).toHaveLength(1);
   });
 
   it('shows free users one move and locks the rest and the lineup', () => {
@@ -301,6 +332,31 @@ describe('TonightScreen', () => {
     expect(byTestId(tree, 'big-night-8478402')).toHaveLength(1);
     act(() => { byTestId(tree, 'tonight-follow')[0].props.onPress(); });
     expect(mockSetFollowing).toHaveBeenCalledWith(true);
+  });
+
+  it('shows a category league its tallies instead of points', () => {
+    mockTeam = { ...createTeam({ name: 'Beauties', players: players as any, format: 'categories' }) };
+    mockView = nightWith('LIVE', { goals: 2, assists: 1, shots: 4, hits: 3, plusMinus: 1 });
+    const tree = render();
+    expect(byTestId(tree, 'tonight-points')).toHaveLength(0);
+    expect(byTestId(tree, 'tonight-tallies')).toHaveLength(1);
+    const cell = (key: string) => byTestId(tree, `tonight-tallies-${key}`)[0];
+    expect(cell('goals').props.accessibilityLabel).toBe('Goals: 2');
+    expect(cell('plusMinus').props.accessibilityLabel).toBe('Plus/minus: +1');
+    expect(cell('savePct').props.accessibilityLabel).toBe('Save percentage: —');
+    expect(allText(tree)).toContain('2G · 1A · +1 +/- · 4 SOG · 3 HIT');
+  });
+
+  it('shares a category league’s night by its categories', () => {
+    jest.useFakeTimers({ now: new Date('2026-10-14T13:00:00Z') });
+    mockTeam = { ...createTeam({ name: 'Beauties', players: players as any, format: 'categories' }) };
+    mockRecapView = { ...nightWith('OFF', { goals: 1, shots: 2, hits: 4 }), date: '2026-10-13' };
+    const tree = render();
+    expect(byTestId(tree, 'recap-points')).toHaveLength(0);
+    expect(byTestId(tree, 'recap-tallies')).toHaveLength(1);
+    act(() => { byTestId(tree, 'recap-share')[0].props.onPress(); });
+    const recapSheet = tree.root.findAll((n: any) => n.type === 'ShareCardSheet').find((n: any) => n.props.visible);
+    expect(recapSheet.props.content).toMatchObject({ kind: 'recap', count: '1', countSuffix: 'G', caption: '0 A · 0 +/- · 0 PPP · 2 SOG · 4 HIT' });
   });
 
   it('drops the coach moves once every game has started', () => {

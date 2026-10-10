@@ -1,7 +1,7 @@
 /**
  * Fantasy value per game. Transparent weights (shown in League settings), not a black box.
- * DEFAULT_SCORING is a generic points setup (category leagues can use it as a proxy); a new
- * Yahoo team starts on Yahoo's own defaults (YAHOO_POINTS_SCORING).
+ * DEFAULT_SCORING is a generic points setup; a new Yahoo team starts on Yahoo's own defaults
+ * (YAHOO_POINTS_SCORING). Category leagues derive their weights in categories.ts.
  */
 
 import type { FantasyPlatform, ScoringWeights } from '../../types/fantasy';

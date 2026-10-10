@@ -1,6 +1,7 @@
 /**
  * Tonight's best lineup as a carbon board of team-colour tiles, slot by slot (Pro). Once games
- * start, each tile carries its live points, like an F1 timing tower's gaps.
+ * start, each tile carries its live points (a category league: its box-score line), like an F1
+ * timing tower's gaps.
  */
 
 import React from 'react';
@@ -11,6 +12,8 @@ import { SLOT_ORDER } from '../../services/fantasy/positions';
 import type { DayPlan, PlayerGameDay } from '../../services/fantasy/weekPlan';
 import type { NightScore } from '../../services/fantasy/nightScore';
 import { formatValue } from '../../services/fantasy/scoring';
+import { tileLineText } from '../../services/fantasy/nightTallies';
+import type { GameLine } from '../../services/nhl/gamecenter';
 import { PlayerAvatar } from '../coach/PlayerAvatar';
 import { colors, DarkCard, display } from '../coach/ui';
 import { lastNameOf } from './nightText';
@@ -34,12 +37,15 @@ export function LineupBoard({
   byId,
   games,
   score,
+  lines,
   onOpenPlayer,
 }: {
   day: DayPlan;
   byId: Map<number, FantasyPlayer>;
   games: Record<number, PlayerGameDay | undefined>;
   score: NightScore | null;
+  /** A category league's box-score lines: tiles show those instead of points. */
+  lines: Map<number, GameLine> | null;
   onOpenPlayer: (playerId: number) => void;
 }) {
   const live = !!score && score.phase !== 'pre';
@@ -61,8 +67,8 @@ export function LineupBoard({
                     {lastNameOf(player?.playerName ?? '').toUpperCase()}
                   </Text>
                   {live && night && night.state !== 'upcoming' ? (
-                    <Text style={[styles.points, night.bigNight && styles.pointsBig]} testID={`lineup-points-${id}`}>
-                      {night.points === null ? '—' : formatValue(night.points)}
+                    <Text style={[lines ? styles.tileLine : styles.points, night.bigNight && styles.pointsBig]} numberOfLines={1} testID={`lineup-points-${id}`}>
+                      {lines ? tileText(lines.get(id)) : night.points === null ? '—' : formatValue(night.points)}
                     </Text>
                   ) : (
                     <Text style={styles.opp}>{game ? `${game.isHome ? 'vs' : '@'} ${game.opponent}` : ''}</Text>
@@ -85,13 +91,17 @@ export function LineupBoard({
       {day.bench.length > 0 ? (
         <View style={styles.bench}>
           <Text style={styles.benchLabel}>
-            BENCH · PLAYING, NO SLOT{live && score && score.benchPoints > 0 ? ` · ${formatValue(score.benchPoints)} PTS UNUSED` : ''}
+            BENCH · PLAYING, NO SLOT{live && !lines && score && score.benchPoints > 0 ? ` · ${formatValue(score.benchPoints)} PTS UNUSED` : ''}
           </Text>
           <Text style={styles.benchNames}>{day.bench.map((id) => byId.get(id)?.playerName).filter(Boolean).join(' · ')}</Text>
         </View>
       ) : null}
     </DarkCard>
   );
+}
+
+function tileText(line: GameLine | undefined): string {
+  return line ? tileLineText(line) : '—';
 }
 
 const styles = StyleSheet.create({
@@ -110,6 +120,7 @@ const styles = StyleSheet.create({
   opp: { fontSize: 10, fontWeight: '700', color: colors.onInkSub },
   points: { ...display(15), color: colors.onInk },
   pointsBig: { color: colors.elite },
+  tileLine: { fontSize: 11, fontWeight: '800', color: colors.onInk },
   emptyTile: {
     width: 52,
     height: 52,

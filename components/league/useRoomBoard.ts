@@ -9,7 +9,8 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { AppState } from 'react-native';
 import type { RoomSnapshot } from '../../types/league';
 import { boardGameIds, buildRoomBoard, type RoomBoardRow } from '../../services/league';
-import { fetchGameLines, type GameLine } from '../../services/nhl/gamecenter';
+import type { GameLine } from '../../services/nhl/gamecenter';
+import { fetchScoringLines } from '../../services/nhl/powerPlay';
 import { fetchDaySlate, isGameFinal, isGameStarted, type NhlGame } from '../../services/nhl/schedule';
 import { mondayOf } from '../../services/nhl/dates';
 import { useNhlToday, useWeekSchedule } from '../../hooks/useCoach';
@@ -41,7 +42,7 @@ export async function loadRoomNight(
   const started = slate.filter((game) => wanted.has(game.id) && isGameStarted(game));
   const boxes = await Promise.all(
     started.map((game) =>
-      fetchGameLines(game.id, { final: isGameFinal(game), force: isGameFinal(game) ? options.wasLive.has(game.id) : options.force }),
+      fetchScoringLines(game.id, { final: isGameFinal(game), force: isGameFinal(game) ? options.wasLive.has(game.id) : options.force }),
     ),
   );
   const lines = new Map<number, GameLine>();
