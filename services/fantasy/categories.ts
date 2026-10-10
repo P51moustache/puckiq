@@ -40,6 +40,11 @@ export function isCategoryLeague(team: Pick<FantasyTeam, 'format'> | null | unde
   return team?.format === 'categories';
 }
 
+/** Has anyone said how this league scores? Teams set up before category leagues existed haven't. */
+export function leagueFormatChosen(team: Pick<FantasyTeam, 'format'>): boolean {
+  return team.format !== undefined;
+}
+
 /** Yahoo's default head-to-head categories (help.yahoo.com/kb/SLN6815, checked 2026-10-10). */
 export const YAHOO_DEFAULT_CATEGORIES: CategoryKey[] = ['goals', 'assists', 'plusMinus', 'ppp', 'shots', 'hits', 'wins', 'gaa', 'savePct', 'shutouts'];
 

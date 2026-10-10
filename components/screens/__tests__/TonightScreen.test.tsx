@@ -61,7 +61,8 @@ let mockIsPremium = false;
 jest.mock('../../SubscriptionProvider', () => ({ useSubscription: () => ({ isPremium: mockIsPremium }) }));
 
 let mockTeam: any = null;
-jest.mock('../../TeamsProvider', () => ({ useTeams: () => ({ team: mockTeam, ready: true }) }));
+const mockUpdateTeam = jest.fn();
+jest.mock('../../TeamsProvider', () => ({ useTeams: () => ({ team: mockTeam, ready: true, updateTeam: mockUpdateTeam }) }));
 
 let mockView: any = null;
 let mockRecapView: any = null;
@@ -216,6 +217,16 @@ describe('TonightScreen', () => {
     const tree = render();
     expect(byTestId(tree, 'move-clean-art')).toHaveLength(1);
     expect(allText(tree)).toContain('Lineup is clean');
+  });
+
+  it('asks a team from before 3.2 how its league scores, once, and applies the answer', () => {
+    mockTeam = { ...createTeam({ name: 'Beauties', players: players as any }) };
+    const tree = render();
+    act(() => { byTestId(tree, 'format-prompt-categories')[0].props.onPress(); });
+    const updater = mockUpdateTeam.mock.calls[0][0];
+    expect(updater(mockTeam)).toMatchObject({ format: 'categories', categories: expect.arrayContaining(['hits']) });
+    mockTeam = { ...createTeam({ name: 'Beauties', players: players as any, format: 'points' }) };
+    expect(byTestId(render(), 'tonight-format-prompt')).toHaveLength(0);
   });
 
   it('opens the host app to make the moves, straight to the team page when there is one', () => {

@@ -1,6 +1,6 @@
 jest.mock('react-native', () => ({ Platform: { OS: 'ios' } }));
 
-import { categoriesLabel, categoryWeights, isCategoryLeague, sanitizeCategories, YAHOO_DEFAULT_CATEGORIES } from '../categories';
+import { categoriesLabel, categoryWeights, isCategoryLeague, leagueFormatChosen, sanitizeCategories, YAHOO_DEFAULT_CATEGORIES } from '../categories';
 import { buildNightScore, headlineRows, type NightScoreInput } from '../nightScore';
 import { categoryLineText, nightTallies, savePctText, talliesLine, tileLineText } from '../nightTallies';
 import { goaliePoints, scoringPresetFor, skaterPoints, YAHOO_POINTS_SCORING } from '../scoring';
@@ -72,6 +72,14 @@ describe('league format on a team', () => {
     const team = createTeam({ platform: 'espn', scoring: { ...YAHOO_POINTS_SCORING, goals: 9 } });
     expect(withLeagueFormat(team, 'points').scoring.goals).toBe(9);
     expect(team.format).toBeUndefined();
+  });
+
+  it('remembers an answered "points" so nobody is asked twice; older teams have no answer', () => {
+    const answered = createTeam({ format: 'points' });
+    expect(leagueFormatChosen(answered)).toBe(true);
+    expect(leagueFormatChosen(createTeam({}))).toBe(false);
+    const [loaded] = parseTeamsState(JSON.parse(JSON.stringify({ activeTeamId: answered.id, teams: [answered] }))).teams;
+    expect(loaded.format).toBe('points');
   });
 
   it('re-derives stored category weights on load, and leaves older (points) teams alone', () => {

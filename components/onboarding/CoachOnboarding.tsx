@@ -124,7 +124,7 @@ export function CoachOnboarding({ onComplete }: CoachOnboardingProps) {
         if (format === 'categories') return withLeagueFormat(base, 'categories');
         if (isCategoryLeague(current)) return withLeagueFormat(base, 'points');
         const untouched = sameScoring(current.scoring, DEFAULT_SCORING) || sameScoring(current.scoring, scoringPresetFor(current.platform));
-        return { ...base, scoring: untouched ? scoringPresetFor(platform) : current.scoring };
+        return { ...base, format: 'points', scoring: untouched ? scoringPresetFor(platform) : current.scoring };
       });
     }
     setStep('roster');

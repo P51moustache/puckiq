@@ -11,7 +11,7 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter, type Href } from 'expo-router';
-import type { FantasyPlayer, SlotKey } from '../../types/fantasy';
+import type { FantasyPlayer, LeagueFormat, SlotKey } from '../../types/fantasy';
 import { useNight } from '../../hooks/useCoach';
 import { useGoalHaptics, useNightPublisher } from '../../hooks/useNightLive';
 import { useTonightGuidance } from '../../hooks/useTonightGuidance';
@@ -20,7 +20,8 @@ import { visibleMoves, type CoachMove } from '../../services/fantasy/coach';
 import { isNhlLinked } from '../../services/fantasy/positions';
 import { hasRecap, performerLine, recapWindowOpen } from '../../services/fantasy/recap';
 import { isGameStarted } from '../../services/nhl/schedule';
-import { isCategoryLeague } from '../../services/fantasy/categories';
+import { isCategoryLeague, leagueFormatChosen } from '../../services/fantasy/categories';
+import { withLeagueFormat } from '../../services/teams';
 import { hostLinkFor } from '../../services/fantasy/hostLinks';
 import { track } from '../../services/analytics/track';
 import PageHeader from '../PageHeader';
@@ -45,6 +46,7 @@ import { RecapCard } from '../tonight/RecapCard';
 import { FirstNightGuide } from '../tonight/FirstNightGuide';
 import { NextUpCard } from '../tonight/NextUpCard';
 import { ReminderPromptCard } from '../tonight/ReminderPromptCard';
+import { LeagueFormatPrompt } from '../tonight/LeagueFormatPrompt';
 import { recapShareContent, tonightShareContent } from '../tonight/shareContent';
 
 type Night = 'tonight' | 'tomorrow';
@@ -56,7 +58,7 @@ const PLAYERS_SCROLL_MARGIN = 12;
 export default function TonightScreen() {
   const wide = useWide();
   const router = useRouter();
-  const { team, ready } = useTeams();
+  const { team, ready, updateTeam } = useTeams();
   const { isPremium } = useSubscription();
   const { openPaywall } = usePaywall();
   const { openPlayer } = usePlayerSheet();
@@ -126,6 +128,13 @@ export default function TonightScreen() {
     .sort()[0] ?? null;
   const startersById = new Map((view.day?.starters ?? []).map((seat) => [seat.playerId, seat.slot]));
   const moves = visibleMoves(view.moves, isPremium);
+
+  // Teams set up before category leagues existed get asked once how their league scores.
+  const askFormat = !!team && !leagueFormatChosen(team) && players.length > 0;
+  const answerFormat = (format: LeagueFormat) => {
+    track('league_format_set', { format, source: 'tonight_prompt' });
+    updateTeam((current) => withLeagueFormat(current, format));
+  };
 
   const findPickup = (move: CoachMove, slot?: SlotKey) => {
     if (!isPremium) {
@@ -265,6 +274,7 @@ export default function TonightScreen() {
                 onShare={nightShare ? () => setSharing('night') : null}
                 follow={isTonight ? follow : null}
               />
+              {askFormat ? <LeagueFormatPrompt onAnswer={answerFormat} /> : null}
               {guidance.reminderPrompt.visible ? (
                 <ReminderPromptCard onAccept={guidance.reminderPrompt.accept} onDismiss={guidance.reminderPrompt.dismiss} />
               ) : null}

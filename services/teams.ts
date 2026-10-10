@@ -95,7 +95,8 @@ export function createTeam(input: {
     createdAt: stamp,
     updatedAt: stamp,
   };
-  return input.format === 'categories' ? withLeagueFormat(team, 'categories', input.categories) : team;
+  // An explicit 'points' records that the question was answered (teams from before 3.2 have no format).
+  return input.format ? withLeagueFormat(team, input.format, input.categories) : team;
 }
 
 /**
@@ -160,10 +161,16 @@ function teamLinkField(raw: unknown, platform: FantasyPlatform): Pick<FantasyTea
   return teamLink ? { teamLink } : {};
 }
 
-/** A category team's weights are always re-derived, so a stored team picks up any change to the derivation. */
-function categoryFields(raw: unknown): Pick<FantasyTeam, 'format' | 'categories' | 'scoring'> {
-  const categories = sanitizeCategories(raw);
-  return { format: 'categories', categories, scoring: categoryWeights(categories) };
+/**
+ * How a stored team's league scores. A category team's weights are always re-derived, so a stored
+ * team picks up any change to the derivation; an answered "points" is kept so nobody is asked twice.
+ */
+function formatFields(raw: { format?: unknown; categories?: unknown }): Partial<Pick<FantasyTeam, 'format' | 'categories' | 'scoring'>> {
+  if (raw.format === 'categories') {
+    const categories = sanitizeCategories(raw.categories);
+    return { format: 'categories', categories, scoring: categoryWeights(categories) };
+  }
+  return raw.format === 'points' ? { format: 'points' } : {};
 }
 
 function sanitizeTeam(raw: any): FantasyTeam | null {
@@ -177,7 +184,7 @@ function sanitizeTeam(raw: any): FantasyTeam | null {
     minGoalieStarts: sanitizeMinGoalieStarts(raw.minGoalieStarts),
     slots: sanitizeSlots(raw.slots),
     scoring: sanitizeScoring(raw.scoring),
-    ...(raw.format === 'categories' ? categoryFields(raw.categories) : {}),
+    ...formatFields(raw),
     players: sanitizePlayers(raw.players),
     opponentName: typeof raw.opponentName === 'string' ? raw.opponentName : '',
     opponent: sanitizePlayers(raw.opponent),
