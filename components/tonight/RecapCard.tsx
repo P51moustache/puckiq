@@ -13,6 +13,7 @@ import { formatValue } from '../../services/fantasy/scoring';
 import { PlayerAvatar } from '../coach/PlayerAvatar';
 import { ShareButton } from '../share/ShareCards';
 import { colors, DarkCard, display } from '../coach/ui';
+import { Kicker } from './Kicker';
 import { lastNameOf, niceDate } from './nightText';
 
 export function RecapCard({
@@ -37,12 +38,7 @@ export function RecapCard({
   const hindsight = isPro ? hindsightText(score) : null;
   return (
     <DarkCard style={styles.card} testID="tonight-recap">
-      <View style={styles.kickerRow}>
-        <View style={styles.kickerDot} />
-        <Text style={styles.kicker}>LAST NIGHT · {niceDate(date).toUpperCase()}</Text>
-        <View style={styles.spacer} />
-        {onShare ? <ShareButton onPress={onShare} testID="recap-share" /> : null}
-      </View>
+      <Kicker label={`LAST NIGHT · ${niceDate(date).toUpperCase()}`} right={onShare ? <ShareButton onPress={onShare} testID="recap-share" /> : null} />
       <View style={styles.countRow}>
         <Text style={styles.points} testID="recap-points">{formatValue(headlinePoints(score, isPro))}</Text>
         <View style={styles.countText}>
@@ -86,10 +82,6 @@ export function RecapCard({
 
 const styles = StyleSheet.create({
   card: { gap: 14, marginBottom: 12 },
-  kickerRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  kickerDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent },
-  kicker: { fontSize: 12, fontWeight: '800', letterSpacing: 1, color: colors.onInk },
-  spacer: { flex: 1 },
   countRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 12 },
   points: { ...display(60), color: colors.onInk, lineHeight: 64, letterSpacing: -2 },
   countText: { flex: 1, paddingBottom: 8 },

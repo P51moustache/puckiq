@@ -1,10 +1,11 @@
 /**
  * Tonight — home. Before lock: who plays, the moves to make, the best lineup. Once pucks drop:
  * the night's scoreboard, a timing-tower player list and live points on the lineup board.
- * Mornings until noon ET: last night's recap leads the screen.
+ * Mornings until noon ET: last night's recap leads the screen. New users get a guided first night;
+ * a game-night reminder is offered when it matters; "up next" closes the screen with one next step.
  */
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { trackedChoice } from '../../services/analytics/selection';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,6 +14,7 @@ import { useRouter, type Href } from 'expo-router';
 import type { FantasyPlayer, SlotKey } from '../../types/fantasy';
 import { useNight } from '../../hooks/useCoach';
 import { useGoalHaptics, useNightPublisher } from '../../hooks/useNightLive';
+import { useTonightGuidance } from '../../hooks/useTonightGuidance';
 import { visibleMoves, type CoachMove } from '../../services/fantasy/coach';
 import { isNhlLinked } from '../../services/fantasy/positions';
 import { hasRecap, performerLine, recapWindowOpen } from '../../services/fantasy/recap';
@@ -33,12 +35,19 @@ import { ART } from '../../constants/art';
 import { TonightHero } from '../tonight/TonightHero';
 import { CoachMovesSection } from '../tonight/CoachMovesSection';
 import { LineupBoard } from '../tonight/LineupBoard';
-import { matchupTagFor, PlayerNightCard } from '../tonight/PlayerNightCard';
+import { matchupTagFor } from '../../services/fantasy/matchupTag';
+import { PlayerNightCard } from '../tonight/PlayerNightCard';
 import { RecapCard } from '../tonight/RecapCard';
+import { FirstNightGuide } from '../tonight/FirstNightGuide';
+import { NextUpCard } from '../tonight/NextUpCard';
+import { ReminderPromptCard } from '../tonight/ReminderPromptCard';
 import { recapShareContent, tonightShareContent } from '../tonight/shareContent';
 
 type Night = 'tonight' | 'tomorrow';
 type Sharing = 'night' | 'recap' | null;
+
+/** Room above "Your players tonight" when the first-night guide scrolls to it. */
+const PLAYERS_SCROLL_MARGIN = 12;
 
 export default function TonightScreen() {
   const wide = useWide();
@@ -84,6 +93,17 @@ export default function TonightScreen() {
     });
   }, [data, players, forms, started, score]);
   const idle = useMemo(() => players.filter((player) => isNhlLinked(player) && !data?.playerGames[player.playerId]), [players, data]);
+
+  const scroll = useRef<ScrollView>(null);
+  const playersY = useRef(0);
+  const showTomorrow = useCallback(() => {
+    setNight('tomorrow');
+    scroll.current?.scrollTo({ y: 0, animated: true });
+  }, []);
+  const showPlayers = useCallback(() => {
+    scroll.current?.scrollTo({ y: Math.max(0, playersY.current - PLAYERS_SCROLL_MARGIN), animated: true });
+  }, []);
+  const guidance = useTonightGuidance({ team, view, night, playing, isPro: isPremium, showTomorrow, showPlayers });
 
   const recapScore = recapOpen && hasRecap(recap.score) ? recap.score : null;
   useAnalyticsOnce('recap_view', recapScore ? recap.date : null);
@@ -167,6 +187,7 @@ export default function TonightScreen() {
     <View style={styles.container} testID="tonight-screen">
       {header}
       <ScrollView
+        ref={scroll}
         style={styles.scroll}
         contentContainerStyle={[styles.content, contentFrame]}
         refreshControl={<RefreshControl refreshing={view.refreshing} onRefresh={view.refresh} tintColor={colors.accent} />}
@@ -189,6 +210,14 @@ export default function TonightScreen() {
         <Columns
           left={(
             <>
+              {guidance.firstNight.visible ? (
+                <FirstNightGuide
+                  done={guidance.firstNight.done}
+                  quietNight={guidance.firstNight.quietNight}
+                  onStep={guidance.firstNight.onStep}
+                  onDismiss={guidance.firstNight.onDismiss}
+                />
+              ) : null}
               <SampleTeamNotice />
               {recapScore ? (
                 <RecapCard
@@ -197,7 +226,7 @@ export default function TonightScreen() {
                   isPro={isPremium}
                   byId={byId}
                   onShare={recapShare ? () => setSharing('recap') : null}
-                  onOpenPlayer={(id) => openPlayer(id, 'roster')}
+                  onOpenPlayer={(id) => openPlayer(id, 'roster', 'recap')}
                   onUnlock={() => openPaywall('recap')}
                 />
               ) : null}
@@ -219,6 +248,9 @@ export default function TonightScreen() {
                 onShare={nightShare ? () => setSharing('night') : null}
                 follow={isTonight ? follow : null}
               />
+              {guidance.reminderPrompt.visible ? (
+                <ReminderPromptCard onAccept={guidance.reminderPrompt.accept} onDismiss={guidance.reminderPrompt.dismiss} />
+              ) : null}
               {data && playing.length === 0 ? (
                 <Image source={ART.noGames} style={styles.quietArt} contentFit="contain" accessible={false} testID="tonight-no-games-art" />
               ) : null}
@@ -241,7 +273,7 @@ export default function TonightScreen() {
                 <>
                   <SectionLabel title="Best lineup" flush={wide} />
                   {isPremium ? (
-                    <LineupBoard day={view.day} byId={byId} games={data?.playerGames ?? {}} score={score} onOpenPlayer={(id) => openPlayer(id, 'roster')} />
+                    <LineupBoard day={view.day} byId={byId} games={data?.playerGames ?? {}} score={score} onOpenPlayer={(id) => openPlayer(id, 'roster', 'lineup')} />
                   ) : (
                     <ProLockCard
                       title="Tonight’s best lineup"
@@ -253,29 +285,31 @@ export default function TonightScreen() {
                 </>
               ) : null}
 
-              {playing.length > 0 ? <SectionLabel title={isTonight ? 'Your players tonight' : 'Your players'} /> : null}
-              {view.loading && !data ? <LoadingRows count={5} /> : null}
-              <View style={styles.stack}>
-                {playing.map((player) => {
-                  const game = data!.playerGames[player.playerId]!;
-                  const form = forms?.get(player.playerId);
-                  return (
-                    <PlayerNightCard
-                      key={player.playerId}
-                      player={player}
-                      game={game}
-                      fullGame={gamesById.get(game.gameId)}
-                      status={data!.statuses.get(player.playerId)}
-                      line={data!.liveLines.get(player.playerId)}
-                      form={form}
-                      night={nightById.get(player.playerId)}
-                      slot={startersById.get(player.playerId)}
-                      matchupTag={matchupTagFor(form, strength?.get(game.opponent))}
-                      isPro={isPremium}
-                      onPress={() => openPlayer(player.playerId, 'roster')}
-                    />
-                  );
-                })}
+              <View onLayout={(event) => { playersY.current = event.nativeEvent.layout.y; }}>
+                {playing.length > 0 ? <SectionLabel title={isTonight ? 'Your players tonight' : 'Your players'} /> : null}
+                {view.loading && !data ? <LoadingRows count={5} /> : null}
+                <View style={styles.stack}>
+                  {playing.map((player) => {
+                    const game = data!.playerGames[player.playerId]!;
+                    const form = forms?.get(player.playerId);
+                    return (
+                      <PlayerNightCard
+                        key={player.playerId}
+                        player={player}
+                        game={game}
+                        fullGame={gamesById.get(game.gameId)}
+                        status={data!.statuses.get(player.playerId)}
+                        line={data!.liveLines.get(player.playerId)}
+                        form={form}
+                        night={nightById.get(player.playerId)}
+                        slot={startersById.get(player.playerId)}
+                        matchupTag={matchupTagFor(form, strength?.get(game.opponent))}
+                        isPro={isPremium}
+                        onPress={() => openPlayer(player.playerId, 'roster', 'tonight')}
+                      />
+                    );
+                  })}
+                </View>
               </View>
 
               {idle.length > 0 && data ? (
@@ -289,6 +323,7 @@ export default function TonightScreen() {
             </>
           )}
         />
+        {guidance.nextUp.item ? <NextUpCard item={guidance.nextUp.item} onPress={guidance.nextUp.onPress} /> : null}
       </ScrollView>
       <ShareCardSheet visible={sharing === 'night'} content={nightShare} onClose={() => setSharing(null)} />
       <ShareCardSheet visible={sharing === 'recap'} content={recapShare} onClose={() => setSharing(null)} />

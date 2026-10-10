@@ -21,11 +21,20 @@ import {
 import { useTeams } from './TeamsProvider';
 import { track } from '../services/analytics/track';
 
+/** Which ask turned reminders on (analytics). */
+export type ReminderSource = 'onboarding' | 'tonight_prompt' | 'first_night' | 'settings';
+
+export interface EnableRemindersOptions {
+  source: ReminderSource;
+  /** Also notify when the night goes live. Only asks that promise it may turn it on. */
+  liveStart?: boolean;
+}
+
 interface RemindersContextValue {
   settings: ReminderSettings;
   permission: PermissionState;
   /** Turns reminders on (asking permission if needed). Returns false if permission was refused. */
-  enable: () => Promise<boolean>;
+  enable: (options: EnableRemindersOptions) => Promise<boolean>;
   update: (settings: ReminderSettings) => Promise<void>;
 }
 
@@ -87,12 +96,12 @@ export function RemindersProvider({ children }: { children: React.ReactNode }) {
     await saveReminderSettings(next);
   }, []);
 
-  const enable = useCallback(async () => {
+  const enable = useCallback(async ({ source, liveStart }: EnableRemindersOptions) => {
     const granted = await requestReminderPermission();
-    track('reminders_enable', { granted });
+    track('reminders_enable', { granted, source, live_start: liveStart === true });
     setPermission(granted ? 'granted' : await getPermissionState());
     if (!granted) return false;
-    await update({ ...settings, enabled: true });
+    await update({ ...settings, enabled: true, liveStart: liveStart ?? settings.liveStart });
     return true;
   }, [settings, update]);
 

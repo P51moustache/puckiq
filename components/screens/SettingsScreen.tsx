@@ -83,7 +83,7 @@ export default function SettingsScreen({ onBack }: { onBack?: () => void } = {})
       await reminders.update({ ...reminders.settings, enabled: false });
       return;
     }
-    const ok = await reminders.enable();
+    const ok = await reminders.enable({ source: 'settings' });
     if (!ok) {
       Alert.alert('Notifications are off', 'Turn on notifications for PuckIQ in iOS Settings to get lineup reminders.', [
         { text: 'Not now', style: 'cancel' },
@@ -151,7 +151,7 @@ export default function SettingsScreen({ onBack }: { onBack?: () => void } = {})
         <PlanCard />
 
         {/* Reminders */}
-        <SectionLabel title="Lineup reminders" />
+        <SectionLabel title="Game-night reminders" />
         <Card>
           <Row
             icon="alarm-outline"
@@ -182,6 +182,21 @@ export default function SettingsScreen({ onBack }: { onBack?: () => void } = {})
                 );
               })}
             </View>
+          ) : null}
+          {reminders.settings.enabled ? (
+            <Row
+              icon="flash-outline"
+              label="When my night goes live"
+              detail="A second heads-up at the first puck drop. Opens your live points."
+              right={(
+                <Switch
+                  value={reminders.settings.liveStart}
+                  onValueChange={(on) => reminders.update({ ...reminders.settings, liveStart: on })}
+                  trackColor={{ true: colors.accent, false: colors.raised }}
+                  testID="reminders-live-toggle"
+                />
+              )}
+            />
           ) : null}
           {reminders.permission === 'denied' ? (
             <Text style={styles.warn} onPress={() => Linking.openSettings()}>Notifications are blocked in iOS Settings. Tap to open.</Text>

@@ -26,6 +26,8 @@ import { pruneNhlDiskCache } from '../services/nhl/client';
 import { colors } from '../components/coach/ui';
 import { useUsageJourney } from '../hooks/useUsageJourney';
 import { TeamActivity } from '../components/analytics/TeamActivity';
+import { NotificationTaps } from '../hooks/useNotificationTaps';
+import { beginFirstNight } from '../services/engagement/firstNightStore';
 
 const NAV_THEME = {
   ...DefaultTheme,
@@ -61,6 +63,8 @@ function AppContent() {
 
   const handleOnboardingComplete = useCallback(async () => {
     await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
+    // Brand-new users get the guided first night on Tonight.
+    await beginFirstNight();
     setOnboardingComplete(true);
   }, []);
 
@@ -90,6 +94,7 @@ function AppContent() {
       </Stack>
       <StatusBar style="dark" />
       <ReleaseNotice hadSavedSetup={hadSavedSetup} />
+      <NotificationTaps />
     </>
   );
 }

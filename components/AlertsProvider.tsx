@@ -1,13 +1,11 @@
 /**
- * Keeps this device registered for scratch and goal alerts on the players it follows, and
- * opens Tonight when one is tapped. Registers on launch, on roster changes and on setting
+ * Keeps this device registered for scratch and goal alerts on the players it follows (taps are
+ * routed by hooks/useNotificationTaps). Registers on launch, on roster changes and on setting
  * changes — only when what the server would store actually changed.
  */
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
-import { router, type Href } from 'expo-router';
 import {
   alertPlayerIds,
   alertSignature,
@@ -50,11 +48,6 @@ export function AlertsProvider({ children }: { children: React.ReactNode }) {
       setSettings(saved);
       setLoaded(true);
     });
-    const sub = Notifications.addNotificationResponseReceivedListener?.((response) => {
-      const kind = (response.notification.request.content.data as { kind?: string } | undefined)?.kind;
-      if (kind === 'goal' || kind === 'scratch') router.push('/' as Href);
-    });
-    return () => sub?.remove();
   }, []);
 
   useEffect(() => {

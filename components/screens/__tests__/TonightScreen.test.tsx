@@ -65,6 +65,8 @@ jest.mock('../../../hooks/useCoach', () => ({
   useNight: (_team: unknown, offset = 0) => (offset === -1 ? mockRecapView ?? mockView : mockView),
   useNhlToday: () => '2026-10-13',
 }));
+let mockGuidance: any = null;
+jest.mock('../../../hooks/useTonightGuidance', () => ({ useTonightGuidance: () => mockGuidance }));
 const mockSetFollowing = jest.fn();
 let mockFollowSupported = false;
 jest.mock('../../../hooks/useNightLive', () => ({
@@ -154,6 +156,11 @@ describe('TonightScreen', () => {
     mockView = view();
     mockRecapView = null;
     mockFollowSupported = false;
+    mockGuidance = {
+      firstNight: { visible: false, done: [], quietNight: false, onStep: jest.fn(), onDismiss: jest.fn() },
+      reminderPrompt: { visible: false, accept: jest.fn(() => Promise.resolve(true)), dismiss: jest.fn() },
+      nextUp: { item: null, onPress: jest.fn() },
+    };
   });
 
   afterEach(() => {
@@ -244,7 +251,7 @@ describe('TonightScreen', () => {
   it('opens the player sheet from a player card', () => {
     const tree = render();
     act(() => { byTestId(tree, 'tonight-player-8478402')[0].props.onPress(); });
-    expect(mockOpenPlayer).toHaveBeenCalledWith(8478402, 'roster');
+    expect(mockOpenPlayer).toHaveBeenCalledWith(8478402, 'roster', 'tonight');
   });
 
   /** A night with McDavid's game under way (or over) and a box-score line for him. */
@@ -326,5 +333,53 @@ describe('TonightScreen', () => {
     jest.useFakeTimers({ now: new Date('2026-10-14T17:00:00Z') }); // 1 PM ET
     mockRecapView = { ...nightWith('OFF', { goals: 1 }), date: '2026-10-13' };
     expect(byTestId(render(), 'tonight-recap')).toHaveLength(0);
+  });
+
+  describe('guidance', () => {
+    const press = (tree: any, id: string) => act(() => { byTestId(tree, id)[0].props.onPress(); });
+
+    it('shows none of the guidance cards unless the guidance asks for them', () => {
+      const tree = render();
+      for (const id of ['tonight-first-night', 'tonight-reminder-prompt', 'tonight-next-up']) expect(byTestId(tree, id)).toHaveLength(0);
+    });
+
+    it('leads with the first-night guide, with progress and one tap per step', () => {
+      mockGuidance.firstNight = { ...mockGuidance.firstNight, visible: true, done: ['players'] };
+      const tree = render();
+      expect(byTestId(tree, 'tonight-first-night')).toHaveLength(1);
+      expect(allText(tree)).toContain('YOUR FIRST NIGHT · 1 OF 3');
+      expect(allText(tree)).toContain('See who plays tonight');
+      press(tree, 'first-night-pickup');
+      expect(mockGuidance.firstNight.onStep).toHaveBeenCalledWith('pickup');
+      press(tree, 'first-night-close');
+      expect(mockGuidance.firstNight.onDismiss).toHaveBeenCalled();
+    });
+
+    it('points step one at the next night when tonight is quiet', () => {
+      mockGuidance.firstNight = { ...mockGuidance.firstNight, visible: true, quietNight: true };
+      expect(allText(render())).toContain('See who plays next');
+    });
+
+    it('offers the game-night reminder with both answers', () => {
+      mockGuidance.reminderPrompt = { ...mockGuidance.reminderPrompt, visible: true };
+      const tree = render();
+      expect(allText(tree)).toContain('Want a heads-up tonight?');
+      press(tree, 'reminder-prompt-later');
+      expect(mockGuidance.reminderPrompt.dismiss).toHaveBeenCalled();
+      press(tree, 'reminder-prompt-on');
+      expect(mockGuidance.reminderPrompt.accept).toHaveBeenCalled();
+    });
+
+    it('closes the screen with one next step', () => {
+      mockGuidance.nextUp = {
+        item: { kind: 'fill_slot', title: 'Fill your empty D slot', detail: 'Find a pickup who plays tonight', action: { type: 'pickups', date: '2026-10-13', slot: 'D' } },
+        onPress: jest.fn(),
+      };
+      const tree = render();
+      expect(allText(tree)).toContain('UP NEXT');
+      expect(allText(tree)).toContain('Fill your empty D slot');
+      press(tree, 'tonight-next-up');
+      expect(mockGuidance.nextUp.onPress).toHaveBeenCalled();
+    });
   });
 });

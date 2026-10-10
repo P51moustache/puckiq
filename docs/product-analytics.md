@@ -11,13 +11,14 @@ The release build sends anonymous events to [PuckIQ in PostHog](https://us.posth
 | Teams and roster | `team_add`, `team_switch`, `team_remove`, `team_rename`, `roster_edit`, `player_settings_edit`, `opponent_rename`; platform, counts, own/opponent list, settings category |
 | Planning | `filter_select`; Tonight/Tomorrow, This/Next week, pickup position and time window |
 | Pickups | `pickup_add`, `pickup_ownership_filter`, `pickup_availability_edit`; rank, planning window, ownership-filter state, number hidden |
-| Player discovery | `player_search_open`, `player_search_close`, `player_search`, `player_link`, `player_open`; source/list, query length, result count, request time, success/error, legacy linking |
+| Player discovery | `player_search_open`, `player_search_close`, `player_search`, `player_link`, `player_open` (`context` = the card's actions, `source` = where it was opened: tonight, lineup, recap, next_up, first_night, myteam, week, pickups, league, similar); source/list, query length, result count, request time, success/error, legacy linking |
 | Paid access | `paywall_view`, `paywall_purchase`, `paywall_restore`; entry point, selected plan, outcome, Pro status |
-| Retention and sharing | `release_notice_view`, `release_notice_dismiss`, `loyalty_restore`, `share_card`, `sample_team_cleared`, `reminders_enable`; welcome replay, outcome, card kind, reminder permission |
+| Retention and sharing | `release_notice_view`, `release_notice_dismiss`, `loyalty_restore`, `share_card`, `sample_team_cleared`, `reminders_enable` (`granted`, `source`: onboarding / tonight_prompt / first_night / settings, `live_start`); welcome replay, outcome, card kind, reminder permission |
 | Feedback | `feedback_opened`, `feedback_sent`; category and delivery channel |
 | Live nights | `live_view` (once per game day when games are live), `recap_view` (once per recap), `live_activity_start` / `live_activity_stop` (`phase`) |
 | League Room | `room_create`, `room_join` (`source`: link or code), `room_leave`, `room_reaction`, `room_dues_edit`, `trade_finder_open`, `trade_idea_view` — never names, codes or rosters |
 | Alerts | `alerts_enable` (`granted`, `supported`, `scratches`, `goals`) |
+| Engagement (3.2) | `next_up_view` (once per night and kind) / `next_up_tap` (`kind`: fill_slot, hot_player, tomorrow, matchup, week); `first_night_step` (`step`: players, pickup, reminder), `first_night_done`, `first_night_dismiss` (`done`); `reminder_prompt_view`, `reminder_prompt_answer` (`answer`: on, not_now); `notification_open` (`kind`: lineup, live, goal, scratch) |
 
 Roster events describe committed state changes, including changes restored from backup. They do not promise that every state change was a manual tap. Initial local roster loading is skipped. Screen duration counts active foreground segments and excludes time in the background. Searches log lengths and counts, never search text. Existing telemetry contains screen and selected feature events; this is not a recording of every gesture.
 

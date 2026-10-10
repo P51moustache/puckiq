@@ -120,7 +120,7 @@ export function CoachOnboarding({ onComplete }: CoachOnboardingProps) {
   };
 
   const enableReminders = async () => {
-    const granted = await reminders.enable();
+    const granted = await reminders.enable({ source: 'onboarding' });
     finish(granted);
   };
 

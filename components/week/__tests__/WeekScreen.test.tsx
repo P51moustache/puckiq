@@ -240,7 +240,7 @@ describe('WeekScreen', () => {
 
     it('opens the player sheet from a row', () => {
       press(oneByTestId(renderScreen(), `week-row-${MCDAVID}`));
-      expect(mockOpenPlayer).toHaveBeenCalledWith(MCDAVID, 'roster');
+      expect(mockOpenPlayer).toHaveBeenCalledWith(MCDAVID, 'roster', 'week');
     });
 
     it('drops the now line for next week', () => {

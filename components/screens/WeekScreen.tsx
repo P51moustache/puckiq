@@ -55,7 +55,7 @@ export default function WeekScreen() {
   const plan = week.plan;
 
   const rows = useMemo(() => (team && plan ? scheduleRows(team.players, plan) : ([] as FantasyPlayer[])), [team, plan]);
-  const openRow = useCallback((playerId: number) => openPlayer(playerId, 'roster'), [openPlayer]);
+  const openRow = useCallback((playerId: number) => openPlayer(playerId, 'roster', 'week'), [openPlayer]);
 
   const onChoice = (next: WeekChoice) => {
     if (next === 'next' && !isPremium && !emptyThisWeek) {

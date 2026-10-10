@@ -106,7 +106,7 @@ export default function RosterScreen() {
     return (
       <Pressable
         key={player.playerId}
-        onPress={() => openPlayer(player.playerId, 'roster')}
+        onPress={() => openPlayer(player.playerId, 'roster', 'myteam')}
         style={({ pressed }) => [styles.row, pressed && styles.pressed]}
         testID={`roster-row-${player.playerId}`}
       >

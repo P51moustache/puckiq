@@ -245,7 +245,7 @@ export default function PickupsScreen() {
           <PickupCard
             grid={wide}
             row={item}
-            onPress={() => openPlayer(item.playerId, 'pickup')}
+            onPress={() => openPlayer(item.playerId, 'pickup', 'pickups')}
             onAdd={() => {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
               track('pickup_add', { when, rank: index + 1 });

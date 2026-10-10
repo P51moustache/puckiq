@@ -85,8 +85,8 @@ export function RoomView({ snapshot, team }: { snapshot: RoomSnapshot; team: Fan
   };
   const openIdea = (idea: RoomTradeIdea, side: TradeSide, rank: number) => {
     track('trade_idea_view', { rank: rank + 1, side });
-    if (side === 'give') openPlayer(idea.give.playerId, 'roster');
-    else openPlayer(idea.get.playerId, 'browse');
+    if (side === 'give') openPlayer(idea.give.playerId, 'roster', 'league');
+    else openPlayer(idea.get.playerId, 'browse', 'league');
   };
   const refresh = async () => {
     await Promise.all([league.refresh(), board.refresh()]);

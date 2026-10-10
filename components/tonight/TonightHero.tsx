@@ -11,7 +11,8 @@ import { BIG_NIGHT_LABEL, gameClockText, headlinePoints, type NightScore } from 
 import { formatValue } from '../../services/fantasy/scoring';
 import { ShareButton } from '../share/ShareCards';
 import { colors, CountdownBar, DarkCard, display, StatCell } from '../coach/ui';
-import { CountUp, LiveDot } from '../coach/motion';
+import { CountUp } from '../coach/motion';
+import { Kicker } from './Kicker';
 import type { FollowLive } from '../../hooks/useNightLive';
 import { countdownText, niceDate } from './nightText';
 
@@ -43,15 +44,11 @@ export function TonightHero(props: TonightHeroProps) {
   const started = !!score && score.phase !== 'pre' && props.night === 'tonight';
   return (
     <DarkCard texture style={styles.hero} testID="tonight-headline">
-      <View style={styles.kickerRow}>
-        {started && score!.phase === 'live' ? <LiveDot /> : <View style={styles.kickerDot} />}
-        <Text style={styles.kicker}>
-          {started ? `${score!.phase === 'live' ? 'LIVE' : 'FINAL'} · ` : ''}
-          {niceDate(date).toUpperCase()}
-        </Text>
-        <View style={styles.kickerSpacer} />
-        {onShare ? <ShareButton onPress={onShare} testID="tonight-share" /> : null}
-      </View>
+      <Kicker
+        live={started && score!.phase === 'live'}
+        label={`${started ? `${score!.phase === 'live' ? 'LIVE' : 'FINAL'} · ` : ''}${niceDate(date).toUpperCase()}`}
+        right={onShare ? <ShareButton onPress={onShare} testID="tonight-share" /> : null}
+      />
       {loading ? (
         <Text style={styles.quiet}>Loading your night…</Text>
       ) : started ? (
@@ -182,10 +179,6 @@ function QuietBody({ night, quiet }: TonightHeroProps) {
 
 const styles = StyleSheet.create({
   hero: { gap: 14 },
-  kickerRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  kickerDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent },
-  kicker: { fontSize: 12, fontWeight: '800', letterSpacing: 1, color: colors.onInk },
-  kickerSpacer: { flex: 1 },
   countRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 12 },
   bigCount: { ...display(76), color: colors.onInk, lineHeight: 80, letterSpacing: -3 },
   bigPoints: { ...display(72), color: colors.onInk, lineHeight: 78, letterSpacing: -3 },

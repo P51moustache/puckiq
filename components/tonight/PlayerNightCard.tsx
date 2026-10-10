@@ -16,26 +16,8 @@ import { positionLabel } from '../../services/fantasy/positions';
 import { formatValue } from '../../services/fantasy/scoring';
 import { formatPuckDrop } from '../../services/nhl/dates';
 import { PlayerAvatar, PlayerName, TeamChip } from '../coach/PlayerAvatar';
+import type { MatchupTag } from '../../services/fantasy/matchupTag';
 import { Card, ColdBadge, colors, display, HotBadge, Pill } from '../coach/ui';
-
-export interface MatchupTag {
-  label: string;
-  tone: 'good' | 'bad';
-}
-
-/** Skaters care how many goals the opponent allows; goalies care how many it scores. */
-export function matchupTagFor(
-  form: PlayerForm | undefined,
-  opponent: { offenseRank: number; matchupRank: number } | undefined,
-): MatchupTag | null {
-  if (!opponent) return null;
-  if (form?.isGoalie) {
-    if (opponent.offenseRank <= 8) return { label: 'TOUGH O', tone: 'bad' };
-    return opponent.offenseRank >= 25 ? { label: 'WEAK O', tone: 'good' } : null;
-  }
-  if (opponent.matchupRank <= 8) return { label: 'SOFT D', tone: 'good' };
-  return opponent.matchupRank >= 25 ? { label: 'TOUGH D', tone: 'bad' } : null;
-}
 
 export function PlayerNightCard({
   player,

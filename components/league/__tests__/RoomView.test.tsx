@@ -155,9 +155,9 @@ describe('LeagueScreen in a room', () => {
     expect(allText(ideas)).toContain('WITH BEN’S BOMBERS');
     expect(textOf(oneByTestId(ideas, 'trade-idea-gains'))).toBe('+2.4 you · +1.6 them');
     press(oneByTestId(ideas, `trade-give-${makar.playerId}`));
-    expect(screen.openPlayer).toHaveBeenCalledWith(makar.playerId, 'roster');
+    expect(screen.openPlayer).toHaveBeenCalledWith(makar.playerId, 'roster', 'league');
     press(oneByTestId(ideas, `trade-get-${hughes.playerId}`));
-    expect(screen.openPlayer).toHaveBeenCalledWith(hughes.playerId, 'browse');
+    expect(screen.openPlayer).toHaveBeenCalledWith(hughes.playerId, 'browse', 'league');
     expect(screen.track).toHaveBeenCalledWith('trade_idea_view', { rank: 1, side: 'get' });
   });
 
