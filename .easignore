@@ -86,3 +86,7 @@ marketing/videos/
 /android/.gradle/
 /android/build/
 /android/app/build/
+
+# Review evidence is kept in Git, not in the application build archive.
+/design/
+/docs/

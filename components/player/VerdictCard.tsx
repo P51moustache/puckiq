@@ -1,13 +1,16 @@
 /**
- * The verdict near the top of the player card: a carbon panel with when he plays next, the call
- * in heavy italics, and one or two plain reasons. The call itself comes from
+ * Compact insight panel with the next game, lineup call, and its reasons. The call comes from
  * services/fantasy/playerVerdict; this only renders it.
  */
 
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import type { PlayerVerdict, VerdictTone } from '../../services/fantasy/playerVerdict';
-import { colors, DarkCard, display } from '../coach/ui';
+import React from "react";
+import { StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import type {
+  PlayerVerdict,
+  VerdictTone,
+} from "../../services/fantasy/playerVerdict";
+import { colors, DarkCard } from "../coach/ui";
 
 /** Kicker dot: green to start, amber to sit or check; otherwise the app's red kicker dot. */
 const DOT_COLOR: Record<VerdictTone, string> = {
@@ -21,12 +24,20 @@ function Kicker({ label, tone }: { label: string; tone: VerdictTone }) {
   return (
     <View style={styles.kickerRow}>
       <View style={[styles.dot, { backgroundColor: DOT_COLOR[tone] }]} />
-      <Text style={styles.kicker} numberOfLines={1}>{label.toUpperCase()}</Text>
+      <Text style={styles.kicker} numberOfLines={1}>
+        {label.toUpperCase()}
+      </Text>
     </View>
   );
 }
 
-export function VerdictCard({ verdict, loading }: { verdict: PlayerVerdict | null; loading: boolean }) {
+export function VerdictCard({
+  verdict,
+  loading,
+}: {
+  verdict: PlayerVerdict | null;
+  loading: boolean;
+}) {
   if (!verdict) {
     if (!loading) return null;
     return (
@@ -36,18 +47,21 @@ export function VerdictCard({ verdict, loading }: { verdict: PlayerVerdict | nul
       </DarkCard>
     );
   }
-  const spoken = [verdict.when, verdict.call, ...verdict.reasons].join('. ');
+  const spoken = [verdict.when, verdict.call, ...verdict.reasons].join(". ");
   return (
     <DarkCard style={styles.card} testID="player-verdict">
       <View accessible accessibilityLabel={spoken} style={styles.content}>
-        <Kicker label={verdict.when} tone={verdict.tone} />
-        <Text style={styles.call} testID={`player-verdict-${verdict.kind}`}>{verdict.call}</Text>
-        {verdict.reasons.map((reason) => (
-          <View key={reason} style={styles.reasonRow}>
-            <View style={styles.bullet} />
-            <Text style={styles.reason}>{reason}</Text>
-          </View>
-        ))}
+        <Ionicons name="bulb" size={24} color={colors.accent} />
+        <View style={styles.copy}>
+          <Text style={styles.insight}>PuckIQ Insight</Text>
+          <Text style={styles.reason}>
+            <Text style={styles.call} testID={`player-verdict-${verdict.kind}`}>
+              {verdict.call}.{" "}
+            </Text>
+            {verdict.reasons.join(" · ")}
+          </Text>
+          <Text style={styles.when}>{verdict.when}</Text>
+        </View>
       </View>
     </DarkCard>
   );
@@ -55,14 +69,23 @@ export function VerdictCard({ verdict, loading }: { verdict: PlayerVerdict | nul
 
 const styles = StyleSheet.create({
   card: {
-    marginTop: 18,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255,37,45,0.32)",
+    backgroundColor: "#191115",
+    paddingVertical: 7,
   },
   content: {
-    gap: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
+  copy: { flex: 1, gap: 3 },
+  insight: { fontSize: 13, fontWeight: "600", color: colors.accent },
+  when: { fontSize: 10, color: colors.muted },
   kickerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
   },
   dot: {
@@ -72,38 +95,27 @@ const styles = StyleSheet.create({
   },
   kicker: {
     flexShrink: 1,
-    fontSize: 12,
-    fontWeight: '800',
+    fontSize: 13,
+    fontWeight: "800",
     letterSpacing: 1,
     color: colors.onInk,
   },
   call: {
-    ...display(28),
+    fontSize: 12,
+    fontWeight: "600",
     color: colors.onInk,
-  },
-  reasonRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-  },
-  bullet: {
-    width: 5,
-    height: 5,
-    borderRadius: 1,
-    marginTop: 8,
-    backgroundColor: colors.onInkSub,
   },
   reason: {
     flex: 1,
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '600',
+    fontSize: 12,
+    lineHeight: 15,
+    fontWeight: "400",
     color: colors.onInkSub,
   },
   waiting: {
     marginTop: 8,
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: "700",
     color: colors.onInkSub,
   },
 });

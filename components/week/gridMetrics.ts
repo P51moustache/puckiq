@@ -4,6 +4,8 @@
  * names and long bars with "vs TOR" labels.
  */
 
+import { colors } from '../coach/theme';
+
 export interface GridMetrics {
   nameWidth: number;
   totalWidth: number;
@@ -34,11 +36,10 @@ export const NOW_CAP_SIZE = 6;
 /** Player rows: a 44pt touch target plus air around the 30pt tile. */
 export const ROW_MIN_HEIGHT = 48;
 /** Days already played fade back, like completed laps. */
-export const PAST_OPACITY = 0.35;
-/** Warm tint for off-night columns (7 or fewer NHL games) on the white card. */
-export const OFF_NIGHT_TINT = '#F4F0E9';
-/** Edge for the off-night key swatch, which sits on the paper background. */
-export const OFF_NIGHT_EDGE = '#DDD6CB';
+export const PAST_OPACITY = 0.55;
+/** Cyan tint distinguishes off-nights while preserving readable light text on dark cards. */
+export const OFF_NIGHT_TINT = colors.scheduleTint;
+export const OFF_NIGHT_EDGE = colors.scheduleEdge;
 /** Bench hatching: stripe pitch and weight that stay crisp in an 18pt bar without turning into a flat tint. */
 export const HATCH = { pitch: 5, stroke: 1.5, opacity: 0.45, outline: 1.5 } as const;
 /**

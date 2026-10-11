@@ -28,6 +28,7 @@ import { buildGoalieForm, buildSkaterForm, type PlayerForm } from './form';
 import type { PickupCandidate } from './pickups';
 import { isGoalie, isNhlLinked, normalizePosition } from './positions';
 import type { PlayerGameDay } from './weekPlan';
+import { usableForm } from './dataQuality';
 
 const RECENT_DAYS = 14;
 
@@ -59,7 +60,9 @@ export async function loadPlayerForms(
   const skaterIds = linked.filter((player) => !isGoalie(player)).map((player) => player.playerId);
   const force = options.force;
 
+  let failedRequests = 0;
   const safe = <T,>(promise: Promise<T[]>): Promise<T[]> => promise.catch((error) => {
+    failedRequests += 1;
     console.warn('[COACH] Stats request failed:', error instanceof Error ? error.message : error);
     return [] as T[];
   });
@@ -73,6 +76,11 @@ export async function loadPlayerForms(
     goalieIds.length ? safe(fetchGoalieLines({ from, to, playerIds: goalieIds, force })) : Promise.resolve([] as GoalieLine[]),
     fetchTeamStrength(today).catch(() => new Map<string, TeamStrength>()),
   ]);
+
+  const requestedGroups = Number(skaterIds.length > 0) + Number(goalieIds.length > 0);
+  if (requestedGroups > 0 && failedRequests === requestedGroups * 3) {
+    throw new Error('Player stats are unavailable. Refresh to load real estimates before planning your lineup.');
+  }
 
   const forms = new Map<number, PlayerForm>();
   const [sc, sp, sr] = [byId(sCur), byId(sPrev), byId(sRecent)];
@@ -100,11 +108,11 @@ export async function loadPlayerForms(
 }
 
 export function valuesOf(forms: Map<number, PlayerForm>): Map<number, number> {
-  return new Map([...forms].map(([id, form]) => [id, form.value]));
+  return new Map([...forms].filter(([, form]) => usableForm(form)).map(([id, form]) => [id, form.value]));
 }
 
 export function startSharesOf(forms: Map<number, PlayerForm>): Map<number, number> {
-  return new Map([...forms].filter(([, form]) => form.isGoalie).map(([id, form]) => [id, form.startShare]));
+  return new Map([...forms].filter(([, form]) => form.isGoalie && usableForm(form)).map(([id, form]) => [id, form.startShare]));
 }
 
 // ---------------------------------------------------------------------------
@@ -136,9 +144,9 @@ export function statusFor(
   const hint = newsInjuryHintForPlayer(player, news);
   if (hint) {
     const note: Record<InjurySignal, string> = {
-      out: 'Injury language in today’s news',
-      dtd: 'Day-to-day language in today’s news',
-      scratch: 'Scratch language in today’s news',
+      out: 'Recent injury report — verify before lineup lock',
+      dtd: 'Recent day-to-day report — verify before lineup lock',
+      scratch: 'Recent scratch report — verify before lineup lock',
       ok: '',
       unknown: '',
     };

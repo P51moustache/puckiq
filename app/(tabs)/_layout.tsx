@@ -6,49 +6,46 @@ import { IconSymbol } from '../../components/ui/IconSymbol';
 import TabBarBackground from '../../components/ui/TabBarBackground';
 import { colors } from '../../components/coach/ui';
 import { SettingsLauncherProvider } from '../../components/SettingsLauncherProvider';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-/** Tonight is home. */
+// Keep breathing room at the bottom without the oversized default tab inset.
+const MAX_TAB_BOTTOM_INSET = 12;
+
+/** Player decisions lead; specialized tools remain reachable through More. */
 export const unstable_settings = {
   initialRouteName: 'index',
 };
 
-/** F1-style red bar riding the top edge of the active tab. */
-const ActiveBar = () => (
-  <View style={{
-    position: 'absolute',
-    top: -8,
-    width: 22,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: colors.accent,
-  }} />
-);
-
 type SymbolName = Parameters<typeof IconSymbol>[0]['name'];
 
 function tabIcon(name: SymbolName) {
-  const TabIcon = ({ color, focused }: { color: string; focused: boolean }) => (
+  const TabIcon = ({ color }: { color: string; focused: boolean }) => (
     <View style={{ alignItems: 'center' }}>
-      {focused && <ActiveBar />}
-      <IconSymbol size={24} name={name} color={color} />
+      <IconSymbol size={21} name={name} color={color} />
     </View>
   );
   return TabIcon;
 }
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
   return (
     <SettingsLauncherProvider>
       <Tabs
+        safeAreaInsets={
+          Platform.OS === 'ios'
+            ? { bottom: Math.min(insets.bottom, MAX_TAB_BOTTOM_INSET) }
+            : undefined
+        }
         screenOptions={{
-          tabBarActiveTintColor: colors.ink,
+          tabBarActiveTintColor: colors.accent,
           tabBarInactiveTintColor: colors.muted,
           headerShown: false,
           tabBarButton: HapticTab,
           tabBarBackground: TabBarBackground,
           tabBarLabelStyle: {
             fontSize: 10,
-            fontWeight: '800',
+            fontWeight: '500',
           },
           tabBarStyle: Platform.select({
             ios: {
@@ -60,12 +57,56 @@ export default function TabLayout() {
               borderTopColor: colors.border,
             },
           }),
-        }}>
-        <Tabs.Screen name="index" options={{ title: 'Tonight', tabBarIcon: tabIcon('hockey.puck.fill') }} />
-        <Tabs.Screen name="week" options={{ title: 'Week', tabBarIcon: tabIcon('calendar') }} />
-        <Tabs.Screen name="pickups" options={{ title: 'Pickups', tabBarIcon: tabIcon('chart.line.uptrend.xyaxis') }} />
-        <Tabs.Screen name="league" options={{ title: 'League', tabBarIcon: tabIcon('trophy.fill') }} />
-        <Tabs.Screen name="myteam" options={{ title: 'Roster', tabBarIcon: tabIcon('person.2.fill') }} />
+        }}
+      >
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: 'Home',
+            tabBarAccessibilityLabel: 'Home, tab, 1 of 5',
+            tabBarButtonTestID: 'tab-home',
+            tabBarIcon: tabIcon('house.fill'),
+          }}
+        />
+        <Tabs.Screen
+          name="myteam"
+          options={{
+            title: 'Players',
+            tabBarAccessibilityLabel: 'Players, tab, 2 of 5',
+            tabBarButtonTestID: 'tab-players',
+            tabBarIcon: tabIcon('person.crop.circle.fill'),
+          }}
+        />
+        <Tabs.Screen
+          name="lineup"
+          options={{
+            title: 'Lineup',
+            tabBarAccessibilityLabel: 'Lineup, tab, 3 of 5',
+            tabBarButtonTestID: 'tab-lineup',
+            tabBarIcon: tabIcon('person.2.fill'),
+          }}
+        />
+        <Tabs.Screen
+          name="insights"
+          options={{
+            title: 'Insights',
+            tabBarAccessibilityLabel: 'Insights, tab, 4 of 5',
+            tabBarButtonTestID: 'tab-insights',
+            tabBarIcon: tabIcon('chart.bar.fill'),
+          }}
+        />
+        <Tabs.Screen
+          name="more"
+          options={{
+            title: 'More',
+            tabBarAccessibilityLabel: 'More, tab, 5 of 5',
+            tabBarButtonTestID: 'tab-more',
+            tabBarIcon: tabIcon('ellipsis'),
+          }}
+        />
+        <Tabs.Screen name="week" options={{ href: null }} />
+        <Tabs.Screen name="pickups" options={{ href: null }} />
+        <Tabs.Screen name="league" options={{ href: null }} />
       </Tabs>
     </SettingsLauncherProvider>
   );

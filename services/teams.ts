@@ -17,6 +17,7 @@ import type {
   TeamsState,
 } from '../types/fantasy';
 import { categoryWeights, isCategoryLeague, sanitizeCategories } from './fantasy/categories';
+import { sanitizeLineupChoices } from './fantasy/lineupPlan';
 import { sanitizeTeamLink } from './fantasy/hostLinks';
 import { sanitizeSlots, STANDARD_SLOTS } from './fantasy/lineup';
 import { DEFAULT_SCORING, sanitizeScoring, scoringPresetFor } from './fantasy/scoring';
@@ -176,6 +177,7 @@ function formatFields(raw: { format?: unknown; categories?: unknown }): Partial<
 function sanitizeTeam(raw: any): FantasyTeam | null {
   if (!raw || typeof raw !== 'object' || typeof raw.id !== 'string') return null;
   const stamp = new Date().toISOString();
+  const players = sanitizePlayers(raw.players);
   return {
     id: raw.id,
     name: typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim() : 'My Team',
@@ -185,7 +187,8 @@ function sanitizeTeam(raw: any): FantasyTeam | null {
     slots: sanitizeSlots(raw.slots),
     scoring: sanitizeScoring(raw.scoring),
     ...formatFields(raw),
-    players: sanitizePlayers(raw.players),
+    players,
+    lineupChoices: sanitizeLineupChoices(raw.lineupChoices, new Set(players.map(player => player.playerId))),
     opponentName: typeof raw.opponentName === 'string' ? raw.opponentName : '',
     opponent: sanitizePlayers(raw.opponent),
     ...(raw.opponentSource === 'room' || raw.opponentSource === 'manual' ? { opponentSource: raw.opponentSource } : {}),

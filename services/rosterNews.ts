@@ -6,10 +6,14 @@
 
 import type { FantasyPlayer, RosterNewsItem } from '../types/fantasy';
 import { injurySignalFromText } from './startSitLean';
+import { appNow } from './nhl/dates';
 
 export const ESPN_NHL_RSS_URL = 'https://www.espn.com/espn/rss/nhl/news';
 
 const SHORT_LAST_NAME = 3;
+// News is a tentative hint, never a replacement for tonight's NHL scratch list.
+const INJURY_NEWS_MAX_AGE_MS = 48 * 60 * 60 * 1000;
+const NEWS_CLOCK_TOLERANCE_MS = 5 * 60 * 1000;
 
 export function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -98,11 +102,25 @@ export function filterNewsForRoster(
 export function newsInjuryHintForPlayer(
   player: FantasyPlayer,
   news: RosterNewsItem[],
+  now: Date = appNow(),
 ): ReturnType<typeof injurySignalFromText> {
   for (const item of news) {
     if (!item.matchedPlayerIds.includes(player.playerId)) continue;
-    const signal = injurySignalFromText(`${item.title} ${item.summary}`);
-    if (signal) return signal;
+    const published = Date.parse(item.publishedAt);
+    const age = now.getTime() - published;
+    if (!Number.isFinite(published) || age < -NEWS_CLOCK_TOLERANCE_MS || age > INJURY_NEWS_MAX_AGE_MS) continue;
+    const clauses = `${item.title}\n${item.summary}`.split(/[.!?;\n]+/);
+    for (const clause of clauses) {
+      if (!articleMentionsPlayer(clause, player)) continue;
+      // A sentence about several roster players cannot reliably attribute an injury.
+      const otherPlayer = item.matchedPlayerNames.some((name, index) =>
+        item.matchedPlayerIds[index] !== player.playerId &&
+        articleMentionsPlayer(clause, { ...player, playerName: name }),
+      );
+      if (otherPlayer || /\b(no longer|not|off|removed from|activated from|returns? from)\b/i.test(clause)) continue;
+      const signal = injurySignalFromText(clause);
+      if (signal) return signal;
+    }
   }
   return null;
 }

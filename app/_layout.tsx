@@ -1,4 +1,4 @@
-import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DarkTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -30,8 +30,8 @@ import { NotificationTaps } from '../hooks/useNotificationTaps';
 import { beginFirstNight } from '../services/engagement/firstNightStore';
 
 const NAV_THEME = {
-  ...DefaultTheme,
-  colors: { ...DefaultTheme.colors, background: colors.bg, card: colors.card, text: colors.text, primary: colors.accent },
+  ...DarkTheme,
+  colors: { ...DarkTheme.colors, background: colors.bg, card: colors.card, text: colors.text, primary: colors.accent },
 };
 
 // Two URL schemes on purpose: `puckiq://` (League Room invites) and `learningproject://` (older
@@ -92,7 +92,7 @@ function AppContent() {
         <Stack.Screen name="join/[code]" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="+not-found" />
       </Stack>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       <ReleaseNotice hadSavedSetup={hadSavedSetup} />
       <NotificationTaps />
     </>

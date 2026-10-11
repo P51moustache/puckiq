@@ -100,9 +100,9 @@ export function RecapCard({
 }
 
 const styles = StyleSheet.create({
-  card: { gap: 14, marginBottom: 12 },
+  card: { gap: 8, marginBottom: 12 },
   countRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 12 },
-  points: { ...display(60), color: colors.onInk, lineHeight: 64, letterSpacing: -2 },
+  points: { ...display(36), color: colors.onInk, lineHeight: 40, letterSpacing: -0.8 },
   countText: { flex: 1, paddingBottom: 8 },
   pts: { ...display(20), color: colors.onInkSub },
   caption: { fontSize: 14, fontWeight: '700', color: colors.onInk },

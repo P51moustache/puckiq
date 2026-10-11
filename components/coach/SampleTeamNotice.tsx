@@ -30,7 +30,8 @@ export default function SampleTeamNotice({ style }: { style?: object }) {
       <Text style={styles.body}>
         These are PuckIQ’s demo roster, not your team.{own > 0 ? ` The ${own} you added stay.` : ''}
       </Text>
-      <PrimaryButton label="Swap in your real roster" icon="scan-outline" onPress={() => setImporting(true)} style={styles.button} testID="sample-team-import" />
+      <View style={styles.actions}>
+      <PrimaryButton label="Import roster" icon="scan-outline" onPress={() => setImporting(true)} style={styles.button} testID="sample-team-import" />
       <RosterImportSheet
         visible={importing}
         source="sample"
@@ -41,7 +42,7 @@ export default function SampleTeamNotice({ style }: { style?: object }) {
         }}
       />
       <GhostButton
-        label="Remove sample players"
+        label="Remove sample"
         icon="trash-outline"
         tone="accent"
         onPress={() => {
@@ -51,6 +52,7 @@ export default function SampleTeamNotice({ style }: { style?: object }) {
         style={styles.button}
         testID="sample-team-clear"
       />
+      </View>
     </Card>
   );
 }
@@ -90,7 +92,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   button: {
-    marginTop: 10,
-    alignSelf: 'flex-start',
+    flex: 1,
   },
+  actions: { flexDirection: 'row', gap: 6, marginTop: 8 },
 });

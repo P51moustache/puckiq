@@ -190,6 +190,6 @@ const styles = StyleSheet.create({
   pills: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   pill: { maxWidth: '100%', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: colors.track },
   pillSelected: { backgroundColor: colors.ink },
-  pillText: { fontSize: 13, fontWeight: '800', color: colors.ink },
+  pillText: { fontSize: 13, fontWeight: '800', color: colors.text },
   pillTextSelected: { color: colors.onInk },
 });

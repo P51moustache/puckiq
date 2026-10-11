@@ -1,10 +1,10 @@
+import { SettingsRow as Row } from '../settings/SettingsRow';
 /**
  * Settings — Pro, lineup reminders, leagues, optional account backup, about.
  */
 
 import React, { useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -44,26 +44,6 @@ import { ReleaseNotice } from '../release/ReleaseNotice';
 const ANALYTICS_REMOTE = posthogConfig() !== null;
 
 export { ONBOARDING_KEY } from '../../constants/release';
-
-function Row({ icon, label, detail, onPress, right, testID }: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  detail?: string;
-  onPress?: () => void;
-  right?: React.ReactNode;
-  testID?: string;
-}) {
-  return (
-    <Pressable onPress={onPress} disabled={!onPress} style={({ pressed }) => [styles.row, pressed && onPress && styles.pressed]} testID={testID}>
-      <Ionicons name={icon} size={18} color={colors.accent} />
-      <View style={styles.rowText}>
-        <Text style={styles.rowLabel}>{label}</Text>
-        {detail ? <Text style={styles.rowDetail}>{detail}</Text> : null}
-      </View>
-      {right ?? (onPress ? <Ionicons name="chevron-forward" size={16} color={colors.muted} /> : null)}
-    </Pressable>
-  );
-}
 
 export default function SettingsScreen({ onBack }: { onBack?: () => void } = {}) {
   const wide = useWide();
@@ -351,30 +331,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
   },
   content: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingBottom: 120,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 10,
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-  rowText: {
-    flex: 1,
-  },
-  rowLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  rowDetail: {
-    fontSize: 12,
-    color: colors.sub,
-    marginTop: 2,
   },
   minutes: {
     flexDirection: 'row',
@@ -385,7 +343,7 @@ const styles = StyleSheet.create({
   minute: {
     paddingHorizontal: 14,
     paddingVertical: 7,
-    borderRadius: 16,
+    borderRadius: 10,
     backgroundColor: colors.raised,
   },
   minuteOn: {

@@ -5,6 +5,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing, Text, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
+import { colors } from './theme';
 import * as Haptics from 'expo-haptics';
 
 /** Long enough to read as a count, short enough not to delay the number. */
@@ -88,7 +89,7 @@ export function CountUp({
 }
 
 /** A red dot that breathes while games are live. Static under Reduce Motion. */
-export function LiveDot({ size = 8, color = '#E10600', style }: { size?: number; color?: string; style?: StyleProp<ViewStyle> }) {
+export function LiveDot({ size = 8, color = colors.accent, style }: { size?: number; color?: string; style?: StyleProp<ViewStyle> }) {
   const opacity = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     if (reduceMotion || !Easing?.inOut) return;

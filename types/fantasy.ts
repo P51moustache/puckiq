@@ -95,6 +95,8 @@ export interface FantasyTeam {
   opponentSource?: 'manual' | 'room';
   /** Pickups the user marked as already rostered in their league. */
   hiddenPickupIds: number[];
+  /** Date-specific local starter/bench choices, never sent to the fantasy host. */
+  lineupChoices?: import('../services/fantasy/lineupPlan').LineupChoices;
   /** The League Room this team belongs to, if any. */
   roomId?: string;
   /** The team's page on its platform (pasted by the user), for "Open Yahoo". */

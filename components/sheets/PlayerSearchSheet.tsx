@@ -219,7 +219,7 @@ export default function PlayerSearchSheet({ visible, mode, onClose }: PlayerSear
                   </Text>
                 </View>
                 {mode.kind === 'link' ? (
-                  <Ionicons name="link" size={20} color={colors.ink} />
+                  <Ionicons name="link" size={20} color={colors.text} />
                 ) : added ? (
                   <Ionicons name="checkmark-circle" size={28} color={colors.good} />
                 ) : (
@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 18,
+    paddingHorizontal: 12,
     paddingTop: 20,
     paddingBottom: 12,
     gap: 12,
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '900',
     fontStyle: 'italic',
     letterSpacing: -0.5,

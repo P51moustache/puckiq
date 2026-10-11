@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.track,
   },
   pillSelected: { backgroundColor: colors.ink },
-  pillText: { flexShrink: 1, fontSize: 13, fontWeight: '800', color: colors.ink },
+  pillText: { flexShrink: 1, fontSize: 13, fontWeight: '800', color: colors.text },
   pillTextSelected: { color: colors.onInk },
   pressed: { opacity: 0.75 },
   error: { fontSize: 13, fontWeight: '600', color: colors.bad },

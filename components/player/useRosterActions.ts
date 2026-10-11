@@ -9,7 +9,7 @@ import type { PaywallSource } from '../../constants/monetization';
 import { useHideAllowance } from '../../hooks/useHideAllowance';
 import { basePositions } from '../../services/fantasy/positions';
 import type { PlayerProfile } from '../../services/nhl/player';
-import { addPlayers, hidePickup, removePlayer, updatePlayer } from '../../services/teams';
+import { MAX_ROSTER_PLAYERS, addPlayers, hidePickup, removePlayer, updatePlayer } from '../../services/teams';
 import { useTeams } from '../TeamsProvider';
 
 export interface RosterActions {
@@ -41,6 +41,10 @@ export function useRosterActions({
 
   const addToMyTeam = () => {
     if (!profile || !team) return;
+    if (team.players.length >= MAX_ROSTER_PLAYERS && !team.players.some(p => p.playerId === playerId)) {
+      Alert.alert('Roster full', `Remove a player before adding another. PuckIQ supports ${MAX_ROSTER_PLAYERS} players per roster.`);
+      return;
+    }
     const player: FantasyPlayer = { playerId, playerName: profile.name, teamAbbrev: profile.team, position: profile.position, rosterPosition: 'BN' };
     updateTeam((current) => addPlayers(current, [player], 'players'));
     onClose();

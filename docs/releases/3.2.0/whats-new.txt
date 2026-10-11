@@ -1,0 +1,11 @@
+A new dark design, built around your players and lineup.
+
+• Player scouting: portrait heroes, recent-performance graphs, upcoming schedule assessments and estimated rest-of-season outlooks.
+• Lineup optimizer: compare the recommendation with your saved start/bench plan, choose a date and find pickups for that exact night. Full optimization with Pro.
+• Insights: open recommendations for the reasons, affected players and a clear next step.
+• Consistent, compact screens with clearer text and easier-to-tap controls throughout the app.
+• Category leagues, roster import from screenshots, goalie back-to-back outlooks and smarter lineup reminders.
+
+Quality improvements protect saved plans across dates, handle missing stats honestly, improve injury-news attribution and keep charts stable as their history changes.
+
+Saved plans stay in PuckIQ. You make the final moves in Yahoo, ESPN or Fantrax.

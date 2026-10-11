@@ -1,14 +1,10 @@
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
-import { BlurView } from 'expo-blur';
-import { StyleSheet } from 'react-native';
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
+import { StyleSheet, View } from "react-native";
+import { colors } from "../coach/theme";
 
-export default function BlurTabBarBackground() {
+export default function TabBarBackground() {
   return (
-    <BlurView
-      tint="systemChromeMaterialLight"
-      intensity={100}
-      style={StyleSheet.absoluteFill}
-    />
+    <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg }]} />
   );
 }
 

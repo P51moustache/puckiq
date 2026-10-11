@@ -1,13 +1,17 @@
 /**
- * F1-style player identity: the NHL cutout headshot on his team's jersey color,
- * and "Connor MCDAVID" naming. Falls back to a position monogram on the tile.
+ * Player identity on a neutral dark tile, with a position fallback when a headshot fails.
  */
 
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, type StyleProp, type TextStyle } from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type TextStyle,
+} from 'react-native';
 import { Image } from 'expo-image';
 import { USE_NHL_HEADSHOTS } from '../../constants/legal';
-import { teamTile } from '../../constants/teamTiles';
 import { headshotUrl } from '../../services/nhl/player';
 import { seasonIdFor, todayNhl } from '../../services/nhl/dates';
 import { colors } from './ui';
@@ -23,18 +27,41 @@ interface PlayerAvatarProps {
   shape?: 'tile' | 'circle';
 }
 
-export function PlayerAvatar({ playerId, team, position, size = 48, uri, shape = 'tile' }: PlayerAvatarProps) {
+export function PlayerAvatar({
+  playerId,
+  team,
+  position,
+  size = 48,
+  uri,
+  shape = 'tile',
+}: PlayerAvatarProps) {
   const [failed, setFailed] = useState(false);
-  const source = USE_NHL_HEADSHOTS ? uri ?? headshotUrl(playerId, team, seasonIdFor(todayNhl())) : null;
-  const { tile, on } = teamTile(team);
+  const source = USE_NHL_HEADSHOTS
+    ? (uri ?? headshotUrl(playerId, team, seasonIdFor(todayNhl())))
+    : null;
   const radius = shape === 'circle' ? size / 2 : Math.round(size * 0.24);
 
   return (
-    <View style={[styles.frame, { width: size, height: size, borderRadius: radius, backgroundColor: tile }]}>
+    <View
+      style={[
+        styles.frame,
+        {
+          width: size,
+          height: size,
+          borderRadius: radius,
+          backgroundColor: colors.raised,
+        },
+      ]}
+    >
       {source && !failed ? (
         <Image
           source={{ uri: source }}
-          style={{ width: size * 1.08, height: size * 1.08, marginTop: size * 0.1 }}
+          style={{
+            position: 'absolute',
+            width: size * 1.35,
+            height: size * 1.35,
+            top: -size * 0.25,
+          }}
           contentFit="cover"
           contentPosition="top"
           transition={120}
@@ -43,7 +70,14 @@ export function PlayerAvatar({ playerId, team, position, size = 48, uri, shape =
           accessibilityIgnoresInvertColors
         />
       ) : (
-        <Text style={[styles.monogram, { fontSize: size * 0.32, color: on }]}>{(position || '—').slice(0, 2).toUpperCase()}</Text>
+        <Text
+          style={[
+            styles.monogram,
+            { fontSize: size * 0.32, color: colors.text },
+          ]}
+        >
+          {(position || '—').slice(0, 2).toUpperCase()}
+        </Text>
       )}
     </View>
   );
@@ -71,19 +105,24 @@ export function PlayerName({
   const { first, last } = splitName(name);
   const lead = initial && first ? `${first[0]}. ` : first ? `${first} ` : '';
   return (
-    <Text style={[{ fontSize: size, color }, style]} numberOfLines={numberOfLines}>
+    <Text
+      style={[{ fontSize: size, color }, style]}
+      numberOfLines={numberOfLines}
+    >
       <Text style={styles.first}>{lead}</Text>
-      <Text style={styles.last}>{last.toUpperCase()}</Text>
+      <Text style={styles.last}>{last}</Text>
     </Text>
   );
 }
 
 /** Small team badge: jersey color chip with the abbreviation (no NHL marks). */
 export function TeamChip({ team, prefix }: { team: string; prefix?: string }) {
-  const { tile, on } = teamTile(team);
   return (
-    <View style={[styles.chip, { backgroundColor: tile }]}>
-      <Text style={[styles.chipText, { color: on }]}>{prefix ? `${prefix} ` : ''}{team || '—'}</Text>
+    <View style={[styles.chip, { backgroundColor: colors.raised }]}>
+      <Text style={[styles.chipText, { color: colors.text }]}>
+        {prefix ? `${prefix} ` : ''}
+        {team || '—'}
+      </Text>
     </View>
   );
 }

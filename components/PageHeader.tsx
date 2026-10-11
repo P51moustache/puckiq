@@ -1,6 +1,5 @@
 /**
- * PageHeader — F1-style: a small control row (team pill, actions) over a big, heavy,
- * italic uppercase title. Every tab uses it so the app reads as one publication.
+ * Page titles and controls; compact headers keep the concept's information density.
  */
 
 import React from 'react';
@@ -17,25 +16,59 @@ interface PageHeaderProps {
   right?: React.ReactNode;
   /** Optional control above the title (e.g. the team switcher). */
   accessory?: React.ReactNode;
+  compact?: boolean;
 }
 
-export default function PageHeader({ title, subtitle, right, accessory }: PageHeaderProps) {
+export default function PageHeader({
+  title,
+  subtitle,
+  right,
+  accessory,
+  compact = true,
+}: PageHeaderProps) {
   const insets = useSafeAreaInsets();
   const openSettings = useOpenSettings();
 
   return (
-    <View style={[styles.wrap, contentFrame, { paddingTop: insets.top + 6 }]} testID="page-header">
-      {accessory || right ? (
+    <View
+      style={[
+        styles.wrap,
+        compact && styles.compactWrap,
+        contentFrame,
+        { paddingTop: insets.top + (compact ? 0 : 6) },
+      ]}
+      testID="page-header"
+    >
+      {!compact && (accessory || right) ? (
         <View style={styles.controls}>
           <View style={styles.accessory}>{accessory}</View>
           {right ? <View style={styles.right}>{right}</View> : null}
         </View>
       ) : null}
-      <View style={styles.titleRow}>
-        <Text style={styles.title} testID="page-header-title" numberOfLines={1} adjustsFontSizeToFit>
+      <View style={[styles.titleRow, compact && styles.compactRow]}>
+        {compact ? (
+          <View style={styles.compactAccessory}>{accessory}</View>
+        ) : null}
+        <Text
+          style={[styles.title, compact && styles.compactTitle]}
+          testID="page-header-title"
+          numberOfLines={1}
+          adjustsFontSizeToFit
+        >
           {title}
         </Text>
-        {openSettings ? <IconButton icon="settings-outline" label="Settings" onPress={openSettings} testID="page-header-settings" /> : null}
+        <View style={[styles.headerActions, compact && styles.compactActions]}>
+          {compact && right ? <View style={styles.right}>{right}</View> : null}
+          {openSettings ? (
+            <IconButton
+              compact={compact}
+              icon="settings-outline"
+              label="Settings"
+              onPress={openSettings}
+              testID="page-header-settings"
+            />
+          ) : null}
+        </View>
       </View>
       {subtitle ? (
         <Text style={styles.subtitle} testID="page-header-subtitle">
@@ -51,6 +84,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
     backgroundColor: colors.bg,
+  },
+  compactWrap: { paddingHorizontal: 12, paddingBottom: 2 },
+  compactRow: { minHeight: 40, gap: 6 },
+  compactAccessory: { width: 94 },
+  headerActions: { flexDirection: 'row', alignItems: 'center' },
+  compactActions: { width: 94, justifyContent: 'flex-end' },
+  compactTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    letterSpacing: 0,
+    textAlign: 'center',
   },
   controls: {
     flexDirection: 'row',
@@ -74,13 +118,13 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   title: {
-    ...display(38),
+    ...display(27),
     flex: 1,
     letterSpacing: -1,
-    textTransform: 'uppercase',
+    textTransform: 'none',
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 15,
     color: colors.sub,
     marginTop: 2,
   },

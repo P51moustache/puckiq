@@ -43,7 +43,7 @@ export function FirstNightGuide({ done, quietNight, onStep, onDismiss }: FirstNi
       <Kicker
         onInk={false}
         label={`YOUR FIRST NIGHT · ${done.length} OF ${FIRST_NIGHT_STEPS.length}`}
-        right={<IconButton icon="close" label="Close the first-night guide" onPress={onDismiss} testID="first-night-close" />}
+        right={<IconButton compact icon="close" label="Close the first-night guide" onPress={onDismiss} testID="first-night-close" />}
       />
       <View style={styles.laps}>
         {FIRST_NIGHT_STEPS.map((step) => (
@@ -84,11 +84,11 @@ export function FirstNightGuide({ done, quietNight, onStep, onDismiss }: FirstNi
 }
 
 const styles = StyleSheet.create({
-  card: { marginBottom: 12, gap: 10 },
+  card: { marginBottom: 8, gap: 4 },
   laps: { flexDirection: 'row', gap: 6 },
   lap: { flex: 1, height: 4, borderRadius: 2, backgroundColor: colors.track },
   lapDone: { backgroundColor: colors.accent },
-  step: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6 },
+  step: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4, minHeight: 44 },
   pressed: { opacity: 0.7 },
   badge: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.raised },
   badgeNext: { backgroundColor: colors.ink },
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 13, fontWeight: '900', color: colors.sub },
   badgeTextNext: { color: colors.onInk },
   text: { flex: 1, gap: 2 },
-  title: { fontSize: 15, fontWeight: '800', color: colors.text },
+  title: { fontSize: 14, fontWeight: '600', color: colors.text },
   titleDone: { color: colors.muted, textDecorationLine: 'line-through' },
   detail: { fontSize: 13, lineHeight: 18, color: colors.sub },
 });

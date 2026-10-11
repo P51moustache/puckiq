@@ -4,19 +4,19 @@ import SwiftUI
 /// carbon panels, one hot red, white type, heavy italic numerals, uppercase kickers with a red dot.
 enum Broadcast {
   /// `colors.ink`
-  static let carbon = rgb(0x15151E)
+  static let carbon = rgb(0x0D141A)
   /// `colors.inkRaised`
-  static let carbonRaised = rgb(0x24242E)
+  static let carbonRaised = rgb(0x1B252E)
   /// `colors.accent`
-  static let red = rgb(0xE10600)
+  static let red = rgb(0xFF252D)
   /// `colors.onInk`
-  static let white = Color.white
+  static let white = rgb(0xF5F7FA)
   /// `colors.onInkSub`
-  static let sub = rgb(0xA6A6B0)
+  static let sub = rgb(0xA8B3BE)
 
-  /// Heavy italic numerals: `display()` in ui.tsx.
+  /// Matches the app's readable, upright display numerals.
   static func numerals(_ size: CGFloat) -> Font {
-    .system(size: size, weight: .black).italic().monospacedDigit()
+    .system(size: size, weight: .bold).monospacedDigit()
   }
 
   /// Uppercase kickers and labels.

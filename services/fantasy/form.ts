@@ -35,6 +35,13 @@ export interface PlayerForm {
   startShare: number;
   season: SkaterLine | GoalieLine | null;
   recent: SkaterLine | GoalieLine | null;
+  /** Prior season totals retained for transparent per-stat outlooks. */
+  previous?: SkaterLine | GoalieLine | null;
+}
+
+/** Ten prior-equivalent games stabilize the early-season sample. */
+export function blendedPace(total: number, games: number, priorRate: number): number {
+  return (total + priorRate * PRIOR_WEIGHT_GAMES) / (games + PRIOR_WEIGHT_GAMES);
 }
 
 export interface FormInputs {
@@ -81,7 +88,7 @@ export function buildSkaterForm(playerId: number, inputs: FormInputs, weights: S
   let seasonRate = 0;
   if (curGp > 0 && prevRate !== null && curGp < 20) {
     basis = 'blended';
-    seasonRate = (curTotal + prevRate * PRIOR_WEIGHT_GAMES) / (curGp + PRIOR_WEIGHT_GAMES);
+    seasonRate = blendedPace(curTotal, curGp, prevRate);
   } else if (curGp > 0) {
     basis = 'current';
     seasonRate = perGame(curTotal, curGp);
@@ -109,6 +116,7 @@ export function buildSkaterForm(playerId: number, inputs: FormInputs, weights: S
     startShare: 1,
     season: current ?? previous ?? null,
     recent: recent ?? null,
+    previous: previous ?? null,
   };
 }
 
@@ -128,7 +136,7 @@ export function buildGoalieForm(playerId: number, inputs: FormInputs, weights: S
 
   if (curGs > 0 && prevRate !== null && curGs < 12) {
     basis = 'blended';
-    seasonRate = (goalieTotal(current as GoalieLine, weights) + prevRate * PRIOR_WEIGHT_GAMES) / (curGs + PRIOR_WEIGHT_GAMES);
+    seasonRate = blendedPace(goalieTotal(current as GoalieLine, weights), curGs, prevRate);
   } else if (curGs > 0) {
     basis = 'current';
     seasonRate = perGame(goalieTotal(current as GoalieLine, weights), curGs);
@@ -165,6 +173,7 @@ export function buildGoalieForm(playerId: number, inputs: FormInputs, weights: S
     startShare,
     season: current ?? previous ?? null,
     recent: recent ?? null,
+    previous: previous ?? null,
   };
 }
 

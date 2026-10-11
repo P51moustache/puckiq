@@ -54,17 +54,17 @@ export function ReleaseNotice({ hadSavedSetup, replay = false, onClose }: {
       <View style={styles.frame}>
         <ScrollView contentContainerStyle={styles.body}>
           <BrandMark height={22} />
-          <Text style={styles.kicker}>WELCOME BACK · PUCKIQ 3.0</Text>
-          <Text style={styles.title}>YOUR NEW{'\n'}NIGHTLY COACH.</Text>
-          <Text style={styles.intro}>PuckIQ has been rebuilt for your fantasy roster. Fantasy coaching replaces the earlier game-prediction and pick-tracking screens. Add your players, then make the moves in your usual fantasy app.</Text>
+          <Text style={styles.kicker}>WELCOME BACK · PUCKIQ 3.2</Text>
+          <Text style={styles.title}>Your players.{'\n'}Your best lineup.</Text>
+          <Text style={styles.intro}>Explore your roster in a new dark design, compare your lineup, and open player insights for the reasons behind each move. Save a plan in PuckIQ, then make the moves in your usual fantasy app.</Text>
           {RELEASE_FEATURES.map((feature) => (
             <View key={feature.title} style={styles.feature}>
               <Ionicons name={feature.icon} size={23} color={colors.accent} />
               <View style={styles.copy}><Text style={styles.featureTitle}>{feature.title}</Text><Text style={styles.detail}>{feature.body}</Text></View>
             </View>
           ))}
-          <View style={styles.gift}><Text style={styles.giftTitle}>A thank-you for being early</Text><Text style={styles.giftCopy}>{giftCopy}</Text></View>
-          <PrimaryButton label="Meet my coach" onPress={close} testID="release-notice-continue" />
+          <View style={styles.gift}><Text style={styles.giftTitle}>Your PuckIQ access</Text><Text style={styles.giftCopy}>{giftCopy}</Text></View>
+          <PrimaryButton label="Explore the update" onPress={close} testID="release-notice-continue" />
           <GhostButton label={restoring ? 'Restoring…' : 'Restore purchases'} onPress={() => { if (!restoring) void restore(); }} testID="release-notice-restore" />
         </ScrollView>
       </View>
@@ -74,15 +74,15 @@ export function ReleaseNotice({ hadSavedSetup, replay = false, onClose }: {
 
 const styles = StyleSheet.create({
   frame: { flex: 1, backgroundColor: colors.bg },
-  body: { padding: 28, paddingTop: 42, paddingBottom: 48, gap: 22, maxWidth: 620, width: '100%', alignSelf: 'center' },
+  body: { padding: 16, paddingTop: 42, paddingBottom: 48, gap: 14, maxWidth: 620, width: '100%', alignSelf: 'center' },
   kicker: { color: colors.sub, fontSize: 12, fontWeight: '800', letterSpacing: 1.2 },
-  title: { ...display(40), lineHeight: 43 },
-  intro: { color: colors.sub, fontSize: 16, lineHeight: 24 },
+  title: { ...display(28), lineHeight: 32 },
+  intro: { color: colors.sub, fontSize: 15, lineHeight: 22 },
   feature: { flexDirection: 'row', gap: 14 },
   copy: { flex: 1, gap: 4 },
   featureTitle: { color: colors.text, fontSize: 17, fontWeight: '800' },
   detail: { color: colors.sub, fontSize: 14, lineHeight: 21 },
-  gift: { backgroundColor: colors.ink, padding: 20, borderRadius: 18, gap: 10 },
+  gift: { backgroundColor: colors.ink, padding: 12, borderRadius: 10, gap: 10 },
   giftTitle: { color: colors.onInk, fontWeight: '800', fontSize: 18 },
   giftCopy: { color: colors.onInkSub, fontSize: 15, lineHeight: 23 },
 });

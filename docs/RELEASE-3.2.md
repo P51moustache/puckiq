@@ -1,5 +1,7 @@
 # PuckIQ 3.2 — release checklist
 
+The player-centered dark update, whole-app audit, source snapshot and final shipping receipt are documented in [the October 11 audit](audits/2026-10-11-player-centered-release.md). Store metadata is in `docs/releases/3.2.0/`. Zach authorized shipping on October 11, 2026.
+
 What ships since 3.1.0, by topic:
 
 - **Engagement:**

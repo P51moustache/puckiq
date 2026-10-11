@@ -8,11 +8,11 @@ export default {
     // `puckiq://` for links (puckiq://join/ABC234); `learningproject` stays for the Google
     // sign-in redirect (components/auth/AuthProvider.tsx) and links already out there.
     scheme: ["puckiq", "learningproject"],
-    userInterfaceStyle: "light",
+    userInterfaceStyle: "dark",
     newArchEnabled: true,
     notification: {
       icon: "./assets/images/icon.png",
-      color: "#E10600"
+      color: "#FF252D"
     },
     ios: {
       supportsTablet: true,
@@ -57,7 +57,7 @@ export default {
         "expo-notifications",
         {
           icon: "./assets/images/icon.png",
-          color: "#E10600",
+          color: "#FF252D",
         }
       ]
     ],

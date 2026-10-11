@@ -37,6 +37,7 @@ import { ShareCardSheet, type ShareCardContent } from '../share/ShareCards';
 import { useNow } from '../coach/format';
 import { Card, colors, Columns, contentFrame, EmptyState, ErrorState, GhostButton, LoadingRows, PrimaryButton, ProLockCard, SectionLabel, SegmentedControl, useWide } from '../coach/ui';
 import { ART } from '../../constants/art';
+import { HockeyHero } from '../coach/HockeyHero';
 import { TonightHero } from '../tonight/TonightHero';
 import { CoachMovesSection } from '../tonight/CoachMovesSection';
 import { LineupBoard } from '../tonight/LineupBoard';
@@ -150,17 +151,8 @@ export default function TonightScreen() {
 
   const header = (
     <PageHeader
-      title={isTonight ? 'Tonight' : 'Tomorrow'}
+      title={isTonight ? 'PuckIQ' : 'Tomorrow'}
       accessory={<TeamSwitcher />}
-      right={team && team.players.length > 0 ? (
-        <SegmentedControl<Night>
-          value={night}
-          onChange={trackedChoice<Night>('tonight', 'night', setNight)}
-          options={[{ value: 'tonight', label: 'Today' }, { value: 'tomorrow', label: 'Next' }]}
-          testID="night-toggle"
-          style={styles.toggle}
-        />
-      ) : undefined}
     />
   );
 
@@ -209,6 +201,14 @@ export default function TonightScreen() {
   return (
     <View style={styles.container} testID="tonight-screen">
       {header}
+      <View style={styles.nightControl}>
+        <SegmentedControl<Night>
+          value={night}
+          onChange={trackedChoice<Night>('tonight', 'night', setNight)}
+          options={[{ value: 'tonight', label: 'Today' }, { value: 'tomorrow', label: 'Tomorrow' }]}
+          testID="night-toggle"
+        />
+      </View>
       <ScrollView
         ref={scroll}
         style={styles.scroll}
@@ -216,6 +216,10 @@ export default function TonightScreen() {
         refreshControl={<RefreshControl refreshing={view.refreshing} onRefresh={view.refresh} tintColor={colors.accent} />}
         showsVerticalScrollIndicator={false}
       >
+        <View style={{flexDirection:'row',gap:10,marginBottom:16}}>
+          <Card onPress={() => router.push('/lineup' as Href)} style={{flex:1,gap:7}}><Ionicons name="sparkles" size={20} color={colors.accent}/><Text style={{color:colors.text,fontSize:14,fontWeight:'600'}}>Best lineup</Text><Text style={{color:colors.sub,fontSize:11}}>Compare & save your plan →</Text></Card>
+          <Card onPress={() => router.push('/insights' as Href)} style={{flex:1,gap:7}}><Ionicons name="trending-up" size={20} color={colors.accent}/><Text style={{color:colors.text,fontSize:14,fontWeight:'600'}}>Your insights</Text><Text style={{color:colors.sub,fontSize:11}}>Players, pickups & trades →</Text></Card>
+        </View>
         {unlinked.length > 0 ? (
           <Card onPress={() => router.push('/myteam' as Href)} style={styles.linkBanner} testID="tonight-unlinked">
             <View style={styles.linkIcon}>
@@ -228,7 +232,7 @@ export default function TonightScreen() {
           </Card>
         ) : null}
 
-        {view.error && !data ? <ErrorState body="Tonight’s games didn’t load. Check your connection and try again." onRetry={view.refresh} /> : null}
+        {view.error ? <ErrorState body={view.error} onRetry={view.refresh} /> : null}
 
         <Columns
           left={(
@@ -299,10 +303,11 @@ export default function TonightScreen() {
             <>
               {playing.length > 0 && view.day ? (
                 <>
-                  <SectionLabel title="Best lineup" flush={wide} />
+                  <SectionLabel title={team.lineupChoices?.[view.date] ? "Your saved lineup" : "Best lineup"} flush={wide} right={<GhostButton label="Optimize" onPress={() => router.push('/lineup' as Href)} />} />
                   {isPremium ? (
                     <LineupBoard
                       day={view.day}
+                      values={view.lineupValues}
                       byId={byId}
                       games={data?.playerGames ?? {}}
                       score={score}
@@ -361,6 +366,7 @@ export default function TonightScreen() {
           )}
         />
         {guidance.nextUp.item ? <NextUpCard item={guidance.nextUp.item} onPress={guidance.nextUp.onPress} /> : null}
+        <HockeyHero compact />
       </ScrollView>
       <ShareCardSheet visible={sharing === 'night'} content={nightShare} onClose={() => setSharing(null)} />
       <ShareCardSheet visible={sharing === 'recap'} content={recapShare} onClose={() => setSharing(null)} />
@@ -382,9 +388,9 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   emptyActions: { alignSelf: 'stretch', gap: 10 },
   padded: { paddingHorizontal: 16 },
-  toggle: { width: 150 },
+  nightControl: { paddingHorizontal: 12, marginBottom: 8 },
   scroll: { flex: 1 },
-  content: { paddingHorizontal: 16, paddingBottom: 130, gap: 0 },
+  content: { paddingHorizontal: 12, paddingBottom: 100, gap: 0 },
   stack: { gap: 10 },
   linkBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
   linkIcon: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.warn },

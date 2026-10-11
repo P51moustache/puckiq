@@ -327,7 +327,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sentTitle: {
-    ...display(40),
+    ...display(24),
     color: colors.text,
   },
   sentBody: {

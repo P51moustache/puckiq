@@ -41,9 +41,9 @@ export function PlanCard() {
 }
 
 const styles = StyleSheet.create({
-  card: { marginTop: 4, backgroundColor: colors.ink, borderRadius: 22, padding: 18 },
+  card: { marginTop: 4, backgroundColor: colors.card, borderRadius: 10, padding: 12 },
   head: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  title: { ...display(26), color: colors.onInk },
+  title: { ...display(20), color: colors.onInk },
   copy: { fontSize: 14, lineHeight: 20, color: colors.onInkSub },
   freeLine: { fontSize: 14, lineHeight: 22, color: colors.onInkSub },
   button: { marginTop: 14 },

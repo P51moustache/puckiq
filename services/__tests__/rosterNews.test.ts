@@ -106,16 +106,33 @@ describe('filterNewsForRoster', () => {
 });
 
 describe('newsInjuryHintForPlayer', () => {
+  const now = new Date('2026-10-13T17:00:00Z');
   it('reads injury language only from stories that name that player', () => {
     const items = filterNewsForRoster(
-      [{ title: 'McDavid placed on IR', url: 'https://example.com/1', summary: '', publishedAt: '' }],
+      [{ title: 'McDavid placed on IR', url: 'https://example.com/1', summary: '', publishedAt: now.toISOString() }],
       [player()],
     );
-    expect(newsInjuryHintForPlayer(player(), items)).toBe('out');
+    expect(newsInjuryHintForPlayer(player(), items, now)).toBe('out');
     expect(newsInjuryHintForPlayer(
       player({ playerId: 9, playerName: 'Auston Matthews' }),
       items,
+      now,
     )).toBeNull();
+  });
+  it('does not transfer an injury to another player in the article', () => {
+    const other = player({ playerId: 8477934, playerName: 'Leon Draisaitl' });
+    const items = filterNewsForRoster([{ title: 'Connor McDavid placed on IR; Leon Draisaitl scores twice',
+      url: 'https://example.com/1', summary: '', publishedAt: now.toISOString() }], [player(), other]);
+    expect(newsInjuryHintForPlayer(player(), items, now)).toBe('out');
+    expect(newsInjuryHintForPlayer(other, items, now)).toBeNull();
+  });
+  it.each(['', 'invalid', '2026-10-10T17:00:00Z', '2026-10-14T17:00:00Z'])('ignores an undated, stale or future injury report (%s)', (publishedAt) => {
+    const items = filterNewsForRoster([{ title: 'McDavid placed on IR', url: 'https://example.com/1', summary: '', publishedAt }], [player()]);
+    expect(newsInjuryHintForPlayer(player(), items, now)).toBeNull();
+  });
+  it('does not flag a return from IR as an injury', () => {
+    const items = filterNewsForRoster([{ title: 'McDavid activated from IR', url: 'https://example.com/1', summary: '', publishedAt: now.toISOString() }], [player()]);
+    expect(newsInjuryHintForPlayer(player(), items, now)).toBeNull();
   });
 });
 

@@ -194,7 +194,7 @@ export function buildCoachMoves({ day, players, games, statuses, forms, goalieOu
     });
   }
 
-  const off = players.filter((player) => !player.injuredReserve && !day.playing.includes(player.playerId));
+  const off = players.filter((player) => !player.injuredReserve && !games[player.playerId]);
   if (off.length > 0 && day.playing.length > 0) {
     moves.push({
       id: 'off',

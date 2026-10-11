@@ -78,9 +78,9 @@ function PreBody({ night, playingCount, total, problems, starters, emptySlots, f
         </View>
       </View>
       <View style={styles.stats}>
-        <StatCell dark value={String(problems)} label={problems === 1 ? 'Problem' : 'Problems'} tone={problems > 0 ? 'accent' : 'neutral'} testID="tonight-problems" size={26} />
-        <StatCell dark value={starters === null ? '—' : String(starters)} label="Starters" size={26} />
-        <StatCell dark value={emptySlots === null ? '—' : String(emptySlots)} label="Empty slots" tone={emptySlots ? 'warn' : 'neutral'} size={26} />
+        <StatCell dark value={String(problems)} label={problems === 1 ? 'Problem' : 'Problems'} tone={problems > 0 ? 'accent' : 'neutral'} testID="tonight-problems" size={20} />
+        <StatCell dark value={starters === null ? '—' : String(starters)} label="Starters" size={20} />
+        <StatCell dark value={emptySlots === null ? '—' : String(emptySlots)} label="Empty slots" tone={emptySlots ? 'warn' : 'neutral'} size={20} />
       </View>
       {firstPuck ? (
         <CountdownBar
@@ -117,9 +117,9 @@ function LiveBody({ score, tallies, isPro, topLine, follow }: TonightHeroProps &
         </View>
       )}
       <View style={styles.stats}>
-        <StatCell dark value={String(score.live)} label="Live" tone={score.live > 0 ? 'accent' : 'neutral'} size={26} testID="tonight-live-count" />
-        <StatCell dark value={String(score.final)} label="Final" size={26} />
-        <StatCell dark value={String(score.upcoming)} label="To go" size={26} />
+        <StatCell dark value={String(score.live)} label="Live" tone={score.live > 0 ? 'accent' : 'neutral'} size={20} testID="tonight-live-count" />
+        <StatCell dark value={String(score.final)} label="Final" size={20} />
+        <StatCell dark value={String(score.upcoming)} label="To go" size={20} />
       </View>
       {lineupSplit && !tallies && score.benchPoints > 0 ? (
         <Text style={styles.bench} testID="tonight-bench-points">
@@ -191,11 +191,11 @@ function QuietBody({ night, quiet }: TonightHeroProps) {
 }
 
 const styles = StyleSheet.create({
-  hero: { gap: 14 },
+  hero: { gap: 8 },
   countRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 12 },
-  bigCount: { ...display(76), color: colors.onInk, lineHeight: 80, letterSpacing: -3 },
-  bigPoints: { ...display(72), color: colors.onInk, lineHeight: 78, letterSpacing: -3 },
-  countText: { flex: 1, paddingBottom: 10 },
+  bigCount: { ...display(40), color: colors.onInk, lineHeight: 44, letterSpacing: -0.8 },
+  bigPoints: { ...display(40), color: colors.onInk, lineHeight: 44, letterSpacing: -0.8 },
+  countText: { flex: 1, paddingBottom: 2 },
   of: { ...display(22), color: colors.onInkSub },
   caption: { fontSize: 15, fontWeight: '700', color: colors.onInk },
   tallies: { gap: 8 },

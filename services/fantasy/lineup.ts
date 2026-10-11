@@ -101,10 +101,10 @@ export function expandSlots(slots: LineupSlots): SlotKey[] {
   return SLOT_ORDER.flatMap((key) => Array.from({ length: slots[key] }, () => key));
 }
 
-export function assignLineup(candidates: LineupCandidate[], slots: LineupSlots): LineupResult {
+export function assignLineup(candidates: LineupCandidate[], slots: LineupSlots, prioritizedIds: ReadonlySet<number> = new Set()): LineupResult {
   const instances = expandSlots(slots);
   const seatedBy: number[] = instances.map(() => -1);
-  const ordered = [...candidates].sort((a, b) => b.value - a.value || a.playerId - b.playerId);
+  const ordered = [...candidates].sort((a, b) => Number(prioritizedIds.has(b.playerId)) - Number(prioritizedIds.has(a.playerId)) || b.value - a.value || a.playerId - b.playerId);
 
   const trySeat = (candidateIndex: number, visited: Set<number>): boolean => {
     const eligible = ordered[candidateIndex].slots;

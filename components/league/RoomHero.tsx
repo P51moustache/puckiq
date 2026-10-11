@@ -72,7 +72,7 @@ function CoverageBar({ coverage: { synced, joined, leagueSize } }: { coverage: R
 
 const styles = StyleSheet.create({
   hero: { gap: 14 },
-  name: { ...display(30), color: colors.onInk, lineHeight: 34 },
+  name: { ...display(24), color: colors.onInk, lineHeight: 28 },
   inviteRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   codePill: {
     flexDirection: 'row',

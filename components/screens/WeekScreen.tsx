@@ -90,16 +90,15 @@ export default function WeekScreen() {
       <PageHeader
         title="Week"
         accessory={<TeamSwitcher />}
-        right={(
+      />
+      <View style={styles.weekControl}>
           <SegmentedControl<WeekChoice>
             value={choice}
             onChange={trackedChoice('week', 'week', onChoice)}
-            options={[{ value: 'this', label: 'This' }, { value: 'next', label: 'Next', locked: !isPremium && !emptyThisWeek }]}
+            options={[{ value: 'this', label: 'This week' }, { value: 'next', label: 'Next week', locked: !isPremium && !emptyThisWeek }]}
             testID="week-toggle"
-            style={{ width: 136 }}
           />
-        )}
-      />
+      </View>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[styles.content, contentFrame]}
@@ -115,7 +114,7 @@ export default function WeekScreen() {
           </Card>
         ) : null}
 
-        {week.error && !plan ? <ErrorState body="The NHL schedule didn’t load. Check your connection and try again." onRetry={week.refresh} /> : null}
+        {week.error ? <ErrorState body={week.error} onRetry={week.refresh} /> : null}
         {week.loading && !plan ? <LoadingRows count={6} /> : null}
 
         {plan ? (
@@ -153,6 +152,7 @@ export default function WeekScreen() {
 }
 
 const styles = StyleSheet.create({
+  weekControl: { paddingHorizontal: 12, marginBottom: 8 },
   container: {
     flex: 1,
     backgroundColor: colors.bg,

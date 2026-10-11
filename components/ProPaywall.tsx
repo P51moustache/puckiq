@@ -1,3 +1,4 @@
+import { styles } from './ProPaywall.styles';
 /**
  * PuckIQ Pro sheet. Prices come from the store (RevenueCat offerings); the list
  * prices in constants/monetization are only a fallback label.
@@ -11,7 +12,6 @@ import {
   Modal,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -20,8 +20,6 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { PurchasesPackage } from 'react-native-purchases';
 import {
-  LIST_PRICE_ANNUAL,
-  LIST_PRICE_MONTHLY,
   PRO_FEATURES,
   isPaywallEnabled,
   type PaywallSource,
@@ -71,12 +69,16 @@ export default function ProPaywall({ visible, onClose, source = 'settings' }: Pr
   const [plan, setPlan] = useState<Plan>('annual');
   const [packages, setPackages] = useState<{ annual: PurchasesPackage | null; monthly: PurchasesPackage | null }>({ annual: null, monthly: null });
   const [trialEligibility, setTrialEligibility] = useState<Record<string, boolean>>({});
+  const [storeLoading, setStoreLoading] = useState(true);
+  const [storeAttempt, setStoreAttempt] = useState(0);
   const busy = purchasing || restoring;
 
   useEffect(() => {
     if (!visible) return;
     AnalyticsService.getInstance().trackCustomEvent('paywall_view', { source });
     let cancelled = false;
+    setStoreLoading(true);
+    setPackages({ annual: null, monthly: null });
     setTrialEligibility({});
     getOfferings().then((offerings) => {
       if (cancelled) return;
@@ -84,17 +86,19 @@ export default function ProPaywall({ visible, onClose, source = 'settings' }: Pr
       setPackages(next);
       const ids = Object.values(next).flatMap((pkg) => pkg?.product?.identifier ? [pkg.product.identifier] : []);
       getTrialEligibility(ids).then((eligible) => { if (!cancelled) setTrialEligibility(eligible); });
-    });
+    }).catch(() => undefined).finally(() => { if (!cancelled) setStoreLoading(false); });
     return () => {
       cancelled = true;
     };
-  }, [visible, source]);
+  }, [visible, source, storeAttempt]);
 
   const selected = plan === 'annual' ? packages.annual : packages.monthly;
-  const annualPrice = packagePrice(packages.annual) ?? LIST_PRICE_ANNUAL;
-  const monthlyPrice = packagePrice(packages.monthly) ?? LIST_PRICE_MONTHLY;
+  const annualPrice = packagePrice(packages.annual);
+  const monthlyPrice = packagePrice(packages.monthly);
+  const pricePlaceholder = storeLoading ? 'Loading…' : 'Unavailable';
   const trial = selected?.product?.identifier && trialEligibility[selected.product.identifier] === true ? trialLabel(selected) : null;
-  const renewal = plan === 'annual' ? `${annualPrice}/year` : `${monthlyPrice}/month`;
+  const selectedPrice = plan === 'annual' ? annualPrice : monthlyPrice;
+  const renewal = selectedPrice ? `${selectedPrice}/${plan === 'annual' ? 'year' : 'month'}` : null;
 
   const savings = useMemo(() => {
     const annual = packages.annual?.product?.price;
@@ -110,7 +114,7 @@ export default function ProPaywall({ visible, onClose, source = 'settings' }: Pr
       Alert.alert('Subscriptions are off', 'Purchases are disabled in this build.');
       return;
     }
-    if (!selected) {
+    if (!selected || !packagePrice(selected)) {
       Alert.alert('Store unavailable', 'We couldn’t reach the App Store. Check your connection and try again.');
       return;
     }
@@ -158,14 +162,14 @@ export default function ProPaywall({ visible, onClose, source = 'settings' }: Pr
 
         <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
           <View style={styles.hero}>
-            <Image source={ART.goalLamp} style={styles.heroImage} contentFit="cover" contentPosition="center" accessible={false} />
-            <LinearGradient colors={['#15151E00', colors.ink]} style={styles.heroFade} pointerEvents="none" />
+            <Image source={ART.hockeyNight} style={styles.heroImage} contentFit="cover" contentPosition="center" accessible={false} />
+            <LinearGradient colors={['#0D141A00', colors.bg]} style={styles.heroFade} pointerEvents="none" />
           </View>
           <View style={styles.kickerRow}>
             <BrandMark height={16} />
             <Text style={styles.kicker}>PUCKIQ PRO</Text>
           </View>
-          <Text style={styles.title}>WIN YOUR{'\n'}WEEK.</Text>
+          <Text style={styles.title}>Win your{'\n'}week.</Text>
           <Text style={styles.lede}>
             Your best lineup, every move before lock, and pickups for your empty nights.
           </Text>
@@ -219,9 +223,9 @@ export default function ProPaywall({ visible, onClose, source = 'settings' }: Pr
                   accessibilityRole="radio"
                   accessibilityState={{ selected: plan === 'annual' }}
                 >
-                  {savings ? <Text style={styles.planBadge}>SAVE {savings}%</Text> : <Text style={styles.planBadge}>BEST VALUE</Text>}
+                  {savings ? <Text style={styles.planBadge}>SAVE {savings}%</Text> : <Text style={[styles.planBadge, styles.planBadgeHidden]}> </Text>}
                   <Text style={styles.planName}>Season pass</Text>
-                  <Text style={styles.planPrice}>{annualPrice}</Text>
+                  <Text style={[styles.planPrice, !annualPrice && styles.pricePlaceholder]} numberOfLines={1}>{annualPrice ?? pricePlaceholder}</Text>
                   <Text style={styles.planNote}>per season · billed yearly</Text>
                 </Pressable>
                 <Pressable
@@ -233,7 +237,7 @@ export default function ProPaywall({ visible, onClose, source = 'settings' }: Pr
                 >
                   <Text style={[styles.planBadge, styles.planBadgeHidden]}> </Text>
                   <Text style={styles.planName}>Monthly</Text>
-                  <Text style={styles.planPrice}>{monthlyPrice}</Text>
+                  <Text style={[styles.planPrice, !monthlyPrice && styles.pricePlaceholder]} numberOfLines={1}>{monthlyPrice ?? pricePlaceholder}</Text>
                   <Text style={styles.planNote}>per month · cancel anytime</Text>
                 </Pressable>
               </View>
@@ -245,13 +249,17 @@ export default function ProPaywall({ visible, onClose, source = 'settings' }: Pr
                 label={trial ? `Start ${trial}` : 'Subscribe'}
                 onPress={handlePurchase}
                 loading={purchasing}
-                disabled={busy}
+                disabled={busy || !selected || !selectedPrice}
                 testID="pro-subscribe"
               />
               <Text style={styles.renewal} testID="pro-renewal">
-                {trial ? `${trial[0].toUpperCase()}${trial.slice(1)}, then ${renewal}. ` : `${renewal}, renews automatically. `}
-                Cancel anytime.
+                {renewal ? `${trial ? `${trial[0].toUpperCase()}${trial.slice(1)}, then ${renewal}. ` : `${renewal}, renews automatically. `}Cancel anytime.` : 'Prices are provided by the App Store. No purchase is available until they load.'}
               </Text>
+              {!storeLoading && !selectedPrice ? (
+                <Pressable onPress={() => setStoreAttempt((attempt) => attempt + 1)} style={styles.restore} testID="pro-retry-store" accessibilityRole="button">
+                  <Text style={styles.restoreText}>Retry App Store</Text>
+                </Pressable>
+              ) : null}
             </>
           ) : null}
 
@@ -263,210 +271,3 @@ export default function ProPaywall({ visible, onClose, source = 'settings' }: Pr
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.ink,
-  },
-  header: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    zIndex: 2,
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#00000066',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  hero: {
-    height: 290,
-    marginHorizontal: -22,
-    marginBottom: -54,
-  },
-  heroImage: {
-    width: '100%',
-    height: '100%',
-  },
-  heroFade: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 150,
-  },
-  body: {
-    paddingHorizontal: 22,
-    paddingBottom: 40,
-  },
-  kickerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 4,
-  },
-  kicker: {
-    fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: 1.6,
-    color: colors.onInk,
-  },
-  title: {
-    fontSize: 50,
-    lineHeight: 52,
-    fontWeight: '900',
-    fontStyle: 'italic',
-    letterSpacing: -1.5,
-    color: colors.onInk,
-    marginTop: 8,
-  },
-  lede: {
-    fontSize: 16,
-    lineHeight: 23,
-    color: colors.onInkSub,
-    marginTop: 10,
-  },
-  activeCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 16,
-    padding: 12,
-    borderRadius: 14,
-    backgroundColor: colors.inkRaised,
-  },
-  activeText: {
-    color: colors.onInk,
-    fontSize: 14,
-    fontWeight: '700',
-    flex: 1,
-  },
-  features: {
-    marginTop: 24,
-    gap: 16,
-  },
-  feature: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  featureIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 11,
-    backgroundColor: colors.inkRaised,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  featureText: {
-    flex: 1,
-  },
-  featureTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: colors.onInk,
-  },
-  featureDetail: {
-    fontSize: 14,
-    lineHeight: 19,
-    color: colors.onInkSub,
-    marginTop: 2,
-  },
-  footer: {
-    paddingHorizontal: 22,
-    paddingTop: 14,
-    paddingBottom: 26,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.12)',
-    backgroundColor: colors.ink,
-  },
-  plans: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 12,
-  },
-  plan: {
-    flex: 1,
-    borderRadius: 18,
-    borderWidth: 2,
-    borderColor: colors.inkRaised,
-    backgroundColor: colors.inkRaised,
-    padding: 14,
-    gap: 2,
-  },
-  planOn: {
-    borderColor: colors.onInk,
-  },
-  planBadge: {
-    alignSelf: 'flex-start',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 0.8,
-    color: colors.onInk,
-    backgroundColor: colors.accent,
-    borderRadius: 6,
-    overflow: 'hidden',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    marginBottom: 6,
-  },
-  planBadgeHidden: {
-    opacity: 0,
-  },
-  planName: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: colors.onInk,
-  },
-  planPrice: {
-    fontSize: 30,
-    fontWeight: '900',
-    fontStyle: 'italic',
-    color: colors.onInk,
-  },
-  planNote: {
-    fontSize: 12,
-    color: colors.onInkSub,
-  },
-  savingsNote: {
-    fontSize: 11,
-    color: colors.onInkSub,
-    textAlign: 'center',
-    marginTop: -4,
-    marginBottom: 10,
-  },
-  renewal: {
-    fontSize: 12,
-    color: colors.onInkSub,
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  restore: {
-    alignItems: 'center',
-    paddingTop: 12,
-  },
-  restoreText: {
-    color: colors.onInk,
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  legal: {
-    fontSize: 11,
-    lineHeight: 16,
-    color: colors.onInkSub,
-    textAlign: 'center',
-    marginTop: 28,
-  },
-  links: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 18,
-    marginTop: 10,
-  },
-  link: {
-    fontSize: 12,
-    color: colors.onInkSub,
-    textDecorationLine: 'underline',
-  },
-});

@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 17, fontWeight: '700', color: colors.text },
   done: { fontSize: 16, fontWeight: '800', color: colors.accent },
   content: { paddingHorizontal: 20, paddingBottom: 48 },
-  title: { ...display(30), marginTop: 4, marginBottom: 16 },
+  title: { ...display(20), marginTop: 4, marginBottom: 16 },
   extra: {
     backgroundColor: colors.ink,
     borderRadius: 14,

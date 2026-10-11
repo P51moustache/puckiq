@@ -5,6 +5,8 @@
  */
 
 export const ART = {
+  /** Cinematic generated hockey scene for dark home and insight heroes. */
+  hockeyNight: require('../assets/images/art/hockey-night.png'),
   /** Ice resurfacer on an empty rink — no games tonight / this week. */
   noGames: require('../assets/images/art/no-games.jpg'),
   /** Empty net with a puck — every slot is covered. */

@@ -3,62 +3,133 @@
  * with this week's games and value. Links names typed into PuckIQ 2.x.
  */
 
-import React, { useMemo, useState } from 'react';
-import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import type { FantasyPlayer } from '../../types/fantasy';
-import { useNhlToday, useWeekData, useWeekHasGamesLeft } from '../../hooks/useCoach';
-import { findExactNhlMatches } from '../../services/fantasy/autoLink';
-import { basePositions, isGoalie, isNhlLinked, positionLabel } from '../../services/fantasy/positions';
-import { formatValue } from '../../services/fantasy/scoring';
-import { slotsLabel } from '../../services/fantasy/lineup';
-import { MAX_ROSTER_PLAYERS, PLATFORM_LABEL, removePlayer, replacePlayer } from '../../services/teams';
-import { seasonLabel } from '../../services/nhl/dates';
-import PageHeader from '../PageHeader';
-import { useTeams } from '../TeamsProvider';
-import { usePlayerSheet } from '../sheets/PlayerSheet';
-import PlayerSearchSheet, { toFantasyPlayer, type SearchMode } from '../sheets/PlayerSearchSheet';
-import { RosterImportSheet } from '../rosterImport/RosterImportSheet';
-import LeagueSettingsSheet from '../sheets/LeagueSettingsSheet';
-import TeamSwitcher from '../coach/TeamSwitcher';
-import SampleTeamNotice from '../coach/SampleTeamNotice';
-import { PlayerAvatar, PlayerName } from '../coach/PlayerAvatar';
-import { Card, ColdBadge, colors, Columns, contentFrame, display, EmptyState, GhostButton, HotBadge, IconButton, LoadingRows, PrimaryButton, SectionLabel } from '../coach/ui';
-import { ART } from '../../constants/art';
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  Alert,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import type { FantasyPlayer } from "../../types/fantasy";
+import {
+  useNhlToday,
+  useWeekData,
+  useWeekHasGamesLeft,
+} from "../../hooks/useCoach";
+import { findExactNhlMatches } from "../../services/fantasy/autoLink";
+import {
+  basePositions,
+  isGoalie,
+  isNhlLinked,
+  positionLabel,
+} from "../../services/fantasy/positions";
+import { formatValue } from "../../services/fantasy/scoring";
+import { slotsLabel } from "../../services/fantasy/lineup";
+import {
+  MAX_ROSTER_PLAYERS,
+  PLATFORM_LABEL,
+  removePlayer,
+  replacePlayer,
+} from "../../services/teams";
+import { seasonLabel } from "../../services/nhl/dates";
+import PageHeader from "../PageHeader";
+import { useTeams } from "../TeamsProvider";
+import { usePlayerSheet } from "../sheets/PlayerSheet";
+import PlayerSearchSheet, {
+  toFantasyPlayer,
+  type SearchMode,
+} from "../sheets/PlayerSearchSheet";
+import { RosterImportSheet } from "../rosterImport/RosterImportSheet";
+import LeagueSettingsSheet from "../sheets/LeagueSettingsSheet";
+import TeamSwitcher from "../coach/TeamSwitcher";
+import SampleTeamNotice from "../coach/SampleTeamNotice";
+import { PlayerAvatar, PlayerName } from "../coach/PlayerAvatar";
+import {
+  Card,
+  ColdBadge,
+  colors,
+  Columns,
+  contentFrame,
+  display,
+  EmptyState,
+  GhostButton,
+  HotBadge,
+  IconButton,
+  LoadingRows,
+  PrimaryButton,
+  SectionLabel,
+} from "../coach/ui";
+import { ART } from "../../constants/art";
 
-type Group = 'F' | 'D' | 'G';
+type Group = "F" | "D" | "G";
 
 function groupOf(player: FantasyPlayer): Group {
-  if (isGoalie(player)) return 'G';
+  if (isGoalie(player)) return "G";
   const positions = basePositions(player);
-  return positions.includes('D') && !positions.some((pos) => pos !== 'D') ? 'D' : 'F';
+  return positions.includes("D") && !positions.some((pos) => pos !== "D")
+    ? "D"
+    : "F";
 }
 
-const GROUP_TITLE: Record<Group, string> = { F: 'Forwards', D: 'Defense', G: 'Goalies' };
+const GROUP_TITLE: Record<Group, string> = {
+  F: "Forwards",
+  D: "Defense",
+  G: "Goalies",
+};
 
 export default function RosterScreen() {
+  const params = useLocalSearchParams<{ opponent?: string }>();
+  const router = useRouter();
   const { team, ready, updateTeam } = useTeams();
   const { openPlayer } = usePlayerSheet();
   // Preseason, All-Star break, Sunday night: count next week's games instead of a column of zeros.
   const lookAhead = useWeekHasGamesLeft(useNhlToday()) === false;
   const week = useWeekData(team, lookAhead ? 1 : 0);
-  const [search, setSearch] = useState<SearchMode | null>(null);
+  const [search, setSearch] = useState<SearchMode | null>(
+    params.opponent === "1" ? { kind: "add", list: "opponent" } : null,
+  );
   const [importing, setImporting] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [linking, setLinking] = useState(false);
+  useEffect(() => {
+    if (params.opponent === "1") {
+      setSearch({ kind: "add", list: "opponent" });
+      router.setParams({ opponent: undefined });
+    }
+  }, [params.opponent, router]);
 
   const forms = week.forms.data?.forms;
   const plan = week.plan;
-  const linked = useMemo(() => (team?.players ?? []).filter((player) => isNhlLinked(player)), [team]);
-  const unlinked = useMemo(() => (team?.players ?? []).filter((player) => !isNhlLinked(player)), [team]);
+  const linked = useMemo(
+    () => (team?.players ?? []).filter((player) => isNhlLinked(player)),
+    [team],
+  );
+  const unlinked = useMemo(
+    () => (team?.players ?? []).filter((player) => !isNhlLinked(player)),
+    [team],
+  );
   const groups = useMemo(() => {
-    const out: Record<Group | 'IR', FantasyPlayer[]> = { F: [], D: [], G: [], IR: [] };
+    const out: Record<Group | "IR", FantasyPlayer[]> = {
+      F: [],
+      D: [],
+      G: [],
+      IR: [],
+    };
     for (const player of linked) {
       if (player.injuredReserve) out.IR.push(player);
       else out[groupOf(player)].push(player);
     }
     for (const key of Object.keys(out) as Array<keyof typeof out>) {
-      out[key].sort((a, b) => (forms?.get(b.playerId)?.value ?? 0) - (forms?.get(a.playerId)?.value ?? 0));
+      out[key].sort(
+        (a, b) =>
+          (forms?.get(b.playerId)?.value ?? 0) -
+          (forms?.get(a.playerId)?.value ?? 0),
+      );
     }
     return out;
   }, [linked, forms]);
@@ -71,14 +142,19 @@ export default function RosterScreen() {
       if (matches.size > 0) {
         updateTeam((current) => {
           let next = current;
-          for (const [oldId, match] of matches) next = replacePlayer(next, oldId, toFantasyPlayer(match));
+          for (const [oldId, match] of matches)
+            next = replacePlayer(next, oldId, toFantasyPlayer(match));
           return next;
         });
       }
       const left = unlinked.length - matches.size;
       Alert.alert(
-        matches.size > 0 ? `Linked ${matches.size} ${matches.size === 1 ? 'player' : 'players'}` : 'No exact matches',
-        left > 0 ? `${left} still need a tap — pick the right NHL player for each.` : 'Every name is linked to an NHL player now.',
+        matches.size > 0
+          ? `Linked ${matches.size} ${matches.size === 1 ? "player" : "players"}`
+          : "No exact matches",
+        left > 0
+          ? `${left} still need a tap — pick the right NHL player for each.`
+          : "Every name is linked to an NHL player now.",
       );
     } finally {
       setLinking(false);
@@ -86,18 +162,29 @@ export default function RosterScreen() {
   };
 
   const confirmRemoveUnlinked = (player: FantasyPlayer) => {
-    Alert.alert(player.playerName, 'Link to an NHL player, or remove this name?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: () => updateTeam((current) => removePlayer(current, player.playerId)) },
-      { text: 'Link', onPress: () => setSearch({ kind: 'link', player }) },
-    ]);
+    Alert.alert(
+      player.playerName,
+      "Link to an NHL player, or remove this name?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: () =>
+            updateTeam((current) => removePlayer(current, player.playerId)),
+        },
+        { text: "Link", onPress: () => setSearch({ kind: "link", player }) },
+      ],
+    );
   };
 
   if (!ready) {
     return (
       <View style={styles.container}>
-        <PageHeader title="Roster" />
-        <View style={styles.padded}><LoadingRows count={6} /></View>
+        <PageHeader compact title="Players" />
+        <View style={styles.padded}>
+          <LoadingRows count={6} />
+        </View>
       </View>
     );
   }
@@ -108,53 +195,103 @@ export default function RosterScreen() {
     return (
       <Pressable
         key={player.playerId}
-        onPress={() => openPlayer(player.playerId, 'roster', 'myteam')}
+        onPress={() => openPlayer(player.playerId, "roster", "myteam")}
         style={({ pressed }) => [styles.row, pressed && styles.pressed]}
         testID={`roster-row-${player.playerId}`}
       >
-        <PlayerAvatar playerId={player.playerId} team={player.teamAbbrev} position={player.position} size={50} />
+        <PlayerAvatar
+          playerId={player.playerId}
+          team={player.teamAbbrev}
+          position={player.position}
+          size={50}
+        />
         <View style={styles.rowText}>
           <PlayerName name={player.playerName} size={16} />
           <Text style={styles.meta}>
-            {positionLabel(player)} · {player.teamAbbrev || 'No team'}
-            {form && form.basis !== 'none' ? ` · ${formatValue(form.seasonRate)}/${form.isGoalie ? 'start' : 'gm'}` : ''}
-            {form?.basis === 'previous' && week.forms.data ? ` (${seasonLabel(week.forms.data.previousSeasonId)})` : ''}
+            {positionLabel(player)} · {player.teamAbbrev || "No team"}
+            {form && form.basis !== "none"
+              ? ` · ${formatValue(form.seasonRate)}/${form.isGoalie ? "start" : "gm"}`
+              : ""}
+            {form?.basis === "previous" && week.forms.data
+              ? ` (${seasonLabel(week.forms.data.previousSeasonId)})`
+              : ""}
           </Text>
         </View>
         <View style={styles.rowRight}>
-          {games ? <Text style={styles.games}>{lookAhead ? games.games : games.remainingGames}</Text> : null}
-          {games ? <Text style={styles.gamesLabel}>{lookAhead ? 'NEXT WK' : 'LEFT'}</Text> : null}
+          {games ? (
+            <Text style={styles.games}>
+              {lookAhead ? games.games : games.remainingGames}
+            </Text>
+          ) : null}
+          {games ? (
+            <Text style={styles.gamesLabel}>
+              {lookAhead ? "NEXT WK" : "LEFT"}
+            </Text>
+          ) : null}
         </View>
-        {form?.trend === 'hot' ? <HotBadge /> : null}
-        {form?.trend === 'cold' ? <ColdBadge /> : null}
+        {form?.trend === "hot" ? <HotBadge /> : null}
+        {form?.trend === "cold" ? <ColdBadge /> : null}
       </Pressable>
     );
   };
 
-  const renderGroup = (group: Group) => (groups[group].length > 0 ? (
-    <View key={group}>
-      <SectionLabel title={`${GROUP_TITLE[group]} (${groups[group].length})`} right={<Text style={styles.hint}>{lookAhead ? 'GAMES NEXT WEEK' : 'GAMES LEFT'}</Text>} />
-      <Card style={styles.groupCard}>{groups[group].map(renderRow)}</Card>
-    </View>
-  ) : null);
+  const renderGroup = (group: Group) =>
+    groups[group].length > 0 ? (
+      <View key={group}>
+        <SectionLabel
+          title={`${GROUP_TITLE[group]} (${groups[group].length})`}
+          right={
+            <Text style={styles.hint}>
+              {lookAhead ? "GAMES NEXT WEEK" : "GAMES LEFT"}
+            </Text>
+          }
+        />
+        <Card style={styles.groupCard}>{groups[group].map(renderRow)}</Card>
+      </View>
+    ) : null;
 
   if (!team || team.players.length === 0) {
     return (
       <View style={styles.container} testID="roster-empty">
-        <PageHeader title="Roster" accessory={<TeamSwitcher />} />
+        <PageHeader
+          compact
+          title="Players"
+          accessory={<TeamSwitcher compact />}
+        />
         <EmptyState
           art={ART.emptyRoster}
           title="Build your roster"
           body="Screenshot your roster in Yahoo, ESPN or Fantrax and import it in one go — or search players one by one. Bench and IR too."
-          action={(
+          action={
             <View style={styles.emptyActions}>
-              <PrimaryButton label="Import from screenshots" icon="scan-outline" onPress={() => setImporting(true)} testID="roster-import-first" />
-              <GhostButton label="Search players" icon="search" tone="neutral" onPress={() => setSearch({ kind: 'add', list: 'players' })} testID="roster-add-first" />
+              <PrimaryButton
+                label="Import from screenshots"
+                icon="scan-outline"
+                onPress={() => setImporting(true)}
+                testID="roster-import-first"
+              />
+              <GhostButton
+                label="Search players"
+                icon="search"
+                tone="neutral"
+                onPress={() => setSearch({ kind: "add", list: "players" })}
+                testID="roster-add-first"
+              />
             </View>
-          )}
+          }
         />
-        {search ? <PlayerSearchSheet visible mode={search} onClose={() => setSearch(null)} /> : null}
-        <RosterImportSheet visible={importing} source="roster" onClose={() => setImporting(false)} />
+        {search ? (
+          <PlayerSearchSheet
+            visible
+            mode={search}
+            onClose={() => setSearch(null)}
+          />
+        ) : null}
+        <RosterImportSheet
+          visible={importing}
+          source="roster"
+          onClose={() => setImporting(false)}
+        />
       </View>
     );
   }
@@ -162,25 +299,48 @@ export default function RosterScreen() {
   return (
     <View style={styles.container} testID="roster-screen">
       <PageHeader
-        title="Roster"
-        accessory={<TeamSwitcher />}
-        right={(
+        compact
+        title="Players"
+        accessory={<TeamSwitcher compact />}
+        right={
           <View style={styles.headerActions}>
-            <IconButton icon="scan-outline" label="Import roster from screenshots" onPress={() => setImporting(true)} testID="roster-import" />
-            <IconButton icon="add" label="Add players" onPress={() => setSearch({ kind: 'add', list: 'players' })} testID="roster-add" />
+            <IconButton
+              icon="scan-outline"
+              label="Import roster from screenshots"
+              onPress={() => setImporting(true)}
+              testID="roster-import"
+            />
+            <IconButton
+              icon="add"
+              label="Add players"
+              onPress={() => setSearch({ kind: "add", list: "players" })}
+              testID="roster-add"
+            />
           </View>
-        )}
+        }
       />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[styles.content, contentFrame]}
-        refreshControl={<RefreshControl refreshing={week.refreshing} onRefresh={week.refresh} tintColor={colors.accent} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={week.refreshing}
+            onRefresh={week.refresh}
+            tintColor={colors.accent}
+          />
+        }
       >
         <SampleTeamNotice />
 
-        <Card style={styles.leagueCard} onPress={() => setSettingsOpen(true)} testID="roster-league-settings">
+        <Card
+          style={styles.leagueCard}
+          onPress={() => setSettingsOpen(true)}
+          testID="roster-league-settings"
+        >
           <View style={styles.leagueText}>
-            <Text style={styles.leagueTitle}>{PLATFORM_LABEL[team.platform]} league rules</Text>
+            <Text style={styles.leagueTitle}>
+              {PLATFORM_LABEL[team.platform]} league rules
+            </Text>
             <Text style={styles.leagueMeta}>{slotsLabel(team.slots)}</Text>
           </View>
           <Ionicons name="options" size={18} color={colors.onInk} />
@@ -191,10 +351,11 @@ export default function RosterScreen() {
             <SectionLabel title={`Needs linking (${unlinked.length})`} />
             <Card style={styles.unlinkedCard}>
               <Text style={styles.unlinkedCopy}>
-                These names were typed in an older PuckIQ. Link each to the real NHL player so schedules and stats load.
+                These names were typed in an older PuckIQ. Link each to the real
+                NHL player so schedules and stats load.
               </Text>
               <GhostButton
-                label={linking ? 'Linking…' : 'Auto-link exact matches'}
+                label={linking ? "Linking…" : "Auto-link exact matches"}
                 icon="flash-outline"
                 onPress={autoLink}
                 style={styles.autoLink}
@@ -203,9 +364,12 @@ export default function RosterScreen() {
               {unlinked.map((player) => (
                 <Pressable
                   key={player.playerId}
-                  onPress={() => setSearch({ kind: 'link', player })}
+                  onPress={() => setSearch({ kind: "link", player })}
                   onLongPress={() => confirmRemoveUnlinked(player)}
-                  style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+                  style={({ pressed }) => [
+                    styles.row,
+                    pressed && styles.pressed,
+                  ]}
                   testID={`unlinked-${player.playerId}`}
                 >
                   <View style={styles.unlinkedIcon}>
@@ -213,9 +377,15 @@ export default function RosterScreen() {
                   </View>
                   <View style={styles.rowText}>
                     <Text style={styles.name}>{player.playerName}</Text>
-                    <Text style={styles.meta}>Tap to link · hold to remove</Text>
+                    <Text style={styles.meta}>
+                      Tap to link · hold to remove
+                    </Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={16} color={colors.sub} />
+                  <Ionicons
+                    name="chevron-forward"
+                    size={16}
+                    color={colors.sub}
+                  />
                 </Pressable>
               ))}
             </Card>
@@ -223,36 +393,53 @@ export default function RosterScreen() {
         ) : null}
 
         <Columns
-          left={renderGroup('F')}
-          right={(
+          left={renderGroup("F")}
+          right={
             <>
-              {renderGroup('D')}
-              {renderGroup('G')}
+              {renderGroup("D")}
+              {renderGroup("G")}
               {groups.IR.length > 0 ? (
                 <View>
                   <SectionLabel title={`IR (${groups.IR.length})`} />
-                  <Card style={styles.groupCard}>{groups.IR.map(renderRow)}</Card>
+                  <Card style={styles.groupCard}>
+                    {groups.IR.map(renderRow)}
+                  </Card>
                 </View>
               ) : null}
             </>
-          )}
+          }
         />
 
         <Text style={styles.footer}>
-          {team.players.length} of {MAX_ROSTER_PLAYERS} players · tap a player for eligibility, IR, and game log
+          {team.players.length} of {MAX_ROSTER_PLAYERS} players · tap a player
+          for eligibility, IR, and game log
         </Text>
       </ScrollView>
 
-      {search ? <PlayerSearchSheet visible mode={search} onClose={() => setSearch(null)} /> : null}
-      <RosterImportSheet visible={importing} source="roster" onClose={() => setImporting(false)} />
-      <LeagueSettingsSheet visible={settingsOpen} team={team} onClose={() => setSettingsOpen(false)} />
+      {search ? (
+        <PlayerSearchSheet
+          visible
+          mode={search}
+          onClose={() => setSearch(null)}
+        />
+      ) : null}
+      <RosterImportSheet
+        visible={importing}
+        source="roster"
+        onClose={() => setImporting(false)}
+      />
+      <LeagueSettingsSheet
+        visible={settingsOpen}
+        team={team}
+        onClose={() => setSettingsOpen(false)}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  emptyActions: { alignSelf: 'stretch', gap: 10 },
-  headerActions: { flexDirection: 'row', gap: 8 },
+  emptyActions: { alignSelf: "stretch", gap: 10 },
+  headerActions: { flexDirection: "row", gap: 8 },
   container: {
     flex: 1,
     backgroundColor: colors.bg,
@@ -268,8 +455,8 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
   leagueCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginTop: 4,
     backgroundColor: colors.ink,
   },
@@ -278,7 +465,7 @@ const styles = StyleSheet.create({
   },
   leagueTitle: {
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: "800",
     color: colors.onInk,
   },
   leagueMeta: {
@@ -296,7 +483,7 @@ const styles = StyleSheet.create({
     color: colors.sub,
   },
   autoLink: {
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
     marginTop: 10,
     marginBottom: 4,
   },
@@ -305,15 +492,15 @@ const styles = StyleSheet.create({
     height: 38,
     borderRadius: 19,
     backgroundColor: `${colors.warn}1A`,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   groupCard: {
     paddingVertical: 4,
   },
   row: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
     paddingVertical: 9,
   },
@@ -325,7 +512,7 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: "700",
     color: colors.text,
   },
   meta: {
@@ -334,7 +521,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   rowRight: {
-    alignItems: 'center',
+    alignItems: "center",
     minWidth: 34,
   },
   games: {
@@ -342,20 +529,20 @@ const styles = StyleSheet.create({
   },
   gamesLabel: {
     fontSize: 8,
-    fontWeight: '900',
+    fontWeight: "900",
     letterSpacing: 0.8,
     color: colors.muted,
   },
   hint: {
     fontSize: 9,
-    fontWeight: '900',
+    fontWeight: "900",
     letterSpacing: 0.8,
     color: colors.muted,
   },
   footer: {
     fontSize: 12,
     color: colors.muted,
-    textAlign: 'center',
+    textAlign: "center",
     marginTop: 20,
   },
 });

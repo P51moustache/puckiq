@@ -4,17 +4,20 @@ import path from 'path';
 const repoRoot = path.join(__dirname, '..');
 const tabsDir = path.join(repoRoot, 'app/(tabs)');
 
-const SHIPPED_TAB_FILES = ['_layout.tsx', 'index.tsx', 'league.tsx', 'myteam.tsx', 'pickups.tsx', 'week.tsx'];
+const SHIPPED_TAB_FILES = ['_layout.tsx', 'index.tsx', 'lineup.tsx', 'insights.tsx', 'more.tsx', 'league.tsx', 'myteam.tsx', 'pickups.tsx', 'week.tsx'];
 // 'league' was the 2.x league-wide briefing; the name now belongs to the League Room tab.
 const KILLED_ROUTES = ['news', 'players', 'stats', 'models', 'teams', 'hub'];
 
 describe('PuckIQ 3 shipping surfaces', () => {
-  it('registers Tonight / Week / Pickups / League / Roster and nothing else', () => {
+  it('registers the five player-centered destinations and keeps specialized tools reachable', () => {
     const layout = fs.readFileSync(path.join(tabsDir, '_layout.tsx'), 'utf8');
-    for (const title of ['Tonight', 'Week', 'Pickups', 'League', 'Roster']) {
-      expect(layout).toMatch(new RegExp(`title: '${title}'`));
+    for (const title of ['Home', 'Players', 'Lineup', 'Insights', 'More']) {
+      expect(layout).toMatch(new RegExp(`title:\\s*["']${title}["']`));
     }
-    expect(layout).not.toMatch(/href:\s*null/);
+    for (const name of ['week', 'pickups', 'league']) {
+      expect(layout).toMatch(new RegExp(`name="${name}"\\s+options=\\{\\{\\s*href: null`));
+      expect(fs.readFileSync(path.join(repoRoot, 'components/screens/MoreScreen.tsx'), 'utf8')).toMatch(new RegExp(`route:\\s*["']/${name}["']`));
+    }
     for (const name of KILLED_ROUTES) {
       expect(layout).not.toMatch(new RegExp(`name=["']${name}["']`));
     }

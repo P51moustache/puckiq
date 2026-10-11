@@ -13,7 +13,11 @@ import { usePaywall } from '../PaywallProvider';
 import LeagueSettingsSheet from '../sheets/LeagueSettingsSheet';
 import { colors, ProBadge } from './ui';
 
-export default function TeamSwitcher() {
+export default function TeamSwitcher({
+  compact = true,
+}: {
+  compact?: boolean;
+}) {
   const { teams, team, setActiveTeam, addTeam } = useTeams();
   const { isPremium } = useSubscription();
   const { openPaywall } = usePaywall();
@@ -29,7 +33,11 @@ export default function TeamSwitcher() {
       if (!isPremium) openPaywall('teams');
       return;
     }
-    addTeam({ name: `Team ${teams.length + 1}`, platform: team.platform, slots: team.slots });
+    addTeam({
+      name: `Team ${teams.length + 1}`,
+      platform: team.platform,
+      slots: team.slots,
+    });
     setSettingsOpen(true);
   };
 
@@ -37,19 +45,37 @@ export default function TeamSwitcher() {
     <>
       <Pressable
         onPress={() => setOpen(true)}
-        style={({ pressed }) => [styles.trigger, pressed && styles.pressed]}
+        style={({ pressed }) => [
+          styles.trigger,
+          compact && styles.compactTrigger,
+          pressed && styles.pressed,
+        ]}
         accessibilityRole="button"
         accessibilityLabel={`Team: ${team.name}. Switch or edit team`}
         testID="team-switcher"
         hitSlop={6}
       >
         <View style={styles.triggerDot} />
-        <Text style={styles.triggerText} numberOfLines={1}>{team.name}</Text>
+        <Text
+          style={[styles.triggerText, compact && styles.compactText]}
+          numberOfLines={1}
+        >
+          {team.name}
+        </Text>
         <Ionicons name="chevron-down" size={13} color={colors.onInk} />
       </Pressable>
 
-      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-        <Pressable style={styles.backdrop} onPress={() => setOpen(false)} accessibilityLabel="Close team menu">
+      <Modal
+        visible={open}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setOpen(false)}
+      >
+        <Pressable
+          style={styles.backdrop}
+          onPress={() => setOpen(false)}
+          accessibilityLabel="Close team menu"
+        >
           <Pressable style={styles.menu} onPress={() => undefined}>
             <Text style={styles.menuTitle}>YOUR TEAMS</Text>
             {teams.map((row) => {
@@ -61,16 +87,31 @@ export default function TeamSwitcher() {
                     setActiveTeam(row.id);
                     setOpen(false);
                   }}
-                  style={({ pressed }) => [styles.teamRow, pressed && styles.pressed]}
+                  style={({ pressed }) => [
+                    styles.teamRow,
+                    pressed && styles.pressed,
+                  ]}
                   testID={`team-row-${row.id}`}
                 >
                   <View style={styles.teamText}>
-                    <Text style={[styles.teamName, active && styles.teamNameActive]} numberOfLines={1}>{row.name}</Text>
+                    <Text
+                      style={[styles.teamName, active && styles.teamNameActive]}
+                      numberOfLines={1}
+                    >
+                      {row.name}
+                    </Text>
                     <Text style={styles.teamMeta} numberOfLines={1}>
-                      {PLATFORM_LABEL[row.platform]} · {row.players.length} players · {slotsLabel(row.slots)}
+                      {PLATFORM_LABEL[row.platform]} · {row.players.length}{' '}
+                      players · {slotsLabel(row.slots)}
                     </Text>
                   </View>
-                  {active ? <Ionicons name="checkmark" size={18} color={colors.accent} /> : null}
+                  {active ? (
+                    <Ionicons
+                      name="checkmark"
+                      size={18}
+                      color={colors.accent}
+                    />
+                  ) : null}
                 </Pressable>
               );
             })}
@@ -80,13 +121,23 @@ export default function TeamSwitcher() {
                 setOpen(false);
                 setSettingsOpen(true);
               }}
-              style={({ pressed }) => [styles.action, pressed && styles.pressed]}
+              style={({ pressed }) => [
+                styles.action,
+                pressed && styles.pressed,
+              ]}
               testID="team-settings"
             >
               <Ionicons name="options-outline" size={18} color={colors.text} />
               <Text style={styles.actionText}>League settings</Text>
             </Pressable>
-            <Pressable onPress={handleAdd} style={({ pressed }) => [styles.action, pressed && styles.pressed]} testID="team-add">
+            <Pressable
+              onPress={handleAdd}
+              style={({ pressed }) => [
+                styles.action,
+                pressed && styles.pressed,
+              ]}
+              testID="team-add"
+            >
               <Ionicons name="add" size={18} color={colors.text} />
               <Text style={styles.actionText}>Add another league</Text>
               {!isPremium ? <ProBadge small /> : null}
@@ -95,12 +146,24 @@ export default function TeamSwitcher() {
         </Pressable>
       </Modal>
 
-      <LeagueSettingsSheet visible={settingsOpen} team={team} onClose={() => setSettingsOpen(false)} />
+      <LeagueSettingsSheet
+        visible={settingsOpen}
+        team={team}
+        onClose={() => setSettingsOpen(false)}
+      />
     </>
   );
 }
 
 const styles = StyleSheet.create({
+  compactTrigger: {
+    maxWidth: 94,
+    paddingHorizontal: 3,
+    paddingVertical: 6,
+    gap: 4,
+    backgroundColor: 'transparent',
+  },
+  compactText: { fontSize: 11, fontWeight: '500' },
   trigger: {
     flexDirection: 'row',
     alignItems: 'center',

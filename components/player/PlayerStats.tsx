@@ -8,30 +8,67 @@ import { StyleSheet, Text, View } from 'react-native';
 import { TREND_LABEL, type PlayerForm } from '../../services/fantasy/form';
 import { formatValue } from '../../services/fantasy/scoring';
 import type { GoalieLine, SkaterLine } from '../../services/nhl/stats';
-import { Card, colors, display, Pill, ProLockCard, SectionLabel, StatCell } from '../coach/ui';
+import {
+  Card,
+  colors,
+  display,
+  Pill,
+  ProLockCard,
+  SectionLabel,
+  StatCell,
+} from '../coach/ui';
 import { sectionStyles } from './styles';
 
-/** Value, games and points (skaters) or value, starts and wins (goalies), big and italic. */
-export function HeadlineStats({ form, goalie }: { form: PlayerForm | null; goalie: boolean }) {
-  const season = form?.season ?? null;
+/** Compact season totals with a consistent skater/goalie layout. */
+export function HeadlineStats({
+  form,
+  goalie,
+}: {
+  form: PlayerForm | null;
+  goalie: boolean;
+}) {
+  const line = form?.season;
+  const skater = line && !('gs' in line) ? line : null;
+  const keeper = line && 'gs' in line ? line : null;
+  const stats = goalie
+    ? [
+        ['GS', keeper?.gs],
+        ['W', keeper?.wins],
+        ['SV%', keeper ? keeper.savePct.toFixed(3).replace(/^0/, '') : null],
+        ['GAA', keeper?.gaa.toFixed(2)],
+        ['SO', keeper?.shutouts],
+      ]
+    : [
+        ['GP', skater?.gp],
+        ['G', skater?.goals],
+        ['A', skater?.assists],
+        ['PTS', skater?.points],
+        [
+          'SOG/G',
+          skater && skater.gp > 0
+            ? (skater.shots / skater.gp).toFixed(1)
+            : null,
+        ],
+      ];
   return (
-    <>
+    <View>
+      <Text style={styles.seasonLabel}>
+        {form?.basis === 'previous' ? 'Previous season' : 'This season'}
+      </Text>
       <View style={styles.bigStats}>
-        <View style={styles.bigStat}>
-          <Text style={styles.bigValue}>{form ? formatValue(form.value) : '—'}</Text>
-          <Text style={styles.bigLabel}>{goalie ? 'VALUE / TEAM GAME' : 'VALUE / GAME'}</Text>
-        </View>
-        <View style={styles.bigStat}>
-          <Text style={styles.bigValue}>{season ? String('gs' in season ? season.gs : season.gp) : '—'}</Text>
-          <Text style={styles.bigLabel}>{goalie ? 'STARTS' : 'GP'}</Text>
-        </View>
-        <View style={styles.bigStat}>
-          <Text style={styles.bigValue}>{season ? ('gs' in season ? String(season.wins) : String(season.points)) : '—'}</Text>
-          <Text style={styles.bigLabel}>{goalie ? 'WINS' : 'PTS'}</Text>
-        </View>
+        {stats.map(([label, value]) => (
+          <View key={label} style={styles.bigStat}>
+            <Text style={styles.bigValue}>{value ?? '—'}</Text>
+            <Text style={styles.bigLabel}>{label}</Text>
+          </View>
+        ))}
       </View>
-      {form?.basis === 'previous' ? <Text style={styles.basisNote}>Last season’s numbers until he plays this season.</Text> : null}
-    </>
+      {form?.basis === 'previous' ? (
+        <Text style={styles.basisNote}>
+          Last season’s numbers until he plays this season.
+        </Text>
+      ) : null}
+    </View>
   );
 }
 
@@ -48,8 +85,16 @@ function SeasonLine({ form }: { form: PlayerForm }) {
       <View style={sectionStyles.statRow}>
         <StatCell size={22} value={String(g.gs)} label="GS" />
         <StatCell size={22} value={String(g.wins)} label="W" />
-        <StatCell size={22} value={g.savePct ? g.savePct.toFixed(3).replace(/^0/, '') : '—'} label="SV%" />
-        <StatCell size={22} value={g.gaa ? g.gaa.toFixed(2) : '—'} label="GAA" />
+        <StatCell
+          size={22}
+          value={g.savePct ? g.savePct.toFixed(3).replace(/^0/, '') : '—'}
+          label="SV%"
+        />
+        <StatCell
+          size={22}
+          value={g.gaa ? g.gaa.toFixed(2) : '—'}
+          label="GAA"
+        />
         <StatCell size={22} value={String(g.shutouts)} label="SO" />
       </View>
     );
@@ -72,10 +117,22 @@ export function SeasonSection({ form }: { form: PlayerForm | null }) {
   return (
     <>
       <SectionLabel
-        title={form?.basis === 'previous' && form.season ? 'Last season' : 'Season'}
-        right={form ? <Text style={sectionStyles.value}>{formLine(form)}</Text> : null}
+        title={
+          form?.basis === 'previous' && form.season ? 'Last season' : 'Season'
+        }
+        right={
+          form ? (
+            <Text style={sectionStyles.value}>{formLine(form)}</Text>
+          ) : null
+        }
       />
-      <Card>{form ? <SeasonLine form={form} /> : <Text style={sectionStyles.muted}>No NHL stats yet.</Text>}</Card>
+      <Card>
+        {form ? (
+          <SeasonLine form={form} />
+        ) : (
+          <Text style={sectionStyles.muted}>No NHL stats yet.</Text>
+        )}
+      </Card>
     </>
   );
 }
@@ -94,22 +151,44 @@ export function RecentForm({
 }) {
   return (
     <>
-      <SectionLabel title="Last 14 days" right={!isPro ? <Pill label="PRO" tone="accent" /> : null} />
+      <SectionLabel
+        title="Last 14 days"
+        right={!isPro ? <Pill label="PRO" tone="accent" /> : null}
+      />
       {isPro ? (
         <Card>
           {form && form.recentRate !== null ? (
             <View style={sectionStyles.statRow}>
-              <StatCell value={String(form.recentGp)} label={goalie ? 'Starts' : 'Games'} />
-              <StatCell value={formatValue(form.recentRate)} label={goalie ? 'Value / start' : 'Value / game'} />
+              <StatCell
+                value={String(form.recentGp)}
+                label={goalie ? 'Starts' : 'Games'}
+              />
+              <StatCell
+                value={formatValue(form.recentRate)}
+                label={goalie ? 'Value / start' : 'Value / game'}
+              />
               <StatCell
                 value={TREND_LABEL[form.trend]}
                 label="Trend"
-                tone={form.trend === 'hot' ? 'good' : form.trend === 'cold' ? 'bad' : 'neutral'}
+                tone={
+                  form.trend === 'hot'
+                    ? 'good'
+                    : form.trend === 'cold'
+                      ? 'bad'
+                      : 'neutral'
+                }
               />
-              {goalie ? <StatCell value={`${Math.round(form.startShare * 100)}%`} label="Start share" /> : null}
+              {goalie ? (
+                <StatCell
+                  value={`${Math.round(form.startShare * 100)}%`}
+                  label="Start share"
+                />
+              ) : null}
             </View>
           ) : (
-            <Text style={sectionStyles.muted}>No NHL games in the last 14 days.</Text>
+            <Text style={sectionStyles.muted}>
+              No NHL games in the last 14 days.
+            </Text>
           )}
         </Card>
       ) : (
@@ -124,24 +203,29 @@ export function RecentForm({
 }
 
 const styles = StyleSheet.create({
+  seasonLabel: { fontSize: 12, color: colors.text, marginTop: 7 },
   bigStats: {
     flexDirection: 'row',
-    marginTop: 18,
+    marginTop: 5,
+    gap: 5,
   },
   bigStat: {
     flex: 1,
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    paddingVertical: 6,
+    borderRadius: 7,
   },
   bigValue: {
-    ...display(38),
+    ...display(19),
   },
   bigLabel: {
     fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 0.8,
-    color: colors.muted,
+    fontWeight: '400',
+    color: colors.sub,
   },
   basisNote: {
-    fontSize: 12,
+    fontSize: 13,
     color: colors.warn,
     fontWeight: '700',
     marginTop: 6,

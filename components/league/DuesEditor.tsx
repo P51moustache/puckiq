@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   cancel: { fontSize: 16, fontWeight: '600', color: colors.sub },
   save: { fontSize: 16, fontWeight: '800', color: colors.accent },
   content: { paddingHorizontal: 20, paddingBottom: 48 },
-  title: { ...display(30), marginTop: 4, marginBottom: 12 },
+  title: { ...display(20), marginTop: 4, marginBottom: 12 },
   field: { marginBottom: 20, gap: 8 },
   kickerRow: { flexDirection: 'row', alignItems: 'center' },
   kickerDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.accent, marginRight: 8 },

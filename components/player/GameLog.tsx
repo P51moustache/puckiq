@@ -6,6 +6,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { ScoringWeights } from '../../types/fantasy';
+import { gameLogValueNote } from '../../services/fantasy/logValue';
 import { formatValue } from '../../services/fantasy/scoring';
 import { shortDate } from '../../services/nhl/dates';
 import type { GameLogRow } from '../../services/nhl/player';
@@ -105,6 +106,7 @@ export function GameLog({
   onUnlock: () => void;
 }) {
   const visible = isPro ? log : log.slice(0, FREE_LOG_ROWS);
+  const valueNote = gameLogValueNote(goalie, scoring);
   return (
     <>
       <SectionLabel title={seasonLabel ? `Game log · ${seasonLabel}` : 'Game log'} />
@@ -132,6 +134,7 @@ export function GameLog({
           <LogRow key={row.gameId || row.date} row={row} goalie={goalie} value={logRowValue(row, goalie, scoring)} />
         ))}
       </Card>
+      {valueNote ? <Text style={[sectionStyles.muted, { fontSize: 10, marginTop: 8 }]}>{valueNote}</Text> : null}
       {!isPro && log.length > FREE_LOG_ROWS ? (
         <Pressable onPress={onUnlock} style={styles.moreLog}>
           <Text style={styles.moreLogText}>See all {log.length} games with Pro</Text>

@@ -74,8 +74,8 @@ export function usePlayerCard({ playerId, profile, form, formSettled, log, team,
     ? {
         injuredReserve: rosterPlayer.injuredReserve === true,
         status: tonight.night.data?.statuses.get(playerId),
-        slot: tonight.day?.starters.find((seat) => seat.playerId === playerId)?.slot,
-        benched: tonight.day?.bench.includes(playerId) ?? false,
+        slot: (tonight.bestDay ?? tonight.day)?.starters.find((seat) => seat.playerId === playerId)?.slot,
+        benched: (tonight.bestDay ?? tonight.day)?.bench.includes(playerId) ?? false,
       }
     : undefined;
   const verdict = verdictLoading ? null : buildPlayerVerdict({ week, today, goalie, form, strength, log, isPro, roster });

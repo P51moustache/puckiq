@@ -46,7 +46,7 @@ export const StintRow = React.memo(function StintRow({ player, cells, summary, d
             <PlayerName name={player.playerName} size={14} />
           ) : (
             <Text style={styles.lastName} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
-              {splitName(player.playerName).last.toUpperCase()}
+              {splitName(player.playerName).last}
             </Text>
           )}
           <Text style={styles.pos}>{positionLabel(player)} · {player.teamAbbrev}</Text>
@@ -97,13 +97,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   lastName: {
-    fontSize: 12,
-    fontWeight: '900',
+    fontSize: 13,
+    fontWeight: '600',
     color: colors.text,
   },
   pos: {
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 11,
+    fontWeight: '500',
     color: colors.muted,
     marginTop: 1,
   },

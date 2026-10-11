@@ -29,16 +29,16 @@ describe('PageHeader', () => {
     const header = tree.root.findAll((n: any) => n.props.testID === 'page-header')[0];
     const style = header.props.style;
     const flat = Array.isArray(style) ? Object.assign({}, ...style) : style;
-    expect(flat.paddingTop).toBe(65);
+    expect(flat.paddingTop).toBe(59);
   });
 
-  it('renders the title in heavy caps', () => {
+  it('renders a readable title with the supplied casing', () => {
     const tree = render(<PageHeader title="Tonight" />);
     const title = tree.root.findAll((n: any) => n.props.testID === 'page-header-title')[0];
     expect(title.props.children).toBe('Tonight');
     const style = Array.isArray(title.props.style) ? Object.assign({}, ...title.props.style) : title.props.style;
-    expect(style.textTransform).toBe('uppercase');
-    expect(style.fontStyle).toBe('italic');
+    expect(style.textTransform).toBe('none');
+    expect(style.fontStyle).toBeUndefined();
   });
 
   it('does not ellipsize the subtitle to one line', () => {

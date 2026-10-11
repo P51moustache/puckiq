@@ -57,7 +57,7 @@ describe('welcome-back delivery', () => {
   it('explains the changed product and no-charge gift to a returning downloader', async () => {
     const tree = await render();
     const copy = JSON.stringify(tree.toJSON());
-    expect(copy).toContain('Fantasy coaching replaces');
+    expect(copy).toContain('new dark design');
     expect(copy).toContain('30-day thank-you gift');
     expect(copy).toContain('no automatic charge');
   });

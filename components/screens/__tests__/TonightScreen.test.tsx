@@ -117,6 +117,7 @@ function view(overrides: Partial<any> = {}) {
       error: null,
     },
     forms: { data: { forms, teamStrength: new Map() } },
+    lineupValues: new Map([...forms].map(([id, form]) => [id, form.value])),
     day: {
       date: '2026-10-13', dayAbbrev: 'TUE', leagueGames: 10, offNight: false, isPast: false, isToday: true,
       playing: [8478402], starters: [{ slot: 'C', playerId: 8478402 }], bench: [], empty: ['D'],
@@ -274,7 +275,7 @@ describe('TonightScreen', () => {
     expect(byTestId(tree, 'move-off')).toHaveLength(1);
     expect(byTestId(tree, 'tonight-more-moves')).toHaveLength(0);
     expect(byTestId(tree, 'tonight-lineup')).toHaveLength(1);
-    expect(allText(tree)).toContain('EMPTY');
+    expect(allText(tree)).toContain('Open slot');
   });
 
   it('says when nobody plays and when the next games are', () => {

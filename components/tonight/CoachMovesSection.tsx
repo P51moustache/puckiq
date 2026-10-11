@@ -53,7 +53,7 @@ export function CoachMovesSection({
   title: string;
   moves: CoachMove[];
   hiddenCount: number;
-  when: 'tonight' | 'tomorrow';
+  when: string;
   byId: Map<number, FantasyPlayer>;
   /** Where the moves get made; null for platforms PuckIQ can't open. */
   host: HostLink | null;

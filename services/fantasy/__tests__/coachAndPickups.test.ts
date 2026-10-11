@@ -116,6 +116,13 @@ describe('buildCoachMoves', () => {
     expect(goalie?.detail).not.toContain('confirmed');
   });
 
+  it('does not label a confirmed scratch as having no scheduled game', () => {
+    const availableDay = { ...day, playing: day.playing.filter((id) => id !== 8470003) };
+    const result = buildCoachMoves({ day: availableDay, players: roster, games, statuses, forms });
+    expect(result.find((move) => move.kind === 'off')?.playerIds).not.toContain(8470003);
+    expect(result.find((move) => move.kind === 'scratch')?.playerIds).toContain(8470003);
+  });
+
   it('shows free users only the first move', () => {
     expect(visibleMoves(moves, false)).toHaveLength(1);
     expect(visibleMoves(moves, true)).toHaveLength(moves.length);

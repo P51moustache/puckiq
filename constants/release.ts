@@ -1,5 +1,5 @@
 /** The existing-user cohort is frozen before this launch campaign. */
-export const RELEASE_NOTICE_ID = 'puckiq-coach-3.0';
+export const RELEASE_NOTICE_ID = 'puckiq-player-3.2';
 export const ONBOARDING_KEY = 'puckiq_onboarding_complete';
 
 export const LOYALTY_CAMPAIGN = {
@@ -9,8 +9,8 @@ export const LOYALTY_CAMPAIGN = {
 } as const;
 
 export const RELEASE_FEATURES = [
-  { icon: 'alarm-outline', title: 'A coach before lock', body: 'Who plays, NHL scratch checks, lineup reminders, and moves for tonight.' },
-  { icon: 'calendar-outline', title: 'Games that count', body: 'Find bench overflow and empty slots across your week with Pro.' },
-  { icon: 'swap-horizontal-outline', title: 'Pickups that fit', body: 'Rank streamers by the nights they would actually start for your team.' },
-  { icon: 'stats-chart-outline', title: 'More ways to scout and share', body: 'Player game logs, NHL Edge stats, matchup planning, and cards for your league chat.' },
+  { icon: 'person-outline', title: 'Player scouting', body: 'Faded portraits, recent-performance graphs, schedule assessments and estimated season outlooks.' },
+  { icon: 'sparkles-outline', title: 'Your best lineup', body: 'Compare the recommended lineup with your saved start/bench plan by date. Full optimization with Pro.' },
+  { icon: 'trending-up-outline', title: 'Insights you can act on', body: 'Open each recommendation to see the reason, affected players and the next step.' },
+  { icon: 'calendar-outline', title: 'A connected week', body: 'Find pickups for the exact night you need, spot empty slots and prepare for lineup lock.' },
 ] as const;

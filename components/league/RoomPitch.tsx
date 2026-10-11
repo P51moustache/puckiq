@@ -42,7 +42,7 @@ export function RoomPitch({ comingSoon = false }: { comingSoon?: boolean }) {
 
 const styles = StyleSheet.create({
   hero: { gap: 16 },
-  title: { ...display(34), color: colors.onInk, lineHeight: 38 },
+  title: { ...display(24), color: colors.onInk, lineHeight: 28 },
   lede: { fontSize: 16, lineHeight: 22, fontWeight: '700', color: colors.onInk, marginTop: 6 },
   benefit: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 11 },
   divided: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.14)' },

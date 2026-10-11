@@ -19,8 +19,10 @@ import {
 import { compareWeeks, type MatchupSummary } from '../services/fantasy/matchup';
 import { buildNightScore, type NightScore } from '../services/fantasy/nightScore';
 import { likelyRosteredIds, rankPickups, type PickupRow } from '../services/fantasy/pickups';
-import { buildWeekPlan, type DayPlan, type PlanInput, type WeekPlan } from '../services/fantasy/weekPlan';
-import { addDays, mondayOf, appNow } from '../services/nhl/dates';
+import { buildWeekPlan, goalieValueOnNight, type DayPlan, type PlanInput, type WeekPlan } from '../services/fantasy/weekPlan';
+import { buildPlannedDay } from '../services/fantasy/lineupPlan';
+import { lineupCoverageError } from '../services/fantasy/dataQuality';
+import { addDays, mondayOf, appNow, shortDate } from '../services/nhl/dates';
 import { isGameFinal, isGameStarted, type WeekSchedule } from '../services/nhl/schedule';
 import { useGoalieOutlook } from './useGoalieOutlook';
 import { useResource, type Resource } from './useResource';
@@ -53,6 +55,8 @@ export function useWeekData(team: FantasyTeam | null, weekOffset = 0): WeekData 
   const schedule = useWeekSchedule(monday);
   const forms = useTeamForms(team, today, true);
   const goalieNights = useWeekGoalieNights(team, monday, today);
+  const coverageError = team && forms.data && schedule.data
+    ? lineupCoverageError(team.players, forms.data.forms, schedule.data) : null;
 
   // Shared by both sides: values, start shares, and each goalie's start chance night by night.
   const planInputs = useMemo((): WeekPlanInputs | null => {
@@ -62,14 +66,15 @@ export function useWeekData(team: FantasyTeam | null, weekOffset = 0): WeekData 
   }, [forms.data, goalieNights.data]);
 
   const plan = useMemo(() => {
-    if (!team || !schedule.data || !planInputs) return null;
+    if (!team || !schedule.data || !planInputs || coverageError) return null;
     return buildWeekPlan({ schedule: schedule.data, players: team.players, slots: team.slots, today, ...planInputs });
-  }, [team, schedule.data, planInputs, today]);
+  }, [team, schedule.data, planInputs, today, coverageError]);
 
   const opponentPlan = useMemo(() => {
     if (!team || team.opponent.length === 0 || !schedule.data || !planInputs) return null;
+    if (forms.data && lineupCoverageError(team.opponent, forms.data.forms, schedule.data)) return null;
     return buildWeekPlan({ schedule: schedule.data, players: team.opponent, slots: team.slots, today, ...planInputs });
-  }, [team, schedule.data, planInputs, today]);
+  }, [team, schedule.data, planInputs, today, forms.data]);
 
   const matchup = useMemo(() => (plan && opponentPlan ? compareWeeks(plan, opponentPlan) : null), [plan, opponentPlan]);
 
@@ -83,7 +88,7 @@ export function useWeekData(team: FantasyTeam | null, weekOffset = 0): WeekData 
     matchup,
     loading: schedule.loading || forms.loading,
     refreshing: schedule.refreshing || forms.refreshing,
-    error: schedule.error ?? forms.error,
+    error: schedule.error ?? forms.error ?? coverageError,
     refresh: async () => {
       await Promise.all([schedule.refresh(), forms.refresh(), goalieNights.refresh()]);
     },
@@ -95,6 +100,8 @@ export interface NightView {
   night: Resource<NightData>;
   forms: Resource<FormsResult>;
   day: DayPlan | null;
+  bestDay: DayPlan | null;
+  lineupValues: ReadonlyMap<number, number>;
   moves: CoachMove[];
   /** Goalies' estimated starts on this night (empty until loaded). The lineup prefers the likely starter. */
   goalieOutlooks: ReadonlyMap<number, GoalieOutlook>;
@@ -122,6 +129,13 @@ export function useNight(team: FantasyTeam | null, dayOffset = 0, enabled = true
   // Box scores load for tonight (live) and last night (the recap); tomorrow has none yet.
   const night = useResource(key, (force) => loadNight(team!.players, date, { force, live: dayOffset <= 0, news: dayOffset >= 0 }));
   const goalieOutlooks = useGoalieOutlook(enabled ? team : null, date);
+  const scratched = useMemo(() => new Set(
+    [...(night.data?.statuses.values() ?? [])]
+      .filter((status) => status.signal === 'scratch' && status.confidence === 'confirmed')
+      .map((status) => status.playerId),
+  ), [night.data]);
+  const coverageError = team && forms.data && schedule.data
+    ? lineupCoverageError(team.players, forms.data.forms, schedule.data, date, scratched) : null;
 
   const liveGames = useMemo(
     () => !!night.data && Object.values(night.data.playerGames).some((game) => game && isGameStarted(game) && !isGameFinal(game)),
@@ -144,13 +158,8 @@ export function useNight(team: FantasyTeam | null, dayOffset = 0, enabled = true
     return () => clearInterval(timer);
   }, [dayOffset, liveGames, night.data, refreshNight]);
 
-  const day = useMemo(() => {
-    if (!team || !schedule.data || !forms.data) return null;
-    const scratched = new Set(
-      [...(night.data?.statuses.values() ?? [])]
-        .filter((status) => status.signal === 'scratch' && status.confidence === 'confirmed')
-        .map((status) => status.playerId),
-    );
+  const bestDay = useMemo(() => {
+    if (!team || !schedule.data || !forms.data || coverageError) return null;
     const available = team.players.filter((player) => !scratched.has(player.playerId));
     const plan = buildWeekPlan({
       schedule: schedule.data,
@@ -163,20 +172,31 @@ export function useNight(team: FantasyTeam | null, dayOffset = 0, enabled = true
       today: date,
     });
     return plan.days.find((entry) => entry.date === date) ?? null;
-  }, [team, schedule.data, forms.data, night.data, date, goalieOutlooks]);
+  }, [team, schedule.data, forms.data, scratched, date, goalieOutlooks, coverageError]);
+
+  const lineupValues = useMemo(() => {
+    const values = forms.data ? valuesOf(forms.data.forms) : new Map<number, number>();
+    for (const [id, outlook] of goalieOutlooks) {
+      const form = forms.data?.forms.get(id);
+      if (form?.isGoalie) values.set(id, goalieValueOnNight(form.value, form.startShare, outlook.chance));
+    }
+    return values;
+  }, [forms.data, goalieOutlooks]);
+  const day = useMemo(() => team && bestDay && team.lineupChoices?.[date]
+    ? buildPlannedDay(team, bestDay, lineupValues) : bestDay, [team, bestDay, date, lineupValues]);
 
   const moves = useMemo(() => {
-    if (dayOffset < 0 || !team || !day || !night.data || !forms.data) return [];
+    if (dayOffset < 0 || !team || !bestDay || !night.data || !forms.data) return [];
     return buildCoachMoves({
-      day,
+      day: bestDay,
       players: team.players.filter((player) => !player.injuredReserve),
       games: night.data.playerGames,
       statuses: night.data.statuses,
       forms: forms.data.forms,
       goalieOutlooks,
-      when: dayOffset === 0 ? 'tonight' : 'tomorrow',
+      when: dayOffset === 0 ? 'tonight' : dayOffset === 1 ? 'tomorrow' : `on ${shortDate(date)}`,
     });
-  }, [team, day, night.data, forms.data, dayOffset, goalieOutlooks]);
+  }, [team, bestDay, night.data, forms.data, dayOffset, goalieOutlooks, date]);
 
   const score = useMemo(() => {
     if (!team || !night.data) return null;
@@ -202,13 +222,15 @@ export function useNight(team: FantasyTeam | null, dayOffset = 0, enabled = true
     night,
     forms,
     day,
+    bestDay,
+    lineupValues,
     moves,
     goalieOutlooks,
     liveGames,
     score,
     loading: night.loading || forms.loading || schedule.loading,
     refreshing: night.refreshing,
-    error: night.error ?? forms.error ?? schedule.error,
+    error: night.error ?? forms.error ?? schedule.error ?? coverageError,
     refresh: async () => {
       await Promise.all([night.refresh(), forms.refresh(), schedule.refresh()]);
     },

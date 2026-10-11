@@ -131,13 +131,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   matchupLabel: {
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: '900',
     letterSpacing: 1,
     color: colors.onInkSub,
   },
   matchupValue: {
-    ...display(44),
+    ...display(28),
     color: colors.onInk,
   },
   matchupSub: {
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
     color: colors.onInkSub,
   },
   matchupEdge: {
-    ...display(32),
+    ...display(24),
   },
   dayCompare: {
     flexDirection: 'row',
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
     opacity: 0.35,
   },
   compareHead: {
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: '900',
     letterSpacing: 0.6,
     color: colors.onInkSub,

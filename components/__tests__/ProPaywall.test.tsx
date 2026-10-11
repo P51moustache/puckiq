@@ -137,6 +137,9 @@ describe('ProPaywall', () => {
     mockGetOfferings.mockResolvedValueOnce(null);
     const tree = await render();
     await act(async () => { find(tree, 'pro-subscribe')[0].props.onPress(); });
+    expect(JSON.stringify(tree.toJSON())).toContain('Unavailable');
+    expect(JSON.stringify(tree.toJSON())).not.toContain('$19.99');
+    expect(find(tree, 'pro-subscribe')[0].props.disabled).toBe(true);
     expect(mockPurchase).not.toHaveBeenCalled();
     expect(Alert.alert).toHaveBeenCalledWith('Store unavailable', expect.any(String));
   });

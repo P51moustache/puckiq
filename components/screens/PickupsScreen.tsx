@@ -1,3 +1,4 @@
+import { PickupCard } from '../pickups/PickupCard';
 /**
  * Pickups — streamers ranked by what they add to MY lineup: nights they'd actually
  * start for me (empty slots first), not league-wide points.
@@ -8,9 +9,7 @@ import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'rea
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import { useNhlToday, usePickups, useWeekHasGamesLeft } from '../../hooks/useCoach';
-import { filterPickups, type PickupFilter, type PickupRow } from '../../services/fantasy/pickups';
-import { formatValue } from '../../services/fantasy/scoring';
-import { positionLabel } from '../../services/fantasy/positions';
+import { filterPickups, type PickupFilter } from '../../services/fantasy/pickups';
 import { addPlayers, unhideAllPickups } from '../../services/teams';
 import { HowItWorksButton } from '../sheets/HowItWorksSheet';
 import { useRoomTakenIds } from '../league/LeagueProvider';
@@ -21,14 +20,14 @@ import { useSubscription } from '../SubscriptionProvider';
 import { usePaywall } from '../PaywallProvider';
 import { usePlayerSheet } from '../sheets/PlayerSheet';
 import TeamSwitcher from '../coach/TeamSwitcher';
-import { PlayerAvatar, PlayerName } from '../coach/PlayerAvatar';
-import { Card, ColdBadge, colors, contentFrame, display, EmptyState, ErrorState, HotBadge, LoadingRows, Pill, PrimaryButton, SegmentedControl, useWide } from '../coach/ui';
+import { Card, colors, contentFrame, display, EmptyState, ErrorState, LoadingRows, PrimaryButton, SegmentedControl, useWide } from '../coach/ui';
 import * as Haptics from 'expo-haptics';
 import { ART } from '../../constants/art';
 import { track } from '../../services/analytics/track';
 import { trackedChoice } from '../../services/analytics/selection';
+import { pickupPeriodForDate, pickupPeriodInputs, validPickupDate, type PickupPeriod } from '../../services/fantasy/pickupPeriod';
 
-type When = 'week' | 'next' | 'today' | 'tomorrow';
+type When = PickupPeriod;
 
 const FILTERS: Array<{ value: PickupFilter; label: string }> = [
   { value: 'ALL', label: 'All' },
@@ -46,62 +45,6 @@ function slotToFilter(slot: string | undefined): PickupFilter {
   return 'ALL';
 }
 
-function PickupCard({ row, onPress, onAdd, grid = false }: { row: PickupRow; onPress: () => void; onAdd: () => void; grid?: boolean }) {
-  const rate = row.form.recentRate ?? row.form.seasonRate;
-  return (
-    <Card onPress={onPress} style={[styles.card, grid && styles.cardGrid]} testID={`pickup-${row.playerId}`}>
-      <View style={styles.row}>
-        <PlayerAvatar playerId={row.playerId} team={row.team} position={row.position} size={58} />
-        <View style={styles.text}>
-          <PlayerName name={row.name} size={17} />
-          <Text style={styles.meta}>
-            {positionLabel({ position: row.position })} · {row.team} · {formatValue(rate)}/{row.form.isGoalie ? 'start' : 'gm'}
-            {row.form.recentRate !== null ? ' L14' : ''}
-          </Text>
-        </View>
-        <View style={styles.gain}>
-          <Text style={styles.gainValue}>+{formatValue(row.gain)}</Text>
-          <Text style={styles.gainLabel}>VALUE ADDED</Text>
-        </View>
-      </View>
-      <View style={styles.days}>
-        {row.days.map((day) => (
-          <View
-            key={day.date}
-            style={[
-              styles.day,
-              day.usable && styles.dayUsable,
-              day.fillsEmpty && styles.dayFills,
-            ]}
-          >
-            <Text style={[styles.dayAbbrev, day.usable && styles.dayOnDark]}>{day.dayAbbrev.slice(0, 2)}{day.offNight ? ' ·' : ''}</Text>
-            <Text style={[styles.dayOpp, day.usable && styles.dayOnDark]}>{day.isHome ? '' : '@'}{day.opponent}</Text>
-          </View>
-        ))}
-        <Pressable
-          onPress={onAdd}
-          style={({ pressed }) => [styles.addButton, pressed && styles.addPressed]}
-          accessibilityRole="button"
-          accessibilityLabel={`Add ${row.name} to my team`}
-          hitSlop={6}
-          testID={`pickup-add-${row.playerId}`}
-        >
-          <Ionicons name="add" size={22} color={colors.onInk} />
-        </Pressable>
-      </View>
-      <View style={styles.tags}>
-        {row.emptyFills > 0 ? <Pill label={`FILLS ${row.emptyFills} EMPTY`} tone="good" /> : null}
-        {row.usableGames > row.emptyFills ? <Pill label={`UPGRADES ${row.usableGames - row.emptyFills}`} tone="ink" /> : null}
-        {row.offNightGames > 0 ? <Pill label={`${row.offNightGames} OFF-NIGHT`} tone="neutral" /> : null}
-        {row.form.trend === 'hot' ? <HotBadge /> : row.form.trend === 'cold' ? (
-          <ColdBadge />
-        ) : null}
-        {row.form.isGoalie ? <Pill label={`${Math.round(row.form.startShare * 100)}% GS`} tone="muted" /> : null}
-      </View>
-    </Card>
-  );
-}
-
 export default function PickupsScreen() {
   const wide = useWide();
   const params = useLocalSearchParams<{ slot?: string; date?: string }>();
@@ -113,13 +56,13 @@ export default function PickupsScreen() {
   const tomorrow = addDays(today, 1);
   const tomorrowInWeek = mondayOf(tomorrow) === mondayOf(today);
   const [filter, setFilter] = useState<PickupFilter>(slotToFilter(params.slot));
-  const [when, setWhen] = useState<When>(params.date === today ? 'today' : params.date === tomorrow && tomorrowInWeek ? 'tomorrow' : 'week');
+  const selectedDate = validPickupDate(params.date, today);
+  const [when, setWhen] = useState<When>(pickupPeriodForDate(selectedDate, today));
 
   useEffect(() => {
     if (params.slot) setFilter(slotToFilter(params.slot));
-    if (params.date === today) setWhen('today');
-    else if (params.date === tomorrow && tomorrowInWeek) setWhen('tomorrow');
-  }, [params.slot, params.date, today, tomorrow, tomorrowInWeek]);
+    if (selectedDate) setWhen(pickupPeriodForDate(selectedDate, today));
+  }, [params.slot, selectedDate, today]);
 
   const [hideOwned, setHideOwned] = useState(true);
   const gamesLeftThisWeek = useWeekHasGamesLeft(today);
@@ -129,9 +72,9 @@ export default function PickupsScreen() {
     if (gamesLeftThisWeek === false && when === 'week') setWhen('next');
   }, [gamesLeftThisWeek, when]);
 
-  const onlyDate = when === 'today' ? today : when === 'tomorrow' ? tomorrow : undefined;
+  const { onlyDate, weekOffset, selectedLabel } = pickupPeriodInputs(when, today, selectedDate);
   const roomTaken = useRoomTakenIds();
-  const view = usePickups(team, true, onlyDate, hideOwned, when === 'next' ? 1 : 0, roomTaken);
+  const view = usePickups(team, true, onlyDate, hideOwned, weekOffset, roomTaken);
   const rows = useMemo(() => filterPickups(view.rows, filter).filter((row) => row.gain > 0 || row.usableGames > 0), [view.rows, filter]);
   const visible = isPremium ? rows : rows.slice(0, FREE_VISIBLE);
   const hiddenCount = team?.hiddenPickupIds.length ?? 0;
@@ -155,13 +98,14 @@ export default function PickupsScreen() {
     );
   }
 
-  const whenOptions: Array<{ value: When; label: string }> = gamesLeftThisWeek === false
+  const whenOptions: Array<{ value: When; label: string }> = gamesLeftThisWeek === false && !selectedDate
     ? [{ value: 'next', label: 'Next week' }]
     : [
         { value: 'week', label: 'This week' },
         { value: 'next', label: 'Next week' },
         { value: 'today', label: 'Today' },
-        ...(tomorrowInWeek ? [{ value: 'tomorrow' as When, label: 'Tmrw' }] : []),
+        ...(tomorrowInWeek || when === 'tomorrow' ? [{ value: 'tomorrow' as When, label: 'Tmrw' }] : []),
+        ...(selectedDate && selectedLabel && pickupPeriodForDate(selectedDate, today) === 'date' ? [{ value: 'date' as When, label: selectedLabel }] : []),
       ];
 
   return (
@@ -188,14 +132,14 @@ export default function PickupsScreen() {
             </View>
             {roomTaken.size > 0 ? (
               <View style={styles.roomNote} testID="pickups-room-taken">
-                <Ionicons name="trophy" size={13} color={colors.ink} />
+                <Ionicons name="trophy" size={13} color={colors.text} />
                 <Text style={styles.roomNoteText}>
                   League Room: hiding {roomTaken.size} players your league-mates roster
                 </Text>
               </View>
             ) : null}
             <SegmentedControl<When> value={when} onChange={trackedChoice<When>('pickups', 'period', setWhen)} options={whenOptions} testID="pickups-when" />
-            {gamesLeftThisWeek === false ? (
+            {gamesLeftThisWeek === false && when === 'next' ? (
               <Text style={styles.basis}>No NHL games left this week — ranking for next week.</Text>
             ) : null}
             <View style={styles.filters}>
@@ -224,9 +168,9 @@ export default function PickupsScreen() {
               </Pressable>
             </View>
             {!view.hasCurrentSeason && !view.loading ? (
-              <Text style={styles.basis}>Using {basisLabel} numbers until this season has games.</Text>
+              <Text style={styles.basis}>Using {basisLabel} numbers where current-season data is unavailable.</Text>
             ) : null}
-            {view.error && rows.length === 0 ? <ErrorState body={view.error} onRetry={view.refresh} /> : null}
+            {view.error ? <ErrorState body={view.error} onRetry={view.refresh} /> : null}
             {view.loading && rows.length === 0 ? <LoadingRows count={6} /> : null}
           </View>
         )}
@@ -287,10 +231,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
   },
   padded: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
   },
   content: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingBottom: 130,
   },
   roomNote: {
@@ -307,7 +251,7 @@ const styles = StyleSheet.create({
   roomNoteText: {
     fontSize: 12,
     fontWeight: '800',
-    color: colors.ink,
+    color: colors.text,
   },
   ledeRow: {
     flexDirection: 'row',
@@ -328,18 +272,20 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   filter: {
-    paddingHorizontal: 18,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingVertical: 6,
     borderRadius: 999,
     backgroundColor: colors.card,
   },
   filterOn: {
-    backgroundColor: colors.ink,
+    backgroundColor: colors.accent,
   },
   filterText: {
     fontSize: 14,
     fontWeight: '800',
-    color: colors.ink,
+    color: colors.text,
   },
   filterTextOn: {
     color: colors.onInk,
@@ -357,98 +303,8 @@ const styles = StyleSheet.create({
     color: colors.warn,
     marginBottom: 10,
   },
-  card: {
-    marginBottom: 12,
-    padding: 12,
-  },
-  cardGrid: {
-    flex: 1,
-    // Capped so a lone last card doesn't stretch across both columns; the 1.4% left over is the gutter.
-    maxWidth: '49.3%',
-  },
   gridRow: {
     justifyContent: 'space-between',
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  text: {
-    flex: 1,
-    gap: 4,
-  },
-  meta: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.sub,
-  },
-  gain: {
-    alignItems: 'flex-end',
-  },
-  gainValue: {
-    ...display(26),
-    color: colors.good,
-  },
-  gainLabel: {
-    fontSize: 8,
-    fontWeight: '900',
-    letterSpacing: 0.8,
-    color: colors.muted,
-  },
-  days: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    marginTop: 12,
-  },
-  day: {
-    minWidth: 46,
-    paddingVertical: 5,
-    paddingHorizontal: 4,
-    borderRadius: 10,
-    backgroundColor: colors.bg,
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-  },
-  dayUsable: {
-    backgroundColor: colors.ink,
-  },
-  dayFills: {
-    borderColor: colors.good,
-  },
-  dayAbbrev: {
-    fontSize: 9,
-    fontWeight: '900',
-    color: colors.muted,
-    letterSpacing: 0.6,
-  },
-  dayOpp: {
-    fontSize: 11,
-    fontWeight: '900',
-    color: colors.muted,
-  },
-  dayOnDark: {
-    color: colors.onInk,
-  },
-  addButton: {
-    marginLeft: 'auto',
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: colors.ink,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addPressed: {
-    opacity: 0.8,
-  },
-  tags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 10,
   },
   lockCard: {
     alignItems: 'center',

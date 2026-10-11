@@ -150,4 +150,18 @@ describe('useWeekData — goalie nights', () => {
     await act(async () => latest!.refresh());
     expect(mockLoadWeekGoalieNights).toHaveBeenLastCalledWith(expect.any(Array), MONDAY, '2026-10-14', { force: true });
   });
+  it('withholds planning after a stats outage instead of inventing zero estimates', async () => {
+    mockLoadPlayerForms.mockRejectedValueOnce(new Error('Player stats are unavailable'));
+    await show();
+    expect(latest!.plan).toBeNull();
+    expect(latest!.error).toBe('Player stats are unavailable');
+  });
+  it('withholds planning when a playing player has no estimate', async () => {
+    mockLoadPlayerForms.mockResolvedValueOnce({ forms: new Map([[GIBSON, { ...form(GIBSON, 0.7), basis: 'none' }]]),
+      teamStrength: new Map(), seasonId: 20262027, previousSeasonId: 20252026, hasCurrentSeason: false });
+    await show();
+    expect(latest!.plan).toBeNull();
+    expect(latest!.error).toContain('John Gibson');
+  });
+
 });

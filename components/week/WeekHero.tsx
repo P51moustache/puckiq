@@ -47,9 +47,9 @@ export function WeekHero({ plan, choice, monday, isPremium, minGoalieStarts, onS
             </Text>
           </View>
           <View style={styles.summaryStats}>
-            <StatCell dark size={24} value={String(totals.games)} label="Games" />
-            <StatCell dark size={24} value={String(totals.benched)} label="Lost to bench" tone={totals.benched > 0 ? 'warn' : 'neutral'} testID="week-benched" />
-            <StatCell dark size={24} value={String(totals.emptySlots)} label="Empty slots" tone={totals.emptySlots > 0 ? 'warn' : 'neutral'} testID="week-empty" />
+            <StatCell dark size={20} value={String(totals.games)} label="Games" />
+            <StatCell dark size={20} value={String(totals.benched)} label="Lost to bench" tone={totals.benched > 0 ? 'warn' : 'neutral'} testID="week-benched" />
+            <StatCell dark size={20} value={String(totals.emptySlots)} label="Empty slots" tone={totals.emptySlots > 0 ? 'warn' : 'neutral'} testID="week-empty" />
           </View>
           {minGoalieStarts > 0 ? (
             <View style={styles.goalieRow} testID="week-goalie-min">
@@ -86,7 +86,7 @@ export function WeekHero({ plan, choice, monday, isPremium, minGoalieStarts, onS
 
 const styles = StyleSheet.create({
   summary: {
-    gap: 14,
+    gap: 8,
   },
   kickerRow: {
     flexDirection: 'row',
@@ -114,10 +114,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   summaryBig: {
-    ...display(72),
+    ...display(40),
     color: colors.onInk,
-    lineHeight: 76,
-    letterSpacing: -3,
+    lineHeight: 44,
+    letterSpacing: -0.8,
   },
   summarySub: {
     flex: 1,
@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontWeight: '700',
     color: colors.onInk,
-    paddingBottom: 10,
+    paddingBottom: 2,
   },
   summaryStats: {
     flexDirection: 'row',
