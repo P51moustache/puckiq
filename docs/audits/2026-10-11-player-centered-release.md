@@ -19,8 +19,9 @@ Shared dark charcoal/red palette, compact headers, 44-point primary controls, re
 | P3 | Scratch insights | A scheduled scratched player is not also described as having no game. |
 | P2 | Store prices | Removed fixed fallback prices. Missing products show unavailable prices, disable purchasing and offer retry; trials require actual store eligibility. |
 | P2 | Schedule contrast | Off-night columns preserve readable light text on dark cards. |
+| P2 | iPad portraits | Player hero cutouts keep their phone scale in wide sheets, preserving the full face instead of cropping to the forehead. |
 
-Independent read-only Bugbot review covered changed navigation/theme, new screens, player outlook/chart, lineup assignment/persistence/locks, resources/loaders, projections, trends, news, trade inputs, Pro guards and team backup parsing. All seven reported findings were corrected; two further visual/data issues were found and corrected during the audit.
+Independent read-only Bugbot review covered changed navigation/theme, new screens, player outlook/chart, lineup assignment/persistence/locks, resources/loaders, projections, trends, news, trade inputs, Pro guards and team backup parsing. All seven reported findings were corrected; three further visual/data issues were found and corrected during the audit.
 
 ## Data honesty
 

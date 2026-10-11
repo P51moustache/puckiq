@@ -128,6 +128,8 @@ const styles = StyleSheet.create({
   },
   portrait: {
     width: '35%',
+    // Keep the cutout at phone scale when the player sheet widens on iPad.
+    maxWidth: 145,
     height: 96,
     justifyContent: 'center',
     alignItems: 'center',
