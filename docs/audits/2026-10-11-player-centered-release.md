@@ -38,3 +38,5 @@ Independent read-only Bugbot review covered changed navigation/theme, new screen
 Final checks, simulator evidence, source hashes and App Store submission receipt are recorded with the release candidate. Live NHL smoke tested forms, schedules, night status, coach moves, pickups, matchup and final box scores. Purchase/restore logic is covered by behavioral tests; no paid purchase is executed during QA.
 
 Final source checks: TypeScript clean; 101 Jest suites and 931 tests passed; ESLint has zero errors (198 existing warnings, primarily test mock/import conventions); `git diff --check` clean. Live API smoke: 2 tests passed. Release app compiled with the production EAS profile's public environment and no preview overrides. Widgets and Live Activities use the same updated palette and upright numerals.
+
+Shipping result: **3.2.0 (44), Waiting for Review, release after approval**. [Exact candidate and submission receipt](../releases/3.2.0/submission.md).
