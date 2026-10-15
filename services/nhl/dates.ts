@@ -10,6 +10,12 @@ export { getEtHour, getNhlCalendarDate, getNhlGameDay };
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEKDAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'] as const;
 
+/** Accept real calendar dates only; JavaScript otherwise normalizes February 30. */
+export function isCalendarDate(value: unknown): value is string {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+    Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
+}
+
 function toUtc(date: string): Date {
   const [y, m, d] = date.split('-').map(Number);
   return new Date(Date.UTC(y, (m || 1) - 1, d || 1));

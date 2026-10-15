@@ -50,6 +50,7 @@ function night(games: NhlGame[], lines: Array<[number, GameLine]> = []): NightDa
     };
   }
   return {
+    checks: { schedule: { source: 'fixture', fetchedAt: 0, maxAgeMs: 60_000, state: 'fresh' }, scratches: [], news: null },
     date: DATE, games, playerGames, statuses: new Map(), liveLines: new Map(lines), news: [], nextDate: null, preseasonGames: 0,
   };
 }

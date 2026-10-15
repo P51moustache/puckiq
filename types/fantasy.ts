@@ -101,6 +101,8 @@ export interface FantasyTeam {
   roomId?: string;
   /** The team's page on its platform (pasted by the user), for "Open Yahoo". */
   teamLink?: string;
+  /** User-reviewed membership observation; never an automatic fantasy-host sync. */
+  rosterConfirmation?: import('../services/rosterImport/rosterConfirmation').RosterConfirmation;
   createdAt: string;
   updatedAt: string;
 }

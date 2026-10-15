@@ -1,6 +1,6 @@
 /**
  * "Before lock": the coach's moves for tonight or tomorrow. Grouped sits show the faces of
- * everyone who has no slot; free users see the first move and a Pro lock for the rest. When
+ * everyone who has no slot; free users see safety checks and one decision. When
  * there's something to change, one tap opens the host app (or the user's team page) to do it.
  */
 
@@ -12,6 +12,7 @@ import type { FantasyPlayer, SlotKey } from '../../types/fantasy';
 import type { CoachMove } from '../../services/fantasy/coach';
 import type { HostLink } from '../../services/fantasy/hostLinks';
 import { track } from '../../services/analytics/track';
+import { openHostLink } from '../../services/analytics/openHostLink';
 import { STARTING_GOALIES_URL } from '../../constants/legal';
 import { ART, ART_ASPECT } from '../../constants/art';
 import { PlayerAvatar } from '../coach/PlayerAvatar';
@@ -100,7 +101,7 @@ export function CoachMovesSection({
                   ))}
                 </View>
               ) : move.kind === 'empty' ? (
-                <Pressable onPress={() => onFindPickup(move)} hitSlop={6}>
+                <Pressable onPress={() => onFindPickup(move)} hitSlop={6} testID={`move-empty-find-${move.slot}`}>
                   <Text style={styles.link}>Find a {move.slot === 'UTIL' ? 'skater' : move.slot} who plays {when} →</Text>
                 </Pressable>
               ) : null}
@@ -110,8 +111,8 @@ export function CoachMovesSection({
         {host && moves.some((move) => move.severity <= MAX_ACTION_SEVERITY) ? (
           <Pressable
             onPress={() => {
-              track('host_open', { host: host.name.toLowerCase(), team_page: host.teamPage });
-              Linking.openURL(host.url).catch(() => undefined);
+              track('advice_action', { surface: 'coach_moves', action: 'open_host', gated: false, available_moves: moves.length });
+              void openHostLink(host, 'coach_moves', Linking.openURL, track);
             }}
             style={({ pressed }) => [styles.host, pressed && styles.pressed]}
             accessibilityRole="link"

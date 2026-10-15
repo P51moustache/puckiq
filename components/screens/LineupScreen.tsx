@@ -13,8 +13,16 @@ import { useNight, useNhlToday } from '../../hooks/useCoach';
 import { useLineupActions } from '../../hooks/useLineupActions';
 import { daysBetween, shortDate } from '../../services/nhl/dates';
 import { lineupValue } from '../../services/fantasy/lineupPlan';
+import { freeLineupCall } from '../../services/fantasy/freeLineupCall';
+import { FreeLineupCallCard } from '../lineup/FreeLineupCallCard';
+import { hasSamplePlayers } from '../../constants/sampleTeam';
+import SampleTeamNotice from '../coach/SampleTeamNotice';
 import { formatValue } from '../../services/fantasy/scoring';
 import { hostLinkFor } from '../../services/fantasy/hostLinks';
+import { track } from '../../services/analytics/track';
+import { openHostLink } from '../../services/analytics/openHostLink';
+import { rosterContext } from '../../services/analytics/rosterContext';
+import { useBehaviorSnapshot } from '../../hooks/useBehaviorSnapshot';
 import PageHeader from '../PageHeader';
 import { useTeams } from '../TeamsProvider';
 import { useSubscription } from '../SubscriptionProvider';
@@ -70,6 +78,18 @@ export default function LineupScreen() {
       : 0;
   const shown = tab === 'best' ? best : planned;
   const host = team ? hostLinkFor(team) : null;
+  const freeCall = team && best ? freeLineupCall(team, best, view.lineupValues) : null;
+  useBehaviorSnapshot('lineup', ready ? {
+    ...rosterContext(team), tab, day_offset: offset,
+    state: !team?.players.length ? 'empty_roster' : view.error ? 'error' : view.loading ? 'loading' : !best ? 'unavailable' : 'ready',
+    free_call_available: !!freeCall,
+    saved_plan: saved, locked: actions.locked,
+    available_starters: isPremium ? best?.starters.length ?? 0 : 0,
+  } : null);
+  const openHost = () => {
+    if (!host) return;
+    void openHostLink(host, 'lineup', Linking.openURL, track);
+  };
   return (
     <View style={styles.container} testID="lineup-screen">
       <PageHeader
@@ -91,6 +111,7 @@ export default function LineupScreen() {
           />
         }
       >
+        <SampleTeamNotice />
         <SectionTabs
           comfortable
           value={tab}
@@ -131,11 +152,14 @@ export default function LineupScreen() {
                 </Text>
               </Card>
             ) : !isPremium ? (
-              <ProLockCard
+              <>
+              <FreeLineupCallCard call={freeCall} team={team} locked={actions.locked} pending={!actions.loaded} onSave={() => actions.applyFreeCall(freeCall)} onOpenHost={openHost} />
+              {!hasSamplePlayers(team) ? <ProLockCard
                 title="Your best lineup, every night"
-                detail="Compare start/sit options, save your plan, and find pickups for your empty slots."
-                onPress={() => openPaywall('tonight_lineup')}
-              />
+                detail={`Go beyond one call: optimize all ${best.starters.length + best.empty.length} active slots and compare every start/sit option.`}
+                onPress={() => openPaywall('tonight_lineup', { kind: 'lineup', date: view.date, emptySlots: best.empty.length })}
+              /> : null}
+              </>
             ) : (
               <>
                 <Card style={styles.summary} testID="lineup-summary">
@@ -266,7 +290,7 @@ export default function LineupScreen() {
                       label={`Open ${host.name}`}
                       icon="open-outline"
                       onPress={() => {
-                        Linking.openURL(host.url).catch(() => undefined);
+                        openHost();
                       }}
                     />
                   ) : (
@@ -301,7 +325,7 @@ export default function LineupScreen() {
           onOpenHost={
             host
               ? () => {
-                  Linking.openURL(host.url).catch(() => undefined);
+                  openHost();
                 }
               : undefined
           }

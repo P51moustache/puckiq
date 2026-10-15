@@ -70,6 +70,7 @@ export function toPostHogEvent(event: AnalyticsEvent, distinctId: string, app: A
     $os: app.os,
     $lib: 'puckiq',
     environment: app.environment ?? 'production',
+    analytics_schema: 2,
     // Anonymous install IDs shouldn't create PostHog person profiles.
     $process_person_profile: false,
   };

@@ -8,6 +8,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { Sourced } from '../data/sourceCheck';
 
 const DISK_PREFIX = 'nhlcache:';
 const DEFAULT_TIMEOUT_MS = 10_000;
@@ -33,7 +34,9 @@ export interface FetchJsonOptions {
 }
 
 const memory = new Map<string, CacheEntry>();
-const inflight = new Map<string, Promise<unknown>>();
+const inflight = new Map<string, Promise<CacheEntry>>();
+// A failed forced refresh must remain visible even while the old copy is inside its TTL.
+const failedRefreshes = new Set<string>();
 
 /** Be polite to the NHL: a few requests per host at a time (the stats API rate-limits bursts). */
 const MAX_CONCURRENT_PER_HOST = 4;
@@ -153,10 +156,19 @@ async function fetchWithRetry(url: string, timeoutMs: number): Promise<unknown> 
 }
 
 export async function fetchJson<T>(url: string, options: FetchJsonOptions): Promise<T> {
+  return (await fetchJsonWithSource<T>(url, options)).data;
+}
+
+/** Same cache/retry path as fetchJson, preserving the original successful fetch time. */
+export async function fetchJsonWithSource<T>(url: string, options: FetchJsonOptions): Promise<Sourced<T>> {
+  const result = (entry: CacheEntry, stale = false): Sourced<T> => ({
+    data: entry.data as T,
+    check: { source: url, fetchedAt: entry.fetchedAt, maxAgeMs: options.ttlMs, state: stale ? 'stale' : 'fresh' },
+  });
   const now = Date.now();
   const cached = memory.get(url);
-  if (!options.force && isFresh(cached, options.ttlMs, now)) {
-    return cached.data as T;
+  if (!options.force && !failedRefreshes.has(url) && isFresh(cached, options.ttlMs, now)) {
+    return result(cached);
   }
 
   let diskCopy: CacheEntry | undefined;
@@ -164,31 +176,37 @@ export async function fetchJson<T>(url: string, options: FetchJsonOptions): Prom
     diskCopy = await readDisk(url);
     if (diskCopy) memory.set(url, diskCopy);
     if (!options.force && isFresh(diskCopy, options.ttlMs, Date.now())) {
-      return diskCopy.data as T;
+      return result(diskCopy);
     }
   }
 
-  const pending = inflight.get(url);
-  if (pending) return pending as Promise<T>;
+  let request = inflight.get(url);
+  if (!request) {
+    request = (async () => {
+      try {
+        const data = await fetchWithRetry(url, options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+        const entry = { data, fetchedAt: Date.now() };
+        memory.set(url, entry);
+        failedRefreshes.delete(url);
+        if (options.persist) void writeDisk(url, entry);
+        return entry;
+      } catch (error) {
+        failedRefreshes.add(url);
+        throw error;
+      } finally {
+        inflight.delete(url);
+      }
+    })();
+    inflight.set(url, request);
+  }
 
-  const request = (async () => {
-    try {
-      const data = await fetchWithRetry(url, options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
-      const entry = { data, fetchedAt: Date.now() };
-      memory.set(url, entry);
-      if (options.persist) void writeDisk(url, entry);
-      return data;
-    } catch (error) {
-      const fallback = memory.get(url) ?? diskCopy;
-      if (fallback) return fallback.data;
-      throw error;
-    } finally {
-      inflight.delete(url);
-    }
-  })();
-
-  inflight.set(url, request);
-  return request as Promise<T>;
+  try {
+    return result(await request);
+  } catch (error) {
+    const fallback = memory.get(url) ?? diskCopy;
+    if (fallback) return result(fallback, true);
+    throw error;
+  }
 }
 
 /** Build a query string; values are URI-encoded. */
@@ -202,6 +220,7 @@ export function withQuery(base: string, params: Record<string, string | number |
 export function clearNhlMemoryCache(): void {
   memory.clear();
   inflight.clear();
+  failedRefreshes.clear();
   active.clear();
   waiting.clear();
 }

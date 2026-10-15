@@ -24,6 +24,7 @@ import { useTeams } from '../TeamsProvider';
 import { PlayerAvatar, PlayerName } from '../coach/PlayerAvatar';
 import { colors } from '../coach/ui';
 import { track } from '../../services/analytics/track';
+import { searchOutcome } from '../../services/analytics/searchOutcome';
 
 export type SearchMode =
   | { kind: 'add'; list: 'players' | 'opponent' }
@@ -96,17 +97,17 @@ export default function PlayerSearchSheet({ visible, mode, onClose }: PlayerSear
         const found = await searchNhlPlayers(trimmed, 25);
         if (id !== requestId.current) return;
         setResults(found);
-        track('player_search', { query_length: trimmed.length, results: found.length, duration_ms: Date.now() - startedAt, result: 'success', list });
+        track('player_search', searchOutcome({ queryLength: trimmed.length, results: found.length, durationMs: Date.now() - startedAt, result: 'success', list, source: 'roster_search' }));
         setError(null);
       } catch {
         if (id !== requestId.current) return;
         setError('NHL search is unavailable. Check your connection.');
-        track('player_search', { query_length: trimmed.length, duration_ms: Date.now() - startedAt, result: 'error', list });
+        track('player_search', searchOutcome({ queryLength: trimmed.length, durationMs: Date.now() - startedAt, result: 'error', list, source: 'roster_search' }));
       } finally {
         if (id === requestId.current) setSearching(false);
       }
     }, 250);
-    return () => clearTimeout(timer);
+    return () => { clearTimeout(timer); requestId.current += 1; };
   }, [query, visible, list]);
 
   const onList = useMemo(() => new Set((team?.[list] ?? []).map((player) => player.playerId)), [team, list]);

@@ -42,6 +42,7 @@ import { BrandMark, colors, GhostButton, PrimaryButton } from '../coach/ui';
 import { RosterImportSheet } from '../rosterImport/RosterImportSheet';
 import { LeagueFormatPicker } from '../leagueFormat/LeagueFormatPicker';
 import { track } from '../../services/analytics/track';
+import { searchOutcome } from '../../services/analytics/searchOutcome';
 
 interface CoachOnboardingProps {
   onComplete: () => void;
@@ -86,6 +87,10 @@ export function CoachOnboarding({ onComplete }: CoachOnboardingProps) {
     track('onboarding_complete', { players: roster.length, sample_team: usedSample, reminders });
     onComplete();
   };
+  const chooseRoster = (choice: 'continue' | 'later' | 'sample') => {
+    track('onboarding_roster_choice', { choice, players: roster.length, sample_team: choice === 'sample' || usedSample });
+    setStep('reminders');
+  };
 
   useEffect(() => {
     const trimmed = query.trim();
@@ -97,16 +102,22 @@ export function CoachOnboarding({ onComplete }: CoachOnboardingProps) {
     const id = ++requestId.current;
     setSearching(true);
     const timer = setTimeout(async () => {
+      const startedAt = Date.now();
       try {
         const found = await searchNhlPlayers(trimmed, 15);
-        if (id === requestId.current) setResults(found.filter((row) => row.active));
+        if (id !== requestId.current) return;
+        const active = found.filter((row) => row.active);
+        setResults(active);
+        track('player_search', searchOutcome({ queryLength: trimmed.length, results: active.length, durationMs: Date.now() - startedAt, result: 'success', list: 'players', source: 'onboarding' }));
       } catch {
-        if (id === requestId.current) setResults([]);
+        if (id !== requestId.current) return;
+        setResults([]);
+        track('player_search', searchOutcome({ queryLength: trimmed.length, durationMs: Date.now() - startedAt, result: 'error', list: 'players', source: 'onboarding' }));
       } finally {
         if (id === requestId.current) setSearching(false);
       }
     }, 250);
-    return () => clearTimeout(timer);
+    return () => { clearTimeout(timer); requestId.current += 1; };
   }, [query]);
 
   const roster = useMemo(() => team?.players ?? [], [team]);
@@ -326,7 +337,7 @@ export function CoachOnboarding({ onComplete }: CoachOnboardingProps) {
           />
           <PrimaryButton
             label={roster.length > 0 ? `Continue with ${roster.length}` : 'Continue'}
-            onPress={() => setStep('reminders')}
+            onPress={() => chooseRoster('continue')}
             disabled={roster.length === 0}
             testID="onboarding-roster-continue"
           />
@@ -336,7 +347,7 @@ export function CoachOnboarding({ onComplete }: CoachOnboardingProps) {
                 // Always named as a sample, so it never passes for the user's own team.
                 updateTeam((current) => ({ ...addPlayers(current, SAMPLE_PLAYERS), name: SAMPLE_TEAM_NAME }));
                 setUsedSample(true);
-                setStep('reminders');
+                chooseRoster('sample');
               }}
               style={styles.skip}
               testID="onboarding-sample-team"
@@ -344,7 +355,7 @@ export function CoachOnboarding({ onComplete }: CoachOnboardingProps) {
               <Text style={styles.sampleText}>Just looking? Try a sample team</Text>
             </Pressable>
           ) : null}
-          <Pressable onPress={() => setStep('reminders')} style={styles.skip} testID="onboarding-roster-skip">
+          <Pressable onPress={() => chooseRoster('later')} style={styles.skip} testID="onboarding-roster-skip">
             <Text style={styles.skipText}>I’ll add players later</Text>
           </Pressable>
         </Animated.View>

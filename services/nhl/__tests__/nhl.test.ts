@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { clearNhlMemoryCache, fetchJson, pruneNhlDiskCache, withQuery } from '../client';
+import { clearNhlMemoryCache, fetchJson, fetchJsonWithSource, pruneNhlDiskCache, withQuery } from '../client';
 import { addDays, daysBetween, mondayOf, previousSeasonId, seasonIdFor, seasonLabel, weekRangeLabel, weekdayAbbrev } from '../dates';
 import { extractGameLines, extractScratchIds, extractStartingGoalies, fetchGameLines, fetchStartingGoalies, toiSeconds } from '../gamecenter';
 import { mapGameLog, mapLanding } from '../player';
@@ -262,6 +262,37 @@ describe('client', () => {
     online = false;
     const stale = await fetchJson<{ n: number }>('https://x.test/b', { ttlMs: 60_000, force: true });
     expect(stale.n).toBe(2);
+  });
+
+  it('retains the fetch time through a failed refresh and only clears the stale state after success', async () => {
+    const clock = jest.spyOn(Date, 'now').mockReturnValue(1000);
+    let online = true;
+    global.fetch = jest.fn(async () => {
+      if (!online) throw new Error('offline');
+      return { ok: true, status: 200, json: async () => ({ n: 2 }) };
+    }) as unknown as typeof fetch;
+    try {
+      const options = { ttlMs: 60_000 };
+      expect((await fetchJsonWithSource('https://x.test/provenance', options)).check).toMatchObject({ state: 'fresh', fetchedAt: 1000 });
+      clock.mockReturnValue(2000);
+      online = false;
+      const results = await Promise.all([true, true].map((force) => fetchJsonWithSource('https://x.test/provenance', { ...options, force })));
+      expect(results.map((result) => result.check)).toEqual([
+        expect.objectContaining({ state: 'stale', fetchedAt: 1000 }),
+        expect.objectContaining({ state: 'stale', fetchedAt: 1000 }),
+      ]);
+      expect((await fetchJsonWithSource('https://x.test/provenance', options)).check.state).toBe('stale');
+      online = true;
+      clock.mockReturnValue(3000);
+      expect((await fetchJsonWithSource('https://x.test/provenance', options)).check).toMatchObject({ state: 'fresh', fetchedAt: 3000 });
+    } finally { clock.mockRestore(); }
+  });
+
+  it('preserves an aged persisted response timestamp when the network is unavailable', async () => {
+    jest.mocked(AsyncStorage.getItem).mockResolvedValueOnce(JSON.stringify({ data: { n: 7 }, fetchedAt: 1000 }));
+    global.fetch = jest.fn(async () => { throw new Error('offline'); }) as unknown as typeof fetch;
+    const result = await fetchJsonWithSource('https://x.test/disk-source', { ttlMs: 1, persist: true });
+    expect(result).toMatchObject({ data: { n: 7 }, check: { fetchedAt: 1000, state: 'stale' } });
   });
 
   it('retries once on a 5xx, not on a 4xx', async () => {

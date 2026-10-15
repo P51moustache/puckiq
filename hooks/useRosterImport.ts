@@ -12,6 +12,7 @@ import { searchLeftovers } from '../services/rosterImport/searchFallback';
 import { rowsFromOcr } from '../services/rosterImport/ocrRows';
 import { pickOption, playersToAdd, startReview, toggleChecked, type ImportReview } from '../services/rosterImport/review';
 import { track } from '../services/analytics/track';
+import { newInstallId } from '../services/analytics/posthog';
 
 export type ImportMethod = 'screenshot' | 'paste';
 
@@ -37,9 +38,10 @@ export interface RosterImport {
 const ROSTERS_FAILED = 'Couldn’t load the NHL rosters. Check your connection and try again.';
 const SCAN_FAILED = 'Couldn’t read those screenshots. Try again, or paste the names instead.';
 
-export function useRosterImport(open: boolean, rosterIds: ReadonlySet<number>): RosterImport {
+export function useRosterImport(open: boolean, rosterIds: ReadonlySet<number>, source = 'unknown'): RosterImport {
   const [stage, setStage] = useState<ImportStage>({ kind: 'choose' });
   const index = useRef<Promise<PlayerIndex> | null>(null);
+  const generation = useRef(0);
 
   const loadIndex = useCallback((): Promise<PlayerIndex> => {
     if (!index.current) {
@@ -55,21 +57,36 @@ export function useRosterImport(open: boolean, rosterIds: ReadonlySet<number>): 
 
   useEffect(() => {
     if (!open) return;
+    generation.current += 1;
     setStage({ kind: 'choose' });
     loadIndex().catch(() => undefined);
+    return () => { generation.current += 1; };
   }, [open, loadIndex]);
 
-  const run = useCallback(async (rows: string[], method: ImportMethod) => {
+  const run = useCallback(async (rows: string[], method: ImportMethod, attempt: string, startedAt: number, request: number) => {
     let players: PlayerIndex;
     try {
       players = await loadIndex();
     } catch {
+      if (request !== generation.current) return;
+      track('roster_import_failure', { source, method, import_attempt_id: attempt, reason: 'rosters_unavailable', elapsed_ms: Date.now() - startedAt });
       setStage({ kind: 'error', message: ROSTERS_FAILED });
       return;
     }
+    if (request !== generation.current) return;
     const indexed = matchRosterRows(rows, players);
-    const match = indexed.leftovers.length > 0 ? mergeSearchMatches(indexed, await searchLeftovers(indexed.leftovers)) : indexed;
+    let match;
+    try {
+      match = indexed.leftovers.length > 0 ? mergeSearchMatches(indexed, await searchLeftovers(indexed.leftovers)) : indexed;
+    } catch {
+      if (request !== generation.current) return;
+      track('roster_import_failure', { source, method, import_attempt_id: attempt, reason: 'matching_unavailable', elapsed_ms: Date.now() - startedAt });
+      setStage({ kind: 'error', message: ROSTERS_FAILED });
+      return;
+    }
+    if (request !== generation.current) return;
     track('roster_import_result', {
+      source, import_attempt_id: attempt, elapsed_ms: Date.now() - startedAt,
       method,
       rows: rows.length,
       found: match.matched.length,
@@ -78,28 +95,40 @@ export function useRosterImport(open: boolean, rosterIds: ReadonlySet<number>): 
       unmatched: match.unmatched.length,
     });
     setStage({ kind: 'review', method, review: startReview(match, rosterIds) });
-  }, [loadIndex, rosterIds]);
+  }, [loadIndex, rosterIds, source]);
 
   const scan = useCallback(async () => {
+    const request = ++generation.current;
+    const attempt = newInstallId();
+    const startedAt = Date.now();
+    track('roster_import_started', { source, method: 'screenshot', import_attempt_id: attempt });
     setStage({ kind: 'reading', method: 'screenshot' });
     let images;
     try {
       images = await scanRosterScreenshots();
     } catch {
+      if (request !== generation.current) return;
+      track('roster_import_failure', { source, method: 'screenshot', import_attempt_id: attempt, reason: 'scan_failed', elapsed_ms: Date.now() - startedAt });
       setStage({ kind: 'error', message: SCAN_FAILED });
       return;
     }
+    if (request !== generation.current) return;
     if (!images) {
+      track('roster_import_cancelled', { source, method: 'screenshot', import_attempt_id: attempt });
       setStage({ kind: 'choose' });
       return;
     }
-    await run(rowsFromOcr(images), 'screenshot');
-  }, [run]);
+    await run(rowsFromOcr(images), 'screenshot', attempt, startedAt, request);
+  }, [run, source]);
 
   const paste = useCallback(async (text: string) => {
+    const request = ++generation.current;
+    const attempt = newInstallId();
+    const startedAt = Date.now();
+    track('roster_import_started', { source, method: 'paste', import_attempt_id: attempt });
     setStage({ kind: 'reading', method: 'paste' });
-    await run(rowsFromPastedText(text), 'paste');
-  }, [run]);
+    await run(rowsFromPastedText(text), 'paste', attempt, startedAt, request);
+  }, [run, source]);
 
   const toggle = useCallback((playerId: number) => {
     setStage((current) => (current.kind === 'review' ? { ...current, review: toggleChecked(current.review, playerId) } : current));
@@ -109,7 +138,7 @@ export function useRosterImport(open: boolean, rosterIds: ReadonlySet<number>): 
     setStage((current) => (current.kind === 'review' ? { ...current, review: pickOption(current.review, entry, playerId) } : current));
   }, []);
 
-  const restart = useCallback(() => setStage({ kind: 'choose' }), []);
+  const restart = useCallback(() => { generation.current += 1; setStage({ kind: 'choose' }); }, []);
 
   return {
     stage,

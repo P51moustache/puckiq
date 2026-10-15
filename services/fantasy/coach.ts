@@ -10,6 +10,7 @@ import type { PlayerForm } from './form';
 import type { DayPlan, PlayerGameDay } from './weekPlan';
 import { lastNameOf, shortNames } from './names';
 import type { GoalieOutlook } from './goalieOutlook';
+import type { SourceCheck } from '../data/sourceCheck';
 
 export type CoachMoveKind = 'scratch' | 'injury' | 'overflow' | 'empty' | 'goalie' | 'off' | 'clean';
 
@@ -32,6 +33,8 @@ export interface PlayerStatus {
   signal: InjurySignal;
   confidence: InjuryConfidence;
   note: string | null;
+  /** Evidence age can change after this status is loaded. */
+  check?: SourceCheck;
 }
 
 export interface CoachInput {
@@ -211,8 +214,8 @@ export function buildCoachMoves({ day, players, games, statuses, forms, goalieOu
       id: 'clean',
       kind: 'clean',
       severity: 5,
-      title: 'Lineup is clean',
-      detail: `${startersById.size} starters, no conflicts or scratches posted.`,
+      title: 'No slot conflicts in your plan',
+      detail: `${startersById.size} planned starters. Verify player availability and make the actual moves in your fantasy league.`,
       playerIds: [],
     });
   }
@@ -220,9 +223,11 @@ export function buildCoachMoves({ day, players, games, statuses, forms, goalieOu
   return moves.sort((a, b) => a.severity - b.severity);
 }
 
-/** Free sees one move. Pro sees the list. */
+/** Safety information stays free; free also gets one complete non-safety decision. */
 export function visibleMoves(moves: CoachMove[], isPro: boolean): CoachMove[] {
-  return isPro ? moves : moves.slice(0, 1);
+  if (isPro) return moves;
+  const decision = moves.find((move) => move.severity > 1);
+  return moves.filter((move) => move.severity <= 1 || move === decision);
 }
 
 export const HOST_NOTE = 'Make changes in Yahoo, ESPN, or Fantrax. PuckIQ never touches your league.';

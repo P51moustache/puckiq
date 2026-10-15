@@ -5,7 +5,8 @@
  * the box score flags who started in net, and at the end who got the decision.
  */
 
-import { fetchJson, HOUR, MINUTE } from './client';
+import { fetchJson, fetchJsonWithSource, HOUR, MINUTE } from './client';
+import { unavailableCheck, type Sourced } from '../data/sourceCheck';
 import { NHL_WEB_API } from './schedule';
 
 /** A goalie's decision of record: win, loss, or overtime/shootout loss. */
@@ -75,6 +76,10 @@ interface RawBoxscore {
   playerByGameStats?: { homeTeam?: RawTeamStats; awayTeam?: RawTeamStats };
 }
 
+interface RawScratchSheet {
+  gameInfo?: { homeTeam?: { scratches?: { id?: number }[] }; awayTeam?: { scratches?: { id?: number }[] } };
+}
+
 export function extractScratchIds(rightRail: any): Set<number> {
   const ids = new Set<number>();
   const away = rightRail?.gameInfo?.awayTeam?.scratches ?? [];
@@ -87,14 +92,22 @@ export function extractScratchIds(rightRail: any): Set<number> {
 }
 
 export async function fetchScratchIds(gameId: number, options: { force?: boolean } = {}): Promise<Set<number>> {
+  return (await fetchScratchIdsWithSource(gameId, options)).data;
+}
+
+/** Missing/unpublished lists and failed requests never count as a completed empty check. */
+export async function fetchScratchIdsWithSource(gameId: number, options: { force?: boolean } = {}): Promise<Sourced<Set<number>>> {
+  const source = `${NHL_WEB_API}/v1/gamecenter/${gameId}/right-rail`;
   try {
-    const payload = await fetchJson<unknown>(`${NHL_WEB_API}/v1/gamecenter/${gameId}/right-rail`, {
+    const result = await fetchJsonWithSource<RawScratchSheet>(source, {
       ttlMs: 2 * MINUTE,
       force: options.force,
     });
-    return extractScratchIds(payload);
+    const info = result.data?.gameInfo;
+    const complete = Array.isArray(info?.awayTeam?.scratches) && Array.isArray(info?.homeTeam?.scratches);
+    return { data: extractScratchIds(result.data), check: complete ? result.check : { ...result.check, state: 'unavailable' } };
   } catch {
-    return new Set();
+    return { data: new Set(), check: unavailableCheck(source) };
   }
 }
 

@@ -11,7 +11,9 @@ export const FREE_FEATURES = [
   'Your roster, from real NHL players',
   'Tonight: who plays, puck-drop countdown, NHL scratch checks, live stats',
   'This week’s schedule grid and off-nights',
-  'One coach move every day',
+  'Safety checks and one complete coach decision',
+  'One saveable lineup call and a personal pickup candidate',
+  'Changes since your last visit',
   'Lineup reminder before first puck',
 ] as const;
 

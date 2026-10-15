@@ -2,6 +2,8 @@ import { Platform } from 'react-native';
 import Purchases, { PurchasesPackage, CustomerInfo, PurchasesOfferings } from 'react-native-purchases';
 import { loyaltyExpiration } from './loyaltyAccess';
 import { appDownloadTimestamp } from './appDownloadDate';
+import { entitlementDetails, purchaseOutcome, type PurchaseOutcome, type PurchaseResult, type StoreEnvironment, type SubscriptionPeriod } from './subscriptionOutcome';
+export type { PurchaseResult } from './subscriptionOutcome';
 
 const LOG_PREFIX = '[SUBSCRIPTION]';
 export const PRO_ENTITLEMENT = 'pro';
@@ -14,6 +16,8 @@ export interface ProStatus {
   /** Store renewal date / expiry, when a subscription is active. */
   expiresAt: string | null;
   willRenew: boolean;
+  storeEnvironment?: StoreEnvironment;
+  periodType?: SubscriptionPeriod;
 }
 
 export const FREE_STATUS: ProStatus = { isPro: false, source: null, expiresAt: null, willRenew: false };
@@ -102,6 +106,8 @@ export function statusFromCustomerInfo(info: CustomerInfo, cutoverIso?: string, 
       source: 'subscription',
       expiresAt: entitlement.expirationDate ?? null,
       willRenew: entitlement.willRenew === true,
+      storeEnvironment: entitlementDetails(entitlement).store_environment,
+      periodType: entitlementDetails(entitlement).subscription_period,
     };
   }
   if (Platform.OS === 'ios' && isLegacyPurchaser(info, cutoverIso ?? process.env.EXPO_PUBLIC_FREEMIUM_CUTOVER, now)) {
@@ -171,22 +177,26 @@ export async function getTrialEligibility(productIds: string[]): Promise<Record<
   } catch { return {}; }
 }
 
-export type PurchaseResult = 'purchased' | 'cancelled' | 'failed';
-
 /**
- * Purchase a subscription package.
+ * Compatibility API. 'purchased' means access granted, not confirmed paid revenue.
  */
 export async function purchasePackage(pkg: PurchasesPackage): Promise<PurchaseResult> {
+  return (await purchasePackageWithDetails(pkg)).result;
+}
+
+/** Checkout outcome with receipt environment and period, never transaction/customer identifiers. */
+export async function purchasePackageWithDetails(pkg: PurchasesPackage): Promise<PurchaseOutcome> {
   try {
     const { customerInfo } = await Purchases.purchasePackage(pkg);
-    return customerInfo.entitlements.active[PRO_ENTITLEMENT] !== undefined ? 'purchased' : 'failed';
+    const entitlement = customerInfo.entitlements.active[PRO_ENTITLEMENT];
+    return purchaseOutcome(entitlement !== undefined ? 'purchased' : 'failed', entitlement);
   } catch (error: any) {
     if (error?.userCancelled) {
       console.log(`${LOG_PREFIX} User cancelled purchase`);
-      return 'cancelled';
+      return purchaseOutcome('cancelled');
     }
     console.warn(`${LOG_PREFIX} Purchase failed:`, error);
-    return 'failed';
+    return purchaseOutcome('failed', undefined, error);
   }
 }
 

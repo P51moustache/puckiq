@@ -7,6 +7,7 @@
 import type { FantasyPlayer, RosterNewsItem } from '../types/fantasy';
 import { injurySignalFromText } from './startSitLean';
 import { appNow } from './nhl/dates';
+import { unavailableCheck, type Sourced } from './data/sourceCheck';
 
 export const ESPN_NHL_RSS_URL = 'https://www.espn.com/espn/rss/nhl/news';
 
@@ -127,21 +128,35 @@ export function newsInjuryHintForPlayer(
 
 const FEED_TTL_MS = 5 * 60 * 1000;
 let feedCache: { items: ReturnType<typeof parseRssItems>; fetchedAt: number } | null = null;
+let feedRefreshFailed = false;
 
 export function clearRosterNewsCache(): void {
   feedCache = null;
 }
 
-export async function fetchRosterNews(roster: FantasyPlayer[]): Promise<RosterNewsItem[]> {
-  if (roster.length === 0) return [];
-  if (!feedCache || Date.now() - feedCache.fetchedAt > FEED_TTL_MS) {
-    const res = await fetch(ESPN_NHL_RSS_URL, {
-      headers: { Accept: 'application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8' },
-    });
-    if (!res.ok) {
-      throw new Error(`Roster news feed failed (${res.status})`);
+export async function fetchRosterNews(roster: FantasyPlayer[], options: { force?: boolean } = {}): Promise<RosterNewsItem[]> {
+  return (await fetchRosterNewsWithSource(roster, options)).data;
+}
+
+export async function fetchRosterNewsWithSource(roster: FantasyPlayer[], options: { force?: boolean } = {}): Promise<Sourced<RosterNewsItem[]>> {
+  if (roster.length === 0) return { data: [], check: unavailableCheck(ESPN_NHL_RSS_URL) };
+  if (options.force || feedRefreshFailed || !feedCache || Date.now() - feedCache.fetchedAt >= FEED_TTL_MS) {
+    try {
+      const res = await fetch(ESPN_NHL_RSS_URL, {
+        headers: { Accept: 'application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8' },
+      });
+      if (!res.ok) throw new Error(`Roster news feed failed (${res.status})`);
+      const xml = await res.text();
+      if (!/<rss[\s>]/i.test(xml)) throw new Error('Roster news feed is unavailable.');
+      feedCache = { items: parseRssItems(xml), fetchedAt: Date.now() };
+      feedRefreshFailed = false;
+    } catch (error) {
+      feedRefreshFailed = true;
+      throw error;
     }
-    feedCache = { items: parseRssItems(await res.text()), fetchedAt: Date.now() };
   }
-  return filterNewsForRoster(feedCache.items, roster);
+  return {
+    data: filterNewsForRoster(feedCache.items, roster),
+    check: { source: ESPN_NHL_RSS_URL, fetchedAt: feedCache.fetchedAt, maxAgeMs: FEED_TTL_MS, state: 'fresh' },
+  };
 }

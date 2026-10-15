@@ -26,43 +26,29 @@ import {
 } from '../constants/monetization';
 import { PRIVACY_URL, TERMS_URL } from '../constants/legal';
 import { ART } from '../constants/art';
-import { FREE_STATUS, getOfferings, getTrialEligibility, purchasePackage, restorePurchases } from '../services/subscription';
+import { FREE_STATUS, getOfferings, getTrialEligibility, purchasePackageWithDetails, restorePurchases } from '../services/subscription';
 import { proAccessCopy } from '../services/proAccessCopy';
-import AnalyticsService from '../services/analytics/AnalyticsService';
+import { packagePrice, packageProperties, trialLabel } from '../services/paywallProducts';
+import { usePaywallJourney } from '../hooks/usePaywallJourney';
 import { useSubscription } from './SubscriptionProvider';
 import { BrandMark, colors, PrimaryButton } from './coach/ui';
+import type { FantasyTeam } from '../types/fantasy';
+import type { ProOpportunity } from '../services/fantasy/proOpportunity';
+import { ProOpportunityCard } from './coach/ProOpportunityCard';
+
+export { trialLabel } from '../services/paywallProducts';
 
 interface ProPaywallProps {
   visible: boolean;
   onClose: () => void;
   source?: PaywallSource;
+  team?: FantasyTeam | null;
+  opportunity?: ProOpportunity;
 }
 
 type Plan = 'annual' | 'monthly';
 
-function packagePrice(pkg: PurchasesPackage | null | undefined): string | null {
-  const price = pkg?.product?.priceString;
-  return typeof price === 'string' && price ? price : null;
-}
-
-const TRIAL_UNIT_DAYS: Record<string, number> = { DAY: 1, WEEK: 7 };
-const TRIAL_UNIT_NAME: Record<string, string> = { MONTH: 'month', YEAR: 'year' };
-
-/**
- * "7-day free trial" — only when the store product really has a FREE intro offer,
- * worded from its actual length. Paid intro offers aren't trials, so they get null.
- */
-export function trialLabel(pkg: PurchasesPackage | null | undefined): string | null {
-  const intro = pkg?.product?.introPrice;
-  if (!intro || intro.price !== 0) return null;
-  const count = Number(intro.periodNumberOfUnits) || 1;
-  const unit = String(intro.periodUnit ?? '').toUpperCase();
-  if (TRIAL_UNIT_DAYS[unit]) return `${count * TRIAL_UNIT_DAYS[unit]}-day free trial`;
-  if (TRIAL_UNIT_NAME[unit]) return `${count}-${TRIAL_UNIT_NAME[unit]} free trial`;
-  return 'free trial';
-}
-
-export default function ProPaywall({ visible, onClose, source = 'settings' }: ProPaywallProps) {
+export default function ProPaywall({ visible, onClose, source = 'settings', team, opportunity }: ProPaywallProps) {
   const { refresh, applyStatus, status = FREE_STATUS } = useSubscription();
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
@@ -72,11 +58,22 @@ export default function ProPaywall({ visible, onClose, source = 'settings' }: Pr
   const [storeLoading, setStoreLoading] = useState(true);
   const [storeAttempt, setStoreAttempt] = useState(0);
   const busy = purchasing || restoring;
+  const journey = usePaywallJourney(visible, source);
+  const close = (reason = 'close_button') => {
+    if (busy) return;
+    journey.close(reason);
+    onClose();
+  };
+  const selectPlan = (next: Plan) => {
+    if (next === plan) return;
+    journey.record('paywall_plan_select', { plan: next, previous_plan: plan });
+    setPlan(next);
+  };
 
   useEffect(() => {
     if (!visible) return;
-    AnalyticsService.getInstance().trackCustomEvent('paywall_view', { source });
     let cancelled = false;
+    const startedAt = Date.now();
     setStoreLoading(true);
     setPackages({ annual: null, monthly: null });
     setTrialEligibility({});
@@ -84,13 +81,28 @@ export default function ProPaywall({ visible, onClose, source = 'settings' }: Pr
       if (cancelled) return;
       const next = { annual: offerings?.current?.annual ?? null, monthly: offerings?.current?.monthly ?? null };
       setPackages(next);
+      journey.record('paywall_store_result', {
+        result: packagePrice(next.annual) || packagePrice(next.monthly) ? 'available' : 'unavailable',
+        annual_available: !!packagePrice(next.annual), monthly_available: !!packagePrice(next.monthly),
+        load_ms: Math.max(0, Date.now() - startedAt), retry: storeAttempt > 0,
+      });
       const ids = Object.values(next).flatMap((pkg) => pkg?.product?.identifier ? [pkg.product.identifier] : []);
-      getTrialEligibility(ids).then((eligible) => { if (!cancelled) setTrialEligibility(eligible); });
-    }).catch(() => undefined).finally(() => { if (!cancelled) setStoreLoading(false); });
+      getTrialEligibility(ids).then((eligible) => {
+        if (cancelled) return;
+        setTrialEligibility(eligible);
+        const eligibility = (pkg: PurchasesPackage | null) => {
+          const value = pkg?.product?.identifier ? eligible[pkg.product.identifier] : undefined;
+          return value === undefined ? 'unknown' : value ? 'eligible' : 'ineligible';
+        };
+        journey.record('paywall_trial_eligibility', { annual: eligibility(next.annual), monthly: eligibility(next.monthly) });
+      });
+    }).catch(() => {
+      if (!cancelled) journey.record('paywall_store_result', { result: 'error', load_ms: Math.max(0, Date.now() - startedAt) });
+    }).finally(() => { if (!cancelled) setStoreLoading(false); });
     return () => {
       cancelled = true;
     };
-  }, [visible, source, storeAttempt]);
+  }, [visible, source, storeAttempt, journey]);
 
   const selected = plan === 'annual' ? packages.annual : packages.monthly;
   const annualPrice = packagePrice(packages.annual);
@@ -111,21 +123,27 @@ export default function ProPaywall({ visible, onClose, source = 'settings' }: Pr
 
   const handlePurchase = async () => {
     if (!isPaywallEnabled()) {
+      journey.record('paywall_checkout_blocked', { reason: 'disabled', plan });
       Alert.alert('Subscriptions are off', 'Purchases are disabled in this build.');
       return;
     }
     if (!selected || !packagePrice(selected)) {
+      journey.record('paywall_checkout_blocked', { reason: 'store_unavailable', plan });
       Alert.alert('Store unavailable', 'We couldn’t reach the App Store. Check your connection and try again.');
       return;
     }
     setPurchasing(true);
+    const startedAt = Date.now();
+    const product = packageProperties(selected);
+    journey.record('paywall_checkout_started', { plan, ...product, trial_offered: !!trial });
     try {
-      const result = await purchasePackage(selected);
-      AnalyticsService.getInstance().trackCustomEvent('paywall_purchase', { source, plan, result });
-      if (result === 'purchased') {
+      const outcome = await purchasePackageWithDetails(selected);
+      journey.record('paywall_purchase', { plan, ...product, ...outcome, checkout_ms: Math.max(0, Date.now() - startedAt) });
+      if (outcome.result === 'purchased') {
         await refresh();
+        journey.close('access_granted');
         onClose();
-      } else if (result === 'failed') {
+      } else if (outcome.result === 'failed') {
         Alert.alert('Purchase didn’t go through', 'You weren’t charged. Please try again.');
       }
     } finally {
@@ -135,11 +153,13 @@ export default function ProPaywall({ visible, onClose, source = 'settings' }: Pr
 
   const handleRestore = async () => {
     setRestoring(true);
+    journey.record('paywall_restore_started');
     try {
       const restored = await restorePurchases();
-      AnalyticsService.getInstance().trackCustomEvent('paywall_restore', { source, result: restored.isPro ? 'pro' : 'none' });
+      journey.record('paywall_restore', { result: restored.isPro ? 'pro' : 'none', pro_source: restored.source ?? 'none', store_environment: restored.storeEnvironment ?? 'unknown', subscription_period: restored.periodType ?? 'unknown' });
       if (restored.isPro) {
         applyStatus(restored);
+        journey.close('restored');
         onClose();
       } else {
         Alert.alert('Nothing to restore', 'No active PuckIQ Pro subscription was found for this Apple ID.');
@@ -152,10 +172,10 @@ export default function ProPaywall({ visible, onClose, source = 'settings' }: Pr
   if (!visible) return null;
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose} testID="pro-paywall">
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => close('system_close')} testID="pro-paywall">
       <View style={styles.container}>
         <View style={styles.header}>
-          <Pressable onPress={onClose} disabled={busy} hitSlop={10} testID="pro-paywall-close" accessibilityLabel="Close">
+          <Pressable onPress={() => close()} disabled={busy} hitSlop={10} testID="pro-paywall-close" accessibilityLabel="Close">
             <Ionicons name="close" size={24} color={colors.onInk} />
           </Pressable>
         </View>
@@ -173,6 +193,7 @@ export default function ProPaywall({ visible, onClose, source = 'settings' }: Pr
           <Text style={styles.lede}>
             Your best lineup, every move before lock, and pickups for your empty nights.
           </Text>
+          {team && !status.isPro ? <ProOpportunityCard team={team} opportunity={opportunity} /> : null}
 
           {status.isPro ? (
             <View style={styles.activeCard} testID="pro-active">
@@ -218,7 +239,7 @@ export default function ProPaywall({ visible, onClose, source = 'settings' }: Pr
               <View style={styles.plans}>
                 <Pressable
                   style={[styles.plan, plan === 'annual' && styles.planOn]}
-                  onPress={() => setPlan('annual')}
+                  onPress={() => selectPlan('annual')}
                   testID="pro-plan-annual"
                   accessibilityRole="radio"
                   accessibilityState={{ selected: plan === 'annual' }}
@@ -230,7 +251,7 @@ export default function ProPaywall({ visible, onClose, source = 'settings' }: Pr
                 </Pressable>
                 <Pressable
                   style={[styles.plan, plan === 'monthly' && styles.planOn]}
-                  onPress={() => setPlan('monthly')}
+                  onPress={() => selectPlan('monthly')}
                   testID="pro-plan-monthly"
                   accessibilityRole="radio"
                   accessibilityState={{ selected: plan === 'monthly' }}
@@ -256,7 +277,7 @@ export default function ProPaywall({ visible, onClose, source = 'settings' }: Pr
                 {renewal ? `${trial ? `${trial[0].toUpperCase()}${trial.slice(1)}, then ${renewal}. ` : `${renewal}, renews automatically. `}Cancel anytime.` : 'Prices are provided by the App Store. No purchase is available until they load.'}
               </Text>
               {!storeLoading && !selectedPrice ? (
-                <Pressable onPress={() => setStoreAttempt((attempt) => attempt + 1)} style={styles.restore} testID="pro-retry-store" accessibilityRole="button">
+                <Pressable onPress={() => { journey.record('paywall_store_retry'); setStoreAttempt((attempt) => attempt + 1); }} style={styles.restore} testID="pro-retry-store" accessibilityRole="button">
                   <Text style={styles.restoreText}>Retry App Store</Text>
                 </Pressable>
               ) : null}

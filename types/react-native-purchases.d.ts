@@ -11,6 +11,8 @@ declare module 'react-native-purchases' {
     identifier: string;
     willRenew: boolean;
     periodType: string;
+    isSandbox?: boolean;
+    productIdentifier?: string;
     latestPurchaseDate: string;
     originalPurchaseDate: string;
     expirationDate: string | null;

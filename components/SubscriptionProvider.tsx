@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { useAuthContext } from './auth/AuthProvider';
 import {
@@ -35,6 +35,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   const [status, setStatus] = useState<ProStatus>(() => developerOverride() ?? FREE_STATUS);
   const [loading, setLoading] = useState(true);
   const [storeReady, setStoreReady] = useState(false);
+  const lastStatus = useRef<string | null>(null);
 
   const checkProStatus = useCallback(async () => {
     const override = developerOverride();
@@ -91,8 +92,21 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   }, [status, checkProStatus]);
 
   useEffect(() => {
-    AnalyticsService.getInstance().register({ is_pro: status.isPro });
-  }, [status.isPro]);
+    const context = {
+      is_pro: status.isPro,
+      pro_source: loading ? 'unknown' : status.source ?? 'none',
+      subscription_status_ready: !loading,
+      store_environment: status.storeEnvironment ?? 'unknown',
+      subscription_period: status.periodType ?? 'unknown',
+    };
+    const analytics = AnalyticsService.getInstance();
+    analytics.register(context);
+    const key = JSON.stringify(context);
+    if (!loading && lastStatus.current !== key) {
+      lastStatus.current = key;
+      analytics.trackCustomEvent('subscription_status', context);
+    }
+  }, [status, loading]);
 
   const value = useMemo<SubscriptionContextValue>(
     () => ({ isPremium: status.isPro, status, loading, storeReady, refresh, applyStatus }),

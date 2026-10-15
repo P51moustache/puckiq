@@ -22,6 +22,8 @@ import { likelyRosteredIds, rankPickups, type PickupRow } from '../services/fant
 import { buildWeekPlan, goalieValueOnNight, type DayPlan, type PlanInput, type WeekPlan } from '../services/fantasy/weekPlan';
 import { buildPlannedDay } from '../services/fantasy/lineupPlan';
 import { lineupCoverageError } from '../services/fantasy/dataQuality';
+import { currentStatuses, namedLineupChecks, type NamedCheck } from '../services/fantasy/lineupChecks';
+import { unavailableCheck } from '../services/data/sourceCheck';
 import { addDays, mondayOf, appNow, shortDate } from '../services/nhl/dates';
 import { isGameFinal, isGameStarted, type WeekSchedule } from '../services/nhl/schedule';
 import { useGoalieOutlook } from './useGoalieOutlook';
@@ -97,6 +99,7 @@ export function useWeekData(team: FantasyTeam | null, weekOffset = 0): WeekData 
 
 export interface NightView {
   date: string;
+  checks: NamedCheck[];
   night: Resource<NightData>;
   forms: Resource<FormsResult>;
   day: DayPlan | null;
@@ -127,8 +130,18 @@ export function useNight(team: FantasyTeam | null, dayOffset = 0, enabled = true
   const schedule = useWeekSchedule(monday);
   const key = team && enabled ? `night|${date}|${rosterKey(team, false)}` : null;
   // Box scores load for tonight (live) and last night (the recap); tomorrow has none yet.
-  const night = useResource(key, (force) => loadNight(team!.players, date, { force, live: dayOffset <= 0, news: dayOffset >= 0 }));
+  const loadedNight = useResource(key, (force) => loadNight(team!.players, date, { force, live: dayOffset <= 0, news: dayOffset >= 0 }));
+  // Tonight's countdown and foreground updates re-render this hook even without a new fetch.
+  const evidenceNow = Date.now();
+  const nightData = useMemo(() => loadedNight.data ? {
+    ...loadedNight.data, statuses: currentStatuses(loadedNight.data.statuses, evidenceNow),
+  } : null, [loadedNight.data, evidenceNow]);
+  const night = { ...loadedNight, data: nightData };
   const goalieOutlooks = useGoalieOutlook(enabled ? team : null, date);
+  const checks = useMemo(() => night.data ? namedLineupChecks(
+    night.data.checks ?? { schedule: unavailableCheck('schedule'), scratches: [], news: unavailableCheck('news') },
+    schedule.data?.check ?? unavailableCheck('planning schedule'),
+  ) : [], [night.data, schedule.data]);
   const scratched = useMemo(() => new Set(
     [...(night.data?.statuses.values() ?? [])]
       .filter((status) => status.signal === 'scratch' && status.confidence === 'confirmed')
@@ -143,10 +156,10 @@ export function useNight(team: FantasyTeam | null, dayOffset = 0, enabled = true
   );
 
   // Keep scores and scratches current while any of MY games is live or about to start.
-  const { refresh: refreshNight } = night;
+  const { refresh: refreshNight } = loadedNight;
   useEffect(() => {
     if (dayOffset !== 0) return;
-    const soon = !!night.data && Object.values(night.data.playerGames).some((game) => {
+    const soon = !!loadedNight.data && Object.values(loadedNight.data.playerGames).some((game) => {
       if (!game?.startTimeUTC || isGameFinal(game)) return false;
       const start = Date.parse(game.startTimeUTC);
       return Number.isFinite(start) && start - appNow().getTime() < 90 * 60 * 1000;
@@ -156,7 +169,7 @@ export function useNight(team: FantasyTeam | null, dayOffset = 0, enabled = true
       if (AppState.currentState === 'active') refreshNight();
     }, 60_000);
     return () => clearInterval(timer);
-  }, [dayOffset, liveGames, night.data, refreshNight]);
+  }, [dayOffset, liveGames, loadedNight.data, refreshNight]);
 
   const bestDay = useMemo(() => {
     if (!team || !schedule.data || !forms.data || coverageError) return null;
@@ -219,6 +232,7 @@ export function useNight(team: FantasyTeam | null, dayOffset = 0, enabled = true
 
   return {
     date,
+    checks,
     night,
     forms,
     day,

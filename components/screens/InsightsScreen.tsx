@@ -12,6 +12,10 @@ import { useIsFocused } from '@react-navigation/native';
 import { useRouter, type Href } from 'expo-router';
 import { useNight, usePickups } from '../../hooks/useCoach';
 import { visibleMoves } from '../../services/fantasy/coach';
+import { track } from '../../services/analytics/track';
+import { rosterContext } from '../../services/analytics/rosterContext';
+import { useBehaviorSnapshot } from '../../hooks/useBehaviorSnapshot';
+import type { CoachMove } from '../../services/fantasy/coach';
 import { formatValue } from '../../services/fantasy/scoring';
 import PageHeader from '../PageHeader';
 import { useTeams } from '../TeamsProvider';
@@ -73,6 +77,16 @@ export default function InsightsScreen() {
   const featured =
     moves.find((move) => move.kind !== 'off' && move.kind !== 'clean') ??
     moves[0];
+  useBehaviorSnapshot('insights', {
+    ...rosterContext(team), tab,
+    state: !team?.players.length ? 'empty_roster' : view.error ? 'error' : view.loading ? 'loading' : 'ready',
+    available_moves: tab === 'you' ? moves.length : 0,
+    hidden_moves: view.moves.length - moves.length,
+  });
+  const openMove = (move: CoachMove) => {
+    track('advice_open', { surface: 'insights', move_kind: move.kind, affected_players: move.playerIds.length });
+    setSelectedInsight(detailForMove(move, team?.players ?? []));
+  };
   const trending: TrendingPlayer[] = [
     ...(team?.players ?? []).flatMap((p) => {
       const form = view.forms.data?.forms.get(p.playerId);
@@ -159,7 +173,7 @@ export default function InsightsScreen() {
                   title={featured.title}
                   detail={featured.detail}
                   onPress={() =>
-                    setSelectedInsight(detailForMove(featured, team.players))
+                    openMove(featured)
                   }
                 />
               ) : (
@@ -213,7 +227,7 @@ export default function InsightsScreen() {
                     title={move.title}
                     detail={move.detail}
                     onPress={() =>
-                      setSelectedInsight(detailForMove(move, team.players))
+                      openMove(move)
                     }
                     icon={
                       move.kind === 'goalie'
@@ -355,9 +369,10 @@ export default function InsightsScreen() {
             player.owned ? 'tonight' : 'pickups',
           )
         }
-        onAction={(action) =>
-          router.push((action === 'pickups' ? '/pickups' : '/lineup') as Href)
-        }
+        onAction={(action) => {
+          track('advice_action', { surface: 'insights', action, gated: false, affected_players: selectedInsight?.players.length ?? 0 });
+          router.push((action === 'pickups' ? '/pickups' : '/lineup') as Href);
+        }}
       />
     </View>
   );

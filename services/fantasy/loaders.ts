@@ -3,31 +3,14 @@
  * statuses, and a pickup pool. Kept out of React so it is testable and cacheable.
  */
 
-import type { FantasyPlayer, FantasyTeam, InjuryConfidence, InjurySignal, RosterNewsItem, ScoringWeights } from '../../types/fantasy';
+import type { FantasyPlayer, FantasyTeam, ScoringWeights } from '../../types/fantasy';
 import { addDays, previousSeasonId, seasonIdFor } from '../nhl/dates';
-import { fetchScratchIds, type GameLine } from '../nhl/gamecenter';
-import { fetchScoringLines } from '../nhl/powerPlay';
-import {
-  fetchDaySlate,
-  fetchWeekSchedule,
-  findNextFantasyDate,
-  gameForTeam,
-  isFantasyGame,
-  isGameFinal,
-  isGameStarted,
-  opponentOf,
-  PRESEASON,
-  type NhlGame,
-  type WeekSchedule,
-} from '../nhl/schedule';
+import { fetchWeekSchedule, type WeekSchedule } from '../nhl/schedule';
 import { fetchGoalieLines, fetchPlayerBios, fetchSkaterLines, type GoalieLine, type PlayerBio, type SkaterLine } from '../nhl/stats';
 import { fetchTeamStrength, type TeamStrength } from '../nhl/teams';
-import { fetchRosterNews, newsInjuryHintForPlayer } from '../rosterNews';
-import type { PlayerStatus } from './coach';
 import { buildGoalieForm, buildSkaterForm, type PlayerForm } from './form';
 import type { PickupCandidate } from './pickups';
 import { isGoalie, isNhlLinked, normalizePosition } from './positions';
-import type { PlayerGameDay } from './weekPlan';
 import { usableForm } from './dataQuality';
 
 const RECENT_DAYS = 14;
@@ -119,100 +102,7 @@ export function startSharesOf(forms: Map<number, PlayerForm>): Map<number, numbe
 // Tonight
 // ---------------------------------------------------------------------------
 
-export interface NightData {
-  date: string;
-  games: NhlGame[];
-  playerGames: Record<number, PlayerGameDay | undefined>;
-  statuses: Map<number, PlayerStatus>;
-  liveLines: Map<number, GameLine>;
-  news: RosterNewsItem[];
-  /** Next date any fantasy game is played, when this night has none. */
-  nextDate: string | null;
-  /** Exhibition games on this date — they don't count, but say so instead of "no games". */
-  preseasonGames: number;
-}
-
-export function statusFor(
-  player: FantasyPlayer,
-  hasGame: boolean,
-  scratchIds: Set<number>,
-  news: RosterNewsItem[],
-): PlayerStatus {
-  if (hasGame && scratchIds.has(player.playerId)) {
-    return { playerId: player.playerId, signal: 'scratch', confidence: 'confirmed', note: 'On the NHL scratch list' };
-  }
-  const hint = newsInjuryHintForPlayer(player, news);
-  if (hint) {
-    const note: Record<InjurySignal, string> = {
-      out: 'Recent injury report — verify before lineup lock',
-      dtd: 'Recent day-to-day report — verify before lineup lock',
-      scratch: 'Recent scratch report — verify before lineup lock',
-      ok: '',
-      unknown: '',
-    };
-    return { playerId: player.playerId, signal: hint, confidence: 'likely' as InjuryConfidence, note: note[hint] };
-  }
-  return { playerId: player.playerId, signal: 'ok', confidence: 'unknown', note: null };
-}
-
-export async function loadNight(
-  players: FantasyPlayer[],
-  date: string,
-  options: { force?: boolean; live?: boolean; news?: boolean } = {},
-): Promise<NightData> {
-  const linked = players.filter((player) => isNhlLinked(player) && player.teamAbbrev);
-  // Injury news only matters before a night is played; the recap of last night skips it.
-  const wantNews = options.news !== false && linked.length > 0;
-  const [slate, news] = await Promise.all([
-    fetchDaySlate(date, { force: options.force }),
-    wantNews ? fetchRosterNews(linked).catch(() => [] as RosterNewsItem[]) : Promise.resolve([] as RosterNewsItem[]),
-  ]);
-  const games = slate.filter(isFantasyGame);
-
-  const playerGames: Record<number, PlayerGameDay | undefined> = {};
-  const relevant = new Map<number, NhlGame>();
-  for (const player of linked) {
-    const game = gameForTeam(games, player.teamAbbrev);
-    if (!game) continue;
-    const { opponent, isHome } = opponentOf(game, player.teamAbbrev);
-    playerGames[player.playerId] = {
-      date,
-      gameId: game.id,
-      opponent,
-      isHome,
-      startTimeUTC: game.startTimeUTC,
-      state: game.state,
-      offNight: games.length <= 7,
-    };
-    relevant.set(game.id, game);
-  }
-
-  const scratchByGame = new Map<number, Set<number>>();
-  const linesByGame = new Map<number, Map<number, GameLine>>();
-  await Promise.all([...relevant.values()].map(async (game) => {
-    if (!isGameFinal(game)) scratchByGame.set(game.id, await fetchScratchIds(game.id, { force: options.force }));
-    if (options.live !== false && isGameStarted(game)) {
-      linesByGame.set(game.id, await fetchScoringLines(game.id, { final: isGameFinal(game), force: options.force }));
-    }
-  }));
-
-  const statuses = new Map<number, PlayerStatus>();
-  const liveLines = new Map<number, GameLine>();
-  for (const player of linked) {
-    const game = playerGames[player.playerId];
-    const scratches = game ? scratchByGame.get(game.gameId) ?? new Set<number>() : new Set<number>();
-    statuses.set(player.playerId, statusFor(player, !!game, scratches, news));
-    const line = game ? linesByGame.get(game.gameId)?.get(player.playerId) : undefined;
-    if (line) liveLines.set(player.playerId, line);
-  }
-
-  const anyGame = Object.keys(playerGames).length > 0;
-  const nextDate = anyGame ? null : await findNextFantasyDate(addDays(date, 1)).catch(() => null);
-
-  const preseasonGames = slate.filter((game) => game.gameType === PRESEASON && game.scheduleState === 'OK').length;
-
-  return { date, games, playerGames, statuses, liveLines, news, nextDate, preseasonGames };
-}
+export { loadNight, statusFor, type NightData } from './loadNight';
 
 // ---------------------------------------------------------------------------
 // Pickup pool

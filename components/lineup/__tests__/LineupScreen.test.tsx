@@ -6,6 +6,7 @@ jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush }),
   useLocalSearchParams: () => ({}),
 }));
+jest.mock('@react-navigation/native', () => ({ useIsFocused: () => true }));
 jest.mock('../../PageHeader', () => ({
   __esModule: true,
   default: () => null,
@@ -142,6 +143,26 @@ it('compares the saved plan and applies the best lineup with persistent, exact c
   expect(allText(root)).toContain('Plan saved');
   expect(allText(root)).toContain('My plan 10.0');
   expect(mockTeam.players).toEqual(players);
+});
+
+it('lets a free user save one eligible swap without opening payment or exposing the full optimizer', () => {
+  mockPro = false;
+  const root = render(<LineupScreen />);
+  expect(allText(root)).toContain('Start High center');
+  expect(allText(root)).toContain('Bench Low center');
+  expect(byTestId(root, 'lineup-apply')).toHaveLength(0);
+  press(oneByTestId(root, 'free-lineup-save'));
+  expect(mockTeam.lineupChoices?.[DATE]).toEqual({ '8481559': 'sit', '8478402': 'start' });
+  expect(allText(root)).toContain('Call saved in PuckIQ');
+  expect(mockPaywall).not.toHaveBeenCalled();
+});
+
+it('locks the free save at puck drop', () => {
+  mockPro = false;
+  jest.spyOn(Date, 'now').mockReturnValue(Date.parse(`${DATE}T23:00:00Z`));
+  const root = render(<LineupScreen />);
+  expect(byTestId(root, 'free-lineup-save')).toHaveLength(0);
+  expect(allText(root)).toContain('Local plans are locked');
 });
 it('benches a starter from the saved-plan tab and opens player details', () => {
   const root = render(<LineupScreen />);

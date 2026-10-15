@@ -41,6 +41,9 @@ import { RosterImportSheet } from '../RosterImportSheet';
 import { createTeam } from '../../../services/teams';
 import { startReview } from '../../../services/rosterImport/review';
 import type { RosterPlayer } from '../../../services/nhl/rosters';
+import { toFantasyPlayer } from '../../../services/rosterImport/review';
+import { RosterConfirmationCard } from '../RosterConfirmationCard';
+import type { FantasyTeam } from '../../../types/fantasy';
 
 const MCDAVID: RosterPlayer = { playerId: 8478402, firstName: 'Connor', lastName: 'McDavid', team: 'EDM', position: 'C' };
 const DRAISAITL: RosterPlayer = { playerId: 8477934, firstName: 'Leon', lastName: 'Draisaitl', team: 'EDM', position: 'C' };
@@ -146,5 +149,97 @@ describe('RosterImportSheet', () => {
     expect(allText(tree)).toContain('Couldn’t load the NHL rosters.');
     press(tree, 'roster-import-retry');
     expect(mockFlow.restart).toHaveBeenCalled();
+  });
+});
+
+describe('reviewed roster reconciliation', () => {
+  let initial: FantasyTeam;
+  let race = false;
+  const onClose = jest.fn();
+  function Harness() {
+    const [current, setCurrent] = React.useState(initial);
+    mockTeam = current;
+    mockUpdateTeam.mockImplementation((update, teamId) => setCurrent((previous) => teamId !== previous.id ? previous : update(race ? { ...previous, players: [] } : previous)));
+    return <RosterImportSheet visible source="roster" mode="reconcile" onClose={onClose} />;
+  }
+  function show() {
+    let tree: any;
+    act(() => { tree = create(<Harness />); });
+    mounted.push(tree);
+    return tree;
+  }
+  beforeEach(() => {
+    jest.clearAllMocks(); mockUpdateTeam.mockReset(); race = false;
+    initial = createTeam({ name: 'Review fixture', players: [toFantasyPlayer(MCDAVID), toFantasyPlayer(DRAISAITL)] });
+    const review = startReview({ matched: [MCDAVID, LUKE].map((player) => ({ player, confidence: 'exact', source: player.lastName })), ambiguous: [], unmatched: [], leftovers: [] }, new Set());
+    mockFlow = flow({ stage: { kind: 'review', method: 'paste', review }, selection: [MCDAVID, LUKE] });
+  });
+
+  it('reviews a partial import and preserves the off-crop player on commit', () => {
+    const tree = show();
+    press(tree, 'roster-import-add');
+    expect(allText(tree)).toContain('Keep Leon Draisaitl');
+    expect(byTestId(tree, `roster-remove-${DRAISAITL.playerId}`)).toHaveLength(0);
+    expect(mockUpdateTeam).not.toHaveBeenCalled();
+    press(tree, 'roster-reconcile-apply');
+    expect(mockTeam.players.map((p: any) => p.playerId)).toEqual([MCDAVID.playerId, DRAISAITL.playerId, LUKE.playerId]);
+    expect(mockTeam.rosterConfirmation.coverage).toBe('partial');
+    expect(mockUpdateTeam.mock.calls[0][1]).toBe(initial.id);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('requires full coverage plus an individual removal before replacing departed roster membership', () => {
+    const tree = show();
+    press(tree, 'roster-import-add');
+    press(tree, 'roster-full-snapshot');
+    expect(byTestId(tree, `roster-remove-${DRAISAITL.playerId}`)[0].props.accessibilityState.checked).toBe(false);
+    press(tree, `roster-remove-${DRAISAITL.playerId}`);
+    expect(byTestId(tree, 'roster-reconcile-apply')[0].props.accessibilityLabel).toContain('remove 1');
+    press(tree, 'roster-reconcile-apply');
+    expect(mockTeam.players.map((p: any) => p.playerId)).toEqual([MCDAVID.playerId, LUKE.playerId]);
+    expect(mockTeam.rosterConfirmation.coverage).toBe('complete');
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears removal choices when returning to partial coverage', () => {
+    const tree = show();
+    press(tree, 'roster-import-add'); press(tree, 'roster-full-snapshot');
+    press(tree, `roster-remove-${DRAISAITL.playerId}`); press(tree, 'roster-full-snapshot');
+    press(tree, 'roster-reconcile-apply');
+    expect(mockTeam.players.some((p: any) => p.playerId === DRAISAITL.playerId)).toBe(true);
+  });
+
+  it('keeps full-roster confirmation disabled while names remain unresolved', () => {
+    mockFlow.stage.review.match.unmatched = ['Unresolved Name'];
+    const tree = show(); press(tree, 'roster-import-add');
+    expect(byTestId(tree, 'roster-full-snapshot')[0].props.disabled).toBe(true);
+    expect(allText(tree)).toContain('1 unresolved name');
+    expect(byTestId(tree, 'roster-reconcile-apply')[0].props.disabled).toBeFalsy();
+  });
+
+  it('does not close or report success when the roster changes between review and commit', () => {
+    const tree = show(); press(tree, 'roster-import-add'); race = true;
+    press(tree, 'roster-reconcile-apply');
+    expect(mockTeam.rosterConfirmation).toBeUndefined();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(allText(tree)).toContain('Your roster changed during review');
+  });
+
+  it('lets users return to matched names without changing the team', () => {
+    const tree = show(); press(tree, 'roster-import-add'); press(tree, 'roster-reconcile-back');
+    expect(byTestId(tree, 'roster-reconciliation')).toHaveLength(0);
+    expect(mockUpdateTeam).not.toHaveBeenCalled();
+  });
+
+  it('shows confirmation scope independently of generic local edits', () => {
+    const checked = { ...initial, rosterConfirmation: { id: 'receipt', confirmedAt: '2026-10-13T19:00:00Z', method: 'paste' as const, coverage: 'complete' as const,
+      reviewedPlayerIds: [MCDAVID.playerId, DRAISAITL.playerId], membershipKey: JSON.stringify([initial.platform, '', [DRAISAITL.playerId, MCDAVID.playerId]]) } };
+    let tree: any;
+    act(() => { tree = create(<RosterConfirmationCard team={checked} onReview={onClose} />); }); mounted.push(tree);
+    expect(allText(tree)).toContain('Roster names confirmed');
+    act(() => tree.update(<RosterConfirmationCard team={{ ...checked, updatedAt: '2030-01-01' }} onReview={onClose} />));
+    expect(allText(tree)).toContain('Roster names confirmed');
+    act(() => tree.update(<RosterConfirmationCard team={{ ...checked, players: [toFantasyPlayer(LUKE)] }} onReview={onClose} />));
+    expect(allText(tree)).toContain('Roster changed since your last check');
   });
 });

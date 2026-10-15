@@ -7,7 +7,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { trackedChoice } from '../../services/analytics/selection';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter, type Href } from 'expo-router';
@@ -16,6 +16,12 @@ import { useNight } from '../../hooks/useCoach';
 import { useGoalHaptics, useNightPublisher } from '../../hooks/useNightLive';
 import { useTonightGuidance } from '../../hooks/useTonightGuidance';
 import { useNightTallies } from '../../hooks/useNightTallies';
+import { useLineupActions } from '../../hooks/useLineupActions';
+import { useRosterBrief } from '../../hooks/useRosterBrief';
+import { RosterBriefCard } from '../tonight/RosterBriefCard';
+import { FreeLineupCallCard } from '../lineup/FreeLineupCallCard';
+import { freeLineupCall } from '../../services/fantasy/freeLineupCall';
+import { openHostLink } from '../../services/analytics/openHostLink';
 import { visibleMoves, type CoachMove } from '../../services/fantasy/coach';
 import { isNhlLinked } from '../../services/fantasy/positions';
 import { hasRecap, performerLine, recapWindowOpen } from '../../services/fantasy/recap';
@@ -24,6 +30,8 @@ import { isCategoryLeague, leagueFormatChosen } from '../../services/fantasy/cat
 import { withLeagueFormat } from '../../services/teams';
 import { hostLinkFor } from '../../services/fantasy/hostLinks';
 import { track } from '../../services/analytics/track';
+import { rosterContext } from '../../services/analytics/rosterContext';
+import { useBehaviorSnapshot } from '../../hooks/useBehaviorSnapshot';
 import PageHeader from '../PageHeader';
 import { useTeams } from '../TeamsProvider';
 import { useSubscription } from '../SubscriptionProvider';
@@ -35,11 +43,12 @@ import TeamSwitcher from '../coach/TeamSwitcher';
 import SampleTeamNotice from '../coach/SampleTeamNotice';
 import { ShareCardSheet, type ShareCardContent } from '../share/ShareCards';
 import { useNow } from '../coach/format';
-import { Card, colors, Columns, contentFrame, EmptyState, ErrorState, GhostButton, LoadingRows, PrimaryButton, ProLockCard, SectionLabel, SegmentedControl, useWide } from '../coach/ui';
+import { Card, colors, Columns, contentFrame, EmptyState, ErrorState, GhostButton, LoadingRows, PrimaryButton, SectionLabel, SegmentedControl, useWide } from '../coach/ui';
 import { ART } from '../../constants/art';
 import { HockeyHero } from '../coach/HockeyHero';
 import { TonightHero } from '../tonight/TonightHero';
 import { CoachMovesSection } from '../tonight/CoachMovesSection';
+import { LineupChecksNotice } from '../tonight/LineupChecksNotice';
 import { LineupBoard } from '../tonight/LineupBoard';
 import { matchupTagFor } from '../../services/fantasy/matchupTag';
 import { PlayerNightCard } from '../tonight/PlayerNightCard';
@@ -70,6 +79,13 @@ export default function TonightScreen() {
   const now = useNow();
   const isTonight = night === 'tonight';
   const view = useNight(team, isTonight ? 0 : 1);
+  const lineupActions = useLineupActions(view);
+  const brief = useRosterBrief(team, view, isTonight && ready);
+  const freeCall = team && view.bestDay ? freeLineupCall(team, view.bestDay, view.lineupValues) : null;
+  const openHost = () => {
+    const host = team ? hostLinkFor(team) : null;
+    if (host) void openHostLink(host, 'free_lineup_call', Linking.openURL, track);
+  };
   const recapOpen = isTonight && recapWindowOpen(now);
   const recap = useNight(team, -1, recapOpen);
   const follow = useNightPublisher(team, view, isPremium, isTonight);
@@ -129,6 +145,13 @@ export default function TonightScreen() {
     .sort()[0] ?? null;
   const startersById = new Map((view.day?.starters ?? []).map((seat) => [seat.playerId, seat.slot]));
   const moves = visibleMoves(view.moves, isPremium);
+  useBehaviorSnapshot('tonight', ready ? {
+    ...rosterContext(team), night,
+    state: !team?.players.length ? 'empty_roster' : view.error ? 'error' : view.loading ? 'loading' : data ? playing.length ? 'ready' : 'quiet_night' : 'unavailable',
+    available_moves: moves.length, hidden_moves: view.moves.length - moves.length,
+    playing_count: playing.length,
+    actionable_moves: moves.filter((move) => move.severity <= 2).length,
+  } : null);
 
   // Teams set up before category leagues existed get asked once how their league scores.
   const askFormat = !!team && !leagueFormatChosen(team) && players.length > 0;
@@ -138,10 +161,7 @@ export default function TonightScreen() {
   };
 
   const findPickup = (move: CoachMove, slot?: SlotKey) => {
-    if (!isPremium) {
-      openPaywall('pickups');
-      return;
-    }
+    track('advice_action', { surface: 'tonight', action: 'find_pickup', move_kind: move.kind, gated: false, night });
     const params: Record<string, string> = {};
     const target = slot ?? move.slot;
     if (target) params.slot = target;
@@ -233,6 +253,7 @@ export default function TonightScreen() {
         ) : null}
 
         {view.error ? <ErrorState body={view.error} onRetry={view.refresh} /> : null}
+        <LineupChecksNotice checks={view.checks ?? []} now={Date.now()} refreshing={view.refreshing} onRetry={view.refresh} />
 
         <Columns
           left={(
@@ -246,6 +267,11 @@ export default function TonightScreen() {
                 />
               ) : null}
               <SampleTeamNotice />
+              <RosterBriefCard items={brief.items} onDismiss={brief.dismiss} onOpen={(item) => {
+                track('roster_brief_action', { kind: item.kind });
+                if (item.slot) router.push({ pathname: '/pickups', params: { date: view.date, slot: item.slot } } as Href);
+                else if (item.playerId) openPlayer(item.playerId, 'roster', 'tonight');
+              }} />
               {recapScore ? (
                 <RecapCard
                   date={recap.date}
@@ -285,6 +311,9 @@ export default function TonightScreen() {
               {data && playing.length === 0 ? (
                 <Image source={ART.noGames} style={styles.quietArt} contentFit="contain" accessible={false} testID="tonight-no-games-art" />
               ) : null}
+              {!isPremium && playing.length > 0 ? (
+                <FreeLineupCallCard call={freeCall} team={team} locked={lineupActions.locked} pending={!lineupActions.loaded} onSave={() => lineupActions.applyFreeCall(freeCall)} onOpenHost={openHost} />
+              ) : null}
               {playing.length > 0 && view.moves.length > 0 && !locked ? (
                 <CoachMovesSection
                   title={movesTitle}
@@ -294,17 +323,16 @@ export default function TonightScreen() {
                   byId={byId}
                   host={hostLinkFor(team)}
                   onFindPickup={findPickup}
-                  onUnlock={() => openPaywall('tonight_moves')}
+                  onUnlock={() => openPaywall('tonight_moves', { kind: 'moves', date: view.date, alternatives: view.moves.length - moves.length })}
                 />
               ) : null}
             </>
           )}
           right={(
             <>
-              {playing.length > 0 && view.day ? (
+              {isPremium && playing.length > 0 && view.day ? (
                 <>
                   <SectionLabel title={team.lineupChoices?.[view.date] ? "Your saved lineup" : "Best lineup"} flush={wide} right={<GhostButton label="Optimize" onPress={() => router.push('/lineup' as Href)} />} />
-                  {isPremium ? (
                     <LineupBoard
                       day={view.day}
                       values={view.lineupValues}
@@ -314,14 +342,6 @@ export default function TonightScreen() {
                       lines={categories ? data?.liveLines ?? null : null}
                       onOpenPlayer={(id) => openPlayer(id, 'roster', 'lineup')}
                     />
-                  ) : (
-                    <ProLockCard
-                      title="Tonight’s best lineup"
-                      detail={`Who goes in each of your ${view.day.starters.length + view.day.empty.length} active slots — built for your league’s positions, not just “has a game.”`}
-                      onPress={() => openPaywall('tonight_lineup')}
-                      testID="tonight-lineup-locked"
-                    />
-                  )}
                 </>
               ) : null}
 

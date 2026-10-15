@@ -29,6 +29,7 @@ export function teamChangeEvents(before: TeamsState, after: TeamsState): TeamCha
       if (changed(previous, next, field)) add('league_settings_edit', { field });
     }
     if (changed(previous, next, 'hiddenPickupIds')) add('pickup_availability_edit', { hidden: next.hiddenPickupIds.length });
+    if (changed(previous, next, 'lineupChoices')) add('lineup_plan_changed', { saved_dates: Object.keys(next.lineupChoices ?? {}).length });
     if (previous.name !== next.name) add('team_rename');
     if (previous.opponentName !== next.opponentName) add('opponent_rename');
   }

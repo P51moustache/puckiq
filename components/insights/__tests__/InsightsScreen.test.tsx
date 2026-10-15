@@ -17,6 +17,7 @@ jest.mock('react-native', () =>
   jest.requireActual('../../week/__tests__/support/mocks').reactNativeMock(),
 );
 jest.mock('@react-navigation/native', () => ({ useIsFocused: () => true }));
+jest.mock('../../../services/analytics/track', () => ({ track: (...args: unknown[]) => mockTrack(...args) }));
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock('../../PageHeader', () => ({
   __esModule: true,
@@ -89,6 +90,7 @@ const mockMoves: CoachMove[] = [
   },
 ];
 const mockPush = jest.fn();
+const mockTrack = jest.fn();
 const mockOpenPlayer = jest.fn();
 let mockPro = true;
 beforeEach(() => {
@@ -157,6 +159,11 @@ it('keeps additional insight details behind the existing Pro gate', () => {
   expect(byTestId(root, 'insight-move-empty')).toHaveLength(0);
   press(oneByTestId(root, 'insight-featured'));
   expect(byTestId(root, 'insight-player-2')).toHaveLength(1);
+  expect(mockTrack).toHaveBeenCalledWith('advice_open', expect.objectContaining({ move_kind: 'overflow' }));
+  const dismiss = root.findByType('Modal').props.onDismiss;
+  press(oneByTestId(root, 'insight-action'));
+  act(() => dismiss());
+  expect(mockTrack).toHaveBeenCalledWith('advice_action', expect.objectContaining({ action: 'lineup', gated: false }));
 });
 
 it('presents a waiver target with the measured schedule counts and pickup context', () => {

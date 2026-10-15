@@ -3,21 +3,13 @@ import type { FantasyTeam } from '../../types/fantasy';
 import type { DayPlan } from './weekPlan';
 import { assignLineup } from './lineup';
 import { eligibleSlots } from './positions';
-import { daysBetween } from '../nhl/dates';
+import { daysBetween, isCalendarDate } from '../nhl/dates';
 import { isGameStarted, type NhlGame } from '../nhl/schedule';
 
 export type LineupChoice = 'start' | 'sit';
 export type LineupChoices = Record<string, Record<string, LineupChoice>>;
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const HISTORY_DAYS = 7;
 const FUTURE_DAYS = 14;
-function validDate(date: string): boolean {
-  return (
-    DATE_PATTERN.test(date) &&
-    Number.isFinite(Date.parse(date)) &&
-    new Date(date).toISOString().slice(0, 10) === date
-  );
-}
 
 export function sanitizeLineupChoices(
   raw: unknown,
@@ -27,7 +19,7 @@ export function sanitizeLineupChoices(
   const out: LineupChoices = {};
   for (const [date, values] of Object.entries(raw).slice(-30)) {
     if (
-      !validDate(date) ||
+      !isCalendarDate(date) ||
       !values ||
       typeof values !== 'object' ||
       Array.isArray(values)
@@ -52,7 +44,7 @@ export function setLineupChoice(
   today = date,
 ): FantasyTeam {
   if (
-    !validDate(date) ||
+    !isCalendarDate(date) ||
     !team.players.some((p) => p.playerId === playerId && !p.injuredReserve)
   )
     return team;
@@ -179,7 +171,7 @@ export function starterReplacements(
   playerId: number,
   values: ReadonlyMap<number, number>,
 ): number[] {
-  return day.starters
+  return buildPlannedDay(team, day, values).starters
     .map((seat) => seat.playerId)
     .filter(
       (id) =>

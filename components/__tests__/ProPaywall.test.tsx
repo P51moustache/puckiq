@@ -1,6 +1,8 @@
 const mockRefresh = jest.fn();
 const mockApplyStatus = jest.fn();
-const mockPurchase = jest.fn().mockResolvedValue('failed');
+const mockPurchase = jest.fn().mockResolvedValue({ result: 'failed', access_kind: 'none', store_environment: 'unknown', subscription_period: 'unknown' });
+const mockTrack = jest.fn();
+jest.mock('../../services/analytics/track', () => ({ track: (...args: unknown[]) => mockTrack(...args) }));
 const mockRestore = jest.fn().mockResolvedValue({ isPro: false, source: null, expiresAt: null, willRenew: false });
 const mockGetOfferings = jest.fn().mockResolvedValue({
   current: {
@@ -16,7 +18,7 @@ jest.mock('../SubscriptionProvider', () => ({
 }));
 
 jest.mock('../../services/subscription', () => ({
-  purchasePackage: (...args: any[]) => mockPurchase(...args),
+  purchasePackageWithDetails: (...args: any[]) => mockPurchase(...args),
   restorePurchases: (...args: any[]) => mockRestore(...args),
   getOfferings: (...args: any[]) => mockGetOfferings(...args),
   getTrialEligibility: (...args: any[]) => mockTrialEligibility(...args),
@@ -114,17 +116,19 @@ describe('ProPaywall', () => {
 
   it('purchases the season plan by default and closes on success', async () => {
     const onClose = jest.fn();
-    mockPurchase.mockResolvedValueOnce('purchased');
+    mockPurchase.mockResolvedValueOnce({ result: 'purchased', access_kind: 'trial', store_environment: 'production', subscription_period: 'trial' });
     const tree = await render(onClose);
     await act(async () => { find(tree, 'pro-subscribe')[0].props.onPress(); });
     expect(mockPurchase).toHaveBeenCalledWith(expect.objectContaining({ identifier: 'annual' }));
     expect(mockRefresh).toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
+    expect(mockTrack).toHaveBeenCalledWith('paywall_checkout_started', expect.objectContaining({ plan: 'annual', trial_offered: true }));
+    expect(mockTrack).toHaveBeenCalledWith('paywall_purchase', expect.objectContaining({ result: 'purchased', access_kind: 'trial', store_environment: 'production' }));
   });
 
   it('purchases monthly when picked and stays open on cancel', async () => {
     const onClose = jest.fn();
-    mockPurchase.mockResolvedValueOnce('cancelled');
+    mockPurchase.mockResolvedValueOnce({ result: 'cancelled', access_kind: 'none', store_environment: 'unknown', subscription_period: 'unknown' });
     const tree = await render(onClose);
     await act(async () => { find(tree, 'pro-plan-monthly')[0].props.onPress(); });
     await act(async () => { find(tree, 'pro-subscribe')[0].props.onPress(); });
@@ -142,6 +146,10 @@ describe('ProPaywall', () => {
     expect(find(tree, 'pro-subscribe')[0].props.disabled).toBe(true);
     expect(mockPurchase).not.toHaveBeenCalled();
     expect(Alert.alert).toHaveBeenCalledWith('Store unavailable', expect.any(String));
+    expect(mockTrack).toHaveBeenCalledWith('paywall_store_result', expect.objectContaining({ result: 'unavailable' }));
+    await act(async () => { find(tree, 'pro-retry-store')[0].props.onPress(); });
+    expect(mockTrack.mock.calls.filter(([event]) => event === 'paywall_view')).toHaveLength(1);
+    expect(mockTrack).toHaveBeenCalledWith('paywall_store_retry', expect.any(Object));
   });
 
   it('restores and closes when Pro comes back', async () => {

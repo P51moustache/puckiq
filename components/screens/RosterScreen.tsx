@@ -44,7 +44,10 @@ import PlayerSearchSheet, {
   toFantasyPlayer,
   type SearchMode,
 } from "../sheets/PlayerSearchSheet";
-import { RosterImportSheet } from "../rosterImport/RosterImportSheet";
+import { PersonalRosterImportSheet } from "../rosterImport/PersonalRosterImportSheet";
+import { RosterConfirmationCard } from '../rosterImport/RosterConfirmationCard';
+import { hasSamplePlayers } from '../../constants/sampleTeam';
+import { useSetupImport } from '../../hooks/useSetupImport';
 import LeagueSettingsSheet from "../sheets/LeagueSettingsSheet";
 import TeamSwitcher from "../coach/TeamSwitcher";
 import SampleTeamNotice from "../coach/SampleTeamNotice";
@@ -83,7 +86,7 @@ const GROUP_TITLE: Record<Group, string> = {
 };
 
 export default function RosterScreen() {
-  const params = useLocalSearchParams<{ opponent?: string }>();
+  const params = useLocalSearchParams<{ opponent?: string; setup?: string }>();
   const router = useRouter();
   const { team, ready, updateTeam } = useTeams();
   const { openPlayer } = usePlayerSheet();
@@ -96,6 +99,7 @@ export default function RosterScreen() {
   const [importing, setImporting] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [linking, setLinking] = useState(false);
+  useSetupImport(params.setup === '1', ready && !!team, () => setImporting(true), () => router.setParams({ setup: undefined }));
   useEffect(() => {
     if (params.opponent === "1") {
       setSearch({ kind: "add", list: "opponent" });
@@ -287,9 +291,8 @@ export default function RosterScreen() {
             onClose={() => setSearch(null)}
           />
         ) : null}
-        <RosterImportSheet
+        <PersonalRosterImportSheet
           visible={importing}
-          source="roster"
           onClose={() => setImporting(false)}
         />
       </View>
@@ -306,7 +309,7 @@ export default function RosterScreen() {
           <View style={styles.headerActions}>
             <IconButton
               icon="scan-outline"
-              label="Import roster from screenshots"
+              label="Update roster from your league"
               onPress={() => setImporting(true)}
               testID="roster-import"
             />
@@ -331,6 +334,7 @@ export default function RosterScreen() {
         }
       >
         <SampleTeamNotice />
+        {!hasSamplePlayers(team) ? <RosterConfirmationCard team={team} onReview={() => setImporting(true)} /> : null}
 
         <Card
           style={styles.leagueCard}
@@ -423,7 +427,7 @@ export default function RosterScreen() {
           onClose={() => setSearch(null)}
         />
       ) : null}
-      <RosterImportSheet
+      <PersonalRosterImportSheet
         visible={importing}
         source="roster"
         onClose={() => setImporting(false)}

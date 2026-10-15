@@ -3,6 +3,8 @@ import { useNhlToday, type NightView } from './useCoach';
 import { useTeams } from '../components/TeamsProvider';
 import { useNow } from '../components/coach/format';
 import { appNow } from '../services/nhl/dates';
+import { track } from '../services/analytics/track';
+import { saveFreeLineupCall, type FreeLineupCall } from '../services/fantasy/freeLineupCall';
 import {
   lineupLocked,
   saveBestLineup,
@@ -50,6 +52,7 @@ export function useLineupActions(view: NightView) {
             text: `Bench ${team.players.find((p) => p.playerId === id)?.playerName ?? 'starter'}`,
             onPress: () => {
               if (lockedAtAction()) return;
+              track('lineup_action', { action: 'swap_requested' });
               updateTeam((current) => {
                 if (current.id !== team.id) return current;
                 const next = setLineupChoice(current, view.date, id, 'sit', today);
@@ -70,6 +73,7 @@ export function useLineupActions(view: NightView) {
       );
       return;
     }
+    track('lineup_action', { action: choice === 'start' ? 'start_requested' : 'bench_requested' });
     updateTeam((current) =>
       current.id === team.id ? setLineupChoice(current, view.date, playerId, choice, today) : current,
     );
@@ -77,15 +81,23 @@ export function useLineupActions(view: NightView) {
   const applyBest = () => {
     if (!team || !view.bestDay || !loaded || lockedAtAction()) return;
     const day = view.bestDay;
+    track('lineup_action', { action: 'save_best_requested', starters: day.starters.length, empty_slots: day.empty.length });
     updateTeam((current) => current.id === team.id ? saveBestLineup(current, day, today) : current);
+  };
+  const applyFreeCall = (expected: FreeLineupCall | null) => {
+    if (!expected || !team || !view.bestDay || !loaded || lockedAtAction()) return;
+    const best = view.bestDay;
+    track('lineup_action', { action: 'save_free_call_requested' });
+    updateTeam((current) => current.id === team.id ? saveFreeLineupCall(current, best, view.lineupValues, today, expected) : current);
   };
   const reset = () => {
     if (!loaded || lockedAtAction()) return;
+    track('lineup_action', { action: 'reset_requested' });
     updateTeam((current) => {
       const choices = { ...current.lineupChoices };
       delete choices[view.date];
       return { ...current, lineupChoices: choices };
     });
   };
-  return { locked, loaded, edit, applyBest, reset };
+  return { locked, loaded, edit, applyBest, applyFreeCall, reset };
 }

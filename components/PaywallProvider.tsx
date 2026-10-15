@@ -5,22 +5,41 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import type { PaywallSource } from '../constants/monetization';
 import ProPaywall from './ProPaywall';
+import { track } from '../services/analytics/track';
+import { useRouter, type Href } from 'expo-router';
+import { useTeams } from './TeamsProvider';
+import { needsPersonalRoster, type ProOpportunity } from '../services/fantasy/proOpportunity';
 
 interface PaywallContextValue {
-  openPaywall: (source: PaywallSource) => void;
+  openPaywall: (source: PaywallSource, opportunity?: ProOpportunity) => void;
 }
 
 const PaywallContext = createContext<PaywallContextValue | undefined>(undefined);
 
 export function PaywallProvider({ children }: { children: React.ReactNode }) {
   const [source, setSource] = useState<PaywallSource | null>(null);
-  const openPaywall = useCallback((next: PaywallSource) => setSource(next), []);
+  const [opportunity, setOpportunity] = useState<ProOpportunity | undefined>();
+  const [previewTeamId, setPreviewTeamId] = useState<string | null>(null);
+  const { team, ready } = useTeams();
+  const router = useRouter();
+  const openPaywall = useCallback((next: PaywallSource, preview?: ProOpportunity) => {
+    track('paywall_requested', { source: next });
+    if (!ready) return;
+    if (next !== 'settings' && needsPersonalRoster(team)) {
+      track('paywall_setup_redirect', { source: next });
+      router.push({ pathname: '/myteam', params: { setup: '1' } } as Href);
+      return;
+    }
+    setOpportunity(preview);
+    setPreviewTeamId(team?.id ?? null);
+    setSource(next);
+  }, [ready, team, router]);
   const value = useMemo(() => ({ openPaywall }), [openPaywall]);
 
   return (
     <PaywallContext.Provider value={value}>
       {children}
-      <ProPaywall visible={source !== null} source={source ?? 'settings'} onClose={() => setSource(null)} />
+      <ProPaywall visible={source !== null && previewTeamId === (team?.id ?? null)} source={source ?? 'settings'} team={team} opportunity={opportunity} onClose={() => setSource(null)} />
     </PaywallContext.Provider>
   );
 }

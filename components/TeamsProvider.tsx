@@ -15,6 +15,8 @@ import {
   upsertTeam,
 } from '../services/teams';
 import { track } from '../services/analytics/track';
+import AnalyticsService from '../services/analytics/AnalyticsService';
+import { rosterContext } from '../services/analytics/rosterContext';
 
 interface TeamsContextValue {
   ready: boolean;
@@ -34,6 +36,7 @@ export function TeamsProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<TeamsState>(emptyTeamsState);
   const [ready, setReady] = useState(false);
   const loaded = useRef(false);
+  const lastRoster = useRef<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -92,6 +95,17 @@ export function TeamsProvider({ children }: { children: React.ReactNode }) {
     removeTeam,
     replaceAll,
   }), [ready, state, setActiveTeam, updateTeam, addTeam, removeTeam, replaceAll]);
+
+  useEffect(() => {
+    if (!ready) return;
+    const context = rosterContext(value.team);
+    AnalyticsService.getInstance().register({ ...context, roster_status_ready: true });
+    const key = JSON.stringify(context);
+    if (lastRoster.current !== key) {
+      lastRoster.current = key;
+      track('roster_state', context);
+    }
+  }, [ready, value.team]);
 
   return <TeamsContext.Provider value={value}>{children}</TeamsContext.Provider>;
 }

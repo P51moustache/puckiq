@@ -36,7 +36,8 @@ jest.mock('@expo/vector-icons', () => {
   const React = require('react');
   return { Ionicons: (props: any) => React.createElement('Ionicons', props) };
 });
-jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
+jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
+jest.mock('@react-navigation/native', () => ({ useIsFocused: () => true }));
 jest.mock('../../coach/TeamSwitcher', () => () => null);
 jest.mock('../../coach/PlayerAvatar', () => ({ PlayerAvatar: () => null, PlayerName: ({ name }: any) => { const React = require('react'); return React.createElement('Text', null, name); }, TeamChip: () => null }));
 jest.mock('../../sheets/PlayerSearchSheet', () => () => null);
@@ -57,6 +58,7 @@ jest.mock('../../PaywallProvider', () => ({ usePaywall: () => ({ openPaywall: mo
 let mockWindowWidth = 390;
 const mockOpenPlayer = jest.fn();
 const mockOpenPaywall = jest.fn();
+const mockPush = jest.fn();
 let mockIsPremium = false;
 jest.mock('../../SubscriptionProvider', () => ({ useSubscription: () => ({ isPremium: mockIsPremium }) }));
 
@@ -101,6 +103,10 @@ function game(id: number, opponent: string, state = 'FUT') {
 
 function view(overrides: Partial<any> = {}) {
   const forms = new Map(players.map((p) => [p.playerId, { ...buildSkaterForm(p.playerId, {}), value: 3 }]));
+  const day = {
+    date: '2026-10-13', dayAbbrev: 'TUE', leagueGames: 10, offNight: false, isPast: false, isToday: true,
+    playing: [8478402], starters: [{ slot: 'C', playerId: 8478402 }], bench: [], empty: ['D'],
+  };
   return {
     date: '2026-10-13',
     night: {
@@ -118,10 +124,7 @@ function view(overrides: Partial<any> = {}) {
     },
     forms: { data: { forms, teamStrength: new Map() } },
     lineupValues: new Map([...forms].map(([id, form]) => [id, form.value])),
-    day: {
-      date: '2026-10-13', dayAbbrev: 'TUE', leagueGames: 10, offNight: false, isPast: false, isToday: true,
-      playing: [8478402], starters: [{ slot: 'C', playerId: 8478402 }], bench: [], empty: ['D'],
-    },
+    day, bestDay: day,
     moves: [
       { id: 'scratch-8479318', kind: 'scratch', severity: 0, title: 'Bench Auston Matthews', detail: 'On the NHL scratch list vs EDM.', playerIds: [8479318] },
       { id: 'empty-D', kind: 'empty', severity: 2, title: '1 empty D slot tonight', detail: '…', playerIds: [], slot: 'D' },
@@ -185,6 +188,31 @@ describe('TonightScreen', () => {
     expect(sheet().props.visible).toBe(false);
     act(() => { byTestId(tree, 'tonight-import')[0].props.onPress(); });
     expect(sheet().props).toMatchObject({ visible: true, source: 'tonight' });
+  });
+
+  it('keeps incomplete checks visible for free users and retries through the existing refresh', () => {
+    mockView.checks = [{ label: 'Scratch list', check: { source: 'test', fetchedAt: null, maxAgeMs: 0, state: 'unavailable' } }];
+    const tree = render();
+    expect(allText(tree)).toContain('Some lineup checks are incomplete');
+    expect(allText(tree)).toContain('Scratch list: check unavailable');
+    act(() => byTestId(tree, 'lineup-checks-retry')[0].props.onPress());
+    expect(mockView.refresh).toHaveBeenCalledTimes(1);
+    expect(mockOpenPaywall).not.toHaveBeenCalled();
+  });
+
+  it('expires a cached check while the screen stays open and removes the notice after fresh recovery', () => {
+    const clock = jest.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-10-13T16:00:00Z'));
+    try {
+      mockView.checks = [{ label: 'Game schedule', check: { source: 'test', fetchedAt: Date.now(), maxAgeMs: 60_000, state: 'fresh' } }];
+      const tree = render();
+      expect(byTestId(tree, 'lineup-checks-notice')).toHaveLength(0);
+      clock.mockReturnValue(Date.now() + 60_000);
+      act(() => tree.update(<TonightScreen />));
+      expect(allText(tree)).toContain('Game schedule: last saved data');
+      mockView.checks[0].check.fetchedAt = Date.now();
+      act(() => tree.update(<TonightScreen />));
+      expect(byTestId(tree, 'lineup-checks-notice')).toHaveLength(0);
+    } finally { clock.mockRestore(); }
   });
 
   it('leads with how many of my players play and the problem count', () => {
@@ -258,14 +286,21 @@ describe('TonightScreen', () => {
     expect(byTestId(tree, 'goalie-outlook-8476434-chance')).toHaveLength(1);
   });
 
-  it('shows free users one move and locks the rest and the lineup', () => {
+  it('shows free users safety, one decision and a saveable lineup call', () => {
     const tree = render();
     expect(byTestId(tree, 'move-scratch')).toHaveLength(1);
-    expect(byTestId(tree, 'move-empty')).toHaveLength(0);
+    expect(byTestId(tree, 'move-empty')).toHaveLength(1);
     expect(byTestId(tree, 'tonight-more-moves')).toHaveLength(1);
-    expect(byTestId(tree, 'tonight-lineup-locked')).toHaveLength(1);
-    act(() => { byTestId(tree, 'tonight-lineup-locked')[0].props.onPress(); });
-    expect(mockOpenPaywall).toHaveBeenCalledWith('tonight_lineup');
+    expect(byTestId(tree, 'free-lineup-call')).toHaveLength(1);
+    expect(byTestId(tree, 'free-lineup-save')).toHaveLength(1);
+    expect(mockOpenPaywall).not.toHaveBeenCalled();
+  });
+
+  it('opens the exact empty-slot pickup date without an upgrade prompt', () => {
+    const tree = render();
+    act(() => byTestId(tree, 'move-empty-find-D')[0].props.onPress());
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/pickups', params: { slot: 'D', date: '2026-10-13' } });
+    expect(mockOpenPaywall).not.toHaveBeenCalled();
   });
 
   it('shows Pro every move and the slot-by-slot lineup', () => {

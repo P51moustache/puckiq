@@ -50,6 +50,7 @@ export function reactNativeMock() {
     },
     Platform: { OS: 'ios', select: (options: { ios?: unknown }) => options.ios },
     Linking: { openURL: () => Promise.resolve() },
+    AppState: { currentState: 'active', addEventListener: () => ({ remove: () => undefined }) },
     AccessibilityInfo: {
       isReduceMotionEnabled: () => Promise.resolve(false),
       addEventListener: () => ({ remove: () => undefined }),

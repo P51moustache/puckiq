@@ -4,7 +4,7 @@
  * gave up. Screenshots are read on the phone; nothing is uploaded.
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useRosterImport } from '../../hooks/useRosterImport';
 import { addPlayers } from '../../services/teams';
@@ -13,6 +13,8 @@ import { track } from '../../services/analytics/track';
 import { useTeams } from '../TeamsProvider';
 import { Card, colors, DarkCard, display, GhostButton, IconButton, PrimaryButton } from '../coach/ui';
 import { ImportReviewList } from './ImportReviewList';
+import { RosterReconcileReview } from './RosterReconcileReview';
+import { rosterReviewKey, type RosterProposal } from '../../services/rosterImport/reconcileRoster';
 
 export type RosterImportSource = 'onboarding' | 'roster' | 'tonight' | 'sample';
 
@@ -25,24 +27,38 @@ const STEPS = [
 export interface RosterImportSheetProps {
   visible: boolean;
   source: RosterImportSource;
+  mode?: 'add' | 'reconcile';
   onClose: () => void;
   /** After adding: every player the import covered, including ones already on the team. */
   onAdded?: (playerIds: number[]) => void;
 }
 
-export function RosterImportSheet({ visible, source, onClose, onAdded }: RosterImportSheetProps) {
+const NO_ROSTER_IDS: ReadonlySet<number> = new Set();
+
+export function RosterImportSheet({ visible, source, mode = 'add', onClose, onAdded }: RosterImportSheetProps) {
   const { team, updateTeam } = useTeams();
   const rosterIds = useMemo(() => new Set((team?.players ?? []).map((player) => player.playerId)), [team]);
-  const flow = useRosterImport(visible, rosterIds);
+  const flow = useRosterImport(visible, mode === 'reconcile' ? NO_ROSTER_IDS : rosterIds, source);
+  const [proposal, setProposal] = useState<RosterProposal | null>(null);
   const [pasting, setPasting] = useState(false);
   const [text, setText] = useState('');
+  const closeState = useRef({ stage: 'choose', added: false });
+  closeState.current.stage = flow.stage.kind;
 
   useEffect(() => {
     if (!visible) return;
     track('roster_import_open', { source });
+    const startedAt = Date.now();
+    const visit = closeState.current;
+    visit.added = false;
     setPasting(false);
     setText('');
-  }, [visible, source]);
+    setProposal(null);
+    return () => track('roster_import_close', {
+      source, stage: visit.stage, added: visit.added,
+      elapsed_ms: Math.max(0, Date.now() - startedAt),
+    });
+  }, [visible, source, mode]);
 
   const { stage } = flow;
   const method = stage.kind === 'review' || stage.kind === 'reading' ? stage.method : null;
@@ -55,14 +71,24 @@ export function RosterImportSheet({ visible, source, onClose, onAdded }: RosterI
   const add = () => {
     if (!team || confirmable === 0) return;
     const players = flow.selection.map(toFantasyPlayer);
+    closeState.current.added = true;
     if (players.length > 0) updateTeam((current) => addPlayers(current, players));
     track('roster_import_add', { source, method, added: players.length });
     onAdded?.(covered);
     onClose();
   };
 
+  const reviewChanges = () => {
+    if (!team || stage.kind !== 'review' || !flow.selection.length) return;
+    const unresolved = stage.review.match.unmatched.length + stage.review.match.ambiguous.filter((entry, index) =>
+      !entry.options.some((option) => option.playerId === stage.review.picks[index])).length;
+    setProposal({ teamId: team.id, baseRosterKey: rosterReviewKey(team), selected: flow.selection,
+      method: stage.method, unresolved });
+  };
+
   const startOver = () => {
     setPasting(false);
+    setProposal(null);
     flow.restart();
   };
 
@@ -70,7 +96,7 @@ export function RosterImportSheet({ visible, source, onClose, onAdded }: RosterI
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose} testID="roster-import-sheet">
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.header}>
-          <Text style={styles.title}>Import your roster</Text>
+          <Text style={styles.title}>{mode === 'reconcile' ? 'Update your roster' : 'Import your roster'}</Text>
           <IconButton icon="close" label="Close" onPress={onClose} testID="roster-import-close" />
         </View>
 
@@ -78,8 +104,8 @@ export function RosterImportSheet({ visible, source, onClose, onAdded }: RosterI
           {stage.kind === 'choose' && !pasting ? (
             <>
               <DarkCard texture style={styles.hero}>
-                <Text style={styles.heroTitle}>YOUR WHOLE ROSTER, IN SECONDS</Text>
-                <Text style={styles.heroBody}>No searching player by player. PuckIQ reads the names on your phone — nothing is uploaded.</Text>
+                <Text style={styles.heroTitle}>{mode === 'reconcile' ? 'UPDATE FROM YOUR LEAGUE' : 'YOUR WHOLE ROSTER, IN SECONDS'}</Text>
+                <Text style={styles.heroBody}>{mode === 'reconcile' ? 'Bring a current roster screenshot or name list. Review additions and departures before applying changes.' : 'No searching player by player. PuckIQ reads the names on your phone — nothing is uploaded.'}</Text>
               </DarkCard>
               <Card style={styles.steps}>
                 {STEPS.map((step, index) => (
@@ -116,7 +142,10 @@ export function RosterImportSheet({ visible, source, onClose, onAdded }: RosterI
             </View>
           ) : null}
 
-          {stage.kind === 'review' ? (
+          {stage.kind === 'review' && proposal && team ? (
+            <RosterReconcileReview team={team} proposal={proposal} onUpdate={updateTeam} onBack={() => setProposal(null)}
+              onApplied={() => { closeState.current.added = true; onClose(); }} />
+          ) : stage.kind === 'review' ? (
             stage.review.match.matched.length + stage.review.match.ambiguous.length > 0 ? (
               <>
                 <Text style={styles.found}>
@@ -170,12 +199,12 @@ export function RosterImportSheet({ visible, source, onClose, onAdded }: RosterI
               <GhostButton label="Back" tone="neutral" onPress={() => setPasting(false)} />
             </>
           ) : null}
-          {stage.kind === 'review' ? (
+          {stage.kind === 'review' && !proposal ? (
             <>
               <PrimaryButton
-                label={confirmable === 0 ? 'Nothing to add' : `${source === 'sample' ? 'Swap in' : 'Add'} ${confirmable} ${confirmable === 1 ? 'player' : 'players'}`}
+                label={mode === 'reconcile' ? 'Review roster changes' : confirmable === 0 ? 'Nothing to add' : `${source === 'sample' ? 'Swap in' : 'Add'} ${confirmable} ${confirmable === 1 ? 'player' : 'players'}`}
                 icon="add"
-                onPress={add}
+                onPress={mode === 'reconcile' ? reviewChanges : add}
                 disabled={confirmable === 0}
                 testID="roster-import-add"
               />

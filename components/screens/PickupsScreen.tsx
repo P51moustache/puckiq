@@ -5,11 +5,17 @@ import { PickupCard } from '../pickups/PickupCard';
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Linking, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import { useNhlToday, usePickups, useWeekHasGamesLeft } from '../../hooks/useCoach';
 import { filterPickups, type PickupFilter } from '../../services/fantasy/pickups';
+import { targetPickups } from '../../services/fantasy/targetPickups';
+import { hostLinkFor } from '../../services/fantasy/hostLinks';
+import { openHostLink } from '../../services/analytics/openHostLink';
+import { hasSamplePlayers } from '../../constants/sampleTeam';
+import { useBehaviorSnapshot } from '../../hooks/useBehaviorSnapshot';
+import { rosterContext } from '../../services/analytics/rosterContext';
 import { addPlayers, unhideAllPickups } from '../../services/teams';
 import { HowItWorksButton } from '../sheets/HowItWorksSheet';
 import { useRoomTakenIds } from '../league/LeagueProvider';
@@ -56,11 +62,12 @@ export default function PickupsScreen() {
   const tomorrow = addDays(today, 1);
   const tomorrowInWeek = mondayOf(tomorrow) === mondayOf(today);
   const [filter, setFilter] = useState<PickupFilter>(slotToFilter(params.slot));
+  const [targetSlot, setTargetSlot] = useState<string | undefined>(params.slot);
   const selectedDate = validPickupDate(params.date, today);
   const [when, setWhen] = useState<When>(pickupPeriodForDate(selectedDate, today));
 
   useEffect(() => {
-    if (params.slot) setFilter(slotToFilter(params.slot));
+    if (params.slot) { setFilter(slotToFilter(params.slot)); setTargetSlot(params.slot); }
     if (selectedDate) setWhen(pickupPeriodForDate(selectedDate, today));
   }, [params.slot, selectedDate, today]);
 
@@ -75,10 +82,16 @@ export default function PickupsScreen() {
   const { onlyDate, weekOffset, selectedLabel } = pickupPeriodInputs(when, today, selectedDate);
   const roomTaken = useRoomTakenIds();
   const view = usePickups(team, true, onlyDate, hideOwned, weekOffset, roomTaken);
-  const rows = useMemo(() => filterPickups(view.rows, filter).filter((row) => row.gain > 0 || row.usableGames > 0), [view.rows, filter]);
+  const rows = useMemo(() => targetPickups(filterPickups(view.rows, filter), targetSlot).filter((row) => row.gain > 0 || row.usableGames > 0), [view.rows, filter, targetSlot]);
   const visible = isPremium ? rows : rows.slice(0, FREE_VISIBLE);
   const hiddenCount = team?.hiddenPickupIds.length ?? 0;
   const basisLabel = seasonLabel(previousSeasonId(seasonIdFor(today)));
+  const host = team ? hostLinkFor(team) : null;
+  const sample = hasSamplePlayers(team);
+  useBehaviorSnapshot('pickups', ready ? {
+    ...rosterContext(team), state: !team?.players.length ? 'empty_roster' : view.error ? 'error' : view.loading ? 'loading' : rows.length ? 'ready' : 'no_useful_pickups',
+    available_pickups: visible.length, hidden_pickups: rows.length - visible.length, targeted: !!targetSlot,
+  } : null);
 
   if (!ready) {
     return (
@@ -146,7 +159,7 @@ export default function PickupsScreen() {
               {FILTERS.map((option) => (
                 <Pressable
                   key={option.value}
-                  onPress={() => trackedChoice<PickupFilter>('pickups', 'position', setFilter)(option.value)}
+                  onPress={() => { setTargetSlot(undefined); trackedChoice<PickupFilter>('pickups', 'position', setFilter)(option.value); }}
                   style={[styles.filter, filter === option.value && styles.filterOn]}
                   accessibilityRole="button"
                   accessibilityState={{ selected: filter === option.value }}
@@ -205,12 +218,19 @@ export default function PickupsScreen() {
         )}
         ListFooterComponent={(
           <View>
-            {!isPremium && rows.length > FREE_VISIBLE ? (
+            {host && visible.length > 0 ? (
+              <Card style={styles.lockCard} testID="pickup-host-handoff">
+                <Text style={styles.lockTitle}>Make the pickup in {host.name}</Text>
+                <Text style={styles.lockBody}>This is a lineup fit, not your league’s waiver list. Check that the player is available before adding them. PuckIQ saves local roster changes only.</Text>
+                <PrimaryButton label={`Open ${host.name}`} icon="open-outline" onPress={() => { if (host) void openHostLink(host, 'free_pickup', Linking.openURL, track); }} testID="pickup-open-host" />
+              </Card>
+            ) : null}
+            {!isPremium && !sample && rows.length > FREE_VISIBLE ? (
               <Card style={styles.lockCard} testID="pickups-locked">
                 <Ionicons name="lock-closed" size={18} color={colors.accent} />
                 <Text style={styles.lockTitle}>{rows.length - FREE_VISIBLE} more pickups ranked for your lineup</Text>
                 <Text style={styles.lockBody}>See every streamer that fills your empty slots, by position and night.</Text>
-                <PrimaryButton label="Unlock Pickups" onPress={() => openPaywall('pickups')} style={styles.lockButton} testID="pickups-unlock" />
+                <PrimaryButton label="Compare more with Pro" onPress={() => openPaywall('pickups', { kind: 'pickups', date: onlyDate, alternatives: rows.length - FREE_VISIBLE })} style={styles.lockButton} testID="pickups-unlock" />
               </Card>
             ) : null}
             {hiddenCount > 0 ? (

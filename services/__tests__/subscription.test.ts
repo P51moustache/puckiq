@@ -85,6 +85,8 @@ describe('subscription service', () => {
       source: 'subscription',
       expiresAt: '2027-04-30T00:00:00Z',
       willRenew: true,
+      storeEnvironment: 'unknown',
+      periodType: 'unknown',
     });
     mockGetCustomerInfo.mockRejectedValueOnce(new Error('offline'));
     await expect(sub.isPro()).resolves.toBe(false);
@@ -149,6 +151,14 @@ describe('subscription service', () => {
     await expect(sub.purchasePackage({} as never)).resolves.toBe('cancelled');
     mockPurchasePackage.mockRejectedValueOnce(new Error('boom'));
     await expect(sub.purchasePackage({} as never)).resolves.toBe('failed');
+  });
+
+  it('returns the SDK receipt classification with checkout, including sandbox trials', async () => {
+    const sub = freshModule();
+    mockPurchasePackage.mockResolvedValueOnce({ customerInfo: { entitlements: { active: { pro: { isSandbox: true, periodType: 'TRIAL', productIdentifier: 'annual' } } } } });
+    await expect(sub.purchasePackageWithDetails({} as never)).resolves.toMatchObject({
+      result: 'purchased', access_kind: 'sandbox', store_environment: 'sandbox', subscription_period: 'trial', product_id: 'annual',
+    });
   });
 
   it('restores to a pro status when the entitlement comes back', async () => {

@@ -62,6 +62,15 @@ describe('buildCoachMoves', () => {
     expect(moves[0]).toMatchObject({ kind: 'scratch', title: 'Bench Scratch Dman' });
   });
 
+  it('only reassures about the local plan, not player health or the host lineup', () => {
+    const quiet = { ...day, bench: [], empty: [], playing: [8470001], starters: [{ slot: 'C' as const, playerId: 8470001 }] };
+    const result = buildCoachMoves({ day: quiet, players: [], games: {}, statuses: new Map(), forms: new Map() });
+    expect(result.find((move) => move.kind === 'clean')).toMatchObject({
+      title: 'No slot conflicts in your plan',
+      detail: expect.stringContaining('Verify player availability'),
+    });
+  });
+
   it('groups two or more open positions into one empty-slot move with a link per slot', () => {
     const lonely = [player(8470201, 'Only Center', 'EDM', 'C')];
     const lonelyValues = new Map([[8470201, 3]]);
@@ -123,8 +132,10 @@ describe('buildCoachMoves', () => {
     expect(result.find((move) => move.kind === 'scratch')?.playerIds).toContain(8470003);
   });
 
-  it('shows free users only the first move', () => {
-    expect(visibleMoves(moves, false)).toHaveLength(1);
+  it('keeps safety checks free alongside one complete decision', () => {
+    const free = visibleMoves(moves, false);
+    expect(free.filter((move) => move.severity <= 1)).toEqual(moves.filter((move) => move.severity <= 1));
+    expect(free.filter((move) => move.severity > 1)).toHaveLength(1);
     expect(visibleMoves(moves, true)).toHaveLength(moves.length);
   });
 });

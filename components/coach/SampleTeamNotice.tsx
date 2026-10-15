@@ -10,7 +10,7 @@ import { hasSamplePlayers, sampleCount, withoutSample } from '../../constants/sa
 import { track } from '../../services/analytics/track';
 import { useTeams } from '../TeamsProvider';
 import { Card, colors, GhostButton, PrimaryButton } from './ui';
-import { RosterImportSheet } from '../rosterImport/RosterImportSheet';
+import { PersonalRosterImportSheet } from '../rosterImport/PersonalRosterImportSheet';
 
 export default function SampleTeamNotice({ style }: { style?: object }) {
   const { team, updateTeam } = useTeams();
@@ -32,14 +32,10 @@ export default function SampleTeamNotice({ style }: { style?: object }) {
       </Text>
       <View style={styles.actions}>
       <PrimaryButton label="Import roster" icon="scan-outline" onPress={() => setImporting(true)} style={styles.button} testID="sample-team-import" />
-      <RosterImportSheet
+      <PersonalRosterImportSheet
         visible={importing}
         source="sample"
         onClose={() => setImporting(false)}
-        onAdded={(playerIds) => {
-          track('sample_team_cleared', { kept: own, via: 'import' });
-          updateTeam((current) => withoutSample(current, new Set(playerIds)));
-        }}
       />
       <GhostButton
         label="Remove sample"

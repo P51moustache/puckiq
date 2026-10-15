@@ -6,6 +6,13 @@ const player: FantasyPlayer = { playerId: 123, playerName: 'Private imported nam
 const state = (team: FantasyTeam): TeamsState => ({ teams: [team], activeTeamId: team.id });
 
 describe('anonymous team activity', () => {
+  it('counts committed lineup plans without sending dates or player choices', () => {
+    const team = createTeam({ players: [player] });
+    const next = { ...team, lineupChoices: { '2026-10-13': { '123': 'start' as const } } };
+    expect(teamChangeEvents(state(team), state(next))).toEqual([
+      { event: 'lineup_plan_changed', properties: { saved_dates: 1 } },
+    ]);
+  });
   it('reports additions, removals and player settings without transmitting the roster', () => {
     const team = createTeam({ name: 'Private league name', players: [player] });
     const next = { ...team, players: [{ ...player, rosterPosition: 'C' as const }, { ...player, playerId: 456 }] };

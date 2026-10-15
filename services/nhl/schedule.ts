@@ -3,7 +3,8 @@
  * which jumps to the next slate in the off-season.
  */
 
-import { fetchJson, HOUR, MINUTE } from './client';
+import { fetchJson, fetchJsonWithSource, HOUR, MINUTE } from './client';
+import type { SourceCheck, Sourced } from '../data/sourceCheck';
 import { addDays, weekDates, weekdayAbbrev } from './dates';
 
 export const NHL_WEB_API = 'https://api-web.nhle.com';
@@ -42,6 +43,7 @@ export interface ScheduleDay {
 export interface WeekSchedule {
   monday: string;
   days: ScheduleDay[];
+  check?: SourceCheck;
 }
 
 interface RawTeam {
@@ -130,22 +132,30 @@ export function mapWeekPayload(payload: { gameWeek?: Array<{ date?: string; game
 
 /** Monday–Sunday schedule. The NHL endpoint returns seven days starting at the requested date. */
 export async function fetchWeekSchedule(monday: string, options: { force?: boolean } = {}): Promise<WeekSchedule> {
-  const payload = await fetchJson<{ gameWeek?: Array<{ date?: string; games?: RawGame[] }> }>(
+  const result = await fetchJsonWithSource<{ gameWeek?: Array<{ date?: string; games?: RawGame[] }> }>(
     `${NHL_WEB_API}/v1/schedule/${monday}`,
     { ttlMs: 3 * HOUR, persist: true, force: options.force },
   );
-  return mapWeekPayload(payload, monday);
+  if (!Array.isArray(result.data.gameWeek)) throw new Error('Schedule response is incomplete. Try again.');
+  const complete = weekDates(monday).every((date) => result.data.gameWeek?.some((day) => day.date === date && Array.isArray(day.games)));
+  return { ...mapWeekPayload(result.data, monday), check: complete ? result.check : { ...result.check, state: 'unavailable' } };
 }
 
 /** Live-ish slate for one date (scores, periods, states). */
 export async function fetchDaySlate(date: string, options: { force?: boolean } = {}): Promise<NhlGame[]> {
-  const payload = await fetchJson<{ games?: RawGame[] }>(
+  return (await fetchDaySlateWithSource(date, options)).data;
+}
+
+export async function fetchDaySlateWithSource(date: string, options: { force?: boolean } = {}): Promise<Sourced<NhlGame[]>> {
+  const result = await fetchJsonWithSource<{ games?: RawGame[] }>(
     `${NHL_WEB_API}/v1/score/${date}`,
     { ttlMs: 1 * MINUTE, persist: true, force: options.force },
   );
-  return (payload.games ?? [])
+  if (!Array.isArray(result.data.games)) throw new Error('Daily schedule response is incomplete. Try again.');
+  const games = result.data.games
     .map((raw) => normalizeGame(raw, date))
     .filter((game): game is NhlGame => game !== null);
+  return { data: games, check: games.length === result.data.games.length ? result.check : { ...result.check, state: 'unavailable' } };
 }
 
 /**

@@ -21,6 +21,9 @@ import { sanitizeLineupChoices } from './fantasy/lineupPlan';
 import { sanitizeTeamLink } from './fantasy/hostLinks';
 import { sanitizeSlots, STANDARD_SLOTS } from './fantasy/lineup';
 import { DEFAULT_SCORING, sanitizeScoring, scoringPresetFor } from './fantasy/scoring';
+import { parseRosterConfirmation } from './rosterImport/rosterConfirmation';
+import { MAX_ROSTER_PLAYERS } from '../constants/roster';
+export { MAX_ROSTER_PLAYERS } from '../constants/roster';
 
 export const TEAMS_STORAGE_KEY = 'puckiq_teams_v3';
 export const LEGACY_ROSTER_KEY = 'puckiq_fantasy_roster';
@@ -34,7 +37,6 @@ export const MAX_MIN_GOALIE_STARTS = 7;
 
 export const FREE_TEAM_LIMIT = 1;
 export const PRO_TEAM_LIMIT = 5;
-export const MAX_ROSTER_PLAYERS = 30;
 
 const PLATFORMS: FantasyPlatform[] = ['yahoo', 'espn', 'fantrax', 'other'];
 const SLOT_POSITIONS: SlotPosition[] = ['C', 'LW', 'RW', 'D', 'G'];
@@ -197,6 +199,7 @@ function sanitizeTeam(raw: any): FantasyTeam | null {
       : [],
     ...(typeof raw.roomId === 'string' && raw.roomId ? { roomId: raw.roomId } : {}),
     ...teamLinkField(raw.teamLink, PLATFORMS.includes(raw.platform) ? raw.platform : 'other'),
+    rosterConfirmation: parseRosterConfirmation(raw.rosterConfirmation, Date.now()),
     createdAt: typeof raw.createdAt === 'string' ? raw.createdAt : stamp,
     updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : stamp,
   };
