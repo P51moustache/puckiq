@@ -95,7 +95,9 @@ describe('LeagueScreen in a room', () => {
   });
 
   it('sends a preset reaction from a league-mate’s row and shows recent counts', async () => {
-    ready({ ...roomSnapshot(), reactions: [reaction(1, BEN, '🚨'), reaction(2, BEN, '🚨')] });
+    // Reaction windows read the real clock (they compare with server timestamps), like roster ages.
+    const anHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    ready({ ...roomSnapshot(), reactions: [reaction(1, BEN, '🚨'), reaction(2, BEN, '🚨')].map((row) => ({ ...row, createdAt: anHourAgo })) });
     const root = mount();
     expect(allText(oneByTestId(root, `board-row-${BEN}`))).toContain('🚨2');
     expect(oneByTestId(root, `board-row-${ME}`).props.disabled).toBe(true);
