@@ -1,0 +1,13 @@
+{
+  "id": "c73bdfea-99ed-4ae8-8175-bd172ae8c450",
+  "status": "FINISHED",
+  "platform": "IOS",
+  "appVersion": "3.0.0",
+  "appBuildVersion": "35",
+  "gitCommitHash": "5269a4a5e3ae99c039e4f8f40cb7c1ac61d84f65",
+  "createdAt": "2026-10-04T23:53:16.591Z",
+  "completedAt": "2026-10-05T00:01:39.816Z",
+  "error": null,
+  "recentPhases": [],
+  "checkedAt": "2026-10-05T00:02:25.377651+00:00"
+}

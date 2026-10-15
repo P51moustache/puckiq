@@ -1,0 +1,15 @@
+PuckIQ 3.0 is a fantasy hockey coach: it helps users manage the roster they already play in Yahoo/ESPN/Fantrax. Users add their players by searching NHL players; the app never signs in to or changes a fantasy league. No betting, picks, odds, or real-money contests.
+
+No account needed. On first launch tap "Set up my team", then on the players step tap "Just looking? Try a sample team" to load a full roster (a card offers "Remove sample players" later). Or search any NHL player (e.g. "McDavid").
+
+Schedule and player data are loaded from public NHL APIs. Where current-season data is not available yet, prior-season data is clearly labeled. Screenshots and preview use a sample roster.
+
+PuckIQ is now free to download (it was a paid app). PuckIQ Pro is an auto-renewing subscription: Season (yearly, 7-day free trial) or Monthly. Open the paywall from Settings > See Pro or any PRO card (e.g. Tonight > Best lineup). Restore Purchases is on the paywall and in Settings. People who bought the old paid app keep Pro automatically (checked from the App Store receipt).
+
+Sign in with Apple is optional and only backs up teams. Account deletion: Settings > Backup > Delete account (shown when signed in). Feedback: Settings > About > Send feedback.
+
+The iOS 26 launch crash from the 2.3.0 review is fixed in this build.
+
+Existing-user changes in the replacement build: a one-time welcome-back modal appears after setup, and can be reopened in Settings > What’s new in PuckIQ 3.0. The app syncs a missing App Store receipt for earlier paid customers; Restore Purchases remains user-initiated. Original app downloads before 2026-09-27T01:00:00Z keep Pro permanently. Free downloads between that cutover and 2026-10-04T00:00:00Z receive 30 days of client-side Pro access, measured from the later of RevenueCat firstSeen or campaign start (2026-10-04T00:00:00Z). This gift does not initiate an IAP or change billing for current subscribers. It is separate from the annual product’s Apple introductory offer. A new download does not qualify for the returning-user gift. No marketing push is sent.
+
+Sandbox review: Apple’s fixed 2013-08-01 sandbox original-download date is ignored for paid-app migration and the returning-user gift. A new sandbox user remains free and can test the paywall and subscriptions; active purchased entitlements still unlock Pro.

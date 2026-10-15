@@ -1,0 +1,13 @@
+{
+  "branch": "codex/ship-3-0",
+  "commit": "5269a4a5e3ae99c039e4f8f40cb7c1ac61d84f65",
+  "sourceArchiveUrl": "https://api.github.com/repos/P51moustache/puckiq/tarball/5269a4a5e3ae99c039e4f8f40cb7c1ac61d84f65",
+  "baseCommit": "e923e1b91e7baba8477f9e4cc94f4b9d26d0ac53",
+  "workingBranchPreserved": true,
+  "workingIndexPreserved": true,
+  "sourceFileValidation": {
+    "files": 185,
+    "allMatch": true,
+    "failures": []
+  }
+}

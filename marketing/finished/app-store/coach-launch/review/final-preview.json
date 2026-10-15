@@ -1,0 +1,16 @@
+{
+  "id": "6dc00019-26af-89a8-8131-3d5dece59a99",
+  "file": "puckiq-coach-preview-15s-suno-x264.mp4",
+  "checksum": "c6488bb1b829f5e8d3e73030f4ea764f",
+  "poster": "00:00:03:00",
+  "asset": {
+    "errors": [],
+    "warnings": null,
+    "state": "COMPLETE"
+  },
+  "video": {
+    "errors": [],
+    "warnings": null,
+    "state": "PROCESSING"
+  }
+}

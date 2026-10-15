@@ -1,0 +1,34 @@
+{
+  "tool": "Built-in imagegen",
+  "brief": "Loose prompts: current palette and app purpose; AI chooses visual direction.",
+  "concepts": [
+    {
+      "id": "04",
+      "name": "Sports editorial",
+      "file": "04-sports-editorial.png",
+      "source": "/Users/zach/.codex/generated_images/01a128bd-c482-7740-b7c1-f410884ce68a/exec-584d33ea-bf8a-455a-a4bb-f535c28a113b.png",
+      "prompt": "Use case: ui-mockup.\nExplore an original visual style for PuckIQ, an iPhone fantasy hockey assistant that helps with tonight's lineup, weekly planning, and player pickups.\nShow three related app screens together in a landscape concept board.\nKeep the existing palette: warm off-white #F2F0EC, white #FFFFFF, carbon black #15151E, racing red #E10600, warm gray #E9E6E0, and secondary gray #5F5F6B.\nEverything else is open to your creative judgment: layout, typography, navigation, imagery, information hierarchy, and visual personality. This is brainstorming. Surprise me with your interpretation. Show the full screens clearly."
+    },
+    {
+      "id": "05",
+      "name": "Graphic campaign",
+      "file": "05-graphic-campaign.png",
+      "source": "/Users/zach/.codex/generated_images/01a128bd-c482-7740-b7c1-f410884ce68a/exec-4e829749-8a08-4373-ae05-99af0382d28e.png",
+      "prompt": "Use case: ui-mockup.\nDream up a visually adventurous design concept for PuckIQ, a fantasy hockey app that helps people manage their team, plan the week, and discover useful pickups.\nUse only this brand palette: warm off-white #F2F0EC, white #FFFFFF, carbon black #15151E, racing red #E10600, warm gray #E9E6E0, and secondary gray #5F5F6B.\nLet the colors be the anchor and invent the rest. Choose your own visual language and screen organization. Aim for an unexpected interpretation rather than a standard sports dashboard. Present three fully visible mobile screens together as a landscape design exploration."
+    },
+    {
+      "id": "06",
+      "name": "Serif editorial",
+      "file": "06-serif-editorial.png",
+      "source": "/Users/zach/.codex/generated_images/01a128bd-c482-7740-b7c1-f410884ce68a/exec-1bb60a4e-67f3-47c9-9968-d5adeb681672.png",
+      "prompt": "Use case: ui-mockup.\nReimagine PuckIQ from scratch as a beautifully designed iPhone fantasy hockey companion. Its purpose is to help users understand their lineup, plan their week, and find players who fit their team.\nThe colors stay fixed: #F2F0EC warm paper, #FFFFFF white, #15151E carbon black, #E10600 red, #E9E6E0 warm gray, #5F5F6B secondary gray.\nEverything else is yours to invent. Explore an aesthetic outside the usual sports-app look. Do not assume it needs big sporting headlines or conventional dashboard cards. Show your own coherent design idea through three complete screens on a landscape board."
+    },
+    {
+      "id": "07",
+      "name": "Personal dashboard",
+      "file": "07-personal-dashboard.png",
+      "source": "/Users/zach/.codex/generated_images/01a128bd-c482-7740-b7c1-f410884ce68a/exec-4cf37c67-d848-4ace-aaa3-58d7f6432637.png",
+      "prompt": "Use case: ui-mockup.\nGenerate your most imaginative visual concept for PuckIQ, a personal fantasy hockey companion for making better decisions about your team.\nKeep these colors: warm off-white #F2F0EC, white #FFFFFF, carbon black #15151E, racing red #E10600, warm gray #E9E6E0, secondary gray #5F5F6B.\nInvent the design direction yourself. There is no prescribed layout, typography, navigation, imagery, or list of components. This is an early creative exploration, and unexpected ideas are welcome. Show three complete, related iPhone screen concepts together in one landscape image."
+    }
+  ]
+}

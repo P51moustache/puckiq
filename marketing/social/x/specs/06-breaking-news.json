@@ -1,0 +1,12 @@
+{ "input": "marketing/videos/x/upscaled/06-breaking-news.mp4",
+  "audio": "marketing/videos/x/raw/06-breaking-news.mp4",
+  "output": "marketing/videos/x/posts/06-breaking-news.mp4",
+  "style": "none",
+  "hud": "news",
+  "news": { "station": "Action News", "location": "Maple Heights", "clock": "10:14  18°",
+            "headline": "Local man benches player who then scores four goals",
+            "ticker": "Neighbors say he \"has not been the same\"   •   Starting goalie still unconfirmed for tonight   •   Lineups lock at 7 PM   •   Experts urge fans to check who is actually playing" },
+  "subtitles": [
+    { "start": 0.04, "end": 2.5, "text": "Neighbors say he benched a player tonight" },
+    { "start": 2.52, "end": 4.6, "text": "who then scored four goals." },
+    { "start": 6.6, "end": 8.0, "text": "HE NEVER SCORES!" } ] }

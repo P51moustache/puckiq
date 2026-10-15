@@ -1,0 +1,8 @@
+{ "input": "marketing/videos/x/upscaled/05-sold-the-house.mp4",
+  "audio": "marketing/videos/x/raw/05-sold-the-house.mp4",
+  "output": "marketing/videos/x/posts/05-sold-the-house.mp4",
+  "style": "none",
+  "subtitles": [
+    { "start": 0.28, "end": 2.2, "text": "How much did you spend on hockey this year?" },
+    { "start": 2.84, "end": 3.95, "text": "We sold the house." },
+    { "start": 4.06, "end": 6.2, "text": "He's seven." } ] }

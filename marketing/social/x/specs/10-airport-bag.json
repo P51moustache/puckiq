@@ -1,0 +1,23 @@
+{
+  "input": "marketing/videos/x/upscaled/10-airport-bag.mp4",
+  "audio": "marketing/videos/x/raw/10-airport-bag.mp4",
+  "output": "marketing/videos/x/posts/10-airport-bag.mp4",
+  "style": "none",
+  "subtitles": [
+    {
+      "start": 0.52,
+      "end": 2.3,
+      "text": "Bro, they're opening the hockey bag."
+    },
+    {
+      "start": 8.92,
+      "end": 12.3,
+      "text": "Attention passengers, security lane three is now closed."
+    },
+    {
+      "start": 13.4,
+      "end": 15.0,
+      "text": "It's been in the car since Saturday."
+    }
+  ]
+}

@@ -1,20 +1,33 @@
 # PuckIQ marketing assets
 
-Everything here was captured from the real app on real NHL data (the 2026-27 schedule for Tue Oct 13,
-37 minutes before first puck), using the sample team plus an opponent roster. Binaries are gitignored
-(`screenshots/`, `videos/`); regenerate with the scripts in `scripts/store/`.
+## Finished materials
+
+Start with [the finished-materials index](finished/README.md). The approved Bench Games ad and its
+matching cover are in `finished/social/bench-games/`; editable production files remain in
+`output/02-bench-games-v2/`. The October 4 App Store pack, Suno prompt, listing audit, and six new
+launch cards are in `finished/app-store/coach-launch/` and `finished/social/coach-launch/`.
+
+Drop downloaded music into `input/audio/`; drop other source captures into `input/`.
+
+The app screenshots and screen recordings below were captured from the real app on real NHL data
+(the 2026-27 schedule for Tue Oct 13, 37 minutes before first puck), using the sample team plus an
+opponent roster. The approved social ad also contains generated hockey footage and original music,
+documented in its production notes. Capture binaries are gitignored (`screenshots/`, `videos/`);
+regenerate captures with the scripts in `scripts/store/`.
 
 ## Upload to App Store Connect
 
 | Folder | What | Size |
 |---|---|---|
-| `screenshots/app-store/iphone-6.9/` | 8 framed iPhone screenshots, in upload order | 1320×2868 |
-| `screenshots/app-store/ipad-13/` | 5 framed iPad screenshots | 2064×2752 |
+| `finished/app-store/coach-launch/screenshots/iphone-6.9/` | 8 audited iPhone screenshots matching current v2 upload | 1320×2868 |
+| `finished/app-store/coach-launch/screenshots/ipad-13/` | 5 audited iPad screenshots matching current v2 upload | 2064×2752 |
+| `finished/app-store/coach-launch/puckiq-coach-preview-25s-original-music.mp4` | New edited coach tour; proposed first phone preview | 886×1920 |
 | `videos/app-preview/01–04` | iPhone app previews (15–30 s, 30 fps, silent audio track) | 886×1920 |
 | `videos/app-preview/05-ipad-tour.mp4` | iPad app preview | 1200×1600 |
 
 App Store Connect takes up to 3 previews per device size. Suggested iPhone order: `01-tonight`,
-`03-pickups`, `04-share-card`. The poster frame is the first frame unless you pick one.
+`03-pickups`, `04-share-card`. Apple's default poster frame is at 5 seconds; choose a deliberate
+poster frame for each final preview.
 
 ## Social
 

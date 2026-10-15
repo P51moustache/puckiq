@@ -1,0 +1,56 @@
+[
+  {
+    "id": "f07ded41-517a-4d27-9df2-a6198b83b930",
+    "type": "appPreviews",
+    "fileName": "03-pickups.mp4",
+    "fileSize": 10716814,
+    "assetDeliveryState": {
+      "errors": [],
+      "warnings": null,
+      "state": "COMPLETE"
+    },
+    "videoDeliveryState": {
+      "errors": null,
+      "warnings": null,
+      "state": "COMPLETE"
+    },
+    "previewFrameTimeCode": "00:00:05:01",
+    "sourceFileChecksum": "a9a31a72fe53a8cc52c611167a160c9e"
+  },
+  {
+    "id": "91bbadae-dd66-4160-955d-941488fe3567",
+    "type": "appPreviews",
+    "fileName": "04-share-card.mp4",
+    "fileSize": 6145436,
+    "assetDeliveryState": {
+      "errors": [],
+      "warnings": null,
+      "state": "COMPLETE"
+    },
+    "videoDeliveryState": {
+      "errors": null,
+      "warnings": null,
+      "state": "COMPLETE"
+    },
+    "previewFrameTimeCode": "00:00:05:01",
+    "sourceFileChecksum": "35ed66a8bf8846c6ec76b99f56798ae4"
+  },
+  {
+    "id": "64800019-26af-89a8-813c-9d872346b987",
+    "type": "appPreviews",
+    "fileName": "puckiq-coach-preview-15s-suno.mp4",
+    "fileSize": 1896677,
+    "assetDeliveryState": {
+      "errors": [],
+      "warnings": null,
+      "state": "AWAITING_UPLOAD"
+    },
+    "videoDeliveryState": {
+      "errors": [],
+      "warnings": null,
+      "state": "AWAITING_UPLOAD"
+    },
+    "previewFrameTimeCode": "",
+    "sourceFileChecksum": null
+  }
+]

@@ -1,0 +1,53 @@
+[
+  {
+    "id": "6dc00019-26af-89a8-8131-3d5dece59a99",
+    "file": "puckiq-coach-preview-15s-suno-x264.mp4",
+    "bytes": 1031912,
+    "checksum": "c6488bb1b829f5e8d3e73030f4ea764f",
+    "poster": "00:00:03:00",
+    "asset": {
+      "errors": [],
+      "warnings": null,
+      "state": "COMPLETE"
+    },
+    "video": {
+      "errors": [],
+      "warnings": null,
+      "state": "PROCESSING"
+    }
+  },
+  {
+    "id": "f07ded41-517a-4d27-9df2-a6198b83b930",
+    "file": "03-pickups.mp4",
+    "bytes": 10716814,
+    "checksum": "a9a31a72fe53a8cc52c611167a160c9e",
+    "poster": "00:00:05:01",
+    "asset": {
+      "errors": [],
+      "warnings": null,
+      "state": "COMPLETE"
+    },
+    "video": {
+      "errors": null,
+      "warnings": null,
+      "state": "COMPLETE"
+    }
+  },
+  {
+    "id": "91bbadae-dd66-4160-955d-941488fe3567",
+    "file": "04-share-card.mp4",
+    "bytes": 6145436,
+    "checksum": "35ed66a8bf8846c6ec76b99f56798ae4",
+    "poster": "00:00:05:01",
+    "asset": {
+      "errors": [],
+      "warnings": null,
+      "state": "COMPLETE"
+    },
+    "video": {
+      "errors": null,
+      "warnings": null,
+      "state": "COMPLETE"
+    }
+  }
+]

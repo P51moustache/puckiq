@@ -1,0 +1,5 @@
+{ "input": "marketing/videos/x/upscaled/07-hoa-rink.mp4",
+  "audio": "marketing/videos/x/raw/07-hoa-rink.mp4",
+  "output": "marketing/videos/x/posts/07-hoa-rink.mp4",
+  "style": "none",
+  "hud": "doorbell" }

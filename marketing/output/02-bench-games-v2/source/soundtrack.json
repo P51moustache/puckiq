@@ -1,0 +1,38 @@
+{
+  "file": "/Users/zach/Projects/puckiq/marketing/output/02-bench-games-v2/source/soundtrack.wav",
+  "duration_seconds": 15.0,
+  "sample_rate": 48000,
+  "channels": 2,
+  "sample_frames": 720000,
+  "bit_depth": 16,
+  "tempo_bpm": 128,
+  "peak_dbfs": -1.3003211957430747,
+  "rms_dbfs": -15.179852117987998,
+  "clipped_samples": 0,
+  "scene_accent_seconds": [
+    0,
+    1.875,
+    4.6875,
+    7.5,
+    11.25
+  ],
+  "score_click_seconds": [
+    2.75,
+    2.9,
+    3.05,
+    3.2,
+    3.35,
+    3.5,
+    3.65
+  ],
+  "final_cadence_seconds": 14.0625,
+  "first_sample": [
+    0,
+    0
+  ],
+  "last_sample": [
+    0,
+    0
+  ],
+  "rights": "Original deterministic synthesis; no external samples or music."
+}

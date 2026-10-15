@@ -1,0 +1,10 @@
+{ "clips": [
+    "marketing/videos/x/raw/13-goalie-vigil-1.mp4",
+    "marketing/videos/x/raw/13-goalie-vigil-2.mp4",
+    "marketing/videos/x/raw/13-goalie-vigil-3.mp4" ],
+  "output": "marketing/videos/x/posts/13-goalie-vigil.mp4",
+  "style": "none",
+  "hud": "news",
+  "news": { "station": "Action News", "location": "Maple Street", "clock": "10:41  12°",
+            "headline": "Local man drops goalie at 6:59. Goalie posts shutout.",
+            "ticker": "Candlelight vigil continues on Maple Street   •   Neighbors ask for privacy   •   Lineups lock at 7 PM   •   Experts: always check who's starting" } }

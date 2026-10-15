@@ -1,0 +1,19 @@
+{
+  "checkedAt": "2026-10-04T22:47:03.962338+00:00",
+  "buildNumber": 32,
+  "archiveBytes": 7341285,
+  "archiveSha256": "ce8fbba30902185a75c0e83544dc8626bd04e5ad56a20227f003a8d450cdafb1",
+  "checks": {
+    "matchesWorkingFiles": {
+      "services/analytics/posthog.ts": true,
+      "services/loyaltyAccess.ts": true,
+      "components/release/ReleaseNotice.tsx": true,
+      "ios/PuckIQ/PrivacyInfo.xcprivacy": true,
+      "lib/supabase.ts": true,
+      "eas.json": true
+    },
+    "gitExcluded": true,
+    "podsExcluded": true,
+    "localEnvExcluded": true
+  }
+}

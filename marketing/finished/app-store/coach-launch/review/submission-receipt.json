@@ -1,0 +1,59 @@
+{
+  "verifiedAt": "2026-10-05T01:52:58.658Z",
+  "submission": {
+    "id": "6a2cd7f4-9ba0-40c3-8c6f-31d6a5f54d74",
+    "platform": "IOS",
+    "submittedDate": "2026-10-05T01:52:26.482Z",
+    "state": "WAITING_FOR_REVIEW",
+    "itemIds": [
+      "NmEyY2Q3ZjQtOWJhMC00MGMzLThjNmYtMzFkNmE1ZjU0ZDc0fDE5fDhmN2RiZmZkLTNkNzAtNGRlMy1hMDhkLTJmMzFmODZhODdjNA",
+      "NmEyY2Q3ZjQtOWJhMC00MGMzLThjNmYtMzFkNmE1ZjU0ZDc0fDE4fGEzYjRkMTUyLTJiNDktNDg5OC04ZWNhLTljNmU2YzkxOTZlZg",
+      "NmEyY2Q3ZjQtOWJhMC00MGMzLThjNmYtMzFkNmE1ZjU0ZDc0fDE4fGM4NzY2MjJjLTFiODMtNDRmYS1hZmYxLWExM2VhMmJhMGMwMw",
+      "NmEyY2Q3ZjQtOWJhMC00MGMzLThjNmYtMzFkNmE1ZjU0ZDc0fDZ8ODkwMTk3NDU4"
+    ],
+    "items": [
+      {
+        "id": "NmEyY2Q3ZjQtOWJhMC00MGMzLThjNmYtMzFkNmE1ZjU0ZDc0fDE5fDhmN2RiZmZkLTNkNzAtNGRlMy1hMDhkLTJmMzFmODZhODdjNA",
+        "type": "reviewSubmissionItems",
+        "state": "READY_FOR_REVIEW"
+      },
+      {
+        "id": "NmEyY2Q3ZjQtOWJhMC00MGMzLThjNmYtMzFkNmE1ZjU0ZDc0fDE4fGEzYjRkMTUyLTJiNDktNDg5OC04ZWNhLTljNmU2YzkxOTZlZg",
+        "type": "reviewSubmissionItems",
+        "state": "READY_FOR_REVIEW"
+      },
+      {
+        "id": "NmEyY2Q3ZjQtOWJhMC00MGMzLThjNmYtMzFkNmE1ZjU0ZDc0fDE4fGM4NzY2MjJjLTFiODMtNDRmYS1hZmYxLWExM2VhMmJhMGMwMw",
+        "type": "reviewSubmissionItems",
+        "state": "READY_FOR_REVIEW"
+      },
+      {
+        "id": "NmEyY2Q3ZjQtOWJhMC00MGMzLThjNmYtMzFkNmE1ZjU0ZDc0fDZ8ODkwMTk3NDU4",
+        "type": "reviewSubmissionItems",
+        "state": "READY_FOR_REVIEW"
+      }
+    ]
+  },
+  "appVersion": {
+    "id": "875dfe95-d177-4461-8214-1551f25487ac",
+    "version": "3.0.0",
+    "state": "WAITING_FOR_REVIEW",
+    "releaseType": "AFTER_APPROVAL"
+  },
+  "preview": {
+    "id": "6dc00019-26af-89a8-8131-3d5dece59a99",
+    "file": "puckiq-coach-preview-15s-suno-x264.mp4",
+    "checksum": "c6488bb1b829f5e8d3e73030f4ea764f",
+    "poster": "00:00:03:00",
+    "asset": {
+      "errors": [],
+      "warnings": null,
+      "state": "COMPLETE"
+    },
+    "video": {
+      "errors": [],
+      "warnings": null,
+      "state": "PROCESSING"
+    }
+  }
+}

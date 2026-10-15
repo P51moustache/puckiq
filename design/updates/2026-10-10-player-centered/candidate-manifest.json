@@ -1,0 +1,377 @@
+{
+  "generatedAt": "2026-10-11T04:24:25.189423+00:00",
+  "branch": "codex/player-centered-dark-update",
+  "baseCommit": "f70887edd2740a24c403154ace7126843c7d068c",
+  "state": "uncommitted local review candidate",
+  "version": "3.2.0",
+  "simulator": {
+    "name": "PuckIQ Test iPhone",
+    "udid": "CE32BC5F-D3E7-4996-B622-9F2F575553C2",
+    "bundleId": "com.zlce.hockeystats",
+    "app": "/tmp/puckiq-player-update-build/Build/Products/Debug-iphonesimulator/PuckIQ.app",
+    "previewDate": "2026-10-13",
+    "pro": "development override"
+  },
+  "verification": {
+    "typecheck": "passed",
+    "jest": {
+      "suites": 97,
+      "tests": 906,
+      "passed": true
+    },
+    "lint": {
+      "errors": 0,
+      "warnings": 198
+    },
+    "nativeBuild": "signed Debug simulator build passed; installed and launched",
+    "productionExport": "/tmp/puckiq-production-export",
+    "logs": [
+      "/tmp/puckiq-usability-typecheck.log",
+      "/tmp/puckiq-usability-tests.log",
+      "/tmp/puckiq-usability-lint.log",
+      "/tmp/puckiq-native-signed-build.log",
+      "/tmp/puckiq-production-export.log"
+    ],
+    "productionBundle": "_expo/static/js/ios/entry-974d70d99bfa2c8da08888d1e3260de6.hbc",
+    "sourceDelivery": "Current JavaScript through Metro in the existing signed Debug simulator app; native shell unchanged; latest Insights and Lineup captures visually verified",
+    "productionBundleSha256": "6dc900bf568b18b6f1bc8a0b81e0762111b787bc7858158c59b5574e2418e427",
+    "manualUsabilityChecks": [
+      "44-point rows and primary tabs visually verified",
+      "all three horizontal insight rows visible in the initial view",
+      "group insight presents all eight affected players",
+      "selecting Jack Hughes dismisses insight then opens his player card",
+      "single-goalie insight detail verified",
+      "Review my lineup navigates to optimizer after dismissal",
+      "lineup row opens Nathan MacKinnon",
+      "date picker Oct 14 to Oct 13 without modifying saved player choices",
+      "best and edit tab layout inspected; compact player layout and reduced bottom inset retained"
+    ],
+    "priorDensityChecks": [
+      "player first viewport",
+      "estimate explanation",
+      "schedule rating explanation",
+      "all 13 starters visible",
+      "date picker Oct 15 then restored Oct 13",
+      "trends expand and collapse",
+      "generated Insights art visible",
+      "reduced tab padding and footer alignment",
+      "one-point larger type checked on Player, Lineup, Insights; four overview games and 13 starters remain visible"
+    ]
+  },
+  "pending": [
+    "visual acceptance",
+    "physical-device performance and touch scrolling",
+    "purchase/restore",
+    "notification/widget/live-game checks",
+    "distribution archive and release version"
+  ],
+  "sourceFiles": [
+    {
+      "path": "__tests__/shipping-surfaces.test.ts",
+      "sha256": "a6b16ed4fa82ff4d46aae9e41f796e51b5d01eb491c0145040e0a858edf6f4b5"
+    },
+    {
+      "path": "app.config.js",
+      "sha256": "682c2c43ee87a60e492dd7d06e74bc7a421a32fbde1f592d3e89fa006c7ce276"
+    },
+    {
+      "path": "app/(tabs)/_layout.tsx",
+      "sha256": "c6afe0410151b43c8bf3cff144c592920b50d8c0895b2f4f3be81caac38fa0b8"
+    },
+    {
+      "path": "app/(tabs)/insights.tsx",
+      "sha256": "ff8884e6b68cefc6dc01df36a1d6b858529627991bafff8269eb96d63f73b68c"
+    },
+    {
+      "path": "app/(tabs)/lineup.tsx",
+      "sha256": "24cdb6f3ed5bca802be108f2e36414b2b121241374a98546b397b4ab2ab0c965"
+    },
+    {
+      "path": "app/(tabs)/more.tsx",
+      "sha256": "d71d6f377aac6139414210d9a44360f8338dddccc480b9c3668f8e7b3c03281c"
+    },
+    {
+      "path": "app/_layout.tsx",
+      "sha256": "1db02620d8e120771a62ed93eb1ecf1f31b6072e013e3ddccae9684f3116ae87"
+    },
+    {
+      "path": "assets/images/art/hockey-night.png",
+      "sha256": "5fb7fd5012dff933c5a02d3d7d4e782f9a36d08be28ba8fe7a8767f0b0df1a81"
+    },
+    {
+      "path": "components/PageHeader.tsx",
+      "sha256": "4c7f446894e92a5e8c597d61507e4699be205a97eba702aab5a09bba7504f1f5"
+    },
+    {
+      "path": "components/__tests__/PageHeader.test.tsx",
+      "sha256": "c7f526a5a8402eb3e453158c66104c5f50d4f2c3ec170d2322bbee61d618b383"
+    },
+    {
+      "path": "components/coach/Buttons.tsx",
+      "sha256": "070dab352b7d98b7fd0c8bd999c93a80f7ab2b25ea7047dfcb55dc4cc227e24e"
+    },
+    {
+      "path": "components/coach/HockeyHero.tsx",
+      "sha256": "798814001e51f7e34293df8e3e9d0297cbb0516e651020b1cb49930a39906ce9"
+    },
+    {
+      "path": "components/coach/PlayerAvatar.tsx",
+      "sha256": "c59de206c1a52d70372bb6b6730dd67a23ddbd819a5fd6c52f345518709d0f54"
+    },
+    {
+      "path": "components/coach/SectionTabs.tsx",
+      "sha256": "e4ea383a46e633573944d9200875e1f4f84c470decee0e72d4630bd1163c5300"
+    },
+    {
+      "path": "components/coach/TeamSwitcher.tsx",
+      "sha256": "41ed4af2758d548581146b3de5603b3b53359ef951e0fbf1f64573dcebde7b5e"
+    },
+    {
+      "path": "components/coach/theme.ts",
+      "sha256": "ba22765e257c1a3eb3c2572f8d6c4eae4591fd159189985cbbb1ecef03207273"
+    },
+    {
+      "path": "components/coach/ui.tsx",
+      "sha256": "57bd56a34eca6713177e58d7e196dd3ed9d5f54f20ddbedbacb009e4f4901a8a"
+    },
+    {
+      "path": "components/insights/InsightCard.tsx",
+      "sha256": "c592fccb6843dce563031ace1035f423324b12816381df5a87cac7a271c81c20"
+    },
+    {
+      "path": "components/insights/InsightDetailSheet.tsx",
+      "sha256": "e039a4bab20b8615c42d45c9310c06d49defd1d871f86895dc67bf4d2119d494"
+    },
+    {
+      "path": "components/insights/InsightsTrades.tsx",
+      "sha256": "abfad59ab67e44b8ba38bcff5effeb89f9394ca9311613f469bb446ee0dd7bbf"
+    },
+    {
+      "path": "components/insights/TrendingPlayers.tsx",
+      "sha256": "e1f9df36ce2153813d7c7bf3d3c09d53fd29c4d4432ffc41936db5ddb05822cd"
+    },
+    {
+      "path": "components/insights/__tests__/InsightsScreen.test.tsx",
+      "sha256": "825dd1bbe38ff48bf328994985d5be7d194a3b2eae76b22b022842655926e542"
+    },
+    {
+      "path": "components/insights/insightDetails.ts",
+      "sha256": "9a223b9cde1849044f14ece8eee9055a700d36085debf7797f9d29ef36426325"
+    },
+    {
+      "path": "components/league/JoinRoomScreen.tsx",
+      "sha256": "ab9e1e74c0b4caedf7613a845823fc59a82fb8d79386d4edb56c8106a79d03ce"
+    },
+    {
+      "path": "components/league/OpponentPicker.tsx",
+      "sha256": "e2b1b77b6719d1fb9ca12e3b9468b85bb2ec08e7f9b83131aa734d894f350a28"
+    },
+    {
+      "path": "components/lineup/LineupActionsFooter.tsx",
+      "sha256": "f0b766afb1e4104fc2d03e58b3fac7d27c4a25fa13f422724cde8f1cf93f27a0"
+    },
+    {
+      "path": "components/lineup/LineupDatePicker.tsx",
+      "sha256": "445e6258246248e4a1b7828d6a97128b792726a918a67efd324d6fdccbfd1bb5"
+    },
+    {
+      "path": "components/lineup/LineupList.tsx",
+      "sha256": "36c8951a2781ecddb61c0d36478a622bc80ce4aa5516b99d8bcbaf7ceba1742a"
+    },
+    {
+      "path": "components/lineup/__tests__/LineupScreen.test.tsx",
+      "sha256": "029e5cb5a286e957687b8e21ea851bf2cd75e8099b83bbf86916cb49cb922041"
+    },
+    {
+      "path": "components/player/GameLog.tsx",
+      "sha256": "dbae4ed9388ca269f2c18ce3a2220a88d56ea60aaefadee4d2b4a3f991459aee"
+    },
+    {
+      "path": "components/player/PerformanceChart.tsx",
+      "sha256": "d1d127cdf63ab95139a408490a30a4b97992cb8d4f7a60ef1031b382d63afeba"
+    },
+    {
+      "path": "components/player/PlayerHero.tsx",
+      "sha256": "a308b9ea8c54d7e021cf6a9bfbf61a73f6dda0693a1dbef51d676e64355c438a"
+    },
+    {
+      "path": "components/player/PlayerStats.tsx",
+      "sha256": "685882b3570cf1af7380017479e6e2e89521f9a856dd737149efcf5388e86c1b"
+    },
+    {
+      "path": "components/player/ProjectionSection.tsx",
+      "sha256": "3726af2b9812bdc0b2514637d8516473b16b10bbd209af1a5ed8c29713acafb0"
+    },
+    {
+      "path": "components/player/ScheduleAssessment.tsx",
+      "sha256": "766bf18e399b6e80d7f7eee0766d970c3edafa9a1e36497f404fafe3c6801753"
+    },
+    {
+      "path": "components/player/VerdictCard.tsx",
+      "sha256": "37578d649323915cee7473b42e66b64bfbdfda12631e784745c48ec0e76649c7"
+    },
+    {
+      "path": "components/player/__tests__/PerformanceChart.test.tsx",
+      "sha256": "05685fbf857696d81c6dba43e916fe120005d77410e6b52ca5a1721fa619c55b"
+    },
+    {
+      "path": "components/player/logValue.ts",
+      "sha256": "45218981cd15364e487e477c4719afaa5eb03dfd8d17df028f8a08079f81ee9f"
+    },
+    {
+      "path": "components/player/useRosterActions.ts",
+      "sha256": "0ecc6555e9c064eb2fec7976673fec96dac0103f05038ba16ba45960ddf8464e"
+    },
+    {
+      "path": "components/screens/InsightsScreen.tsx",
+      "sha256": "fd0a1f9a84e25c4d8ffcb9eff57d7096105a5051a6f2047e1501114fe95088d5"
+    },
+    {
+      "path": "components/screens/LineupScreen.tsx",
+      "sha256": "b11d0f3ff7799c78120ce5b9d073a05647dbff1e476bc7c94ab50b6a25337a0c"
+    },
+    {
+      "path": "components/screens/MoreScreen.tsx",
+      "sha256": "16e28775e48173576e029ace54fb262d5de05b7171a908f8f4ee8c2acf57e8de"
+    },
+    {
+      "path": "components/screens/PickupsScreen.tsx",
+      "sha256": "d8265fa08a0b8f9bdbac13ecab190521bc1ebcbb2cc7c99749c3bd37cc5fe1bf"
+    },
+    {
+      "path": "components/screens/RosterScreen.tsx",
+      "sha256": "b9ea41b40927101884efea005cff6cbd904f46e82e25925259f4ae450f1df9eb"
+    },
+    {
+      "path": "components/screens/TonightScreen.tsx",
+      "sha256": "3ac59c11c12d2a893944f46f9c38ac9a7a8452a53c325c149f54508cfd5a87c0"
+    },
+    {
+      "path": "components/sheets/PlayerSearchSheet.tsx",
+      "sha256": "bac36a46700f1c8a7627c379018da65f9726da00042d1f6e950fc3c1fe9237ef"
+    },
+    {
+      "path": "components/sheets/PlayerSheet.tsx",
+      "sha256": "79010bd9d086bb9826399ed52cb55a1ba3631ba44ee82f28930c5b7dd2290992"
+    },
+    {
+      "path": "components/sheets/__tests__/PlayerSheet.test.tsx",
+      "sha256": "8ee617951c4567b902c21c71960cfac31348b5b1f10aaaad2099e6220411c98f"
+    },
+    {
+      "path": "components/tonight/CoachMovesSection.tsx",
+      "sha256": "2c40f68f513c26b8fbe1823b12c8981916521f43ae995b4667faa67bb7e380cf"
+    },
+    {
+      "path": "components/ui/IconSymbol.tsx",
+      "sha256": "df766e6d6064e16ca316196b4d96400ee53078d367a809b85948a399abde2c78"
+    },
+    {
+      "path": "components/ui/TabBarBackground.ios.tsx",
+      "sha256": "43bf717198527048cc9d2795c6356f09b13d4a67777c5ca6fc6fdf9f31943335"
+    },
+    {
+      "path": "constants/art.ts",
+      "sha256": "b98dce3d412e7babb094cacd1b4fcd93e138c5547b96764eff52dbd1914b8f67"
+    },
+    {
+      "path": "hooks/useCoach.ts",
+      "sha256": "87b95b4e389fffbc6888a0368695e8afc44b0065b82502a694754b02a4ab942e"
+    },
+    {
+      "path": "hooks/useLineupActions.ts",
+      "sha256": "4d88c831788d839b8844cce87d54853bddd57c4dff22b418a48de39550155074"
+    },
+    {
+      "path": "hooks/usePlayerCard.ts",
+      "sha256": "b360cdeb704718f2642d7b39d0eacc5df6d2d8fbbac1120155a275574d6c3cfe"
+    },
+    {
+      "path": "hooks/usePlayerOutlook.ts",
+      "sha256": "fd1636d7a9351aefb3bbb4a9011be7dbab4194b792af36feaad9862a96d04016"
+    },
+    {
+      "path": "ios/PuckIQ/Info.plist",
+      "sha256": "2cad2c1ba43938adb8b9a50401bdab2ef8186bafd7be05543fb7f13509e07b94"
+    },
+    {
+      "path": "services/charts/__tests__/barScale.test.ts",
+      "sha256": "faece5921dc1fdbcb1e5bdeb129a60fc41a93ee0e8793836010d0e8e42219af4"
+    },
+    {
+      "path": "services/charts/barScale.ts",
+      "sha256": "ad39f9aadf014f8ca0199182994ef94c3de82a1b3c315b08d3ec272f7401c6ec"
+    },
+    {
+      "path": "services/fantasy/__tests__/lineupPlan.test.ts",
+      "sha256": "78cd916c0cc8c2dd38f23a98de5d534ac584930a29729545640f486676b5e5d7"
+    },
+    {
+      "path": "services/fantasy/__tests__/playerOutlook.test.ts",
+      "sha256": "a6f9273e48067e1ee8234d5bfde0eb37094c1fb020563fc92404ba21c8ba267f"
+    },
+    {
+      "path": "services/fantasy/form.ts",
+      "sha256": "747e2115b19ea023a158a1a1043a75c41bca2d4c9c992d1b5276080e80ba3023"
+    },
+    {
+      "path": "services/fantasy/lineup.ts",
+      "sha256": "41795fd86d7179c58bf80a78581b43e7388c7c896ccbebe3321e065015bada2f"
+    },
+    {
+      "path": "services/fantasy/lineupPlan.ts",
+      "sha256": "334b0d68095c1383256144eb302e93106279efe62bdeb730e1ed3aa0da841986"
+    },
+    {
+      "path": "services/fantasy/logValue.ts",
+      "sha256": "fecfffcd9bb2143a3da01c04ccda1bd1706e96aaa27d0cc9cb70471b05cfedf4"
+    },
+    {
+      "path": "services/fantasy/performance.ts",
+      "sha256": "e5e8f5feec156acdf3d5359297c769870fa7f40a2dd7b30688d3319f7b70b346"
+    },
+    {
+      "path": "services/fantasy/playerOutlook.ts",
+      "sha256": "0d4d812849ce6368ac7428cd1dbd96ef9fd09a5b28572439e38f6455c4e5b510"
+    },
+    {
+      "path": "services/nhl/__tests__/teamSchedule.test.ts",
+      "sha256": "34db32b958d027a6be733c6b4d106ceb3b8fec0ccb69dd3939db523c5cc08136"
+    },
+    {
+      "path": "services/nhl/teamSchedule.ts",
+      "sha256": "2560b127a3b4b6b1b2b69c70145aff827ec7ad503093c84db30a4f55e12f7218"
+    },
+    {
+      "path": "services/teams.ts",
+      "sha256": "011dfc85e6824801ccd759009c96e7b7c3b6776ff144642eb0959266bd0de8d3"
+    },
+    {
+      "path": "types/fantasy.ts",
+      "sha256": "32b2a9e504c004b76622d9b7379f13677771dd305eec51e75cde2d54d607f01a"
+    }
+  ],
+  "refinement": "Readable Insights and Lineup: compact horizontal detail rows, group/player detail sheet, labeled start and bench, 44-point player rows and primary tabs; reduced bottom inset retained",
+  "compactScreenshots": [
+    {
+      "path": "design/updates/2026-10-10-player-centered/compact/insight-details.png",
+      "sha256": "7134d20d9bea5990361b9501361bcd188b24ae1b8f56391854a9843bbb5b98c0"
+    },
+    {
+      "path": "design/updates/2026-10-10-player-centered/compact/insights.png",
+      "sha256": "4447ebcd17d3c665a092fe7075c739d4a615e75900ce9a9f5fa18479cd823c59"
+    },
+    {
+      "path": "design/updates/2026-10-10-player-centered/compact/lineup-edit.png",
+      "sha256": "b8a47f5069e37ba01f0126396a0c811050afd269b08336c58e27fa4577f40864"
+    },
+    {
+      "path": "design/updates/2026-10-10-player-centered/compact/lineup.png",
+      "sha256": "2bde4c1ffd08819df54eacb2f539a6517ed59fc98e3246a139fe41241d658e51"
+    },
+    {
+      "path": "design/updates/2026-10-10-player-centered/compact/player.png",
+      "sha256": "5c23e6fc75dda40e765af46a607c1689ee28b7acc19d0136f6a6f5c1a333bf43"
+    }
+  ]
+}

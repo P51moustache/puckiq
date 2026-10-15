@@ -1,0 +1,38 @@
+PuckIQ is the coach for your fantasy hockey team — in the Yahoo, ESPN, or Fantrax league you already play. Add your players once. Every night PuckIQ tells you who plays, who's scratched, and exactly what to change before lock.
+
+TONIGHT
+• How many of your players play tonight, with a countdown to your first lock
+• One free coach move every day; Pro unlocks every recommendation before lock, including overflow sits and empty slots
+• Scratches straight from the NHL game report — marked Confirmed only when the NHL posts them
+• Injury news filtered to your players only
+• Live stat lines while your games are on
+• A lineup reminder before first puck, only on nights your players play
+
+YOUR WEEK
+• Every player's games, Monday to Sunday, with off-nights highlighted
+• PRO: games that actually count once your lineup slots fill up — see bench overflow and empty slots before they cost you
+
+PICKUPS
+• Your top streamer, ranked by the value he adds to YOUR lineup — only nights he'd actually start for you
+• PRO: the full ranked list, filtered by position and night, with an estimate of likely-rostered players based on league size; hide unavailable players manually
+
+SHARE
+• Turn tonight's lineup or your week into a card for the league group chat
+
+PUCKIQ PRO
+• Tonight's best lineup for your league's exact positions (C, LW, RW, F, D, UTIL, G)
+• Every coach move before lock: overflow sits, empty slots, goalie start rates, injury checks
+• Week planner for this week and next
+• Head-to-head matchup: enter your opponent's roster once, then compare games that count day by day
+• Player trends and full-season game logs
+• NHL Edge stats: skating speed, shot speed, and danger-zone numbers ranked against the league
+• Up to 5 leagues
+
+PuckIQ never logs in to your league or changes your lineup — you make the moves in your fantasy app. No ads.
+
+Subscriptions: PuckIQ Pro is available as a yearly (season) or monthly auto-renewing subscription. Payment is charged to your Apple ID. Subscriptions renew automatically unless cancelled at least 24 hours before the end of the current period. Manage or cancel in your App Store account settings.
+
+Terms of Use: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Privacy Policy: https://p51moustache.github.io/puckiq/privacy.html
+
+Schedules, scratches, and stats come from public NHL data. PuckIQ is not affiliated with or endorsed by the NHL, Yahoo, ESPN, or Fantrax.

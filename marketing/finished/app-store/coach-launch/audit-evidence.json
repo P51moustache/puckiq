@@ -1,0 +1,201 @@
+{
+  "checked_on": "2026-10-04",
+  "app_id": "6751451560",
+  "public_version": "2.2.0",
+  "pending_version": "3.0.0",
+  "pending_state": "DEVELOPER_REJECTED",
+  "selected_build": "27",
+  "selected_build_state": "VALID",
+  "metadata_lengths": {
+    "name": 28,
+    "subtitle": 30,
+    "description": 2422,
+    "keywords": 98,
+    "promotionalText": 169,
+    "whatsNew": 986
+  },
+  "screenshots": [
+    {
+      "file": "marketing/finished/app-store/coach-launch/screenshots/ipad-13/01-bench.png",
+      "size": [
+        2064,
+        2752
+      ],
+      "mode": "RGB",
+      "matches_uploaded": true,
+      "upload_state": "COMPLETE"
+    },
+    {
+      "file": "marketing/finished/app-store/coach-launch/screenshots/ipad-13/02-tonight.png",
+      "size": [
+        2064,
+        2752
+      ],
+      "mode": "RGB",
+      "matches_uploaded": true,
+      "upload_state": "COMPLETE"
+    },
+    {
+      "file": "marketing/finished/app-store/coach-launch/screenshots/ipad-13/03-week.png",
+      "size": [
+        2064,
+        2752
+      ],
+      "mode": "RGB",
+      "matches_uploaded": true,
+      "upload_state": "COMPLETE"
+    },
+    {
+      "file": "marketing/finished/app-store/coach-launch/screenshots/ipad-13/04-pickups.png",
+      "size": [
+        2064,
+        2752
+      ],
+      "mode": "RGB",
+      "matches_uploaded": true,
+      "upload_state": "COMPLETE"
+    },
+    {
+      "file": "marketing/finished/app-store/coach-launch/screenshots/ipad-13/05-roster.png",
+      "size": [
+        2064,
+        2752
+      ],
+      "mode": "RGB",
+      "matches_uploaded": true,
+      "upload_state": "COMPLETE"
+    },
+    {
+      "file": "marketing/finished/app-store/coach-launch/screenshots/iphone-6.9/01-bench.png",
+      "size": [
+        1320,
+        2868
+      ],
+      "mode": "RGB",
+      "matches_uploaded": true,
+      "upload_state": "COMPLETE"
+    },
+    {
+      "file": "marketing/finished/app-store/coach-launch/screenshots/iphone-6.9/02-tonight.png",
+      "size": [
+        1320,
+        2868
+      ],
+      "mode": "RGB",
+      "matches_uploaded": true,
+      "upload_state": "COMPLETE"
+    },
+    {
+      "file": "marketing/finished/app-store/coach-launch/screenshots/iphone-6.9/03-week.png",
+      "size": [
+        1320,
+        2868
+      ],
+      "mode": "RGB",
+      "matches_uploaded": true,
+      "upload_state": "COMPLETE"
+    },
+    {
+      "file": "marketing/finished/app-store/coach-launch/screenshots/iphone-6.9/04-pickups.png",
+      "size": [
+        1320,
+        2868
+      ],
+      "mode": "RGB",
+      "matches_uploaded": true,
+      "upload_state": "COMPLETE"
+    },
+    {
+      "file": "marketing/finished/app-store/coach-launch/screenshots/iphone-6.9/05-lineup.png",
+      "size": [
+        1320,
+        2868
+      ],
+      "mode": "RGB",
+      "matches_uploaded": true,
+      "upload_state": "COMPLETE"
+    },
+    {
+      "file": "marketing/finished/app-store/coach-launch/screenshots/iphone-6.9/06-player.png",
+      "size": [
+        1320,
+        2868
+      ],
+      "mode": "RGB",
+      "matches_uploaded": true,
+      "upload_state": "COMPLETE"
+    },
+    {
+      "file": "marketing/finished/app-store/coach-launch/screenshots/iphone-6.9/07-share.png",
+      "size": [
+        1320,
+        2868
+      ],
+      "mode": "RGB",
+      "matches_uploaded": true,
+      "upload_state": "COMPLETE"
+    },
+    {
+      "file": "marketing/finished/app-store/coach-launch/screenshots/iphone-6.9/08-finale.png",
+      "size": [
+        1320,
+        2868
+      ],
+      "mode": "RGB",
+      "matches_uploaded": true,
+      "upload_state": "COMPLETE"
+    }
+  ],
+  "previews": [
+    {
+      "file": "01-tonight.mp4",
+      "upload": "COMPLETE",
+      "processing": "COMPLETE"
+    },
+    {
+      "file": "03-pickups.mp4",
+      "upload": "COMPLETE",
+      "processing": "COMPLETE"
+    },
+    {
+      "file": "04-share-card.mp4",
+      "upload": "COMPLETE",
+      "processing": "COMPLETE"
+    },
+    {
+      "file": "05-ipad-tour.mp4",
+      "upload": "COMPLETE",
+      "processing": "COMPLETE"
+    }
+  ],
+  "subscriptions": [
+    {
+      "id": "puckiq_pro_monthly",
+      "state": "READY_TO_SUBMIT",
+      "US_price": "4.99"
+    },
+    {
+      "id": "puckiq_pro_annual",
+      "state": "READY_TO_SUBMIT",
+      "US_price": "19.99",
+      "US_intro": "ONE_WEEK FREE_TRIAL"
+    }
+  ],
+  "public_urls_http_status": {
+    "marketing": 200,
+    "support": 200,
+    "privacy": 200
+  },
+  "remote_changes_made": false,
+  "annual_intro_territory_count": 175,
+  "validation": {
+    "typecheck": "passed",
+    "eslint_touched_source": "passed",
+    "tests": {
+      "suites": 5,
+      "passed": 38
+    },
+    "media": "25 seconds, 886x1920, H.264, 30fps, AAC stereo 48 kHz",
+    "ios_release_bundle": "exported successfully; native device upgrade not yet tested"
+  }
+}

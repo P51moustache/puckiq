@@ -1,0 +1,18 @@
+{
+  "audio" : "original stereo AAC passed through",
+  "bytes" : 3566320,
+  "duration" : 25,
+  "file" : "marketing\/finished\/app-store\/coach-launch\/puckiq-coach-preview-25s-suno-optimized.mp4",
+  "fps" : 30,
+  "framePSNR" : [
+    38.874746250646737,
+    38.73519166874776,
+    37.004942944327148,
+    40.52253393079431,
+    38.322339219089116,
+    36.328097807174004
+  ],
+  "height" : 1920,
+  "minimumPSNR" : 36.328097807174004,
+  "width" : 886
+}

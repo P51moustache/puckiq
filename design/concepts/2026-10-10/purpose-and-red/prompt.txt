@@ -1,0 +1,1 @@
+Generate app concept UIs for PuckIQ, an app that helps people make better decisions for their fantasy hockey team. Use red as the highlight color.

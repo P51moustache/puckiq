@@ -1,0 +1,852 @@
+{
+  "id": 2139475,
+  "name": "Your starter dashboard",
+  "description": "How people use your app at a glance: traffic, retention, where visitors come from, and whether they take action. Built from automatically captured events, so it works on day one. Swap in your own events to make it yours.",
+  "pinned": true,
+  "created_at": "2026-09-26T22:09:29.533773Z",
+  "last_accessed_at": "2026-10-04T22:32:23.967280Z",
+  "folder": "Unfiled/Dashboards",
+  "file_system_id": "01a0dfc4-27c1-7403-acc0-69980235dfb1",
+  "file_system_path": "Unfiled/Dashboards/Your starter dashboard",
+  "is_shared": false,
+  "filters": {},
+  "variables": {},
+  "team_id": 630435,
+  "customization": {},
+  "tiles": [
+    {
+      "id": 12696658,
+      "text": {
+        "id": 1013971,
+        "body": "# 👋 Start here\n\nEverything below is captured automatically (pageviews, clicks, sessions, and location), so this dashboard fills in from day one with no extra setup. The headline numbers will feel familiar; the retention and funnel tiles are where you point PostHog at your own events. Edit any tile, or duplicate the dashboard to make it your own.",
+        "last_modified_at": "2026-09-26T22:09:29.558092Z",
+        "team": 630435
+      },
+      "layouts": {
+        "sm": {
+          "h": 2,
+          "w": 12,
+          "x": 0,
+          "y": 0,
+          "minH": 1,
+          "minW": 3
+        },
+        "xs": {
+          "h": 3,
+          "w": 1,
+          "x": 0,
+          "y": 0,
+          "minH": 1,
+          "minW": 1
+        }
+      },
+      "filters_overrides": {},
+      "order": 0,
+      "is_cached": false
+    },
+    {
+      "id": 12696659,
+      "insight": {
+        "id": 12252530,
+        "short_id": "h1F9CNxG",
+        "name": "Active users (last 30 days)",
+        "query": {
+          "kind": "InsightVizNode",
+          "source": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "GroupNode",
+                "math": "dau",
+                "name": "Pageview or screen",
+                "nodes": [
+                  {
+                    "kind": "EventsNode",
+                    "name": "$pageview",
+                    "event": "$pageview"
+                  },
+                  {
+                    "kind": "EventsNode",
+                    "name": "$screen",
+                    "event": "$screen"
+                  }
+                ],
+                "operator": "OR"
+              }
+            ],
+            "version": 4,
+            "interval": "day",
+            "dateRange": {
+              "date_from": "-30d",
+              "explicitDate": false
+            },
+            "properties": [],
+            "trendsFilter": {
+              "display": "BoldNumber",
+              "showLegend": false,
+              "yAxisScaleType": "linear",
+              "showValuesOnSeries": false,
+              "smoothingIntervals": 1,
+              "showPercentStackView": false,
+              "aggregationAxisFormat": "numeric",
+              "showAlertThresholdLines": false
+            },
+            "breakdownFilter": {
+              "breakdown_type": "event"
+            },
+            "filterTestAccounts": false
+          }
+        },
+        "created_at": "2026-09-26T22:09:29.568054Z",
+        "description": "Unique people who used your app in the last 30 days. A quick pulse on your overall reach.",
+        "updated_at": "2026-09-26T22:09:29.568082Z",
+        "favorited": false,
+        "saved": true,
+        "last_modified_at": "2026-09-26T22:09:29.567524Z",
+        "is_cached": false,
+        "tags": []
+      },
+      "layouts": {
+        "sm": {
+          "h": 3,
+          "w": 4,
+          "x": 0,
+          "y": 2,
+          "minH": 3,
+          "minW": 3
+        },
+        "xs": {
+          "h": 3,
+          "w": 1,
+          "x": 0,
+          "y": 3,
+          "minH": 3,
+          "minW": 1
+        }
+      },
+      "filters_overrides": {},
+      "order": 1,
+      "is_cached": false
+    },
+    {
+      "id": 12696660,
+      "insight": {
+        "id": 12252531,
+        "short_id": "G8urarpW",
+        "name": "Sessions (last 7 days)",
+        "query": {
+          "kind": "InsightVizNode",
+          "source": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "math": "unique_session",
+                "name": "$pageview",
+                "event": "$pageview"
+              }
+            ],
+            "version": 4,
+            "interval": "day",
+            "dateRange": {
+              "date_from": "-7d",
+              "explicitDate": false
+            },
+            "properties": [],
+            "trendsFilter": {
+              "display": "BoldNumber",
+              "showLegend": false,
+              "yAxisScaleType": "linear",
+              "showValuesOnSeries": false,
+              "smoothingIntervals": 1,
+              "showPercentStackView": false,
+              "aggregationAxisFormat": "numeric",
+              "showAlertThresholdLines": false
+            },
+            "breakdownFilter": {
+              "breakdown_type": "event"
+            },
+            "filterTestAccounts": false
+          }
+        },
+        "created_at": "2026-09-26T22:09:29.577768Z",
+        "description": "Distinct visits in the last 7 days. A session groups everything one person does in a single sitting.",
+        "updated_at": "2026-09-26T22:09:29.577792Z",
+        "favorited": false,
+        "saved": true,
+        "last_modified_at": "2026-09-26T22:09:29.577412Z",
+        "is_cached": false,
+        "tags": []
+      },
+      "layouts": {
+        "sm": {
+          "h": 3,
+          "w": 4,
+          "x": 4,
+          "y": 2,
+          "minH": 3,
+          "minW": 3
+        },
+        "xs": {
+          "h": 3,
+          "w": 1,
+          "x": 0,
+          "y": 6,
+          "minH": 3,
+          "minW": 1
+        }
+      },
+      "filters_overrides": {},
+      "order": 2,
+      "is_cached": false
+    },
+    {
+      "id": 12696661,
+      "insight": {
+        "id": 12252532,
+        "short_id": "9cj1rnIU",
+        "name": "Pageviews (last 7 days)",
+        "query": {
+          "kind": "InsightVizNode",
+          "source": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "math": "total",
+                "name": "$pageview",
+                "event": "$pageview"
+              }
+            ],
+            "version": 4,
+            "interval": "day",
+            "dateRange": {
+              "date_from": "-7d",
+              "explicitDate": false
+            },
+            "properties": [],
+            "trendsFilter": {
+              "display": "BoldNumber",
+              "showLegend": false,
+              "yAxisScaleType": "linear",
+              "showValuesOnSeries": false,
+              "smoothingIntervals": 1,
+              "showPercentStackView": false,
+              "aggregationAxisFormat": "numeric",
+              "showAlertThresholdLines": false
+            },
+            "breakdownFilter": {
+              "breakdown_type": "event"
+            },
+            "filterTestAccounts": false
+          }
+        },
+        "created_at": "2026-09-26T22:09:29.586050Z",
+        "description": "Total pages viewed in the last 7 days, repeat views included. The classic traffic-volume number.",
+        "updated_at": "2026-09-26T22:09:29.586075Z",
+        "favorited": false,
+        "saved": true,
+        "last_modified_at": "2026-09-26T22:09:29.585704Z",
+        "is_cached": false,
+        "tags": []
+      },
+      "layouts": {
+        "sm": {
+          "h": 3,
+          "w": 4,
+          "x": 8,
+          "y": 2,
+          "minH": 3,
+          "minW": 3
+        },
+        "xs": {
+          "h": 3,
+          "w": 1,
+          "x": 0,
+          "y": 9,
+          "minH": 3,
+          "minW": 1
+        }
+      },
+      "filters_overrides": {},
+      "order": 3,
+      "is_cached": false
+    },
+    {
+      "id": 12696662,
+      "text": {
+        "id": 1013972,
+        "body": "## Are people coming back?\n\nActive users show your trend; retention shows how many return after their first visit. The clearest sign your product is sticky.",
+        "last_modified_at": "2026-09-26T22:09:29.593885Z",
+        "team": 630435
+      },
+      "layouts": {
+        "sm": {
+          "h": 2,
+          "w": 12,
+          "x": 0,
+          "y": 5,
+          "minH": 1,
+          "minW": 3
+        },
+        "xs": {
+          "h": 3,
+          "w": 1,
+          "x": 0,
+          "y": 12,
+          "minH": 1,
+          "minW": 1
+        }
+      },
+      "filters_overrides": {},
+      "order": 4,
+      "is_cached": false
+    },
+    {
+      "id": 12696663,
+      "insight": {
+        "id": 12252533,
+        "short_id": "Td1wU3V8",
+        "name": "Daily active users (DAUs)",
+        "query": {
+          "kind": "InsightVizNode",
+          "source": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "GroupNode",
+                "math": "dau",
+                "name": "Pageview or screen",
+                "nodes": [
+                  {
+                    "kind": "EventsNode",
+                    "name": "$pageview",
+                    "event": "$pageview"
+                  },
+                  {
+                    "kind": "EventsNode",
+                    "name": "$screen",
+                    "event": "$screen"
+                  }
+                ],
+                "operator": "OR"
+              }
+            ],
+            "version": 4,
+            "interval": "day",
+            "dateRange": {
+              "date_from": "-30d",
+              "explicitDate": false
+            },
+            "properties": [],
+            "trendsFilter": {
+              "display": "ActionsLineGraph",
+              "showLegend": false,
+              "yAxisScaleType": "linear",
+              "showValuesOnSeries": false,
+              "smoothingIntervals": 1,
+              "showPercentStackView": false,
+              "aggregationAxisFormat": "numeric",
+              "showAlertThresholdLines": false
+            },
+            "breakdownFilter": {
+              "breakdown_type": "event"
+            },
+            "filterTestAccounts": false
+          }
+        },
+        "created_at": "2026-09-26T22:09:29.598065Z",
+        "description": "Unique people who use your app each day. Watch for steady growth or sudden drops.",
+        "updated_at": "2026-09-26T22:09:29.598091Z",
+        "favorited": false,
+        "saved": true,
+        "last_modified_at": "2026-09-26T22:09:29.597687Z",
+        "is_cached": false,
+        "tags": []
+      },
+      "layouts": {
+        "sm": {
+          "h": 5,
+          "w": 6,
+          "x": 0,
+          "y": 7,
+          "minH": 5,
+          "minW": 3
+        },
+        "xs": {
+          "h": 5,
+          "w": 1,
+          "x": 0,
+          "y": 15,
+          "minH": 5,
+          "minW": 1
+        }
+      },
+      "filters_overrides": {},
+      "order": 5,
+      "is_cached": false
+    },
+    {
+      "id": 12696664,
+      "insight": {
+        "id": 12252534,
+        "short_id": "7zVWS15k",
+        "name": "Weekly active users (WAUs)",
+        "query": {
+          "kind": "InsightVizNode",
+          "source": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "GroupNode",
+                "math": "dau",
+                "name": "Pageview or screen",
+                "nodes": [
+                  {
+                    "kind": "EventsNode",
+                    "name": "$pageview",
+                    "event": "$pageview"
+                  },
+                  {
+                    "kind": "EventsNode",
+                    "name": "$screen",
+                    "event": "$screen"
+                  }
+                ],
+                "operator": "OR"
+              }
+            ],
+            "version": 4,
+            "interval": "week",
+            "dateRange": {
+              "date_from": "-90d",
+              "explicitDate": false
+            },
+            "properties": [],
+            "trendsFilter": {
+              "display": "ActionsLineGraph",
+              "showLegend": false,
+              "yAxisScaleType": "linear",
+              "showValuesOnSeries": false,
+              "smoothingIntervals": 1,
+              "showPercentStackView": false,
+              "aggregationAxisFormat": "numeric",
+              "showAlertThresholdLines": false
+            },
+            "breakdownFilter": {
+              "breakdown_type": "event"
+            },
+            "filterTestAccounts": false
+          }
+        },
+        "created_at": "2026-09-26T22:09:29.609586Z",
+        "description": "Unique people who use your app each week. Smooths out daily noise to show the underlying trend.",
+        "updated_at": "2026-09-26T22:09:29.609612Z",
+        "favorited": false,
+        "saved": true,
+        "last_modified_at": "2026-09-26T22:09:29.609194Z",
+        "is_cached": false,
+        "tags": []
+      },
+      "layouts": {
+        "sm": {
+          "h": 5,
+          "w": 6,
+          "x": 6,
+          "y": 7,
+          "minH": 5,
+          "minW": 3
+        },
+        "xs": {
+          "h": 5,
+          "w": 1,
+          "x": 0,
+          "y": 20,
+          "minH": 5,
+          "minW": 1
+        }
+      },
+      "filters_overrides": {},
+      "order": 6,
+      "is_cached": false
+    },
+    {
+      "id": 12696665,
+      "insight": {
+        "id": 12252535,
+        "short_id": "M0xphRUj",
+        "name": "Retention",
+        "query": {
+          "kind": "InsightVizNode",
+          "source": {
+            "kind": "RetentionQuery",
+            "version": 2,
+            "dateRange": {
+              "date_from": "-7d",
+              "explicitDate": false
+            },
+            "properties": [],
+            "retentionFilter": {
+              "period": "Week",
+              "targetEntity": {
+                "id": "$pageview",
+                "type": "events"
+              },
+              "retentionType": "retention_first_time",
+              "totalIntervals": 11,
+              "returningEntity": {
+                "id": "$pageview",
+                "type": "events"
+              }
+            },
+            "filterTestAccounts": false
+          }
+        },
+        "created_at": "2026-09-26T22:09:29.618283Z",
+        "description": "How many people come back week after week after their first visit. The clearest signal of whether your product is sticky.",
+        "updated_at": "2026-09-26T22:09:29.618308Z",
+        "favorited": false,
+        "saved": true,
+        "last_modified_at": "2026-09-26T22:09:29.617964Z",
+        "is_cached": false,
+        "tags": []
+      },
+      "layouts": {
+        "sm": {
+          "h": 5,
+          "w": 12,
+          "x": 0,
+          "y": 12,
+          "minH": 5,
+          "minW": 3
+        },
+        "xs": {
+          "h": 5,
+          "w": 1,
+          "x": 0,
+          "y": 25,
+          "minH": 5,
+          "minW": 1
+        }
+      },
+      "filters_overrides": {},
+      "order": 7,
+      "is_cached": false
+    },
+    {
+      "id": 12696666,
+      "text": {
+        "id": 1013973,
+        "body": "## Where your visitors come from\n\nThe sites and channels sending people to your app.",
+        "last_modified_at": "2026-09-26T22:09:29.626916Z",
+        "team": 630435
+      },
+      "layouts": {
+        "sm": {
+          "h": 2,
+          "w": 12,
+          "x": 0,
+          "y": 17,
+          "minH": 1,
+          "minW": 3
+        },
+        "xs": {
+          "h": 3,
+          "w": 1,
+          "x": 0,
+          "y": 30,
+          "minH": 1,
+          "minW": 1
+        }
+      },
+      "filters_overrides": {},
+      "order": 8,
+      "is_cached": false
+    },
+    {
+      "id": 12696667,
+      "insight": {
+        "id": 12252536,
+        "short_id": "x4AlB2aH",
+        "name": "Top referrers",
+        "query": {
+          "kind": "InsightVizNode",
+          "source": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "math": "dau",
+                "name": "$pageview",
+                "event": "$pageview"
+              }
+            ],
+            "version": 4,
+            "interval": "day",
+            "dateRange": {
+              "date_from": "-7d",
+              "explicitDate": false
+            },
+            "properties": [],
+            "trendsFilter": {
+              "display": "ActionsBarValue",
+              "showLegend": false,
+              "yAxisScaleType": "linear",
+              "showValuesOnSeries": false,
+              "smoothingIntervals": 1,
+              "showPercentStackView": false,
+              "aggregationAxisFormat": "numeric",
+              "showAlertThresholdLines": false
+            },
+            "breakdownFilter": {
+              "breakdown": "$referring_domain",
+              "breakdown_type": "event"
+            },
+            "filterTestAccounts": false
+          }
+        },
+        "created_at": "2026-09-26T22:09:29.631060Z",
+        "description": "Which sites send you the most visitors, like search, social, and direct. Your acquisition channels at a glance.",
+        "updated_at": "2026-09-26T22:09:29.631085Z",
+        "favorited": false,
+        "saved": true,
+        "last_modified_at": "2026-09-26T22:09:29.630687Z",
+        "is_cached": false,
+        "tags": []
+      },
+      "layouts": {
+        "sm": {
+          "h": 5,
+          "w": 12,
+          "x": 0,
+          "y": 19,
+          "minH": 5,
+          "minW": 3
+        },
+        "xs": {
+          "h": 5,
+          "w": 1,
+          "x": 0,
+          "y": 33,
+          "minH": 5,
+          "minW": 1
+        }
+      },
+      "filters_overrides": {},
+      "order": 9,
+      "is_cached": false
+    },
+    {
+      "id": 12696668,
+      "text": {
+        "id": 1013974,
+        "body": "## Turning visits into actions\n\nA funnel from page view to click. Swap in your own events (signup, purchase, upgrade) to measure real conversion.",
+        "last_modified_at": "2026-09-26T22:09:29.638941Z",
+        "team": 630435
+      },
+      "layouts": {
+        "sm": {
+          "h": 2,
+          "w": 12,
+          "x": 0,
+          "y": 24,
+          "minH": 1,
+          "minW": 3
+        },
+        "xs": {
+          "h": 3,
+          "w": 1,
+          "x": 0,
+          "y": 38,
+          "minH": 1,
+          "minW": 1
+        }
+      },
+      "filters_overrides": {},
+      "order": 10,
+      "is_cached": false
+    },
+    {
+      "id": 12696669,
+      "insight": {
+        "id": 12252537,
+        "short_id": "XsgPyRrR",
+        "name": "Visit to interaction funnel",
+        "query": {
+          "kind": "InsightVizNode",
+          "source": {
+            "kind": "FunnelsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "name": "$pageview",
+                "event": "$pageview",
+                "custom_name": "Viewed a page"
+              },
+              {
+                "kind": "EventsNode",
+                "name": "$autocapture",
+                "event": "$autocapture",
+                "custom_name": "Clicked something"
+              }
+            ],
+            "version": 2,
+            "interval": "day",
+            "dateRange": {
+              "date_from": "-7d",
+              "explicitDate": false
+            },
+            "properties": [],
+            "funnelsFilter": {
+              "layout": "horizontal",
+              "exclusions": [],
+              "funnelVizType": "steps",
+              "funnelOrderType": "ordered",
+              "funnelStepReference": "total",
+              "funnelWindowInterval": 14,
+              "breakdownAttributionType": "first_touch",
+              "funnelWindowIntervalUnit": "day"
+            },
+            "breakdownFilter": {
+              "breakdown_type": "event"
+            },
+            "filterTestAccounts": false
+          }
+        },
+        "created_at": "2026-09-26T22:09:29.643345Z",
+        "description": "Of people who land on a page, how many go on to interact. Replace these steps with your own events to track real conversions.",
+        "updated_at": "2026-09-26T22:09:29.643371Z",
+        "favorited": false,
+        "saved": true,
+        "last_modified_at": "2026-09-26T22:09:29.642991Z",
+        "is_cached": false,
+        "tags": []
+      },
+      "layouts": {
+        "sm": {
+          "h": 5,
+          "w": 12,
+          "x": 0,
+          "y": 26,
+          "minH": 5,
+          "minW": 3
+        },
+        "xs": {
+          "h": 5,
+          "w": 1,
+          "x": 0,
+          "y": 41,
+          "minH": 5,
+          "minW": 1
+        }
+      },
+      "filters_overrides": {},
+      "order": 11,
+      "is_cached": false
+    },
+    {
+      "id": 12696670,
+      "text": {
+        "id": 1013975,
+        "body": "## What to do next\n\nYou've got the numbers. Watch how people actually behave, explore raw events, or dig into traffic and acquisition.",
+        "last_modified_at": "2026-09-26T22:09:29.651595Z",
+        "team": 630435
+      },
+      "layouts": {
+        "sm": {
+          "h": 2,
+          "w": 12,
+          "x": 0,
+          "y": 31,
+          "minH": 1,
+          "minW": 3
+        },
+        "xs": {
+          "h": 3,
+          "w": 1,
+          "x": 0,
+          "y": 46,
+          "minH": 1,
+          "minW": 1
+        }
+      },
+      "filters_overrides": {},
+      "order": 12,
+      "is_cached": false
+    },
+    {
+      "id": 12696671,
+      "layouts": {
+        "sm": {
+          "h": 1,
+          "w": 4,
+          "x": 0,
+          "y": 33,
+          "minH": 1,
+          "minW": 2
+        },
+        "xs": {
+          "h": 1,
+          "w": 1,
+          "x": 0,
+          "y": 49,
+          "minH": 1,
+          "minW": 1
+        }
+      },
+      "filters_overrides": {},
+      "order": 13,
+      "is_cached": false
+    },
+    {
+      "id": 12696672,
+      "layouts": {
+        "sm": {
+          "h": 1,
+          "w": 4,
+          "x": 4,
+          "y": 33,
+          "minH": 1,
+          "minW": 2
+        },
+        "xs": {
+          "h": 1,
+          "w": 1,
+          "x": 0,
+          "y": 50,
+          "minH": 1,
+          "minW": 1
+        }
+      },
+      "filters_overrides": {},
+      "order": 14,
+      "is_cached": false
+    },
+    {
+      "id": 12696673,
+      "layouts": {
+        "sm": {
+          "h": 1,
+          "w": 4,
+          "x": 8,
+          "y": 33,
+          "minH": 1,
+          "minW": 2
+        },
+        "xs": {
+          "h": 1,
+          "w": 1,
+          "x": 0,
+          "y": 51,
+          "minH": 1,
+          "minW": 1
+        }
+      },
+      "filters_overrides": {},
+      "order": 15,
+      "is_cached": false
+    }
+  ],
+  "tags": [],
+  "_posthogUrl": "https://us.posthog.com/project/630435/dashboard/2139475"
+}

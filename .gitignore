@@ -70,3 +70,13 @@ generations/
 # Marketing binaries (screenshots, videos) — regenerate, don't commit
 marketing/screenshots/
 marketing/videos/
+
+# Rendered marketing and design media stay on disk; their notes, specs and scripts are committed
+marketing/**/*.png
+marketing/**/*.jpg
+marketing/**/*.mp4
+marketing/**/*.wav
+marketing/**/*.mp3
+marketing/**/*.sb-*
+design/**/*.png
+design/**/*.log

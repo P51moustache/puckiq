@@ -1,0 +1,18 @@
+{
+  "input": "marketing/videos/x/upscaled/11-ref-eye-exam.mp4",
+  "audio": "marketing/videos/x/raw/11-ref-eye-exam.mp4",
+  "output": "marketing/videos/x/posts/11-ref-eye-exam.mp4",
+  "style": "none",
+  "subtitles": [
+    {
+      "start": 0.26,
+      "end": 1.6,
+      "text": "Just read the top line for me."
+    },
+    {
+      "start": 4.94,
+      "end": 6.2,
+      "text": "...Offside?"
+    }
+  ]
+}

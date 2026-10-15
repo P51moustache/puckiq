@@ -1,0 +1,41 @@
+{
+  "input": "marketing/videos/x/upscaled/09-zamboni-chase.mp4",
+  "audio": "marketing/videos/x/raw/09-zamboni-chase.mp4",
+  "output": "marketing/videos/x/posts/09-zamboni-chase.mp4",
+  "style": "none",
+  "hud": "news",
+  "news": {
+    "station": "Action News",
+    "location": "Highway 9",
+    "clock": "3:42  21\u00b0",
+    "headline": "Police pursue Zamboni on Highway 9",
+    "ticker": "Driver says rec league went two minutes over their ice time   \u2022   Zamboni top speed: 9 mph   \u2022   Motorists advised to watch for fresh ice   \u2022   Rink manager: \"he does this every Tuesday\""
+  },
+  "subtitles": [
+    {
+      "start": 1.4,
+      "end": 4.3,
+      "text": "We're following a slow-speed pursuit on Highway 9."
+    },
+    {
+      "start": 4.48,
+      "end": 6.9,
+      "text": "Police say the driver refused to leave the rink"
+    },
+    {
+      "start": 6.96,
+      "end": 10.2,
+      "text": "after his rec league went two minutes over their ice time."
+    },
+    {
+      "start": 12.14,
+      "end": 13.6,
+      "text": "He is now..."
+    },
+    {
+      "start": 13.78,
+      "end": 15.04,
+      "text": "resurfacing the highway."
+    }
+  ]
+}

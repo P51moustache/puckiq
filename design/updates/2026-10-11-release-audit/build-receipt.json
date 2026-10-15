@@ -1,0 +1,16 @@
+{
+  "id": "e6f266ad-cfbd-44a0-98e0-0835be5190c6",
+  "status": "FINISHED",
+  "version": "3.2.0",
+  "build": "44",
+  "source": "6d88a5fee9563fde4bc7a9bf54ed94f4c013a47a",
+  "fingerprint": "0953b516d339ef97614a183b8d67a8998395e68b",
+  "createdAt": "2026-10-11T17:32:37.875Z",
+  "completedAt": "2026-10-11T17:40:57.895Z",
+  "submit": {
+    "id": "3ac2e9e1-b91f-4796-934e-25b7735e0aac",
+    "status": "FINISHED",
+    "error": null,
+    "checkedAt": "2026-10-11T17:44:10.171Z"
+  }
+}

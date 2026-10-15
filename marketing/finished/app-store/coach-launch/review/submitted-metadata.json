@@ -1,0 +1,41 @@
+{
+  "data": {
+    "type": "appStoreVersionLocalizations",
+    "id": "318512ea-7a5f-4de5-9f91-0a9b76b95ddc",
+    "attributes": {
+      "description": "PuckIQ is the coach for your fantasy hockey team — in the Yahoo, ESPN, or Fantrax league you already play. Add your players once. Every night PuckIQ tells you who plays, who's scratched, and exactly what to change before lock.\n\nTONIGHT\n• How many of your players play tonight, with a countdown to your first lock\n• One free coach move every day; Pro unlocks every recommendation before lock, including overflow sits and empty slots\n• Scratches straight from the NHL game report — marked Confirmed only when the NHL posts them\n• Injury news filtered to your players only\n• Live stat lines while your games are on\n• A lineup reminder before first puck, only on nights your players play\n\nYOUR WEEK\n• Every player's games, Monday to Sunday, with off-nights highlighted\n• PRO: games that actually count once your lineup slots fill up — see bench overflow and empty slots before they cost you\n\nPICKUPS\n• Your top streamer, ranked by the value he adds to YOUR lineup — only nights he'd actually start for you\n• PRO: the full ranked list, filtered by position and night, with an estimate of likely-rostered players based on league size; hide unavailable players manually\n\nSHARE\n• Turn tonight's lineup or your week into a card for the league group chat\n\nPUCKIQ PRO\n• Tonight's best lineup for your league's exact positions (C, LW, RW, F, D, UTIL, G)\n• Every coach move before lock: overflow sits, empty slots, goalie start rates, injury checks\n• Week planner for this week and next\n• Head-to-head matchup: enter your opponent's roster once, then compare games that count day by day\n• Player trends and full-season game logs\n• NHL Edge stats: skating speed, shot speed, and danger-zone numbers ranked against the league\n• Up to 5 leagues\n\nPuckIQ never logs in to your league or changes your lineup — you make the moves in your fantasy app. No ads.\n\nSubscriptions: PuckIQ Pro is available as a yearly (season) or monthly auto-renewing subscription. Payment is charged to your Apple ID. Subscriptions renew automatically unless cancelled at least 24 hours before the end of the current period. Manage or cancel in your App Store account settings.\n\nTerms of Use: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/\nPrivacy Policy: https://p51moustache.github.io/puckiq/privacy.html\n\nSchedules, scratches, and stats come from public NHL data. PuckIQ is not affiliated with or endorsed by the NHL, Yahoo, ESPN, or Fantrax.",
+      "locale": "en-US",
+      "keywords": "nhl,start sit,waiver wire,pickups,goalie,yahoo,espn,fantrax,off night,roster,matchup,edge,stats,gp",
+      "marketingUrl": "https://p51moustache.github.io/puckiq/",
+      "promotionalText": "New season, new PuckIQ: who plays, who to sit, and who to stream before lock — built around your Yahoo, ESPN or Fantrax roster. Free, with PuckIQ Pro for the full coach.",
+      "supportUrl": "https://p51moustache.github.io/puckiq/support.html",
+      "whatsNew": "PuckIQ 3.0 is a brand-new app — rebuilt as a nightly coach for your fantasy hockey team. Fantasy coaching replaces the earlier game-prediction and pick-tracking screens.\n\n• Tonight: who plays, a countdown to lock, NHL scratch checks, and exactly who to sit\n• Best lineup: the lineup your league's slots allow, filled slot by slot\n• Week planner: games that actually count once your slots fill up — this week and next\n• Pickups: streamers ranked by the empty nights they fill for YOUR team\n• Player pages with game logs and NHL Edge speed and shot stats\n• Share cards for the league chat, lineup reminders, a new look, and a welcome-back tour\n\nPuckIQ is now free to download, with PuckIQ Pro for the full coaching tools. Bought PuckIQ before? Pro is included — if it doesn't show, tap Restore Purchases in Settings.\n\nExisting free users who downloaded before October 4, 2026 receive a 30-day Pro thank-you gift, with no automatic charge. Earlier paid customers keep Pro with no end date."
+    },
+    "relationships": {
+      "appScreenshotSets": {
+        "links": {
+          "self": "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/318512ea-7a5f-4de5-9f91-0a9b76b95ddc/relationships/appScreenshotSets",
+          "related": "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/318512ea-7a5f-4de5-9f91-0a9b76b95ddc/appScreenshotSets"
+        }
+      },
+      "appPreviewSets": {
+        "links": {
+          "self": "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/318512ea-7a5f-4de5-9f91-0a9b76b95ddc/relationships/appPreviewSets",
+          "related": "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/318512ea-7a5f-4de5-9f91-0a9b76b95ddc/appPreviewSets"
+        }
+      },
+      "searchKeywords": {
+        "links": {
+          "self": "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/318512ea-7a5f-4de5-9f91-0a9b76b95ddc/relationships/searchKeywords",
+          "related": "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/318512ea-7a5f-4de5-9f91-0a9b76b95ddc/searchKeywords"
+        }
+      }
+    },
+    "links": {
+      "self": "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/318512ea-7a5f-4de5-9f91-0a9b76b95ddc"
+    }
+  },
+  "links": {
+    "self": "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/318512ea-7a5f-4de5-9f91-0a9b76b95ddc"
+  }
+}

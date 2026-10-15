@@ -1,0 +1,16 @@
+{
+  "ipaSha256": "99197d21578abe96843d2422440bf313728dfb7964ef51ef669091b58bcf440b",
+  "ipaBytes": 31612110,
+  "source": "6d88a5fee9563fde4bc7a9bf54ed94f4c013a47a",
+  "easBuildId": "e6f266ad-cfbd-44a0-98e0-0835be5190c6",
+  "app": {
+    "bundle": "com.zlce.hockeystats",
+    "version": "3.2.0",
+    "build": "44"
+  },
+  "widget": {
+    "bundle": "com.zlce.hockeystats.widgets",
+    "version": "3.2.0",
+    "build": "44"
+  }
+}

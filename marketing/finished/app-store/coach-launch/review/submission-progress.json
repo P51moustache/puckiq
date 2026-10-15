@@ -1,0 +1,98 @@
+{
+  "updatedAt": "2026-10-05T01:52:58.658Z",
+  "metadataAppliedAndVerified": true,
+  "sunoPreview": "puckiq-coach-preview-15s-suno-x264.mp4",
+  "previewUpload": "COMPLETE_checksum_verified_video_processing",
+  "buildNumber": "35",
+  "buildUpload": "Apple_VALID_and_selected",
+  "reviewSubmission": "WAITING_FOR_REVIEW",
+  "productionUpgradeTest": "not_completed",
+  "screenshots": "existing 13 audited uploads retained",
+  "build": {
+    "number": 35,
+    "status": "finished",
+    "sourceCommit": "5269a4a5e3ae99c039e4f8f40cb7c1ac61d84f65",
+    "includes": [
+      "loyalty_access",
+      "welcome_back",
+      "expanded_anonymous_analytics",
+      "verified_PostHog_key",
+      "optional_backup_feedback_configuration",
+      "Expo_static_analytics_key_embedding",
+      "sandbox_original_purchase_date_excluded"
+    ],
+    "id": "c73bdfea-99ed-4ae8-8175-bd172ae8c450",
+    "url": "https://expo.dev/accounts/zlce/projects/learning-project/builds/c73bdfea-99ed-4ae8-8175-bd172ae8c450",
+    "automaticUpload": {
+      "id": "d005ed9f-b174-4870-b175-4e6c832bc646",
+      "status": "finished"
+    },
+    "appleBuildId": "78b2868f-a6d0-4d60-8b66-c8baece76cc7",
+    "appleProcessingState": "VALID"
+  },
+  "privacy": {
+    "status": "published_and_verified",
+    "dataTypes": 8,
+    "analyticsRetained": true,
+    "screenshot": "review/privacy-corrected.png"
+  },
+  "preview": {
+    "status": "asset_COMPLETE_video_PROCESSING",
+    "file": "puckiq-coach-preview-15s-suno-x264.mp4",
+    "bytes": 1031912,
+    "preserves": "all six captured feature scenes held for readability, 886x1920, 30fps, 15s, stereo AAC with ending fade",
+    "id": "6dc00019-26af-89a8-8131-3d5dece59a99",
+    "minimumPSNR": 46.652738,
+    "averagePSNR": 49.119311,
+    "poster": "00:00:03:00",
+    "checksum": "c6488bb1b829f5e8d3e73030f4ea764f"
+  },
+  "analytics": {
+    "projectId": 630435,
+    "captureValidation": "ingested_and_read_back",
+    "tests": "44 passed in 7 suites",
+    "dashboard": "https://us.posthog.com/project/630435/dashboard/2139475",
+    "charts": 9,
+    "dashboardQueries": "passed; awaiting production release",
+    "bundleKeyEmbedded": true,
+    "finalAnalyticsTests": "11 passed in 3 suites after Expo embedding fix",
+    "productionBundleConfiguration": "all 5 client configuration values embedded and verified",
+    "geoipEnrichment": "disabled",
+    "rawIpDiscard": "enabled and read back",
+    "privacyCaptureValidation": "synthetic event ingested with no raw IP or GeoIP country/city properties"
+  },
+  "reviewValidation": {
+    "result": "passed_app_and_subscriptions_submitted",
+    "errors": []
+  },
+  "priorBuild": {
+    "number": 34,
+    "status": "finished",
+    "includes": [
+      "loyalty_access",
+      "welcome_back",
+      "expanded_anonymous_analytics",
+      "verified_PostHog_key",
+      "optional_backup_feedback_configuration",
+      "Expo_static_analytics_key_embedding"
+    ],
+    "archiveBytes": 7341252,
+    "sourceCommit": "e923e1b91e7baba8477f9e4cc94f4b9d26d0ac53",
+    "id": "285569db-200e-4567-9ff4-86718ce79187",
+    "url": "https://expo.dev/accounts/zlce/projects/learning-project/builds/285569db-200e-4567-9ff4-86718ce79187",
+    "automaticUpload": {
+      "id": "a932bac0-8062-46e3-a997-5a0fb720cc39",
+      "status": "finished"
+    },
+    "appleBuildId": "224fc7ad-abb0-4af0-862f-5f7fd86fb452"
+  },
+  "sandboxDateRegression": {
+    "result": "32 tests passed in 4 suites; TypeScript passed",
+    "source": "https://developer.apple.com/documentation/storekit/apptransaction/originalpurchasedate"
+  },
+  "submissionId": "6a2cd7f4-9ba0-40c3-8c6f-31d6a5f54d74",
+  "submittedAt": "2026-10-05T01:52:26.482Z",
+  "submittedItems": 4,
+  "automaticRelease": "AFTER_APPROVAL",
+  "proof": "review/submission-confirmed.png"
+}

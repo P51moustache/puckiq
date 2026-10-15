@@ -1,0 +1,56 @@
+{
+  "title": "PuckIQ — Bench Games v2",
+  "duration_seconds": 15,
+  "resolution": [
+    1080,
+    1920
+  ],
+  "frame_rate": 60,
+  "comfy": {
+    "prompt_id": "aed8a656-f4de-44fd-b13a-21cae11356d4",
+    "status": "completed",
+    "template": "video_ltx2_5_i2v",
+    "model": "LTX-2.5 distilled",
+    "source": "source/hockey-opener.png",
+    "video": "source/hockey-opener.mp4",
+    "prompt": "Use the supplied image as the exact first frame. One continuous three-second macro sports-commercial shot at ice level in a dark hockey arena. A scuffed black rubber puck rests low in the portrait frame on scratched wet ice, rim-lit in white and deep red. The camera slowly dollies closer and subtly tracks right, giving realistic parallax through foreground ice crystals. The puck glides only a few centimeters forward, maintaining its rigid circular shape and textured black rubber surface. Fine cold vapor drifts sideways behind it and tiny ice crystals sparkle in the stadium lights. The upper half remains dark open space for typography. Restrained physical motion, crisp photorealism, hard specular highlights, shallow depth of field, premium sports-ad lighting. Quiet ice scrape, no speech or music. One shot, no cuts, no new objects, no letters, no logos, no melting or deformation.",
+    "input_overrides": {
+      "395": {
+        "image": "ad110fade226336a82682e062cbe7b36aa4bd386948d51e418d9cde8ae19f380.png"
+      },
+      "403": {
+        "aspect_ratio": "9:16 (Portrait Widescreen)",
+        "megapixels": 0.9,
+        "multiple": 32
+      },
+      "398:339": {
+        "noise_seed": 739182
+      },
+      "398:383": {
+        "value": false
+      },
+      "398:362": {
+        "value": 3
+      },
+      "398:361": {
+        "value": 24
+      }
+    },
+    "note": "Executed interior-node overrides were not embedded in the Comfy editor graph. This manifest records the final parameters."
+  },
+  "artwork": {
+    "method": "Built-in image generation",
+    "path": "source/hockey-opener.png",
+    "prompt": "Premium cinematic photographic background plate for a vertical fantasy hockey commercial. Ultra-low macro camera almost touching deeply scratched ice inside a dark professional hockey arena. One black rubber hockey puck low in frame with worn texture and edge frost, cold white rim light and a restrained red reflection. Dark upper half for titles. No words, logo, phone, UI, players or additional pucks."
+  },
+  "app_sources": [
+    "marketing/screenshots/raw-iphone/04-week.png",
+    "marketing/screenshots/raw-iphone/05-pickups.png",
+    "marketing/screenshots/raw-iphone/02-tonight.png"
+  ],
+  "soundtrack": "Original synthesized music and sound design. No external samples.",
+  "higgsfield": {
+    "project_id": "4a6d972b-8d58-4352-bd4a-f1fe07536ce6",
+    "generation_status": "Not used. Both video submissions were rejected by plan requirements."
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "width": 886,
+  "height": 1920,
+  "fps": 30,
+  "clips": [
+    {
+      "file": "marketing/videos/raw/01-tonight-tour.mp4",
+      "from": 0.4,
+      "duration": 2.5,
+      "title": "KNOW WHAT TO FIX",
+      "accent": "BEFORE LOCK.",
+      "label": "TONIGHT \u00b7 SOME COACH TOOLS REQUIRE PRO"
+    },
+    {
+      "file": "marketing/videos/raw/01-tonight-tour.mp4",
+      "from": 8.7,
+      "duration": 2.5,
+      "title": "FILL THE SLOTS",
+      "accent": "YOUR LEAGUE ALLOWS.",
+      "label": "BEST LINEUP \u00b7 PUCKIQ PRO"
+    },
+    {
+      "file": "marketing/videos/raw/02-week-matchup.mp4",
+      "from": 26.8,
+      "duration": 3.0,
+      "title": "FIND THE GAMES",
+      "accent": "THAT COUNT.",
+      "label": "WEEK PLANNER \u00b7 PUCKIQ PRO",
+      "speed": 0.1
+    },
+    {
+      "file": "marketing/videos/raw/02-week-matchup.mp4",
+      "from": 12.2,
+      "duration": 2.0,
+      "title": "PLAN YOUR",
+      "accent": "MATCHUP.",
+      "label": "HEAD TO HEAD \u00b7 PUCKIQ PRO"
+    },
+    {
+      "file": "marketing/videos/raw/03-pickups.mp4",
+      "from": 0.3,
+      "duration": 3.0,
+      "title": "STREAM FOR YOUR",
+      "accent": "EMPTY NIGHTS.",
+      "label": "PICKUPS \u00b7 FULL RANKED LIST WITH PRO"
+    },
+    {
+      "file": "marketing/videos/raw/01-tonight-tour.mp4",
+      "from": 0.4,
+      "duration": 2.0,
+      "title": "MAKE EVERY",
+      "accent": "GAME COUNT.",
+      "label": "PUCKIQ \u00b7 FANTASY HOCKEY COACH"
+    }
+  ]
+}

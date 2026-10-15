@@ -1,0 +1,12 @@
+{
+  "bytes": 1031912,
+  "codec": "H264 High 4.0",
+  "fps": 30,
+  "duration": 15,
+  "resolution": [
+    886,
+    1920
+  ],
+  "audio": "unchanged stereo AAC",
+  "psnr": "[Parsed_psnr_0 @ 0x15b20f4c0] PSNR y:47.834313 u:52.924290 v:55.972976 average:49.119311 min:46.652738 max:51.477707"
+}

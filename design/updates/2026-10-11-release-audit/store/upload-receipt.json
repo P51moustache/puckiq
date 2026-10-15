@@ -1,0 +1,72 @@
+[
+  {
+    "device": "iphone",
+    "fileName": "01-player.png",
+    "id": "8e000019-26af-89a8-801e-d56d15c589d3",
+    "sha256": "4a6e16a6273f2e3ccfffe4065cbcb7f697902b255f9c95d937534e5f6d227d01",
+    "bytes": 484594
+  },
+  {
+    "device": "iphone",
+    "fileName": "02-lineup.png",
+    "id": "d3000019-26af-89a8-8035-65b4185b9871",
+    "sha256": "4c64286d6afc8c9d1a79bd70aaed82be3e5758cefd9e2bc8faf22c4830ad8c0f",
+    "bytes": 489213
+  },
+  {
+    "device": "iphone",
+    "fileName": "03-insights.png",
+    "id": "31800019-26af-89a8-8003-4536ad0ecf1c",
+    "sha256": "0ae53d7bc9151624759e50e4c4d92253fc4616b0bd344f4a0940096e964a9cfd",
+    "bytes": 1390777
+  },
+  {
+    "device": "iphone",
+    "fileName": "04-week.png",
+    "id": "be400019-26af-89a8-8027-40ed3b79d3f9",
+    "sha256": "cdfc70c28d23f39b48cb044ad3a9aef2201ba73abd26a1560b513b4690dc4c5c",
+    "bytes": 591633
+  },
+  {
+    "device": "iphone",
+    "fileName": "05-pickups.png",
+    "id": "34400019-26af-89a8-8022-4ffb6985d64e",
+    "sha256": "4818ce1aef3c838c4339588b059a8ae95937580a7c6cee356eb3de24a32b8823",
+    "bytes": 424977
+  },
+  {
+    "device": "ipad",
+    "fileName": "01-player.png",
+    "id": "ac400019-26af-89a8-8037-06d05c50372b",
+    "sha256": "da4372eac0c5739d78f46567c44446701be4381b171bfbbe864b3ce47be8866d",
+    "bytes": 552169
+  },
+  {
+    "device": "ipad",
+    "fileName": "02-lineup.png",
+    "id": "4cc00019-26af-89a8-803f-063116c6d860",
+    "sha256": "759c7ea64695171a74042632811375e7c164c58341783dd59b8771796a0bec24",
+    "bytes": 541972
+  },
+  {
+    "device": "ipad",
+    "fileName": "03-insights.png",
+    "id": "c5c00019-26af-89a8-8015-73fafca4b11b",
+    "sha256": "92db3b877f358474cff97bcea770bc36cf3ad5e77b88e3fa7a3ced9d8180e524",
+    "bytes": 1466998
+  },
+  {
+    "device": "ipad",
+    "fileName": "04-week.png",
+    "id": "03800019-26af-89a8-8030-2d4b42fd08dc",
+    "sha256": "283402552844ef7759b320f89f0ac60701eb92fff658064e5e092a4c962e4a1a",
+    "bytes": 697964
+  },
+  {
+    "device": "ipad",
+    "fileName": "05-pickups.png",
+    "id": "a7400019-26af-89a8-802b-f2497de61193",
+    "sha256": "5c388efc9301fb731a12f2ffd25fa8295a867ec3bf526772a7566e3b6f052b11",
+    "bytes": 573543
+  }
+]

@@ -1,0 +1,12 @@
+{
+  "checkedAt": "2026-10-04T22:48:03.524Z",
+  "buildNumber": 32,
+  "bundle": "_expo/static/js/ios/entry-530908aefdc69b138f8d8a91f6233e7c.hbc",
+  "embedded": {
+    "EXPO_PUBLIC_POSTHOG_KEY": true,
+    "EXPO_PUBLIC_SUPABASE_URL": true,
+    "EXPO_PUBLIC_SUPABASE_ANON_KEY": true,
+    "EXPO_PUBLIC_REVENUECAT_IOS_KEY": true,
+    "EXPO_PUBLIC_FREEMIUM_CUTOVER": true
+  }
+}

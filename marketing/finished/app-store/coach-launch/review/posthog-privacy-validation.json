@@ -1,0 +1,14 @@
+{
+  "projectId": 630435,
+  "verifiedAt": "2026-10-04T22:58:45.702182+00:00",
+  "anonymize_ips": true,
+  "geoipEnrichmentEnabled": false,
+  "testEvent": "analytics_validation",
+  "testCheck": "puckiq_privacy_discard",
+  "timestamp": "2026-10-04T22:56:48.938Z",
+  "storedRawIP": false,
+  "storedGeoIPCity": false,
+  "storedGeoIPCountry": false,
+  "rawResultForAbsentProperties": null,
+  "containsCustomerData": false
+}
