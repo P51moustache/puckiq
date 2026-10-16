@@ -177,6 +177,16 @@ const BENCH_GOALIES_PER_TEAM = 1;
  * Ranked by season value (last season before opening night).
  */
 export function likelyRosteredIds(candidates: PickupCandidate[], leagueSize: number, slots: LineupSlots): Set<number> {
+  const { skaters, goalies } = likelyRostered(candidates, leagueSize, slots);
+  return new Set([...skaters, ...goalies].map((c) => c.playerId));
+}
+
+/** The players a league of this size would own, most-owned first: skaters and goalies ranked apart. */
+export function likelyRostered(
+  candidates: PickupCandidate[],
+  leagueSize: number,
+  slots: LineupSlots,
+): { skaters: PickupCandidate[]; goalies: PickupCandidate[] } {
   const skaterSlots = slots.C + slots.LW + slots.RW + slots.F + slots.D + slots.UTIL;
   const skaterCut = leagueSize * (skaterSlots + BENCH_SKATERS_PER_TEAM);
   const goalieCut = leagueSize * (slots.G + BENCH_GOALIES_PER_TEAM);
@@ -187,7 +197,7 @@ export function likelyRosteredIds(candidates: PickupCandidate[], leagueSize: num
     .filter((c) => c.form.isGoalie)
     .sort((a, b) => b.form.startShare - a.form.startShare || bySeason(a, b))
     .slice(0, goalieCut);
-  return new Set([...skaters, ...goalies].map((c) => c.playerId));
+  return { skaters, goalies };
 }
 
 export type PickupFilter = 'ALL' | 'F' | 'D' | 'G';
