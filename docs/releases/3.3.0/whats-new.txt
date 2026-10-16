@@ -1,0 +1,11 @@
+A faster start, built around your players.
+
+• Set up your roster by tapping the most-owned forwards, defense and goalies, importing screenshots, or searching anyone else.
+• Game-night reminders are offered on Tonight once you've seen your lineup call, with the time your lineup locks.
+• Free users get a saveable lineup call and a complete pickup recommendation before any upgrade.
+• "Since your last visit" catches you up on your roster.
+• Roster import lets you review matched players before adding them.
+
+Plus stability fixes and better crash reporting, so problems get fixed sooner.
+
+Saved plans stay in PuckIQ. You make the final moves in Yahoo, ESPN or Fantrax.
