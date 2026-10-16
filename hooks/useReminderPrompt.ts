@@ -1,6 +1,7 @@
 /**
- * Tonight's "game-night reminder" card: whether to show it, and what its two buttons do.
- * Turning it on also adds the "your night is live" notification, which the card promises.
+ * Tonight's game-night reminder sheet: whether to show it, and what its two buttons do.
+ * It waits a few seconds after the lineup call loads, so the call is read before the ask.
+ * Turning it on also adds the "your night is live" notification.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -15,15 +16,19 @@ import {
 import { track } from '../services/analytics/track';
 
 export const REMINDER_PROMPT_KEY = 'puckiq_reminder_prompt';
+/** Long enough to read the call's headline, short enough to catch people before they leave Tonight. */
+export const REMINDER_SHEET_DELAY_MS = 4000;
 
 export interface ReminderPrompt {
   visible: boolean;
+  /** Minutes before puck drop the reminder comes (the user's setting). */
+  minutesBefore: number;
   /** Asks for notification permission; true when reminders ended up on. */
   accept: () => Promise<boolean>;
   dismiss: () => void;
 }
 
-export function useReminderPrompt({ gameDay, guideActive }: { gameDay: boolean; guideActive: boolean }): ReminderPrompt {
+export function useReminderPrompt({ gameDay, callShown }: { gameDay: boolean; callShown: boolean }): ReminderPrompt {
   const reminders = useReminders();
   const [state, setState] = useState<ReminderPromptState | null>(null);
   const viewed = useRef(false);
@@ -42,14 +47,24 @@ export function useReminderPrompt({ gameDay, guideActive }: { gameDay: boolean; 
     };
   }, []);
 
-  const visible = !!state && shouldOfferReminders({
+  const eligible = !!state && shouldOfferReminders({
     state,
     remindersOn: reminders.settings.enabled && reminders.permission === 'granted',
     permission: reminders.permission,
     gameDay,
-    guideActive,
+    callShown,
     now: new Date(),
   });
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    if (!eligible) {
+      setSettled(false);
+      return;
+    }
+    const timer = setTimeout(() => setSettled(true), REMINDER_SHEET_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [eligible]);
+  const visible = eligible && settled;
 
   useEffect(() => {
     if (!visible || viewed.current) return;
@@ -71,5 +86,5 @@ export function useReminderPrompt({ gameDay, guideActive }: { gameDay: boolean; 
     AsyncStorage.setItem(REMINDER_PROMPT_KEY, JSON.stringify(next)).catch(() => undefined);
   }, [state]);
 
-  return { visible, accept, dismiss };
+  return { visible, minutesBefore: reminders.settings.minutesBefore, accept, dismiss };
 }

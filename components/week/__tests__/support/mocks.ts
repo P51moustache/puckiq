@@ -24,6 +24,12 @@ function host(name: string) {
 export function reactNativeMock() {
   class AnimatedValue {
     constructor(public value: number) {}
+    setValue(value: number) {
+      this.value = value;
+    }
+    interpolate(config: { outputRange: unknown[] }) {
+      return config.outputRange[0];
+    }
   }
   const Pressable = ({ children, style, ...props }: PressableProps) =>
     React.createElement(
@@ -61,9 +67,9 @@ export function reactNativeMock() {
       View: host('AnimatedView'),
       loop: () => ({ start: () => undefined, stop: () => undefined }),
       sequence: () => undefined,
-      timing: () => undefined,
+      timing: () => ({ start: () => undefined }),
     },
-    Easing: { inOut: () => undefined, quad: undefined },
+    Easing: { inOut: () => undefined, out: () => undefined, quad: undefined, cubic: undefined },
   };
 }
 

@@ -1,14 +1,11 @@
 /**
- * First run: what PuckIQ does → your league's rules → your players → lock reminders.
- * No account required. Permission is only asked if the user taps "Remind me". Players come in
- * by screenshot or pasted names (RosterImportSheet) or one by one through search.
+ * First run: what PuckIQ does → your league's rules → your players (RosterStep).
+ * No account required. Lock reminders are offered later on Tonight, once the first call shows.
  */
 
 import { styles } from './styles';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  FlatList,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -26,30 +23,26 @@ import { StatusBar } from 'expo-status-bar';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ART } from '../../constants/art';
-import type { FantasyPlatform, LeagueFormat, LineupSlots, NhlSearchPlayer } from '../../types/fantasy';
+import type { FantasyPlatform, LeagueFormat, LineupSlots } from '../../types/fantasy';
 import { LINEUP_PRESETS, presetFor, slotsPresetFor } from '../../services/fantasy/lineup';
 import { DEFAULT_SCORING, sameScoring, scoringPresetFor } from '../../services/fantasy/scoring';
 import { categoriesLabel, isCategoryLeague, YAHOO_DEFAULT_CATEGORIES } from '../../services/fantasy/categories';
-import { positionLabel } from '../../services/fantasy/positions';
-import { searchNhlPlayers } from '../../services/nhlPlayerSearch';
-import { addPlayers, PLATFORM_LABEL, removePlayer, withLeagueFormat } from '../../services/teams';
-import { SAMPLE_PLAYERS, SAMPLE_TEAM_NAME } from '../../constants/sampleTeam';
+import { PLATFORM_LABEL, withLeagueFormat } from '../../services/teams';
+import { SAMPLE_PLAYERS } from '../../constants/sampleTeam';
 import { useTeams } from '../TeamsProvider';
-import { useReminders } from '../RemindersProvider';
-import { toFantasyPlayer } from '../sheets/PlayerSearchSheet';
-import { PlayerAvatar, PlayerName, splitName } from '../coach/PlayerAvatar';
-import { BrandMark, colors, GhostButton, PrimaryButton } from '../coach/ui';
-import { RosterImportSheet } from '../rosterImport/RosterImportSheet';
+import { PlayerAvatar } from '../coach/PlayerAvatar';
+import { BrandMark, colors, PrimaryButton } from '../coach/ui';
 import { LeagueFormatPicker } from '../leagueFormat/LeagueFormatPicker';
+import { RosterStep, type RosterChoice } from './RosterStep';
+import { useQuickPicks } from '../../hooks/useQuickPicks';
 import { track } from '../../services/analytics/track';
-import { searchOutcome } from '../../services/analytics/searchOutcome';
 
 interface CoachOnboardingProps {
   onComplete: () => void;
 }
 
-type Step = 'welcome' | 'league' | 'roster' | 'reminders';
-const STEPS: Step[] = ['welcome', 'league', 'roster', 'reminders'];
+type Step = 'welcome' | 'league' | 'roster';
+const STEPS: Step[] = ['welcome', 'league', 'roster'];
 const PLATFORMS: FantasyPlatform[] = ['yahoo', 'espn', 'fantrax', 'other'];
 
 const VALUE_PROPS: Array<{ icon: keyof typeof Ionicons.glyphMap; title: string; body: string }> = [
@@ -66,63 +59,24 @@ export function CoachOnboarding({ onComplete }: CoachOnboardingProps) {
   // The league step is dense; only small phones skip the illustration.
   const roomy = useWindowDimensions().height >= 780;
   const { team, teams, addTeam, updateTeam } = useTeams();
-  const reminders = useReminders();
+  // Start loading the face grid on the welcome screen: a cold first load takes several
+  // seconds of NHL bios lookups, which should be done by the time the roster step opens.
+  const picks = useQuickPicks(team, true);
   const [step, setStep] = useState<Step>('welcome');
   const [platform, setPlatform] = useState<FantasyPlatform>(team?.platform ?? 'yahoo');
   const [slots, setSlots] = useState<LineupSlots>(team?.slots ?? slotsPresetFor(team?.platform ?? 'yahoo'));
   const [format, setFormat] = useState<LeagueFormat>(isCategoryLeague(team) ? 'categories' : 'points');
   const [name, setName] = useState(team?.name && team.name !== 'My Team' ? team.name : '');
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<NhlSearchPlayer[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [usedSample, setUsedSample] = useState(false);
-  const [importing, setImporting] = useState(false);
-  const requestId = useRef(0);
-
   useEffect(() => {
     track('onboarding_step', { step });
   }, [step]);
 
-  const finish = (reminders: boolean) => {
-    track('onboarding_complete', { players: roster.length, sample_team: usedSample, reminders });
+  // Setup ends on the roster: reminders are asked on Tonight once the first lineup call is showing.
+  const finish = (choice: RosterChoice, players: number) => {
+    track('onboarding_roster_choice', { choice, players, sample_team: choice === 'sample' });
+    track('onboarding_complete', { players, sample_team: choice === 'sample' });
     onComplete();
   };
-  const chooseRoster = (choice: 'continue' | 'later' | 'sample') => {
-    track('onboarding_roster_choice', { choice, players: roster.length, sample_team: choice === 'sample' || usedSample });
-    setStep('reminders');
-  };
-
-  useEffect(() => {
-    const trimmed = query.trim();
-    if (trimmed.length < 2) {
-      setResults([]);
-      setSearching(false);
-      return;
-    }
-    const id = ++requestId.current;
-    setSearching(true);
-    const timer = setTimeout(async () => {
-      const startedAt = Date.now();
-      try {
-        const found = await searchNhlPlayers(trimmed, 15);
-        if (id !== requestId.current) return;
-        const active = found.filter((row) => row.active);
-        setResults(active);
-        track('player_search', searchOutcome({ queryLength: trimmed.length, results: active.length, durationMs: Date.now() - startedAt, result: 'success', list: 'players', source: 'onboarding' }));
-      } catch {
-        if (id !== requestId.current) return;
-        setResults([]);
-        track('player_search', searchOutcome({ queryLength: trimmed.length, durationMs: Date.now() - startedAt, result: 'error', list: 'players', source: 'onboarding' }));
-      } finally {
-        if (id === requestId.current) setSearching(false);
-      }
-    }, 250);
-    return () => { clearTimeout(timer); requestId.current += 1; };
-  }, [query]);
-
-  const roster = useMemo(() => team?.players ?? [], [team]);
-  const rosterIds = useMemo(() => new Set(roster.map((player) => player.playerId)), [roster]);
-
   const finishLeague = () => {
     const teamName = name.trim() || 'My Team';
     track('league_format_set', { format, source: 'onboarding' });
@@ -140,17 +94,6 @@ export function CoachOnboarding({ onComplete }: CoachOnboardingProps) {
       });
     }
     setStep('roster');
-  };
-
-  const togglePlayer = (result: NhlSearchPlayer) => {
-    if (!team) return;
-    if (rosterIds.has(result.playerId)) updateTeam((current) => removePlayer(current, result.playerId));
-    else updateTeam((current) => addPlayers(current, [toFantasyPlayer(result)]));
-  };
-
-  const enableReminders = async () => {
-    const granted = await reminders.enable({ source: 'onboarding' });
-    finish(granted);
   };
 
   const stepIndex = STEPS.indexOf(step);
@@ -268,131 +211,7 @@ export function CoachOnboarding({ onComplete }: CoachOnboardingProps) {
         </Animated.View>
       ) : null}
 
-      {step === 'roster' ? (
-        <Animated.View entering={FadeIn.duration(300)} style={[styles.page, styles.rosterPage, { paddingBottom: insets.bottom + 20 }]}>
-          <Text style={styles.stepTitle}>Add your players</Text>
-          <Text style={styles.stepLede}>Everyone on your fantasy roster — bench too. {roster.length > 0 ? `${roster.length} added.` : ''}</Text>
-          <Pressable onPress={() => setImporting(true)} style={({ pressed }) => [styles.importCard, pressed && styles.importPressed]} accessibilityRole="button" testID="onboarding-import">
-            <View style={styles.importIcon}>
-              <Ionicons name="scan-outline" size={20} color={colors.onAccent} />
-            </View>
-            <View style={styles.flex}>
-              <Text style={styles.importTitle}>Import from screenshots</Text>
-              <Text style={styles.importDetail}>Fastest: your whole Yahoo, ESPN or Fantrax roster at once</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.onInkSub} />
-          </Pressable>
-          <RosterImportSheet visible={importing} source="onboarding" onClose={() => setImporting(false)} />
-          <View style={styles.searchBox}>
-            <Ionicons name="search" size={16} color={colors.muted} />
-            <TextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Search NHL players"
-              placeholderTextColor={colors.muted}
-              style={styles.searchInput}
-              autoCorrect={false}
-              autoCapitalize="words"
-              testID="onboarding-search"
-            />
-            {searching ? <ActivityIndicator size="small" color={colors.accent} /> : null}
-          </View>
-          {roster.length > 0 && query.trim().length < 2 ? (
-            <View style={styles.addedWrap}>
-              {roster.map((player) => (
-                <Pressable
-                  key={player.playerId}
-                  onPress={() => updateTeam((current) => removePlayer(current, player.playerId))}
-                  style={styles.added}
-                  accessibilityLabel={`Remove ${player.playerName}`}
-                >
-                  <PlayerAvatar playerId={player.playerId} team={player.teamAbbrev} position={player.position} size={22} shape="circle" />
-                  <Text style={styles.addedText}>{splitName(player.playerName).last}</Text>
-                  <Ionicons name="close" size={12} color={colors.onInkSub} />
-                </Pressable>
-              ))}
-            </View>
-          ) : null}
-          <FlatList
-            style={styles.flex}
-            data={results}
-            keyExtractor={(item) => String(item.playerId)}
-            keyboardShouldPersistTaps="handled"
-            renderItem={({ item }) => {
-              const on = rosterIds.has(item.playerId);
-              return (
-                <Pressable onPress={() => togglePlayer(item)} style={styles.result} testID={`onboarding-result-${item.playerId}`}>
-                  <PlayerAvatar playerId={item.playerId} team={item.teamAbbrev} position={item.position} size={44} />
-                  <View style={styles.flex}>
-                    <PlayerName name={item.name} size={16} />
-                    <Text style={styles.resultMeta}>{positionLabel({ position: item.position })} · {item.teamAbbrev || 'No team'}</Text>
-                  </View>
-                  <Ionicons name={on ? 'checkmark-circle' : 'add-circle'} size={28} color={on ? colors.good : colors.ink} />
-                </Pressable>
-              );
-            }}
-            ListEmptyComponent={
-              query.trim().length >= 2 && !searching ? <Text style={styles.noResults}>No active NHL players match.</Text> : null
-            }
-          />
-          <PrimaryButton
-            label={roster.length > 0 ? `Continue with ${roster.length}` : 'Continue'}
-            onPress={() => chooseRoster('continue')}
-            disabled={roster.length === 0}
-            testID="onboarding-roster-continue"
-          />
-          {roster.length === 0 ? (
-            <Pressable
-              onPress={() => {
-                // Always named as a sample, so it never passes for the user's own team.
-                updateTeam((current) => ({ ...addPlayers(current, SAMPLE_PLAYERS), name: SAMPLE_TEAM_NAME }));
-                setUsedSample(true);
-                chooseRoster('sample');
-              }}
-              style={styles.skip}
-              testID="onboarding-sample-team"
-            >
-              <Text style={styles.sampleText}>Just looking? Try a sample team</Text>
-            </Pressable>
-          ) : null}
-          <Pressable onPress={() => chooseRoster('later')} style={styles.skip} testID="onboarding-roster-skip">
-            <Text style={styles.skipText}>I’ll add players later</Text>
-          </Pressable>
-        </Animated.View>
-      ) : null}
-
-      {step === 'reminders' ? (
-        <Animated.View entering={FadeIn.duration(300)} style={[styles.page, { paddingBottom: insets.bottom + 20 }]}>
-          <View style={styles.flex}>
-            <Text style={styles.stepTitle}>Never miss lock</Text>
-            <Text style={styles.stepLede}>
-              An hour before your first puck drop, on nights your lineup needs a change. We name the swaps.
-            </Text>
-            <View style={styles.lockStage}>
-              <Animated.View entering={FadeInDown.delay(150).duration(450)} style={styles.notice}>
-                <View style={styles.noticeIcon}>
-                  <Text style={styles.noticeIconText}>P</Text>
-                </View>
-                <View style={styles.flex}>
-                  <View style={styles.noticeHead}>
-                    <Text style={styles.noticeApp}>PUCKIQ</Text>
-                    <Text style={styles.noticeTime}>6:00 PM</Text>
-                  </View>
-                  <Text style={styles.noticeTitle}>Lineup change tonight</Text>
-                  <Text style={styles.noticeBody}>Start Hyman · bench Kreider. First puck 7:00 PM.</Text>
-                </View>
-              </Animated.View>
-              <Animated.View entering={FadeInDown.delay(300).duration(450)} style={styles.lockBar}>
-                <View style={styles.lockDot} />
-                <Text style={styles.lockLabel}>LINEUP LOCK</Text>
-                <Text style={styles.lockValue}>01H : 00M</Text>
-              </Animated.View>
-            </View>
-          </View>
-          <PrimaryButton label="Remind me before lock" icon="notifications" onPress={enableReminders} testID="onboarding-reminders-on" />
-          <GhostButton label="Not now" onPress={() => finish(false)} tone="neutral" style={styles.notNow} testID="onboarding-finish" />
-        </Animated.View>
-      ) : null}
+      {step === 'roster' ? <RosterStep picks={picks} bottomInset={insets.bottom} onDone={finish} /> : null}
     </KeyboardAvoidingView>
   );
 }

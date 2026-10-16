@@ -38,6 +38,16 @@ jest.mock('@expo/vector-icons', () => {
 });
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock('@react-navigation/native', () => ({ useIsFocused: () => true }));
+// The sheet animates with APIs this file's react-native mock leaves out; it has its own test.
+jest.mock('../../tonight/ReminderSheet', () => ({
+  ReminderSheet: ({ visible, onAccept, onDismiss }: any) => {
+    const React = require('react');
+    if (!visible) return null;
+    return React.createElement('View', { testID: 'tonight-reminder-prompt' },
+      React.createElement('Pressable', { testID: 'reminder-prompt-on', onPress: onAccept }),
+      React.createElement('Pressable', { testID: 'reminder-prompt-later', onPress: onDismiss }));
+  },
+}));
 jest.mock('../../coach/TeamSwitcher', () => () => null);
 jest.mock('../../coach/PlayerAvatar', () => ({ PlayerAvatar: () => null, PlayerName: ({ name }: any) => { const React = require('react'); return React.createElement('Text', null, name); }, TeamChip: () => null }));
 jest.mock('../../sheets/PlayerSearchSheet', () => () => null);
@@ -170,7 +180,7 @@ describe('TonightScreen', () => {
     mockGoalieOutlooks = new Map();
     mockGuidance = {
       firstNight: { visible: false, done: [], quietNight: false, onStep: jest.fn(), onDismiss: jest.fn() },
-      reminderPrompt: { visible: false, accept: jest.fn(() => Promise.resolve(true)), dismiss: jest.fn() },
+      reminderPrompt: { visible: false, minutesBefore: 60, accept: jest.fn(() => Promise.resolve(true)), dismiss: jest.fn() },
       nextUp: { item: null, onPress: jest.fn() },
     };
   });
@@ -474,7 +484,7 @@ describe('TonightScreen', () => {
     it('offers the game-night reminder with both answers', () => {
       mockGuidance.reminderPrompt = { ...mockGuidance.reminderPrompt, visible: true };
       const tree = render();
-      expect(allText(tree)).toContain('Want a heads-up tonight?');
+      expect(byTestId(tree, 'tonight-reminder-prompt')).toHaveLength(1);
       press(tree, 'reminder-prompt-later');
       expect(mockGuidance.reminderPrompt.dismiss).toHaveBeenCalled();
       press(tree, 'reminder-prompt-on');

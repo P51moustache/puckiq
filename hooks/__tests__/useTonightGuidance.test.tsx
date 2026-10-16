@@ -62,9 +62,11 @@ describe('useTonightGuidance', () => {
     mockItem = null;
   });
 
-  it('shows the guide on Tonight only, and keeps the reminder offer out of its way', () => {
+  it('shows the guide on Tonight only, and offers reminders once the lineup call has loaded', () => {
     expect(run().firstNight.visible).toBe(true);
-    expect(mockPromptArgs).toEqual({ gameDay: true, guideActive: true });
+    expect(mockPromptArgs).toEqual({ gameDay: true, callShown: false });
+    run({ view: { date: '2026-10-13', night: { data: { playerGames: {} } }, day: { starters: [], bench: [], empty: [] } } as any });
+    expect(mockPromptArgs).toEqual({ gameDay: true, callShown: true });
     expect(run({ night: 'tomorrow' }).firstNight.visible).toBe(false);
     expect(mockPromptArgs.gameDay).toBe(false);
     expect(run({ team: { players: [] } as any }).firstNight.visible).toBe(false);

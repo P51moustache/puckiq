@@ -52,7 +52,8 @@ export function useTonightGuidance({ team, view, night, playing, isPro, showTomo
   const isTonight = night === 'tonight';
   // The offer is about tonight's puck drop, so only before it.
   const beforePuck = (view.score?.phase ?? 'pre') === 'pre';
-  const reminderPrompt = useReminderPrompt({ gameDay: isTonight && playing.length > 0 && beforePuck, guideActive: guide.active });
+  // Asked after value: tonight's lineup call (view.day) has to be on screen first.
+  const reminderPrompt = useReminderPrompt({ gameDay: isTonight && playing.length > 0 && beforePuck, callShown: !!view.day });
   const item = useNextUp({ team, view, night, playing, isPro });
   useNextUpViewed(item, view.date);
 

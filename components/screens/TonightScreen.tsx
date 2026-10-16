@@ -55,7 +55,7 @@ import { PlayerNightCard } from '../tonight/PlayerNightCard';
 import { RecapCard } from '../tonight/RecapCard';
 import { FirstNightGuide } from '../tonight/FirstNightGuide';
 import { NextUpCard } from '../tonight/NextUpCard';
-import { ReminderPromptCard } from '../tonight/ReminderPromptCard';
+import { ReminderSheet } from '../tonight/ReminderSheet';
 import { LeagueFormatPrompt } from '../tonight/LeagueFormatPrompt';
 import { recapShareContent, tonightShareContent } from '../tonight/shareContent';
 
@@ -305,9 +305,6 @@ export default function TonightScreen() {
                 follow={isTonight ? follow : null}
               />
               {askFormat ? <LeagueFormatPrompt onAnswer={answerFormat} /> : null}
-              {guidance.reminderPrompt.visible ? (
-                <ReminderPromptCard onAccept={guidance.reminderPrompt.accept} onDismiss={guidance.reminderPrompt.dismiss} />
-              ) : null}
               {data && playing.length === 0 ? (
                 <Image source={ART.noGames} style={styles.quietArt} contentFit="contain" accessible={false} testID="tonight-no-games-art" />
               ) : null}
@@ -388,6 +385,13 @@ export default function TonightScreen() {
         {guidance.nextUp.item ? <NextUpCard item={guidance.nextUp.item} onPress={guidance.nextUp.onPress} /> : null}
         <HockeyHero compact />
       </ScrollView>
+      <ReminderSheet
+        visible={guidance.reminderPrompt.visible}
+        firstPuck={firstPuck}
+        minutesBefore={guidance.reminderPrompt.minutesBefore}
+        onAccept={guidance.reminderPrompt.accept}
+        onDismiss={guidance.reminderPrompt.dismiss}
+      />
       <ShareCardSheet visible={sharing === 'night'} content={nightShare} onClose={() => setSharing(null)} />
       <ShareCardSheet visible={sharing === 'recap'} content={recapShare} onClose={() => setSharing(null)} />
     </View>
