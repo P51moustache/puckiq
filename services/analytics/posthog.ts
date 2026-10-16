@@ -4,7 +4,8 @@
  * email, or roster. Off when EXPO_PUBLIC_POSTHOG_KEY isn't set.
  */
 
-import type { AnalyticsEvent } from './types';
+import { exceptionProperties } from './exceptions';
+import type { AnalyticsEvent, ErrorEvent } from './types';
 
 const DEFAULT_HOST = 'https://us.i.posthog.com';
 
@@ -82,6 +83,21 @@ export function toPostHogEvent(event: AnalyticsEvent, distinctId: string, app: A
       distinct_id: distinctId,
       timestamp: new Date(timestamp).toISOString(),
       properties: { ...base, ...clean(extra), $screen_name: screen ?? 'unknown', previous_screen: previous },
+    };
+  }
+
+  if (name === 'error') {
+    const { error_type: errorType, error_message: message, error_stack: stack, error_name: errorName, handled, severity, ...extra } = top as Partial<ErrorEvent>;
+    return {
+      event: '$exception',
+      distinct_id: distinctId,
+      timestamp: new Date(timestamp).toISOString(),
+      properties: {
+        ...base,
+        ...clean(extra),
+        error_type: errorType,
+        ...exceptionProperties({ name: errorName, message: message ?? '', stack, severity: severity ?? 'medium', handled: handled ?? true }),
+      },
     };
   }
 

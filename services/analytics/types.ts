@@ -42,6 +42,10 @@ export interface ErrorEvent extends BaseEvent {
   error_type: 'javascript' | 'network' | 'user_input' | 'system';
   error_message: string;
   error_stack?: string;
+  /** The Error's class, e.g. TypeError; groups issues in PostHog. */
+  error_name?: string;
+  /** false when the global handler caught it (a crash), true when the app recovered. */
+  handled?: boolean;
   severity: 'low' | 'medium' | 'high' | 'critical';
 }
 

@@ -52,6 +52,31 @@ describe('toPostHogEvent', () => {
     expect(json).not.toContain('someone@example.com');
     expect(json).not.toContain('McDavid');
   });
+
+  it('sends app errors as $exception events for Error tracking', () => {
+    const out = toPostHogEvent(
+      {
+        event: 'error',
+        error_type: 'javascript',
+        error_message: 'boom',
+        error_name: 'TypeError',
+        error_stack: '    at save (address at index.ios.bundle:1:20)',
+        handled: false,
+        severity: 'critical',
+        timestamp: at,
+        session_id: 's1',
+        user_id: 'supabase-uuid',
+        is_pro: false,
+      } as any,
+      'install-1',
+      app,
+    );
+    expect(out.event).toBe('$exception');
+    expect(out.properties).toEqual(expect.objectContaining({ error_type: 'javascript', is_pro: false, $exception_level: 'fatal', $process_person_profile: false }));
+    expect(out.properties).not.toHaveProperty('user_id');
+    expect(out.properties).not.toHaveProperty('error_message');
+    expect((out.properties.$exception_list as any[])[0]).toMatchObject({ type: 'TypeError', value: 'boom', mechanism: { handled: false } });
+  });
 });
 
 describe('sendToPostHog', () => {

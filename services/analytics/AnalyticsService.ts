@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logEvent as webLogEvent, setUserId as webSetUserId, setUserProperties as webSetUserProperties } from 'firebase/analytics';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
+import { installErrorCapture, type ErrorUtilsLike, type HermesLike } from './errorCapture';
 import { newInstallId, posthogConfig, sendToPostHog, type PostHogConfig } from './posthog';
 import { analytics as webAnalytics } from '../../lib/firebase';
 import {
@@ -28,6 +29,7 @@ class AnalyticsService {
   private flushTimer?: ReturnType<typeof setInterval>;
   private lastActivityTime: number = Date.now();
   private initialized: boolean = false;
+  private errorCaptureInstalled = false;
   private installId: string | null = null;
   /** Stamped on every event, e.g. { is_pro: true } — lets you split any chart by plan. */
   private superProperties: Record<string, string | number | boolean> = {};
@@ -55,6 +57,7 @@ class AnalyticsService {
     if (this.initialized) {
       return; // Already initialized, skip
     }
+    this.captureUncaughtErrors();
 
     try {
       if (config) {
@@ -92,6 +95,21 @@ class AnalyticsService {
     } catch (error) {
       console.error('Failed to initialize analytics service:', error);
     }
+  }
+
+  /** Uncaught errors become PostHog exceptions; a crash flushes at once since the app is about to die. */
+  private captureUncaughtErrors(): void {
+    if (this.errorCaptureInstalled) return;
+    this.errorCaptureInstalled = true;
+    const runtime = globalThis as { ErrorUtils?: ErrorUtilsLike; HermesInternal?: HermesLike };
+    installErrorCapture(
+      (error, kind) => {
+        this.trackError('javascript', error.message, kind === 'crash' ? 'critical' : 'high', error.stack, { name: error.name, handled: false });
+        if (kind === 'crash') void this.flush();
+      },
+      runtime.ErrorUtils,
+      __DEV__ ? undefined : runtime.HermesInternal,
+    );
   }
 
   // Session management
@@ -206,12 +224,20 @@ class AnalyticsService {
     this.addToQueue(event);
   }
 
-  trackError(errorType: 'javascript' | 'network' | 'user_input' | 'system', message: string, severity: 'low' | 'medium' | 'high' | 'critical', stack?: string): void {
+  trackError(
+    errorType: 'javascript' | 'network' | 'user_input' | 'system',
+    message: string,
+    severity: 'low' | 'medium' | 'high' | 'critical',
+    stack?: string,
+    details: { name?: string; handled?: boolean } = {},
+  ): void {
     const event: ErrorEvent = {
       event: 'error',
       error_type: errorType,
       error_message: message,
       error_stack: stack,
+      error_name: details.name,
+      handled: details.handled ?? true,
       severity,
       timestamp: Date.now(),
       session_id: this.sessionId,
