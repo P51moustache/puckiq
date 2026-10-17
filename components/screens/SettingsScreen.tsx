@@ -136,12 +136,12 @@ export default function SettingsScreen({ onBack }: { onBack?: () => void } = {})
           <Row
             icon="alarm-outline"
             label="Remind me before first puck"
-            detail="Before first puck, with the swaps to make."
+            detail="With the lineup swaps to make."
             right={(
               <Switch
                 value={reminders.settings.enabled && reminders.permission === 'granted'}
                 onValueChange={toggleReminders}
-                trackColor={{ true: colors.accent, false: colors.raised }}
+                trackColor={SWITCH_TRACK}
                 testID="reminders-toggle"
               />
             )}
@@ -175,7 +175,7 @@ export default function SettingsScreen({ onBack }: { onBack?: () => void } = {})
                     track('reminders_mode', { only_when_needed: on });
                     reminders.update({ ...reminders.settings, onlyWhenNeeded: on });
                   }}
-                  trackColor={{ true: colors.accent, false: colors.raised }}
+                  trackColor={SWITCH_TRACK}
                   testID="reminders-needed-toggle"
                 />
               )}
@@ -190,7 +190,7 @@ export default function SettingsScreen({ onBack }: { onBack?: () => void } = {})
                 <Switch
                   value={reminders.settings.liveStart}
                   onValueChange={(on) => reminders.update({ ...reminders.settings, liveStart: on })}
-                  trackColor={{ true: colors.accent, false: colors.raised }}
+                  trackColor={SWITCH_TRACK}
                   testID="reminders-live-toggle"
                 />
               )}
@@ -295,7 +295,7 @@ export default function SettingsScreen({ onBack }: { onBack?: () => void } = {})
                     AnalyticsService.getInstance().setEnabled(next);
                     setShareUsage(next);
                   }}
-                  trackColor={{ true: colors.accent, false: colors.raised }}
+                  trackColor={SWITCH_TRACK}
                   testID="analytics-toggle"
                 />
               )}
@@ -324,6 +324,9 @@ export default function SettingsScreen({ onBack }: { onBack?: () => void } = {})
     </View>
   );
 }
+
+/** On/off colors shared by every switch on this screen. */
+const SWITCH_TRACK = { true: colors.accent, false: colors.raised };
 
 const styles = StyleSheet.create({
   container: {

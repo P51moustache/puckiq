@@ -25,6 +25,16 @@ export interface NightData {
   preseasonGames: number;
 }
 
+/** Players whose game on this night has started (live or final): too late to start or sit them. */
+export function startedPlayerIds(night: Pick<NightData, 'games' | 'playerGames'>): Set<number> {
+  const games = new Map(night.games.map((game) => [game.id, game]));
+  const ids = new Set<number>();
+  for (const [id, day] of Object.entries(night.playerGames)) {
+    if (day && isGameStarted(games.get(day.gameId) ?? day)) ids.add(Number(id));
+  }
+  return ids;
+}
+
 export function statusFor(
   player: FantasyPlayer,
   hasGame: boolean,

@@ -1,4 +1,3 @@
-import { PickupCard } from '../pickups/PickupCard';
 /**
  * Pickups — streamers ranked by what they add to MY lineup: nights they'd actually
  * start for me (empty slots first), not league-wide points.
@@ -8,6 +7,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { FlatList, Linking, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
+import { PickupCard } from '../pickups/PickupCard';
 import { useNhlToday, usePickups, useWeekHasGamesLeft } from '../../hooks/useCoach';
 import { filterPickups, type PickupFilter } from '../../services/fantasy/pickups';
 import { targetPickups } from '../../services/fantasy/targetPickups';
@@ -136,7 +136,7 @@ export default function PickupsScreen() {
           <View>
             <View style={styles.ledeRow}>
               <Text style={styles.lede}>
-                Ranked by what they add to YOUR lineup — only nights they’d actually start for you.
+                Ranked by what they add to your lineup, on nights they’d start.
               </Text>
               <HowItWorksButton
                 topic="pickups"
@@ -221,7 +221,7 @@ export default function PickupsScreen() {
             {host && visible.length > 0 ? (
               <Card style={styles.lockCard} testID="pickup-host-handoff">
                 <Text style={styles.lockTitle}>Make the pickup in {host.name}</Text>
-                <Text style={styles.lockBody}>This is a lineup fit, not your league’s waiver list. Check that the player is available before adding them. PuckIQ saves local roster changes only.</Text>
+                <Text style={styles.lockBody}>{`Not your league’s waiver list. Check availability in ${host.name} first.`}</Text>
                 <PrimaryButton label={`Open ${host.name}`} icon="open-outline" onPress={() => { if (host) void openHostLink(host, 'free_pickup', Linking.openURL, track); }} testID="pickup-open-host" />
               </Card>
             ) : null}

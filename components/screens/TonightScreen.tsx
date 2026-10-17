@@ -21,6 +21,7 @@ import { useRosterBrief } from '../../hooks/useRosterBrief';
 import { RosterBriefCard } from '../tonight/RosterBriefCard';
 import { FreeLineupCallCard } from '../lineup/FreeLineupCallCard';
 import { freeLineupCall } from '../../services/fantasy/freeLineupCall';
+import { startedPlayerIds } from '../../services/fantasy/loadNight';
 import { openHostLink } from '../../services/analytics/openHostLink';
 import { visibleMoves, type CoachMove } from '../../services/fantasy/coach';
 import { isNhlLinked } from '../../services/fantasy/positions';
@@ -81,7 +82,7 @@ export default function TonightScreen() {
   const view = useNight(team, isTonight ? 0 : 1);
   const lineupActions = useLineupActions(view);
   const brief = useRosterBrief(team, view, isTonight && ready);
-  const freeCall = team && view.bestDay ? freeLineupCall(team, view.bestDay, view.lineupValues) : null;
+  const freeCall = team && view.bestDay ? freeLineupCall(team, view.bestDay, view.lineupValues, view.night.data ? startedPlayerIds(view.night.data) : undefined) : null;
   const openHost = () => {
     const host = team ? hostLinkFor(team) : null;
     if (host) void openHostLink(host, 'free_lineup_call', Linking.openURL, track);
@@ -236,10 +237,6 @@ export default function TonightScreen() {
         refreshControl={<RefreshControl refreshing={view.refreshing} onRefresh={view.refresh} tintColor={colors.accent} />}
         showsVerticalScrollIndicator={false}
       >
-        <View style={{flexDirection:'row',gap:10,marginBottom:16}}>
-          <Card onPress={() => router.push('/lineup' as Href)} style={{flex:1,gap:7}}><Ionicons name="sparkles" size={20} color={colors.accent}/><Text style={{color:colors.text,fontSize:14,fontWeight:'600'}}>Best lineup</Text><Text style={{color:colors.sub,fontSize:11}}>Compare & save your plan →</Text></Card>
-          <Card onPress={() => router.push('/insights' as Href)} style={{flex:1,gap:7}}><Ionicons name="trending-up" size={20} color={colors.accent}/><Text style={{color:colors.text,fontSize:14,fontWeight:'600'}}>Your insights</Text><Text style={{color:colors.sub,fontSize:11}}>Players, pickups & trades →</Text></Card>
-        </View>
         {unlinked.length > 0 ? (
           <Card onPress={() => router.push('/myteam' as Href)} style={styles.linkBanner} testID="tonight-unlinked">
             <View style={styles.linkIcon}>

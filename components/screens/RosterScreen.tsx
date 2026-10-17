@@ -221,6 +221,8 @@ export default function RosterScreen() {
               : ""}
           </Text>
         </View>
+        {form?.trend === "hot" ? <HotBadge /> : null}
+        {form?.trend === "cold" ? <ColdBadge /> : null}
         <View style={styles.rowRight}>
           {games ? (
             <Text style={styles.games}>
@@ -233,8 +235,6 @@ export default function RosterScreen() {
             </Text>
           ) : null}
         </View>
-        {form?.trend === "hot" ? <HotBadge /> : null}
-        {form?.trend === "cold" ? <ColdBadge /> : null}
       </Pressable>
     );
   };
@@ -336,27 +336,13 @@ export default function RosterScreen() {
         <SampleTeamNotice />
         {!hasSamplePlayers(team) ? <RosterConfirmationCard team={team} onReview={() => setImporting(true)} /> : null}
 
-        <Card
-          style={styles.leagueCard}
-          onPress={() => setSettingsOpen(true)}
-          testID="roster-league-settings"
-        >
-          <View style={styles.leagueText}>
-            <Text style={styles.leagueTitle}>
-              {PLATFORM_LABEL[team.platform]} league rules
-            </Text>
-            <Text style={styles.leagueMeta}>{slotsLabel(team.slots)}</Text>
-          </View>
-          <Ionicons name="options" size={18} color={colors.onInk} />
-        </Card>
-
         {unlinked.length > 0 ? (
           <>
             <SectionLabel title={`Needs linking (${unlinked.length})`} />
             <Card style={styles.unlinkedCard}>
               <Text style={styles.unlinkedCopy}>
-                These names were typed in an older PuckIQ. Link each to the real
-                NHL player so schedules and stats load.
+                Link each name to its NHL player so schedules and stats
+                load.
               </Text>
               <GhostButton
                 label={linking ? "Linking…" : "Auto-link exact matches"}
@@ -414,6 +400,20 @@ export default function RosterScreen() {
           }
         />
 
+        <Card
+          style={styles.leagueCard}
+          onPress={() => setSettingsOpen(true)}
+          testID="roster-league-settings"
+        >
+          <View style={styles.leagueText}>
+            <Text style={styles.leagueTitle}>
+              {PLATFORM_LABEL[team.platform]} league rules
+            </Text>
+            <Text style={styles.leagueMeta}>{slotsLabel(team.slots)}</Text>
+          </View>
+          <Ionicons name="options" size={18} color={colors.onInk} />
+        </Card>
+
         <Text style={styles.footer}>
           {team.players.length} of {MAX_ROSTER_PLAYERS} players · tap a player
           for eligibility, IR, and game log
@@ -461,7 +461,7 @@ const styles = StyleSheet.create({
   leagueCard: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 4,
+    marginTop: 20,
     backgroundColor: colors.ink,
   },
   leagueText: {

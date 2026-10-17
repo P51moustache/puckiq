@@ -14,6 +14,7 @@ import { useLineupActions } from '../../hooks/useLineupActions';
 import { daysBetween, shortDate } from '../../services/nhl/dates';
 import { lineupValue } from '../../services/fantasy/lineupPlan';
 import { freeLineupCall } from '../../services/fantasy/freeLineupCall';
+import { startedPlayerIds } from '../../services/fantasy/loadNight';
 import { FreeLineupCallCard } from '../lineup/FreeLineupCallCard';
 import { hasSamplePlayers } from '../../constants/sampleTeam';
 import SampleTeamNotice from '../coach/SampleTeamNotice';
@@ -39,7 +40,6 @@ import {
   LoadingRows,
   PrimaryButton,
   ProLockCard,
-  SectionLabel,
 } from '../coach/ui';
 import { LineupList } from '../lineup/LineupList';
 import { LineupActionsFooter } from '../lineup/LineupActionsFooter';
@@ -78,7 +78,7 @@ export default function LineupScreen() {
       : 0;
   const shown = tab === 'best' ? best : planned;
   const host = team ? hostLinkFor(team) : null;
-  const freeCall = team && best ? freeLineupCall(team, best, view.lineupValues) : null;
+  const freeCall = team && best ? freeLineupCall(team, best, view.lineupValues, view.night.data ? startedPlayerIds(view.night.data) : undefined) : null;
   useBehaviorSnapshot('lineup', ready ? {
     ...rosterContext(team), tab, day_offset: offset,
     state: !team?.players.length ? 'empty_roster' : view.error ? 'error' : view.loading ? 'loading' : !best ? 'unavailable' : 'ready',
@@ -153,7 +153,15 @@ export default function LineupScreen() {
               </Card>
             ) : !isPremium ? (
               <>
-              <FreeLineupCallCard call={freeCall} team={team} locked={actions.locked} pending={!actions.loaded} onSave={() => actions.applyFreeCall(freeCall)} onOpenHost={openHost} />
+              {freeCall ? (
+                <FreeLineupCallCard call={freeCall} team={team} locked={actions.locked} pending={!actions.loaded} onSave={() => actions.applyFreeCall(freeCall)} onOpenHost={openHost} />
+              ) : (
+                <Card testID="free-lineup-none">
+                  <Text style={styles.copy}>
+                    {actions.locked ? 'Today’s lineup is locked. Your next lineup call comes tomorrow.' : 'No lineup call for this date.'}
+                  </Text>
+                </Card>
+              )}
               {!hasSamplePlayers(team) ? <ProLockCard
                 title="Your best lineup, every night"
                 detail={`Go beyond one call: optimize all ${best.starters.length + best.empty.length} active slots and compare every start/sit option.`}
@@ -187,8 +195,8 @@ export default function LineupScreen() {
                 </Card>
                 {actions.locked ? (
                   <Text style={styles.note}>
-                    Your plan is locked after the day’s first puck drop. Choose
-                    another date to plan ahead.
+                      Locked after the first puck drop. Pick another date to plan
+                    ahead.
                   </Text>
                 ) : null}
                 {tab === 'plan' ? (
@@ -234,9 +242,8 @@ export default function LineupScreen() {
                   />
                 ) : null}
                 <Text style={styles.note}>
-                  Value uses your league’s scoring and recent form. Goalie
-                  estimates include start probability; verify the actual
-                  starter. Category leagues use scoring value to rank players.
+                  Based on your league’s scoring and recent form. Verify goalie
+                  starters before lock.
                 </Text>
                 {best.empty.length > 0 ? (
                   <Card style={styles.compare}>
@@ -279,32 +286,6 @@ export default function LineupScreen() {
                     onUnlock={() => openPaywall('tonight_moves')}
                   />
                 ) : null}
-                <SectionLabel title="Make it count" />
-                <Card>
-                  <Text style={styles.copy}>
-                    Your saved plan stays in PuckIQ. Set the matching starters
-                    in your fantasy league.
-                  </Text>
-                  {host ? (
-                    <PrimaryButton
-                      label={`Open ${host.name}`}
-                      icon="open-outline"
-                      onPress={() => {
-                        openHost();
-                      }}
-                    />
-                  ) : (
-                    <Text style={styles.note}>
-                      Open your fantasy host to make the changes.
-                    </Text>
-                  )}
-                </Card>
-                <GhostButton
-                  label="View the full week planner"
-                  icon="calendar-outline"
-                  onPress={() => router.push('/week' as Href)}
-                  style={{ marginTop: 18 }}
-                />
               </>
             )}
           </>
@@ -322,13 +303,7 @@ export default function LineupScreen() {
             setTab('plan');
           }}
           hostName={host?.name}
-          onOpenHost={
-            host
-              ? () => {
-                  openHost();
-                }
-              : undefined
-          }
+          onOpenHost={host ? openHost : undefined}
         />
       ) : null}
     </View>

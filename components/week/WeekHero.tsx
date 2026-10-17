@@ -75,7 +75,7 @@ export function WeekHero({ plan, choice, monday, isPremium, minGoalieStarts, onS
           </View>
           <Pressable onPress={onUnlock} style={styles.summaryLock} testID="week-planner-locked">
             <Ionicons name="lock-closed" size={13} color={colors.onInk} />
-            <Text style={styles.summaryLockText}>How many actually count after lineup limits?</Text>
+            <Text style={styles.summaryLockText}>See which games count after lineup limits</Text>
             <Ionicons name="arrow-forward" size={13} color={colors.onInk} />
           </Pressable>
         </>

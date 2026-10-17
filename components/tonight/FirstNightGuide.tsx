@@ -46,8 +46,8 @@ export function FirstNightGuide({ done, quietNight, onStep, onDismiss }: FirstNi
         right={<IconButton compact icon="close" label="Close the first-night guide" onPress={onDismiss} testID="first-night-close" />}
       />
       <View style={styles.laps}>
-        {FIRST_NIGHT_STEPS.map((step) => (
-          <View key={step} style={[styles.lap, done.includes(step) && styles.lapDone]} />
+        {FIRST_NIGHT_STEPS.map((step, index) => (
+          <View key={step} style={[styles.lap, index < done.length && styles.lapDone]} />
         ))}
       </View>
       {FIRST_NIGHT_STEPS.map((step, index) => {

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   Linking,
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -180,7 +179,7 @@ export default function InsightsScreen() {
                 <InsightCard
                   featured
                   title="Get ahead of the next puck drop"
-                  detail="Compare your best lineup, review upcoming player matchups, and plan pickups around the positions you can actually use."
+                  detail="See your best lineup and who to pick up before puck drop."
                   onPress={() => router.push('/lineup' as Href)}
                 />
               )}
@@ -196,25 +195,8 @@ export default function InsightsScreen() {
                   )
                 }
               />
-            ) : (
-              <ProLockCard
-                title="Player trends"
-                detail="See whose recent fantasy value is rising against their season baseline."
-                onPress={() => openPaywall('player_trends')}
-              />
-            )}
-            <SectionLabel
-              title="Moves that matter"
-              right={
-                <Pressable
-                  accessibilityRole="button"
-                  hitSlop={10}
-                  onPress={() => router.push('/lineup' as Href)}
-                >
-                  <Text style={styles.more}>Review lineup →</Text>
-                </Pressable>
-              }
-            />
+            ) : null}
+            <SectionLabel title="Moves that matter" />
             <View style={styles.tiles}>
               {moves
                 .filter((move) => move.id !== featured?.id)
@@ -391,7 +373,6 @@ const styles = StyleSheet.create({
   meta: { fontSize: 12, lineHeight: 17, color: colors.muted, marginTop: 4 },
   stack: { gap: 6 },
   tiles: { gap: 6 },
-  more: { fontSize: 13, color: colors.accent },
   waivers: { padding: 0 },
   waiverRow: {
     flexDirection: 'row',

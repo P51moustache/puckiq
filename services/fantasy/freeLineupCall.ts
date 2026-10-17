@@ -13,17 +13,22 @@ export interface FreeLineupCall {
   saved: boolean;
 }
 
-/** One complete recommendation using the same eligibility and values as the Pro optimizer. */
-export function freeLineupCall(team: FantasyTeam, best: DayPlan, values: ReadonlyMap<number, number>): FreeLineupCall | null {
+const NONE_STARTED: ReadonlySet<number> = new Set();
+
+/**
+ * One complete recommendation using the same eligibility and values as the Pro optimizer.
+ * Players in `started` (their game is live or final) are never the call: it's too late to move them.
+ */
+export function freeLineupCall(team: FantasyTeam, best: DayPlan, values: ReadonlyMap<number, number>, started: ReadonlySet<number> = NONE_STARTED): FreeLineupCall | null {
   const planned = buildPlannedDay(team, best, values);
   const hasPlan = !!team.lineupChoices?.[best.date];
   const starts = new Set(planned.starters.map((seat) => seat.playerId));
-  const sorted = best.starters.filter((seat) => best.playing.includes(seat.playerId) && team.players.some((player) => player.playerId === seat.playerId && !player.injuredReserve && eligibleSlots(player).includes(seat.slot)))
+  const sorted = best.starters.filter((seat) => !started.has(seat.playerId) && best.playing.includes(seat.playerId) && team.players.some((player) => player.playerId === seat.playerId && !player.injuredReserve && eligibleSlots(player).includes(seat.slot)))
     .sort((a, b) => (values.get(b.playerId) ?? 0) - (values.get(a.playerId) ?? 0) || a.playerId - b.playerId);
   for (const seat of sorted.filter((entry) => hasPlan && !starts.has(entry.playerId))) {
     const error = starterChoiceError(team, best, seat.playerId, values);
     const benchId = error ? starterReplacements(team, best, seat.playerId, values)[0] : planned.starters.find((entry) => entry.slot === seat.slot)?.playerId;
-    if (error && !benchId) continue;
+    if ((error && !benchId) || (benchId && started.has(benchId))) continue;
     const withoutBench = benchId ? setLineupChoice(team, best.date, benchId, 'sit') : team;
     if (starterChoiceError(withoutBench, best, seat.playerId, values)) continue;
     const proposed = buildPlannedDay(setLineupChoice(withoutBench, best.date, seat.playerId, 'start'), best, values);

@@ -60,7 +60,7 @@ jest.mock('../../../hooks/useCoach', () => ({
       bestDay,
       day: buildPlannedDay(mockTeam, bestDay, values),
       lineupValues: values,
-      night: { data: { games: [game(date, 'EDM', 'NJD')] } },
+      night: { data: { games: [game(date, 'EDM', 'NJD')], playerGames: {} } },
       loading: false,
       error: null,
       refreshing: false,

@@ -30,11 +30,13 @@ export function FreeLineupCallCard({ call, team, locked, pending, onSave, onOpen
         {call.estimatedGain !== null ? `+${formatValue(call.estimatedGain)} estimated scoring value over your saved plan.` : 'He plays on this date and fits your league’s positions. Ranked using your scoring and recent form.'}
         {start.position === 'G' ? ' Goalie starts are estimates—verify the starter before lock.' : ''}
       </Text>
-      {locked ? <Text style={styles.note}>Local plans are locked after the first puck drop. Check your host’s lineup rules.</Text> : (
+      {locked ? null : (
         <PrimaryButton label={call.saved ? 'Call saved in PuckIQ' : 'Save this call'} onPress={onSave} disabled={call.saved || pending} testID="free-lineup-save" />
       )}
       {host ? <GhostButton label={`Open ${host.name} to make the move`} icon="open-outline" tone="neutral" onPress={onOpenHost} testID="free-lineup-host" /> : null}
-      <Text style={styles.note}>Saving changes your PuckIQ plan. Make the actual move in your fantasy league.</Text>
+      <Text style={styles.note}>
+        {locked ? 'Local plans are locked after the first puck drop. Make any move in your league.' : 'Saving updates your PuckIQ plan. Make the move in your league too.'}
+      </Text>
     </Card>
   );
 }

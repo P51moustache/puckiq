@@ -1,6 +1,7 @@
 import { createTeam, parseTeamsState, removePlayer } from '../../teams';
 import { freeLineupCall, saveFreeLineupCall } from '../freeLineupCall';
 import { buildPlannedDay, setLineupChoice } from '../lineupPlan';
+import { startedPlayerIds } from '../loadNight';
 import { buildWeekPlan } from '../weekPlan';
 import { game, player, week } from './fixtures';
 
@@ -46,4 +47,22 @@ it('does not offer an unavailable player or an ineligible slot', () => {
   expect(freeLineupCall(team, noGames, values)).toBeNull();
   const badSeat = { ...best, starters: [{ playerId: 8478402, slot: 'G' as const }] };
   expect(freeLineupCall(team, badSeat, values)).toBeNull();
+});
+
+it('never calls a player whose game has already started', () => {
+  expect(freeLineupCall(team, best, values, new Set([8478402]))).toMatchObject({ startId: 8480069 });
+  expect(freeLineupCall(team, best, values, new Set([8478402, 8480069]))).toBeNull();
+});
+
+it('finds started players from the live game state, falling back to the schedule', () => {
+  const night = {
+    games: [{ id: 1, state: 'FINAL' }, { id: 2, state: 'FUT' }] as never,
+    playerGames: {
+      10: { gameId: 1, state: 'FUT' },
+      11: { gameId: 2, state: 'FUT' },
+      12: { gameId: 3, state: 'LIVE' },
+      13: undefined,
+    } as never,
+  };
+  expect([...startedPlayerIds(night)].sort()).toEqual([10, 12]);
 });
