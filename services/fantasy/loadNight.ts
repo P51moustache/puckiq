@@ -35,6 +35,11 @@ export function startedPlayerIds(night: Pick<NightData, 'games' | 'playerGames'>
   return ids;
 }
 
+/** True while some game on this night has yet to start, so a pickup could still add one. */
+export function hasGamesLeftToStart(night: Pick<NightData, 'games'>): boolean {
+  return night.games.some((game) => !isGameStarted(game));
+}
+
 export function statusFor(
   player: FantasyPlayer,
   hasGame: boolean,

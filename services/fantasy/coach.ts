@@ -47,6 +47,8 @@ export interface CoachInput {
   goalieOutlooks?: ReadonlyMap<number, GoalieOutlook>;
   /** How to name the night in copy: "tonight", "tomorrow". */
   when?: string;
+  /** False once every game this night has started: a streamer can't add a game, so empty slots get no move. */
+  streamable?: boolean;
 }
 
 function nameOf(players: Map<number, FantasyPlayer>, id: number): string {
@@ -123,7 +125,7 @@ function emptySlotsMove(counts: Map<SlotKey, number>, when: string): CoachMove |
   };
 }
 
-export function buildCoachMoves({ day, players, games, statuses, forms, goalieOutlooks, when = 'tonight' }: CoachInput): CoachMove[] {
+export function buildCoachMoves({ day, players, games, statuses, forms, goalieOutlooks, when = 'tonight', streamable = true }: CoachInput): CoachMove[] {
   const byId = new Map(players.map((player) => [player.playerId, player]));
   const moves: CoachMove[] = [];
   const startersById = new Map(day.starters.map((seat) => [seat.playerId, seat.slot]));
@@ -159,7 +161,7 @@ export function buildCoachMoves({ day, players, games, statuses, forms, goalieOu
   if (overflow) moves.push(overflow);
 
   const emptyCounts = new Map<SlotKey, number>();
-  for (const slot of day.empty) emptyCounts.set(slot, (emptyCounts.get(slot) ?? 0) + 1);
+  for (const slot of streamable ? day.empty : []) emptyCounts.set(slot, (emptyCounts.get(slot) ?? 0) + 1);
   const grouped = emptySlotsMove(emptyCounts, when);
   if (grouped) moves.push(grouped);
   for (const [slot, count] of grouped ? [] : emptyCounts) {
