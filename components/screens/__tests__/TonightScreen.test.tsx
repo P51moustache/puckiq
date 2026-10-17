@@ -1,3 +1,4 @@
+jest.mock('expo-web-browser', () => ({ openBrowserAsync: jest.fn(() => Promise.resolve({ type: 'opened' })) }));
 jest.mock('react-native', () => {
   const React = require('react');
   const passthrough = (name: string) => {

@@ -12,7 +12,7 @@ import type { FantasyPlayer, SlotKey } from '../../types/fantasy';
 import type { CoachMove } from '../../services/fantasy/coach';
 import type { HostLink } from '../../services/fantasy/hostLinks';
 import { track } from '../../services/analytics/track';
-import { openHostLink } from '../../services/analytics/openHostLink';
+import { openFantasyHost } from '../../services/native/deviceLinks';
 import { STARTING_GOALIES_URL } from '../../constants/legal';
 import { ART, ART_ASPECT } from '../../constants/art';
 import { PlayerAvatar } from '../coach/PlayerAvatar';
@@ -112,7 +112,7 @@ export function CoachMovesSection({
           <Pressable
             onPress={() => {
               track('advice_action', { surface: 'coach_moves', action: 'open_host', gated: false, available_moves: moves.length });
-              void openHostLink(host, 'coach_moves', Linking.openURL, track);
+              void openFantasyHost(host, 'coach_moves');
             }}
             style={({ pressed }) => [styles.host, pressed && styles.pressed]}
             accessibilityRole="link"

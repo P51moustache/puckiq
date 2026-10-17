@@ -1,3 +1,4 @@
+jest.mock('expo-web-browser', () => ({ openBrowserAsync: jest.fn(() => Promise.resolve({ type: 'opened' })) }));
 jest.mock('react-native', () => ({
   ...require('../../week/__tests__/support/mocks').reactNativeMock(),
   Alert: { alert: (...args: unknown[]) => mockAlert(...args) },

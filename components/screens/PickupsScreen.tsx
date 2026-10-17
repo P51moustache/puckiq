@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { FlatList, Linking, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import { PickupCard } from '../pickups/PickupCard';
@@ -12,7 +12,7 @@ import { useNhlToday, usePickups, useWeekHasGamesLeft } from '../../hooks/useCoa
 import { filterPickups, type PickupFilter } from '../../services/fantasy/pickups';
 import { targetPickups } from '../../services/fantasy/targetPickups';
 import { hostLinkFor } from '../../services/fantasy/hostLinks';
-import { openHostLink } from '../../services/analytics/openHostLink';
+import { openFantasyHost } from '../../services/native/deviceLinks';
 import { hasSamplePlayers } from '../../constants/sampleTeam';
 import { useBehaviorSnapshot } from '../../hooks/useBehaviorSnapshot';
 import { rosterContext } from '../../services/analytics/rosterContext';
@@ -222,7 +222,7 @@ export default function PickupsScreen() {
               <Card style={styles.lockCard} testID="pickup-host-handoff">
                 <Text style={styles.lockTitle}>Make the pickup in {host.name}</Text>
                 <Text style={styles.lockBody}>{`Not your league’s waiver list. Check availability in ${host.name} first.`}</Text>
-                <PrimaryButton label={`Open ${host.name}`} icon="open-outline" onPress={() => { if (host) void openHostLink(host, 'free_pickup', Linking.openURL, track); }} testID="pickup-open-host" />
+                <PrimaryButton label={`Open ${host.name}`} icon="open-outline" onPress={() => { if (host) void openFantasyHost(host, 'free_pickup'); }} testID="pickup-open-host" />
               </Card>
             ) : null}
             {!isPremium && !sample && rows.length > FREE_VISIBLE ? (

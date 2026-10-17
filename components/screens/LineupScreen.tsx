@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Linking,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -20,8 +19,7 @@ import { hasSamplePlayers } from '../../constants/sampleTeam';
 import SampleTeamNotice from '../coach/SampleTeamNotice';
 import { formatValue } from '../../services/fantasy/scoring';
 import { hostLinkFor } from '../../services/fantasy/hostLinks';
-import { track } from '../../services/analytics/track';
-import { openHostLink } from '../../services/analytics/openHostLink';
+import { openFantasyHost } from '../../services/native/deviceLinks';
 import { rosterContext } from '../../services/analytics/rosterContext';
 import { useBehaviorSnapshot } from '../../hooks/useBehaviorSnapshot';
 import PageHeader from '../PageHeader';
@@ -88,7 +86,7 @@ export default function LineupScreen() {
   } : null);
   const openHost = () => {
     if (!host) return;
-    void openHostLink(host, 'lineup', Linking.openURL, track);
+    void openFantasyHost(host, 'lineup');
   };
   return (
     <View style={styles.container} testID="lineup-screen">
