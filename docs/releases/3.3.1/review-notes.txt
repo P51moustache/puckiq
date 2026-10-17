@@ -1,12 +1,12 @@
 NEW IN 3.3.1:
-- Simplified screens: Tonight no longer has the "Best lineup" / "Your insights" shortcut cards (both are tabs). On Players, the league rules card is at the bottom of the list.
-- The free lineup call skips players whose game has started; after the day's lineup locks, Lineup says so.
-- Tonight's "Up next" asks users with fewer than 10 of their own players to add the rest.
-- Paywall Terms/Privacy, Settings legal/support rows and "Open Settings" actions fall back to an in-app browser or an alert if iOS cannot open them.
+- Simpler screens: Tonight drops its "Best lineup" / "Your insights" shortcut cards (both are tabs). The league rules card is now at the bottom of Players.
+- The free lineup call skips players whose game has started.
+- Tonight's "Up next" asks users with fewer than 10 players to add the rest.
+- Terms/Privacy, legal/support and "Open Settings" links fall back to an in-app browser or an alert if iOS cannot open them.
 
 ALSO IN 3.3:
-- Setup has three steps: welcome, league, players. The players step offers "Import from screenshots", search, and a grid of the most-rostered forwards, defense and goalies (tap a face to add). "Not sure yet? Try the sample team" loads a labeled sample roster.
-- Reminders are no longer asked during setup. On a night when the user's players play, Tonight offers them in a bottom sheet a few seconds after the lineup call appears ("Remind me" / "Not now").
+- Setup has three steps: welcome, league, players. The players step offers "Import from screenshots", search, and a grid of popular players (tap a face to add).
+- Reminders are offered on Tonight in a bottom sheet ("Remind me" / "Not now"), not during setup.
 - Free users see a saveable lineup call and one complete pickup recommendation before any upgrade prompt.
 - Roster import shows a review step to confirm matched players before adding them.
 
@@ -16,12 +16,12 @@ ALSO IN 3.2 AND EARLIER:
 - Roster import: on the setup players step (or Players > scan icon), "Import from screenshots" opens the system photo picker (PHPicker, no photo-library permission) and reads player names on the device with Vision. Nothing is uploaded. "Paste or type names" works without photos.
 - Category leagues: setup asks "Points or Categories"; League settings (Players > league rules card, below the list) and a one-time question on Tonight can switch it. Tonight then shows category totals.
 - Lineup reminders name the swaps to make (Settings > Game-night reminders > "Only when my lineup needs a change").
-- Goalie start outlook on Tonight and the Week grid: estimates from public NHL schedules and box scores, never "confirmed".
+- Goalie start outlook: estimates from public NHL data, never "confirmed".
 - "Make these moves in Yahoo" opens the Yahoo, ESPN or Fantrax website or app (or a team page the user pastes in League settings). PuckIQ still never signs in to or changes a fantasy league.
 
 OTHER FEATURES:
 
-League Room: More > League Room > Sign in with Apple. Create a private room or join with its code/link. Names are filtered; reactions use fixed emojis, with no free-text chat. Members can leave; owners can remove teams. The room menu offers Report room (emails support). Opponents and Pickups taken marks populate as members join.
+League Room: More > League Room > Sign in with Apple. Create a private room or join with its code/link. Names are filtered; reactions use fixed emojis, no free-text chat. Owners can remove teams; the room menu offers Report room (emails support).
 
 Player alerts: Settings > Player alerts. A push only when a player on the user's roster is scratched (NHL game report) or scores. The push token and player IDs are not linked to an account.
 
