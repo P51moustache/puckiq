@@ -4,7 +4,7 @@ import { SettingsRow as Row } from '../settings/SettingsRow';
  */
 
 import React, { useState } from 'react';
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import Constants from 'expo-constants';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -36,6 +36,7 @@ import {
 import AnalyticsService from '../../services/analytics/AnalyticsService';
 import { posthogConfig } from '../../services/analytics/posthog';
 import { track } from '../../services/analytics/track';
+import { openDeviceSettings, openLink } from '../../services/native/deviceLinks';
 
 import { ONBOARDING_KEY } from '../../constants/release';
 import { PlanCard } from '../settings/PlanCard';
@@ -67,7 +68,7 @@ export default function SettingsScreen({ onBack }: { onBack?: () => void } = {})
     if (!ok) {
       Alert.alert('Notifications are off', 'Turn on notifications for PuckIQ in iOS Settings to get lineup reminders.', [
         { text: 'Not now', style: 'cancel' },
-        { text: 'Open Settings', onPress: () => Linking.openSettings() },
+        { text: 'Open Settings', onPress: () => void openDeviceSettings('reminders') },
       ]);
     }
   };
@@ -197,7 +198,7 @@ export default function SettingsScreen({ onBack }: { onBack?: () => void } = {})
             />
           ) : null}
           {reminders.permission === 'denied' ? (
-            <Text style={styles.warn} onPress={() => Linking.openSettings()}>Notifications are blocked in iOS Settings. Tap to open.</Text>
+            <Text style={styles.warn} onPress={() => void openDeviceSettings('reminders_blocked')}>Notifications are blocked in iOS Settings. Tap to open.</Text>
           ) : null}
         </Card>
 
@@ -280,9 +281,9 @@ export default function SettingsScreen({ onBack }: { onBack?: () => void } = {})
             testID="feedback-link"
           />
           {SUPPORT_EMAIL ? (
-            <Row icon="mail-outline" label="Contact support" onPress={() => Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=PuckIQ ${version}`)} testID="support-link" />
+            <Row icon="mail-outline" label="Contact support" onPress={() => void openLink(`mailto:${SUPPORT_EMAIL}?subject=PuckIQ ${version}`, 'support')} testID="support-link" />
           ) : null}
-          {PRIVACY_URL ? <Row icon="shield-checkmark-outline" label="Privacy policy" onPress={() => Linking.openURL(PRIVACY_URL)} /> : null}
+          {PRIVACY_URL ? <Row icon="shield-checkmark-outline" label="Privacy policy" onPress={() => void openLink(PRIVACY_URL, 'privacy')} /> : null}
           {ANALYTICS_REMOTE ? (
             <Row
               icon="analytics-outline"
@@ -301,7 +302,7 @@ export default function SettingsScreen({ onBack }: { onBack?: () => void } = {})
               )}
             />
           ) : null}
-          <Row icon="document-text-outline" label="Terms of use" onPress={() => Linking.openURL(TERMS_URL)} />
+          <Row icon="document-text-outline" label="Terms of use" onPress={() => void openLink(TERMS_URL, 'terms')} />
           <Row icon="information-circle-outline" label="Version" right={<Text style={styles.version}>{version}</Text>} />
         </Card>
             </>

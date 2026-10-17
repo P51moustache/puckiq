@@ -24,6 +24,9 @@ jest.mock('../../services/subscription', () => ({
   getTrialEligibility: (...args: any[]) => mockTrialEligibility(...args),
 }));
 
+const mockOpenBrowser = jest.fn().mockResolvedValue({ type: 'opened' });
+jest.mock('expo-web-browser', () => ({ openBrowserAsync: (...args: unknown[]) => mockOpenBrowser(...args) }));
+
 jest.mock('react-native', () => {
   const React = require('react');
   const passthrough = (name: string) => {
@@ -58,7 +61,7 @@ jest.mock('react-native', () => {
 // @ts-expect-error no types for react-test-renderer
 import { create, act } from 'react-test-renderer';
 import React from 'react';
-import { Alert } from 'react-native';
+import { Alert, Linking } from 'react-native';
 import ProPaywall, { trialLabel } from '../ProPaywall';
 
 async function render(onClose = jest.fn()) {
@@ -103,6 +106,15 @@ describe('ProPaywall', () => {
     expect(copy).toContain('Terms of Use');
     expect(copy).toMatch(/renew automatically/);
     expect(find(tree, 'pro-restore')).toHaveLength(1);
+  });
+
+  it('opens the Terms in an in-app browser when iOS cannot open the link', async () => {
+    (Linking.openURL as jest.Mock).mockRejectedValueOnce(new Error('Unable to open URL'));
+    const tree = await render();
+    const terms = tree.root.findAll((n: any) => n.type === 'Text' && n.props.children === 'Terms of Use' && n.props.onPress)[0];
+    await act(async () => { await terms.props.onPress(); });
+    expect(mockOpenBrowser).toHaveBeenCalledWith(expect.stringMatching(/^https:/));
+    expect(mockTrack).toHaveBeenCalledWith('link_open_fallback', { target: 'terms', result: 'in_app_browser' });
   });
 
   it('only calls a free intro offer a trial, worded from its real length', () => {

@@ -8,7 +8,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -26,6 +25,7 @@ import {
 } from '../constants/monetization';
 import { PRIVACY_URL, TERMS_URL } from '../constants/legal';
 import { ART } from '../constants/art';
+import { openLink } from '../services/native/deviceLinks';
 import { FREE_STATUS, getOfferings, getTrialEligibility, purchasePackageWithDetails, restorePurchases } from '../services/subscription';
 import { proAccessCopy } from '../services/proAccessCopy';
 import { packagePrice, packageProperties, trialLabel } from '../services/paywallProducts';
@@ -222,11 +222,11 @@ export default function ProPaywall({ visible, onClose, source = 'settings', team
             Payment is charged to your Apple ID at confirmation. Subscriptions renew automatically unless cancelled at least 24 hours before the end of the period. Manage or cancel in your App Store account settings.
           </Text>
           <View style={styles.links}>
-            <Text style={styles.link} onPress={() => Linking.openURL(TERMS_URL)} accessibilityRole="link">
+            <Text style={styles.link} onPress={() => void openLink(TERMS_URL, 'terms')} accessibilityRole="link">
               Terms of Use
             </Text>
             {PRIVACY_URL ? (
-              <Text style={styles.link} onPress={() => Linking.openURL(PRIVACY_URL)} accessibilityRole="link">
+              <Text style={styles.link} onPress={() => void openLink(PRIVACY_URL, 'privacy')} accessibilityRole="link">
                 Privacy Policy
               </Text>
             ) : null}
