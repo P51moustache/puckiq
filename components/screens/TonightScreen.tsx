@@ -7,7 +7,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { trackedChoice } from '../../services/analytics/selection';
-import { Linking, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter, type Href } from 'expo-router';
@@ -22,7 +22,7 @@ import { RosterBriefCard } from '../tonight/RosterBriefCard';
 import { FreeLineupCallCard } from '../lineup/FreeLineupCallCard';
 import { freeLineupCall } from '../../services/fantasy/freeLineupCall';
 import { startedPlayerIds } from '../../services/fantasy/loadNight';
-import { openHostLink } from '../../services/analytics/openHostLink';
+import { openFantasyHost } from '../../services/native/deviceLinks';
 import { visibleMoves, type CoachMove } from '../../services/fantasy/coach';
 import { isNhlLinked } from '../../services/fantasy/positions';
 import { hasRecap, performerLine, recapWindowOpen } from '../../services/fantasy/recap';
@@ -85,7 +85,7 @@ export default function TonightScreen() {
   const freeCall = team && view.bestDay ? freeLineupCall(team, view.bestDay, view.lineupValues, view.night.data ? startedPlayerIds(view.night.data) : undefined) : null;
   const openHost = () => {
     const host = team ? hostLinkFor(team) : null;
-    if (host) void openHostLink(host, 'free_lineup_call', Linking.openURL, track);
+    if (host) void openFantasyHost(host, 'free_lineup_call');
   };
   const recapOpen = isTonight && recapWindowOpen(now);
   const recap = useNight(team, -1, recapOpen);
