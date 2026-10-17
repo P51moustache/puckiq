@@ -2,7 +2,7 @@
  * "Up next" at the end of Tonight: after the glance at who plays, the one most useful thing to
  * do next, as a single tap. Pure — Tonight gathers the inputs and renders the result.
  *
- * Order: a lineup hole to fill before lock, then a hot player of mine who plays tonight, then
+ * Order: a short roster to finish (the calls only cover players you add), a lineup hole to fill before lock, then a hot player of mine who plays tonight, then
  * tomorrow once tonight is underway (or empty), then the week's head-to-head, then the week.
  * Free users never see Pro numbers here: no head-to-head, and plain games left instead of
  * games that count.
@@ -14,9 +14,10 @@ import type { MatchupSummary } from './matchup';
 import type { NightPhase } from './nightScore';
 import { SLOT_LABEL } from './positions';
 
-export type NextUpKind = 'fill_slot' | 'hot_player' | 'tomorrow' | 'matchup' | 'week';
+export type NextUpKind = 'build_roster' | 'fill_slot' | 'hot_player' | 'tomorrow' | 'matchup' | 'week';
 
 export type NextUpAction =
+  | { type: 'roster' }
   | { type: 'pickups'; date: string; slot: SlotKey }
   | { type: 'player'; playerId: number }
   | { type: 'tomorrow' }
@@ -53,7 +54,15 @@ export interface NextUpInput {
   weekLeft: { games: number; starts: number } | null;
   matchup: Pick<MatchupSummary, 'mine' | 'theirs' | 'verdict'> | null;
   isPro: boolean;
+  /** How many of my own players are on the roster; null for the sample team or no team. */
+  ownRoster: number | null;
 }
+
+/**
+ * Below this many players the nudge asks for the rest of the roster. In October 2026 PostHog data,
+ * people with 10+ players came back 63% of the time against 5% for smaller rosters.
+ */
+export const FULL_ROSTER_MIN = 10;
 
 const MATCHUP_TITLE: Record<MatchupSummary['verdict'], string> = {
   ahead: 'You’re ahead this week',
@@ -65,6 +74,7 @@ export function pickNextUp(input: NextUpInput): NextUpItem | null {
   const beforeLock = input.phase === 'pre' || input.phase === null;
   const hasGames = input.playing.length > 0;
 
+  if (input.ownRoster !== null && input.ownRoster > 0 && input.ownRoster < FULL_ROSTER_MIN) return buildRoster(input.ownRoster);
   if (hasGames && beforeLock && input.emptySlots.length > 0) return fillSlot(input);
   if (input.night === 'tonight' && hasGames && beforeLock) {
     const hot = input.playing.find((player) => player.trend === 'hot');
@@ -97,6 +107,15 @@ export function pickNextUp(input: NextUpInput): NextUpItem | null {
     };
   }
   return null;
+}
+
+function buildRoster(size: number): NextUpItem {
+  return {
+    kind: 'build_roster',
+    title: 'Add the rest of your roster',
+    detail: `${size} of your players are in. Tonight’s calls only cover the players you add.`,
+    action: { type: 'roster' },
+  };
 }
 
 function fillSlot(input: NextUpInput): NextUpItem {

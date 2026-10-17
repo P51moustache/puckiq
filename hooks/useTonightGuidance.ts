@@ -88,6 +88,9 @@ export function useTonightGuidance({ team, view, night, playing, isPro, showTomo
       case 'week':
         router.push('/week' as Href);
         break;
+      case 'roster':
+        router.push('/myteam' as Href);
+        break;
     }
   }, [item, router, openPlayer, showTomorrow]);
 

@@ -107,7 +107,7 @@ describe('useTonightGuidance', () => {
     expect(mockPush).toHaveBeenCalledWith({ pathname: '/pickups', params: { date: '2026-10-13', slot: 'D' } });
   });
 
-  it('opens the player, tomorrow or the week for the other kinds', () => {
+  it('opens the player, tomorrow, the week or the roster for the other kinds', () => {
     const tap = () => {
       const guidance = run();
       act(() => guidance.nextUp.onPress());
@@ -123,5 +123,9 @@ describe('useTonightGuidance', () => {
     mockItem = { kind: 'week', title: 't', detail: 'd', action: { type: 'week' } };
     tap();
     expect(mockPush).toHaveBeenCalledWith('/week');
+
+    mockItem = { kind: 'build_roster', title: 't', detail: 'd', action: { type: 'roster' } };
+    tap();
+    expect(mockPush).toHaveBeenCalledWith('/myteam');
   });
 });

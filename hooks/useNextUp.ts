@@ -8,6 +8,7 @@ import type { FantasyPlayer, FantasyTeam } from '../types/fantasy';
 import { addDays } from '../services/nhl/dates';
 import { matchupTagFor } from '../services/fantasy/matchupTag';
 import { pickNextUp, type NextUpItem } from '../services/fantasy/nextUp';
+import { hasSamplePlayers } from '../constants/sampleTeam';
 import { useWeekData, type NightView } from './useCoach';
 
 export interface NextUpArgs {
@@ -50,6 +51,7 @@ export function useNextUp({ team, view, night, playing, isPro }: NextUpArgs): Ne
       weekLeft: week.plan ? { games: week.plan.remaining.games, starts: week.plan.remaining.starts } : null,
       matchup: week.matchup,
       isPro,
+      ownRoster: team.players.length > 0 && !hasSamplePlayers(team) ? team.players.length : null,
     });
   }, [team, data, night, view.date, view.day, phase, playing, forms, strength, week.plan, week.matchup, isPro]);
 }

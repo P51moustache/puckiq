@@ -11,6 +11,7 @@ import { colors } from '../coach/ui';
 import { Kicker } from './Kicker';
 
 const ICON: Record<NextUpKind, keyof typeof Ionicons.glyphMap> = {
+  build_roster: 'people-outline',
   fill_slot: 'add-circle-outline',
   hot_player: 'flame-outline',
   tomorrow: 'calendar-outline',

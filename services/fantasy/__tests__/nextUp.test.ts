@@ -1,4 +1,4 @@
-import { pickNextUp, type NextUpInput, type NextUpPlayer } from '../nextUp';
+import { FULL_ROSTER_MIN, pickNextUp, type NextUpInput, type NextUpPlayer } from '../nextUp';
 
 const player = (overrides: Partial<NextUpPlayer> = {}): NextUpPlayer => ({
   playerId: 8478402,
@@ -19,10 +19,26 @@ const input = (overrides: Partial<NextUpInput> = {}): NextUpInput => ({
   weekLeft: { games: 24, starts: 18 },
   matchup: null,
   isPro: true,
+  ownRoster: 16,
   ...overrides,
 });
 
 describe('pickNextUp', () => {
+  it('asks for the rest of a short roster before anything else', () => {
+    expect(pickNextUp(input({ ownRoster: 6, emptySlots: ['D'] }))).toEqual({
+      kind: 'build_roster',
+      title: 'Add the rest of your roster',
+      detail: '6 of your players are in. Tonight’s calls only cover the players you add.',
+      action: { type: 'roster' },
+    });
+  });
+
+  it('stops asking once the roster is full enough, and never for the sample team', () => {
+    expect(pickNextUp(input({ ownRoster: FULL_ROSTER_MIN }))?.kind).not.toBe('build_roster');
+    expect(pickNextUp(input({ ownRoster: null }))?.kind).not.toBe('build_roster');
+    expect(pickNextUp(input({ ownRoster: 0 }))?.kind).not.toBe('build_roster');
+  });
+
   it('sends an empty slot before lock to Pickups for that night and slot', () => {
     const item = pickNextUp(input({ emptySlots: ['D'] }));
     expect(item).toEqual({
