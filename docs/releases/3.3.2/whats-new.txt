@@ -1,0 +1,6 @@
+Fixes for making your moves.
+
+• "Open Yahoo" now works every time. It opens the Yahoo app or website, or a browser inside PuckIQ if neither can open.
+• Insights no longer suggests streamers on a night when every game has already started.
+
+Saved plans stay in PuckIQ. You make the final moves in Yahoo, ESPN or Fantrax.
