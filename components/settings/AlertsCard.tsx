@@ -3,10 +3,11 @@
  */
 
 import React from 'react';
-import { Alert, Linking, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAlerts } from '../AlertsProvider';
 import { Card, colors, SectionLabel } from '../coach/ui';
+import { openDeviceSettings } from '../../services/native/deviceLinks';
 
 export function AlertsCard() {
   const alerts = useAlerts();
@@ -21,7 +22,7 @@ export function AlertsCard() {
     if (!ok) {
       Alert.alert('Alerts need notifications', 'Turn on notifications for PuckIQ in iOS Settings to get scratch and goal alerts.', [
         { text: 'Not now', style: 'cancel' },
-        { text: 'Open Settings', onPress: () => Linking.openSettings() },
+        { text: 'Open Settings', onPress: () => void openDeviceSettings('alerts') },
       ]);
     }
   };
