@@ -1,6 +1,9 @@
-Fixes for making your moves.
+Simpler screens, sharper lineup calls, and an "Open Yahoo" button that works.
 
 • "Open Yahoo" now works every time. It opens the Yahoo app or website, or a browser inside PuckIQ if neither can open.
-• Insights no longer suggests streamers on a night when every game has already started.
+• The free lineup call never suggests a player whose game has already started, and Insights stops suggesting streamers once every game that night has started.
+• Added only part of your team? Tonight reminds you to add the rest, so every call covers your whole roster.
+• Tonight, Players, Lineup and Pickups are simpler, with fewer duplicate cards and shorter notes, so your players come first.
+• Privacy, Terms and Settings links open reliably too, with an in-app browser as a fallback.
 
 Saved plans stay in PuckIQ. You make the final moves in Yahoo, ESPN or Fantrax.
