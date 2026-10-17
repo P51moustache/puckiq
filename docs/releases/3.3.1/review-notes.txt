@@ -33,7 +33,7 @@ No account needed. On first launch tap "Set up my team", then on the players ste
 
 Public NHL APIs supply schedule/stats. Prior-season fallback is labeled.
 
-PuckIQ is free to download. PuckIQ Pro is an auto-renewing subscription: Season (yearly, 7-day free trial) or Monthly. Open the paywall from Settings > See Pro or any PRO card (e.g. Insights > Unlock with Pro). Restore Purchases is on the paywall and in Settings. People who bought the old paid app keep Pro automatically (checked from the App Store receipt).
+PuckIQ is free to download. PuckIQ Pro is an auto-renewing subscription: Season (yearly, 7-day free trial) or Monthly. Open the paywall from Settings > See Pro. With the sample team loaded, PRO cards ask the user to add their own players first instead. Restore Purchases is on the paywall and in Settings. People who bought the old paid app keep Pro automatically (checked from the App Store receipt).
 
 Sign in with Apple is optional; it backs up teams and is needed for League Room. Account deletion: Settings > Backup > Delete account (shown when signed in). Feedback: Settings > About > Send feedback.
 
