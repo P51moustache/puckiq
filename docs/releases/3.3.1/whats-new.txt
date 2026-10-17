@@ -1,0 +1,8 @@
+Simpler screens and sharper lineup calls.
+
+• The free lineup call never suggests a player whose game has already started.
+• Added only part of your team? Tonight reminds you to add the rest, so every call covers your whole roster.
+• Tonight, Players, Lineup and Pickups are simpler, with fewer duplicate cards and shorter notes, so your players come first.
+• Privacy, Terms and Settings links now open reliably, with an in-app browser as a fallback.
+
+Saved plans stay in PuckIQ. You make the final moves in Yahoo, ESPN or Fantrax.
