@@ -21,6 +21,7 @@ import { buildNightScore, type NightScore } from '../services/fantasy/nightScore
 import { likelyRosteredIds, rankPickups, type PickupRow } from '../services/fantasy/pickups';
 import { buildWeekPlan, goalieValueOnNight, type DayPlan, type PlanInput, type WeekPlan } from '../services/fantasy/weekPlan';
 import { buildPlannedDay } from '../services/fantasy/lineupPlan';
+import { hasGamesLeftToStart } from '../services/fantasy/loadNight';
 import { lineupCoverageError } from '../services/fantasy/dataQuality';
 import { currentStatuses, namedLineupChecks, type NamedCheck } from '../services/fantasy/lineupChecks';
 import { unavailableCheck } from '../services/data/sourceCheck';
@@ -208,6 +209,7 @@ export function useNight(team: FantasyTeam | null, dayOffset = 0, enabled = true
       forms: forms.data.forms,
       goalieOutlooks,
       when: dayOffset === 0 ? 'tonight' : dayOffset === 1 ? 'tomorrow' : `on ${shortDate(date)}`,
+      streamable: hasGamesLeftToStart(night.data),
     });
   }, [team, bestDay, night.data, forms.data, dayOffset, goalieOutlooks, date]);
 

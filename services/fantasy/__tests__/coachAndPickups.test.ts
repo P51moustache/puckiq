@@ -3,6 +3,7 @@ import { buildSkaterForm, type PlayerForm } from '../form';
 import { filterPickups, rankPickups } from '../pickups';
 import { buildWeekPlan } from '../weekPlan';
 import { compareWeeks } from '../matchup';
+import { hasGamesLeftToStart } from '../loadNight';
 import { busyNight, game, player, week } from './fixtures';
 import type { LineupSlots } from '../../../types/fantasy';
 import type { SkaterLine } from '../../nhl/stats';
@@ -82,6 +83,22 @@ describe('buildCoachMoves', () => {
     expect(empties).toHaveLength(1);
     expect(empties[0].title).toBe('2 empty slots tonight: D · G');
     expect(empties[0].slots).toEqual(['D', 'G']);
+  });
+
+  it('stops suggesting streamers once every game of the night has started', () => {
+    const lonely = [player(8470201, 'Only Center', 'EDM', 'C')];
+    const lonelyPlan = buildWeekPlan({ schedule, players: lonely, slots, values: new Map([[8470201, 3]]), today: TODAY });
+    const lonelyGames = Object.fromEntries(lonely.map((p) => [p.playerId, lonelyPlan.players[p.playerId]?.byDate[TODAY]]));
+    const movesFor = (games: ReturnType<typeof game>[]) => buildCoachMoves({
+      day: lonelyPlan.days[0], players: lonely, games: lonelyGames, statuses: new Map(),
+      forms: new Map([[8470201, formWithValue(8470201, 3)]]), streamable: hasGamesLeftToStart({ games }),
+    }).filter((move) => move.kind === 'empty');
+
+    const allFinal = [game(TODAY, 'EDM', 'TOR', { state: 'OFF' }), game(TODAY, 'BOS', 'NSH', { state: 'FINAL' })];
+    expect(movesFor(allFinal)).toEqual([]);
+    // One game still to come: a streamer from that game can still add a game.
+    const oneLeft = [game(TODAY, 'EDM', 'TOR', { state: 'LIVE' }), game(TODAY, 'BOS', 'NSH', { state: 'FUT' })];
+    expect(movesFor(oneLeft)).toHaveLength(1);
   });
 
   it('groups several overflow sits into one move with every benched player', () => {
