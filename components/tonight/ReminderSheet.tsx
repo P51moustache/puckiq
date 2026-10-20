@@ -1,19 +1,20 @@
 /**
- * Asks for game-night reminders from the bottom of Tonight, once the lineup call has shown
- * (hooks/useReminderPrompt decides when). Reference: concept A in
+ * Asks for game-night reminders from the bottom of Tonight, once the lineup call or recap has
+ * shown (hooks/useReminderPrompt decides when; services/engagement/reminderPrompt words it). Reference: concept A in
  * design/concepts/2026-10-15-onboarding-quick-pick. Drawn inside the screen rather than as a
  * native Modal, so it can't collide with the player sheet or paywall presenting at the same time.
  */
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
-import { formatPuckDrop } from '../../services/nhl/dates';
-import { reminderOfferLine } from '../../services/engagement/reminderPrompt';
+import { reminderOfferCopy, type ReminderMoment } from '../../services/engagement/reminderPrompt';
 import { colors, GhostButton, PrimaryButton } from '../coach/ui';
 import { useBottomTabOverflow } from '../ui/TabBarBackground';
 
 interface ReminderSheetProps {
   visible: boolean;
+  /** Which offer to make; the sheet stays hidden without one. */
+  moment: ReminderMoment | null;
   /** First puck drop among my players tonight (UTC), or null when it isn't known. */
   firstPuck: string | null;
   minutesBefore: number;
@@ -21,7 +22,7 @@ interface ReminderSheetProps {
   onDismiss: () => void;
 }
 
-export function ReminderSheet({ visible, firstPuck, minutesBefore, onAccept, onDismiss }: ReminderSheetProps) {
+export function ReminderSheet({ visible, moment, firstPuck, minutesBefore, onAccept, onDismiss }: ReminderSheetProps) {
   // The iOS tab bar floats over the screen; keep the buttons above it.
   const tabBarHeight = useBottomTabOverflow();
   const [busy, setBusy] = useState(false);
@@ -34,7 +35,8 @@ export function ReminderSheet({ visible, firstPuck, minutesBefore, onAccept, onD
       setBusy(false);
     }
   };
-  if (!visible) return null;
+  if (!visible || !moment) return null;
+  const copy = reminderOfferCopy(moment, minutesBefore, firstPuck, Date.now());
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
       <Animated.View style={[StyleSheet.absoluteFill, { opacity: progress }]}>
@@ -43,8 +45,8 @@ export function ReminderSheet({ visible, firstPuck, minutesBefore, onAccept, onD
       <Animated.View
         style={[styles.sheet, { paddingBottom: tabBarHeight + 16, transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [SLIDE_FROM, 0] }) }] }]} testID="tonight-reminder-prompt">
         <View style={styles.handle} />
-        <Text style={styles.title}>{firstPuck ? `Lineup locks at ${formatPuckDrop(firstPuck)}` : 'Your players play tonight'}</Text>
-        <Text style={styles.body}>{reminderOfferLine(minutesBefore, firstPuck, Date.now())}</Text>
+        <Text style={styles.title}>{copy.title}</Text>
+        <Text style={styles.body}>{copy.body}</Text>
         <PrimaryButton label="Remind me" icon="notifications-outline" onPress={accept} loading={busy} testID="reminder-prompt-on" />
         <GhostButton label="Not now" tone="neutral" onPress={onDismiss} testID="reminder-prompt-later" />
       </Animated.View>

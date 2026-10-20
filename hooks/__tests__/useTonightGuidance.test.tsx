@@ -43,6 +43,7 @@ function run(overrides: Partial<TonightGuidanceArgs> = {}): TonightGuidance {
       night: 'tonight',
       playing: [player] as any,
       isPro: false,
+      recapShown: false,
       showTomorrow,
       showPlayers,
       ...overrides,
@@ -64,19 +65,30 @@ describe('useTonightGuidance', () => {
 
   it('shows the guide on Tonight only, and offers reminders once the lineup call has loaded', () => {
     expect(run().firstNight.visible).toBe(true);
-    expect(mockPromptArgs).toEqual({ gameDay: true, callShown: false });
+    expect(mockPromptArgs).toEqual({ moment: 'before_lock', callShown: false });
     run({ view: { date: '2026-10-13', night: { data: { playerGames: {} } }, day: { starters: [], bench: [], empty: [] } } as any });
-    expect(mockPromptArgs).toEqual({ gameDay: true, callShown: true });
+    expect(mockPromptArgs).toEqual({ moment: 'before_lock', callShown: true });
     expect(run({ night: 'tomorrow' }).firstNight.visible).toBe(false);
-    expect(mockPromptArgs.gameDay).toBe(false);
+    expect(mockPromptArgs.moment).toBeNull();
     expect(run({ team: { players: [] } as any }).firstNight.visible).toBe(false);
   });
 
-  it('offers reminders only before tonight’s first puck drop', () => {
+  it('still offers reminders once tonight has locked, for the next game night', () => {
     run({ view: { date: '2026-10-13', night: { data: { playerGames: {} } }, score: { phase: 'live' } } as any });
-    expect(mockPromptArgs.gameDay).toBe(false);
+    expect(mockPromptArgs.moment).toBe('after_lock');
+    run({ view: { date: '2026-10-13', night: { data: { playerGames: {} } }, score: { phase: 'final' } } as any });
+    expect(mockPromptArgs.moment).toBe('after_lock');
     run({ view: { date: '2026-10-13', night: { data: { playerGames: {} } }, score: { phase: 'pre' } } as any });
-    expect(mockPromptArgs.gameDay).toBe(true);
+    expect(mockPromptArgs.moment).toBe('before_lock');
+  });
+
+  it('offers reminders from the morning recap on a quiet night, with the recap as the value shown', () => {
+    run({ playing: [], recapShown: true });
+    expect(mockPromptArgs).toEqual({ moment: 'recap', callShown: true });
+    run({ playing: [] });
+    expect(mockPromptArgs.moment).toBeNull();
+    run({ playing: [], recapShown: true, night: 'tomorrow' });
+    expect(mockPromptArgs.moment).toBeNull();
   });
 
   it('runs each first-night step and records it', async () => {

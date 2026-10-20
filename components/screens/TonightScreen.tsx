@@ -128,9 +128,9 @@ export default function TonightScreen() {
   const showPlayers = useCallback(() => {
     scroll.current?.scrollTo({ y: Math.max(0, playersY.current - PLAYERS_SCROLL_MARGIN), animated: true });
   }, []);
-  const guidance = useTonightGuidance({ team, view, night, playing, isPro: isPremium, showTomorrow, showPlayers });
-
   const recapScore = recapOpen && hasRecap(recap.score) ? recap.score : null;
+  const guidance = useTonightGuidance({ team, view, night, playing, isPro: isPremium, recapShown: !!recapScore, showTomorrow, showPlayers });
+
   const categories = isCategoryLeague(team) ? team?.categories ?? null : null;
   const tallies = useNightTallies(team, score, data?.liveLines, isPremium);
   const recapTallies = useNightTallies(team, recapScore, recap.night.data?.liveLines, isPremium);
@@ -384,6 +384,7 @@ export default function TonightScreen() {
       </ScrollView>
       <ReminderSheet
         visible={guidance.reminderPrompt.visible}
+        moment={guidance.reminderPrompt.moment}
         firstPuck={firstPuck}
         minutesBefore={guidance.reminderPrompt.minutesBefore}
         onAccept={guidance.reminderPrompt.accept}

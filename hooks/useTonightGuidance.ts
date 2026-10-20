@@ -13,6 +13,7 @@ import { useReminders } from '../components/RemindersProvider';
 import { usePlayerSheet } from '../components/sheets/PlayerSheet';
 import type { NightView } from './useCoach';
 import { useFirstNight } from './useFirstNight';
+import { reminderMoment } from '../services/engagement/reminderPrompt';
 import { useNextUp } from './useNextUp';
 import { useReminderPrompt, type ReminderPrompt } from './useReminderPrompt';
 
@@ -23,6 +24,8 @@ export interface TonightGuidanceArgs {
   /** My players with a game on the viewed night, as Tonight lists them. */
   playing: FantasyPlayer[];
   isPro: boolean;
+  /** Last night's recap card is on screen (Tonight, mornings). */
+  recapShown: boolean;
   /** Switch to the next night and back to the top. */
   showTomorrow: () => void;
   /** Scroll to "Your players tonight". */
@@ -44,16 +47,18 @@ export interface TonightGuidance {
   nextUp: { item: NextUpItem | null; onPress: () => void };
 }
 
-export function useTonightGuidance({ team, view, night, playing, isPro, showTomorrow, showPlayers }: TonightGuidanceArgs): TonightGuidance {
+export function useTonightGuidance({ team, view, night, playing, isPro, recapShown, showTomorrow, showPlayers }: TonightGuidanceArgs): TonightGuidance {
   const router = useRouter();
   const { openPlayer } = usePlayerSheet();
   const { settings, permission, enable } = useReminders();
   const guide = useFirstNight(settings.enabled && permission === 'granted');
   const isTonight = night === 'tonight';
-  // The offer is about tonight's puck drop, so only before it.
-  const beforePuck = (view.score?.phase ?? 'pre') === 'pre';
-  // Asked after value: tonight's lineup call (view.day) has to be on screen first.
-  const reminderPrompt = useReminderPrompt({ gameDay: isTonight && playing.length > 0 && beforePuck, callShown: !!view.day });
+  // Before lock, after it (most visits come during or after the games) or on the morning recap.
+  const moment = isTonight
+    ? reminderMoment({ recapShown, playingTonight: playing.length > 0, beforePuck: (view.score?.phase ?? 'pre') === 'pre' })
+    : null;
+  // Asked after value: tonight's lineup call (view.day) or the recap has to be on screen first.
+  const reminderPrompt = useReminderPrompt({ moment, callShown: moment === 'recap' || !!view.day });
   const item = useNextUp({ team, view, night, playing, isPro });
   useNextUpViewed(item, view.date);
 
