@@ -1,0 +1,39 @@
+NEW IN 3.3.3:
+- The Tonight reminder sheet ("Remind me" / "Not now") is now also offered after games have started or finished ("Catch the next lock") and from the morning recap. It appears about 1 second after the lineup call loads. "Remind me" asks for notification permission.
+
+ALSO IN 3.3.1-3.3.2:
+- "Open Yahoo" / "Open ESPN" open the host app or site, with an in-app browser fallback; legal and Settings links fall back the same way.
+- Simpler screens; the free lineup call and Insights skip players and streamers whose games have started.
+
+ALSO IN 3.3:
+- Setup has three steps: welcome, league, players. The players step offers "Import from screenshots", search, and a grid of popular players (tap a face to add).
+- Reminders are offered on Tonight in a bottom sheet ("Remind me" / "Not now"), not during setup.
+
+Tabs: Home, Players, Lineup, Insights and More. More opens Week, Pickups, League Room and Settings. Lineup "Apply" saves a local PuckIQ plan; it never changes a Yahoo/ESPN/Fantrax team.
+
+ALSO IN 3.2 AND EARLIER:
+- Roster import: on the setup players step (or Players > scan icon), "Import from screenshots" opens the system photo picker (PHPicker, no photo-library permission) and reads player names on the device with Vision. Nothing is uploaded. "Paste or type names" works without photos.
+- Category leagues: setup asks "Points or Categories"; League settings (Players > league rules card, below the list) and a one-time question on Tonight can switch it. Tonight then shows category totals.
+- Lineup reminders name the swaps to make (Settings > Game-night reminders > "Only when my lineup needs a change").
+- Goalie start outlook: estimates from public NHL data, never "confirmed".
+- "Make these moves in Yahoo" opens the Yahoo, ESPN or Fantrax website or app (or a team page the user pastes in League settings). PuckIQ still never signs in to or changes a fantasy league.
+
+OTHER FEATURES:
+
+League Room: More > League Room > Sign in with Apple. Create a private room or join with its code/link. Names are filtered; reactions use fixed emojis, no free-text chat. Owners can remove teams; the room menu offers Report room (emails support).
+
+Player alerts: Settings > Player alerts. A push only when a player on the user's roster is scratched (NHL game report) or scores. The push token and player IDs are not linked to an account.
+
+Widgets: Home Screen (small, medium) and Lock Screen. Live Activity: during live NHL games, Tonight > "Follow on Lock Screen". Tonight shows live fantasy points during games and, until noon ET, a recap of the night before.
+
+PuckIQ helps users manage their existing Yahoo/ESPN/Fantrax roster without signing in to or changing those leagues. No betting or real-money contests.
+
+No account needed. On first launch tap "Set up my team", then on the players step tap "Not sure yet? Try the sample team" to load a full roster (a card offers "Remove sample players" later). Or search any NHL player (e.g. "McDavid").
+
+Public NHL APIs supply schedule/stats. Prior-season fallback is labeled.
+
+PuckIQ is free to download. PuckIQ Pro is an auto-renewing subscription: Season (yearly, 7-day free trial) or Monthly. Open the paywall from Settings > See Pro. With the sample team loaded, PRO cards ask the user to add their own players first instead. Restore Purchases is on the paywall and in Settings. People who bought the old paid app keep Pro automatically (checked from the App Store receipt).
+
+Sign in with Apple is optional; it backs up teams and is needed for League Room. Account deletion: Settings > Backup > Delete account (shown when signed in). Feedback: Settings > About > Send feedback.
+
+Sandbox review: Apple’s fixed 2013-08-01 sandbox original-download date is ignored for paid-app migration and the returning-user gift. A new sandbox user remains free and can test the paywall and subscriptions; active purchased entitlements still unlock Pro.

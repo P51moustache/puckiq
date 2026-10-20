@@ -1,0 +1,43 @@
+PuckIQ helps you make smarter moves for your fantasy hockey roster in the Yahoo, ESPN or Fantrax league you already play. Add your players, scout the schedule and prepare your lineup before lock.
+
+PLAYER SCOUTING
+• Player portraits, season stats and recent-performance graphs
+• Upcoming opponents and schedule assessments
+• Estimated rest-of-season outlooks based on public NHL stats
+• NHL Edge skating, shooting and zone stats with Pro
+
+LINEUP & INSIGHTS
+• See who plays, posted NHL scratches and relevant player news
+• Open insights to see the reason, affected players and your next step
+• PRO: compare your best lineup with a saved start/bench plan for the selected date
+• PRO: every coach move before lock, including bench overflow and open positions
+• Save your plan locally, then open your usual fantasy app to make the moves
+
+YOUR WEEK
+• Every player's schedule, Monday to Sunday, with off-nights highlighted
+• PRO: games that count after lineup limits, bench overflow and empty slots
+• PRO: enter an opponent's roster and compare your matchup
+
+PICKUPS
+• Your top streamer, ranked by the value added to your lineup
+• PRO: the full ranked list by position and night, including dates chosen in the optimizer
+• Availability is an estimate based on league size, unless a League Room marks a player taken; you can hide unavailable players manually
+
+MORE FOR YOUR TEAM
+• Points and category league settings
+• Import your roster from screenshots or pasted player names
+• Live stat lines, game-night reminders, widgets and Live Activities
+• Optional account backup and private League Rooms
+• Share your lineup or week with your league
+• Up to 5 teams with Pro
+
+No account is needed to start. Try the clearly labeled sample roster or add your real players. No ads.
+
+PuckIQ never logs in to your fantasy league or changes its lineup. Plans and projections are estimates. Goalie start outlooks are not confirmed starters. You make the final moves in your fantasy app.
+
+PuckIQ Pro is a yearly or monthly auto-renewing subscription. Payment is charged to your Apple ID. Subscriptions renew automatically unless cancelled at least 24 hours before the current period ends. Manage or cancel in your App Store account settings. Prices and eligible trials are supplied by the App Store.
+
+Terms of Use: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Privacy Policy: https://p51moustache.github.io/puckiq/privacy.html
+
+Schedules, scratches and stats come from public NHL data. PuckIQ is not affiliated with or endorsed by the NHL, Yahoo, ESPN or Fantrax.
