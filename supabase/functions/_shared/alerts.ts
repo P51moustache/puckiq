@@ -1,7 +1,8 @@
 /**
  * Player alerts: the pure core of the live-poller Edge Function (NHL parsing, game-day math, what to
  * read per game, diffing against what was already seen, device matching, push copy, Expo tickets).
- * Plain TypeScript with no imports so Deno and jest both load it as is. I/O lives in live-poller.
+ * Plain TypeScript whose only import is its sibling alertCopy.ts (push wording), so Deno and jest both
+ * load it as is. I/O lives in live-poller.
  *
  * NHL field paths, checked against real payloads (see __fixtures__):
  * - /v1/score/{date}: games[].{id, gameDate, startTimeUTC, gameState, gameScheduleState,
@@ -9,11 +10,18 @@
  * - /v1/gamecenter/{id}/right-rail: gameInfo.{awayTeam,homeTeam}.scratches[].{id, firstName.default, lastName.default}
  * - /v1/gamecenter/{id}/play-by-play: plays[] where typeDescKey === 'goal': eventId, timeInPeriod,
  *   periodDescriptor.{number, periodType, maxRegulationPeriods}, details.{scoringPlayerId,
- *   scoringPlayerTotal (season goals), assist1PlayerId, assist2PlayerId, awayScore, homeScore};
+ *   scoringPlayerTotal (season goals), assist1PlayerId, assist2PlayerId, eventOwnerTeamId, awayScore,
+ *   homeScore}; awayTeam.{id, abbrev}, homeTeam.{id, abbrev};
  *   rosterSpots[].{playerId, teamId, firstName.default, lastName.default}
  * Shootout attempts are 'goal' plays too (periodType 'SO'); they are not goals in any stat, so they
  * never alert. eventIds are not chronological, so "already seen" is always a set, never a max.
  */
+
+import type { AlertCopy, AlertEvent, GoalAlertEvent, ScratchAlertEvent, TeamSide } from './alertCopy.ts';
+import { formatGoalAlert, formatScratchAlert } from './alertCopy.ts';
+
+export { formatGoalAlert, formatScratchAlert, periodText, scoreState } from './alertCopy.ts';
+export type { AlertCopy, AlertEvent, GoalAlertEvent, ScratchAlertEvent, TeamSide } from './alertCopy.ts';
 
 export const NHL_WEB_API = 'https://api-web.nhle.com';
 export const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
@@ -31,9 +39,6 @@ export const EXPO_BATCH_SIZE = 100;
 export const ALERT_TTL_SECONDS = 2 * 60 * 60;
 
 const MINUTE_MS = 60_000;
-const SIREN = '\u{1F6A8}';
-const EN_DASH = '\u2013';
-const DOT = '\u00B7';
 const UNKNOWN_PLAYER = 'Your player';
 
 export type GamePhase = 'pregame' | 'live' | 'final' | 'other';
@@ -59,6 +64,8 @@ export interface PlayerName {
 
 export interface ScratchedPlayer extends PlayerName {
   playerId: number;
+  /** Which team's scratch list he is on. */
+  side: TeamSide;
 }
 
 export interface GoalPlay {
@@ -66,6 +73,8 @@ export interface GoalPlay {
   scorerId: number;
   scorerSeasonGoals: number | null;
   assistIds: number[];
+  /** The scoring team's id (details.eventOwnerTeamId); null when missing. */
+  scoringTeamId: number | null;
   awayScore: number;
   homeScore: number;
   periodLabel: string;
@@ -75,6 +84,8 @@ export interface GoalPlay {
 export interface PlayByPlay {
   awayAbbrev: string;
   homeAbbrev: string;
+  awayTeamId: number | null;
+  homeTeamId: number | null;
   goals: GoalPlay[];
   names: Map<number, PlayerName>;
 }
@@ -96,28 +107,6 @@ export interface GamePlan {
   readGoals: boolean;
   silent: boolean;
 }
-
-export interface GoalAlertEvent {
-  kind: 'goal';
-  key: string;
-  gameId: number;
-  scorer: { playerId: number; fullName: string; shortName: string };
-  scorerSeasonGoals: number | null;
-  assists: { playerId: number; shortName: string }[];
-  scoreLine: string;
-  clock: string;
-}
-
-export interface ScratchAlertEvent {
-  kind: 'scratch';
-  key: string;
-  gameId: number;
-  playerId: number;
-  fullName: string;
-  gameStarted: boolean;
-}
-
-export type AlertEvent = GoalAlertEvent | ScratchAlertEvent;
 
 export interface AlertDevice {
   token: string;
@@ -260,17 +249,17 @@ function scoreFeedGoalCount(game: Json, away: Json | null, home: Json | null): n
 export function parseScratches(payload: unknown): ScratchedPlayer[] {
   const info = asRecord(asRecord(payload)?.gameInfo);
   const rows = [
-    ...asArray(asRecord(info?.awayTeam)?.scratches),
-    ...asArray(asRecord(info?.homeTeam)?.scratches),
+    ...asArray(asRecord(info?.awayTeam)?.scratches).map((raw) => ({ raw, side: 'away' as const })),
+    ...asArray(asRecord(info?.homeTeam)?.scratches).map((raw) => ({ raw, side: 'home' as const })),
   ];
   const seen = new Set<number>();
   const players: ScratchedPlayer[] = [];
-  for (const raw of rows) {
+  for (const { raw, side } of rows) {
     const row = asRecord(raw);
     const playerId = asPositiveInt(row?.id);
     if (playerId === null || seen.has(playerId)) continue;
     seen.add(playerId);
-    players.push({ playerId, firstName: localized(row?.firstName), lastName: localized(row?.lastName) });
+    players.push({ playerId, side, firstName: localized(row?.firstName), lastName: localized(row?.lastName) });
   }
   return players;
 }
@@ -300,6 +289,7 @@ export function parsePlayByPlay(payload: unknown): PlayByPlay | null {
       assistIds: [details?.assist1PlayerId, details?.assist2PlayerId]
         .map(asPositiveInt)
         .filter((id): id is number => id !== null),
+      scoringTeamId: asPositiveInt(details?.eventOwnerTeamId),
       awayScore: asNonNegativeInt(details?.awayScore) ?? 0,
       homeScore: asNonNegativeInt(details?.homeScore) ?? 0,
       periodLabel: periodLabel(play.periodDescriptor),
@@ -309,6 +299,8 @@ export function parsePlayByPlay(payload: unknown): PlayByPlay | null {
   return {
     awayAbbrev: asText(asRecord(root.awayTeam)?.abbrev),
     homeAbbrev: asText(asRecord(root.homeTeam)?.abbrev),
+    awayTeamId: asPositiveInt(asRecord(root.awayTeam)?.id),
+    homeTeamId: asPositiveInt(asRecord(root.homeTeam)?.id),
     goals,
     names,
   };
@@ -457,64 +449,34 @@ export function shortNamesFor(names: Map<number, PlayerName>): Map<number, strin
 }
 
 function goalEvent(game: ScoreGame, pbp: PlayByPlay, goal: GoalPlay, shortNames: Map<number, string>): GoalAlertEvent {
-  const away = pbp.awayAbbrev || game.awayAbbrev;
-  const home = pbp.homeAbbrev || game.homeAbbrev;
+  const scoringSide: TeamSide | null = goal.scoringTeamId === null
+    ? null
+    : goal.scoringTeamId === pbp.awayTeamId ? 'away' : goal.scoringTeamId === pbp.homeTeamId ? 'home' : null;
   return {
     kind: 'goal',
     key: `goal:${game.gameId}:${goal.eventId}`,
     gameId: game.gameId,
-    scorer: {
-      playerId: goal.scorerId,
-      fullName: fullName(pbp.names.get(goal.scorerId)),
-      shortName: shortNames.get(goal.scorerId) ?? UNKNOWN_PLAYER,
-    },
+    scorer: { playerId: goal.scorerId, shortName: shortNames.get(goal.scorerId) ?? UNKNOWN_PLAYER },
     scorerSeasonGoals: goal.scorerSeasonGoals,
     assists: goal.assistIds.map((playerId) => ({ playerId, shortName: shortNames.get(playerId) ?? UNKNOWN_PLAYER })),
-    scoreLine: `${away} ${goal.awayScore}${EN_DASH}${goal.homeScore} ${home}`,
-    clock: `${goal.periodLabel} ${goal.clock}`.trim(),
+    away: { abbrev: pbp.awayAbbrev || game.awayAbbrev, score: goal.awayScore },
+    home: { abbrev: pbp.homeAbbrev || game.homeAbbrev, score: goal.homeScore },
+    scoringSide,
+    period: goal.periodLabel,
+    clock: goal.clock,
   };
 }
 
 function scratchEvent(game: ScoreGame, player: ScratchedPlayer): ScratchAlertEvent {
+  const [team, opponent] = player.side === 'away' ? [game.awayAbbrev, game.homeAbbrev] : [game.homeAbbrev, game.awayAbbrev];
   return {
     kind: 'scratch',
     key: `scratch:${game.gameId}:${player.playerId}`,
     gameId: game.gameId,
     playerId: player.playerId,
-    fullName: fullName(player),
+    shortName: player.lastName || fullName(player),
+    matchup: team && opponent ? `${team} vs ${opponent}` : '',
     gameStarted: game.phase !== 'pregame',
-  };
-}
-
-/** Goal copy for one device, or null when none of its players figure in the goal. */
-export function formatGoalAlert(
-  event: GoalAlertEvent,
-  followed: ReadonlySet<number>,
-): { title: string; body: string; playerId: number } | null {
-  const scorerIsMine = followed.has(event.scorer.playerId);
-  const myAssists = event.assists.filter((assist) => followed.has(assist.playerId));
-  if (!scorerIsMine && myAssists.length === 0) return null;
-  const tally = event.scorerSeasonGoals === null ? '' : ` (${event.scorerSeasonGoals})`;
-  const title = scorerIsMine
-    ? `${SIREN} ${event.scorer.shortName} scores${tally}`
-    : `${SIREN} Goal: ${event.scorer.fullName}${tally}`;
-  const assistNote = myAssists.length === 0
-    ? ''
-    : ` ${DOT} ${myAssists.length === 1 ? 'assist' : 'assists'}: ${myAssists.map((a) => a.shortName).join(', ')}`;
-  return {
-    title,
-    body: `${event.scoreLine} ${DOT} ${event.clock}${assistNote}`,
-    playerId: scorerIsMine ? event.scorer.playerId : myAssists[0].playerId,
-  };
-}
-
-export function formatScratchAlert(event: ScratchAlertEvent): { title: string; body: string; playerId: number } {
-  return {
-    title: `Scratched: ${event.fullName}`,
-    body: event.gameStarted
-      ? 'Out tonight per the NHL game report.'
-      : 'Out tonight per the NHL game report. Check your lineup before lock.',
-    playerId: event.playerId,
   };
 }
 
@@ -534,7 +496,7 @@ export function buildAlerts(events: AlertEvent[], devices: AlertDevice[]): Pendi
   for (const device of devices) {
     const followed = new Set(device.playerIds);
     for (const event of events) {
-      let content: { title: string; body: string; playerId: number } | null = null;
+      let content: AlertCopy | null = null;
       if (event.kind === 'goal' && device.prefs.goals) content = formatGoalAlert(event, followed);
       if (event.kind === 'scratch' && device.prefs.scratches && followed.has(event.playerId)) {
         content = formatScratchAlert(event);

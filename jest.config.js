@@ -8,6 +8,8 @@ module.exports = {
         esModuleInterop: true,
         skipLibCheck: true,
       },
+      // Edge Functions (supabase/functions) run on Deno, which needs './x.ts' import paths.
+      diagnostics: { ignoreCodes: [5097] },
     }],
   },
   globals: {

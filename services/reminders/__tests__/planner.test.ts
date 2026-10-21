@@ -44,37 +44,37 @@ describe('planReminders with lineup data', () => {
     expect(planned[0]).toMatchObject({
       kind: 'lineup',
       date: MONDAY,
-      title: '2 lineup changes tonight',
-      body: `Start Hyman, Pesce · bench Kreider · G slot open. First puck ${formatPuckDrop(MON_PUCK)}.`,
+      title: `Set your lineup by ${formatPuckDrop(MON_PUCK)}`,
+      body: 'Start: Hyman, Pesce\nSit: Kreider\nOpen: G slot',
     });
   });
 
-  it('says "Lineup change" for a single move', () => {
+  it('names a single move', () => {
     const data = lineups([beauties, { [MONDAY]: change(['Hyman'], ['Kreider']) }]);
     const [monday] = planReminders([beauties], [schedule], NEEDED, MORNING, data);
-    expect(monday).toMatchObject({ title: 'Lineup change tonight', body: `Start Hyman · bench Kreider. First puck ${formatPuckDrop(MON_PUCK)}.` });
+    expect(monday).toMatchObject({ title: `Set your lineup by ${formatPuckDrop(MON_PUCK)}`, body: 'Start: Hyman\nSit: Kreider' });
   });
 
   it('keeps every night, with the player count where nothing needs moving, when only-when-needed is off', () => {
     const data = lineups([beauties, { [MONDAY]: change(['Hyman'], ['Kreider']), [TUESDAY]: SET }]);
     const planned = planReminders([beauties], [schedule], EVERY_NIGHT, MORNING, data);
     expect(planned.map((row) => row.date)).toEqual([MONDAY, TUESDAY]);
-    expect(planned[1]).toMatchObject({ title: 'Set your lineup', body: `1 of your players play tonight. First puck ${formatPuckDrop(TUE_PUCK)}.` });
+    expect(planned[1]).toMatchObject({ title: `Set your lineup by ${formatPuckDrop(TUE_PUCK)}`, body: 'Playing: 1 of your players' });
   });
 
   it('treats open slots alone as a pickup, not a lineup move', () => {
     const data = lineups([beauties, { [MONDAY]: change([], [], ['G']) }]);
     expect(planReminders([beauties], [schedule], NEEDED, MORNING, data).map((row) => row.date)).toEqual([TUESDAY]);
     const [monday] = planReminders([beauties], [schedule], EVERY_NIGHT, MORNING, data);
-    expect(monday).toMatchObject({ title: 'Open G slot tonight', body: `2 of your players play tonight · G slot open. First puck ${formatPuckDrop(MON_PUCK)}.` });
+    expect(monday).toMatchObject({ title: `Set your lineup by ${formatPuckDrop(MON_PUCK)}`, body: 'Playing: 2 of your players\nOpen: G slot' });
   });
 
   it('falls back to the count without lineup data, even when only-when-needed is on', () => {
     // Tuesday has no data for this team; Monday has no carried lineup to compare with (null).
     const planned = planReminders([beauties], [schedule], NEEDED, MORNING, lineups([beauties, { [MONDAY]: null }]));
     expect(planned.map((row) => [row.date, row.title, row.body])).toEqual([
-      [MONDAY, 'Set your lineup', `2 of your players play tonight. First puck ${formatPuckDrop(MON_PUCK)}.`],
-      [TUESDAY, 'Set your lineup', `1 of your players play tonight. First puck ${formatPuckDrop(TUE_PUCK)}.`],
+      [MONDAY, `Set your lineup by ${formatPuckDrop(MON_PUCK)}`, 'Playing: 2 of your players'],
+      [TUESDAY, `Set your lineup by ${formatPuckDrop(TUE_PUCK)}`, 'Playing: 1 of your players'],
     ]);
     expect(planReminders([beauties], [schedule], NEEDED, MORNING, new Map())).toHaveLength(2);
   });
@@ -88,15 +88,15 @@ describe('planReminders with lineup data', () => {
     );
     const tuesday = planReminders([beauties, benchMob, thirdLine], [schedule], NEEDED, MORNING, data).find((row) => row.date === TUESDAY);
     expect(tuesday).toMatchObject({
-      title: '3 lineup changes tonight',
-      body: `Beauties: start Hyman, Pesce +1 more · bench Kreider. Third Line: 1 play tonight. First puck ${formatPuckDrop(TUE_PUCK)}.`,
+      title: `Set your lineups by ${formatPuckDrop(TUE_PUCK)}`,
+      body: 'Beauties: Start Hyman, Pesce +1 more\nBeauties: Sit Kreider\nThird Line: 1 playing',
     });
   });
 
   it('caps a long list of names', () => {
     const data = lineups([beauties, { [MONDAY]: change(['Hyman', 'Pesce', 'Tavares', 'Knies', 'Rielly']) }]);
     const [monday] = planReminders([beauties], [schedule], NEEDED, MORNING, data);
-    expect(monday.body).toBe(`Start Hyman, Pesce, Tavares +2 more. First puck ${formatPuckDrop(MON_PUCK)}.`);
+    expect(monday.body).toBe('Start: Hyman, Pesce, Tavares +2 more');
   });
 
   it('leaves "your night is live" unchanged, even on a night the lineup reminder skips', () => {
@@ -107,7 +107,7 @@ describe('planReminders with lineup data', () => {
       ['lineup', TUESDAY],
       ['live', TUESDAY],
     ]);
-    expect(planned[0]).toMatchObject({ title: 'Your night is live', body: '2 of your players play tonight. Follow your points live.' });
-    expect(planned[2]).toMatchObject({ title: 'Your night is live', body: '1 of your players play tonight. Follow your points live.' });
+    expect(planned[0]).toMatchObject({ title: 'Your night is live', body: '2 of your players are playing' });
+    expect(planned[2]).toMatchObject({ title: 'Your night is live', body: '1 of your players is playing' });
   });
 });

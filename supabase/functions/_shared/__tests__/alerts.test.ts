@@ -15,6 +15,7 @@ import {
   evaluateGame,
   eventPlayerIds,
   formatClock,
+  formatScratchAlert,
   isCandidate,
   mapLimit,
   memoryFromRow,
@@ -24,8 +25,10 @@ import {
   parseScoreGames,
   parseScratches,
   periodLabel,
+  periodText,
   planGame,
   readExpoTickets,
+  scoreState,
 } from '../alerts';
 
 // Real NHL payloads, trimmed (see __fixtures__). Live states are derived from them below by cutting
@@ -145,7 +148,8 @@ describe('parseScratches', () => {
   it('reads both teams from a real right-rail', () => {
     const scratches = parseScratches(rightRail);
     expect(scratches.map((s) => s.playerId)).toEqual([8481517, 8482700, 8484801, 8476278, 8478476]);
-    expect(scratches[2]).toEqual({ playerId: PLAYERS.celebrini, firstName: 'Macklin', lastName: 'Celebrini' });
+    expect(scratches[2]).toEqual({ playerId: PLAYERS.celebrini, side: 'away', firstName: 'Macklin', lastName: 'Celebrini' });
+    expect(scratches[3].side).toBe('home');
   });
 
   it('is empty before the report posts or on junk', () => {
@@ -160,12 +164,14 @@ describe('parsePlayByPlay', () => {
     const pbp = parsePlayByPlay(pbpOvertime)!;
     expect(pbp.awayAbbrev).toBe('FLA');
     expect(pbp.homeAbbrev).toBe('ANA');
+    expect([pbp.awayTeamId, pbp.homeTeamId]).toEqual([13, 24]);
     expect(pbp.goals.map((g) => g.eventId)).toEqual([382, 155, 445, 1056, 1128]); // not chronological ids
     expect(pbp.goals[2]).toEqual({
       eventId: 445,
       scorerId: PLAYERS.gauthier,
       scorerSeasonGoals: 2,
       assistIds: [8484762, PLAYERS.carlsson],
+      scoringTeamId: 24,
       awayScore: 1,
       homeScore: 2,
       periodLabel: 'P2',
@@ -308,12 +314,12 @@ describe('alert copy and matching', () => {
   const all = evaluateGame(planGame(liveOvertime(5).game, memory(), OT_START + minutes(40))!, GAME_DAY, undefined, parsePlayByPlay(pbpOvertime)!).events as GoalAlertEvent[];
   const byEvent = (eventId: number) => all.filter((e) => e.key === `goal:${OT_GAME_ID}:${eventId}`);
 
-  it('titles my scorer by last name with the season tally', () => {
+  it('titles my scorer by last name, then the game and the season tally one line each', () => {
     const [alert] = buildAlerts(byEvent(445), [device('ExponentPushToken[a]', [PLAYERS.gauthier, PLAYERS.carlsson])]);
     expect(alert.message).toEqual({
       to: 'ExponentPushToken[a]',
-      title: '\u{1F6A8} Gauthier scores (2)',
-      body: 'FLA 1–2 ANA · P2 0:47 · assist: Carlsson',
+      title: '\u{1F6A8} Gauthier scores',
+      body: 'ANA leads FLA 2–1 · 2nd, 0:47\nGoal #2 this season\nAssists: Sennecke, Carlsson',
       sound: 'default',
       ttl: ALERT_TTL_SECONDS,
       data: { kind: 'goal', gameId: OT_GAME_ID, playerId: PLAYERS.gauthier },
@@ -321,17 +327,19 @@ describe('alert copy and matching', () => {
     expect(alert.eventKey).toBe(`goal:${OT_GAME_ID}:445`);
   });
 
-  it('uses "Goal: scorer" when only my assisters were on it, and disambiguates shared last names', () => {
+  it('titles my assisters when only they were on it, and disambiguates shared last names', () => {
     const [alert] = buildAlerts(byEvent(155), [device('ExpoPushToken[b]', [PLAYERS.bennett, PLAYERS.matthewTkachuk])]);
-    expect(alert.message.title).toBe('\u{1F6A8} Goal: Carter Verhaeghe (1)');
-    expect(alert.message.body).toBe('FLA 1–1 ANA · P1 17:09 · assists: Bennett, M. Tkachuk');
+    expect(alert.message.title).toBe('\u{1F6A8} Bennett and M. Tkachuk get assists');
+    expect(alert.message.body).toBe('Verhaeghe scored · FLA ties ANA 1–1\n1st period, 17:09');
+    const [one] = buildAlerts(byEvent(155), [device('ExpoPushToken[b]', [PLAYERS.bennett])]);
+    expect(one.message.title).toBe('\u{1F6A8} Bennett gets an assist');
     expect(alert.message.data.playerId).toBe(PLAYERS.bennett);
   });
 
   it('formats an overtime winner', () => {
     const [alert] = buildAlerts(byEvent(1128), [device('ExponentPushToken[c]', [PLAYERS.granlund])]);
-    expect(alert.message.title).toBe('\u{1F6A8} Granlund scores (1)');
-    expect(alert.message.body).toBe('FLA 2–3 ANA · OT 4:14');
+    expect(alert.message.title).toBe('\u{1F6A8} Granlund scores');
+    expect(alert.message.body).toBe('ANA beats FLA 3–2 · OT, 4:14\nGoal #1 this season\nAssists: Carlsson, Gauthier');
   });
 
   it('respects prefs and only matches followed players, one push per device and event', () => {
@@ -344,27 +352,53 @@ describe('alert copy and matching', () => {
     expect(alerts.every((a) => a.token === 'ExponentPushToken[both]')).toBe(true);
     // 382 (Gauthier goal, LaCombe + Carlsson assists), 445 (Gauthier goal), 1128 (Carlsson + Gauthier assists)
     expect(alerts.map((a) => a.eventKey)).toEqual([`goal:${OT_GAME_ID}:382`, `goal:${OT_GAME_ID}:445`, `goal:${OT_GAME_ID}:1128`]);
-    expect(alerts[0].message.body).toBe('FLA 0–1 ANA · P1 16:18 · assists: LaCombe, Carlsson');
+    expect(alerts[0].message.body).toBe('ANA leads FLA 1–0 · 1st, 16:18\nGoal #1 this season\nAssists: LaCombe, Carlsson');
   });
 
-  it('writes scratch copy, softer once the game has started', () => {
+  it('writes scratch copy with the matchup, without the lineup nudge once the game has started', () => {
     const [future] = parseScoreGames(scoreFuture);
     const pregame = evaluateGame(planGame(future, undefined, future.startMs! - minutes(60))!, '2026-10-06', parseScratches(rightRail), undefined).events;
     const devices = [device('ExponentPushToken[d]', [PLAYERS.celebrini]), device('ExponentPushToken[e]', [PLAYERS.celebrini], { scratches: false, goals: true })];
+    // This right-rail is from another game; Celebrini is on its away list, so here he plays for NSH.
     const [alert, ...rest] = buildAlerts(pregame, devices);
     expect(rest).toEqual([]);
     expect(alert.message).toMatchObject({
-      title: 'Scratched: Macklin Celebrini',
-      body: 'Out tonight per the NHL game report. Check your lineup before lock.',
+      title: 'Celebrini scratched tonight',
+      body: 'Out per the NHL game report (NSH vs TOR)\nSwap him before lock',
       data: { kind: 'scratch', gameId: 2026020044, playerId: PLAYERS.celebrini },
     });
     const live = { ...future, gameState: 'LIVE', phase: 'live' as const, goalCount: 0 };
     const started = evaluateGame(planGame(live, memory({ gameId: future.gameId }), future.startMs! + minutes(5))!, '2026-10-06', parseScratches(rightRail), undefined).events;
-    expect(buildAlerts(started, devices)[0].message.body).toBe('Out tonight per the NHL game report.');
+    expect(buildAlerts(started, devices)[0].message.body).toBe('Out per the NHL game report (NSH vs TOR)');
+  });
+
+  it('words the score leader first, and copes with a feed missing the scoring team or abbreviations', () => {
+    const goal = (over: Partial<GoalAlertEvent>): GoalAlertEvent => ({
+      kind: 'goal', key: 'k', gameId: 1, scorer: { playerId: 1, shortName: 'X' }, scorerSeasonGoals: null, assists: [],
+      away: { abbrev: 'FLA', score: 3 }, home: { abbrev: 'ANA', score: 2 }, scoringSide: 'home', period: 'P3', clock: '1:02', ...over,
+    });
+    expect(scoreState(goal({}))).toBe('FLA leads ANA 3–2');
+    expect(scoreState(goal({ home: { abbrev: 'ANA', score: 3 } }))).toBe('ANA ties FLA 3–3');
+    expect(scoreState(goal({ home: { abbrev: 'ANA', score: 3 }, scoringSide: null }))).toBe('FLA and ANA tied 3–3');
+    expect(scoreState(goal({ away: { abbrev: '', score: 3 } }))).toBe('3–2');
+    expect(scoreState(goal({ home: { abbrev: 'ANA', score: 4 }, period: '2OT' }))).toBe('ANA beats FLA 4–3');
+    expect(buildAlerts([goal({})], [device('ExponentPushToken[f]', [1])])[0].message.body).toBe('FLA leads ANA 3–2 · 3rd, 1:02');
+  });
+
+  it('names periods for a lock screen', () => {
+    expect(periodText({ period: 'P1', clock: '16:18' }, false)).toBe('1st, 16:18');
+    expect(periodText({ period: 'P3', clock: '0:05' }, true)).toBe('3rd period, 0:05');
+    expect(periodText({ period: '2OT', clock: '4:14' }, true)).toBe('2OT, 4:14');
+    expect(periodText({ period: 'P2', clock: '' }, false)).toBe('2nd');
+  });
+
+  it('leaves the matchup out of a scratch when the feed lacks it', () => {
+    const copy = formatScratchAlert({ kind: 'scratch', key: 'k', gameId: 1, playerId: 5, shortName: 'Your player', matchup: '', gameStarted: true });
+    expect(copy).toEqual({ title: 'Your player scratched tonight', body: 'Out per the NHL game report', playerId: 5 });
   });
 
   it('lists every player an event mentions for the device query', () => {
-    const events: AlertEvent[] = [...byEvent(445), { kind: 'scratch', key: 'scratch:1:5', gameId: 1, playerId: 5, fullName: 'X Y', gameStarted: false }];
+    const events: AlertEvent[] = [...byEvent(445), { kind: 'scratch', key: 'scratch:1:5', gameId: 1, playerId: 5, shortName: 'Y', matchup: '', gameStarted: false }];
     const numeric = (ids: number[]) => [...ids].sort((a, b) => a - b);
     expect(numeric(eventPlayerIds(events))).toEqual(numeric([5, PLAYERS.carlsson, 8484762, PLAYERS.gauthier]));
   });
