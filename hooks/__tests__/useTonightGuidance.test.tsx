@@ -14,10 +14,18 @@ jest.mock('../useFirstNight', () => ({
   useFirstNight: () => ({ active: mockGuideActive, done: [], complete: mockComplete, dismiss: jest.fn() }),
 }));
 let mockPromptArgs: any = null;
+let mockReminderMoment: string | null = null;
 jest.mock('../useReminderPrompt', () => ({
   useReminderPrompt: (args: any) => {
     mockPromptArgs = args;
-    return { visible: false, accept: jest.fn(), dismiss: jest.fn() };
+    return { visible: false, moment: mockReminderMoment, accept: jest.fn(), dismiss: jest.fn() };
+  },
+}));
+let mockReviewArgs: any = null;
+jest.mock('../useReviewPrompt', () => ({
+  useReviewPrompt: (args: any) => {
+    mockReviewArgs = args;
+    return { visible: false, moment: null };
   },
 }));
 let mockItem: any = null;
@@ -30,6 +38,7 @@ import { act, create } from 'react-test-renderer';
 import React from 'react';
 import { useTonightGuidance, type TonightGuidance, type TonightGuidanceArgs } from '../useTonightGuidance';
 
+const goodRecap = { phase: 'final', players: [], hindsight: { best: 20, captured: 19, share: 0.95 } } as any;
 const showTomorrow = jest.fn();
 const showPlayers = jest.fn();
 const player = { playerId: 8478402, playerName: 'Connor McDavid', teamAbbrev: 'EDM', position: 'C', rosterPosition: 'BN' };
@@ -43,7 +52,7 @@ function run(overrides: Partial<TonightGuidanceArgs> = {}): TonightGuidance {
       night: 'tonight',
       playing: [player] as any,
       isPro: false,
-      recapShown: false,
+      recap: null,
       showTomorrow,
       showPlayers,
       ...overrides,
@@ -83,12 +92,29 @@ describe('useTonightGuidance', () => {
   });
 
   it('offers reminders from the morning recap on a quiet night, with the recap as the value shown', () => {
-    run({ playing: [], recapShown: true });
+    run({ playing: [], recap: goodRecap });
     expect(mockPromptArgs).toEqual({ moment: 'recap', callShown: true });
     run({ playing: [] });
     expect(mockPromptArgs.moment).toBeNull();
-    run({ playing: [], recapShown: true, night: 'tomorrow' });
+    run({ playing: [], recap: goodRecap, night: 'tomorrow' });
     expect(mockPromptArgs.moment).toBeNull();
+  });
+
+  it('asks for a review after a good recap, away from onboarding and the reminder offer', () => {
+    mockGuideActive = false;
+    run({ playing: [], recap: goodRecap });
+    expect(mockReviewArgs).toEqual({ moment: 'good_recap', sampleTeam: false, onboarding: false, otherPrompt: false, otherPromptShown: false, live: false });
+    run({ playing: [], recap: { ...goodRecap, hindsight: { best: 20, captured: 10, share: 0.5 } } });
+    expect(mockReviewArgs.moment).toBeNull();
+    run({ playing: [], recap: goodRecap, night: 'tomorrow' });
+    expect(mockReviewArgs.moment).toBeNull();
+    mockReminderMoment = 'recap';
+    run({ playing: [], recap: goodRecap, view: { date: '2026-10-13', night: { data: { playerGames: {} } }, score: { phase: 'live' } } as any });
+    expect(mockReviewArgs).toMatchObject({ otherPrompt: true, live: true });
+    mockReminderMoment = null;
+    mockGuideActive = true;
+    run({ recap: goodRecap });
+    expect(mockReviewArgs.onboarding).toBe(true);
   });
 
   it('runs each first-night step and records it', async () => {

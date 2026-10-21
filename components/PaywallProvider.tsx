@@ -12,6 +12,8 @@ import { needsPersonalRoster, type ProOpportunity } from '../services/fantasy/pr
 
 interface PaywallContextValue {
   openPaywall: (source: PaywallSource, opportunity?: ProOpportunity) => void;
+  /** Epoch ms the paywall last closed this session, or null; other asks keep clear of it. */
+  closedAt: number | null;
 }
 
 const PaywallContext = createContext<PaywallContextValue | undefined>(undefined);
@@ -20,6 +22,7 @@ export function PaywallProvider({ children }: { children: React.ReactNode }) {
   const [source, setSource] = useState<PaywallSource | null>(null);
   const [opportunity, setOpportunity] = useState<ProOpportunity | undefined>();
   const [previewTeamId, setPreviewTeamId] = useState<string | null>(null);
+  const [closedAt, setClosedAt] = useState<number | null>(null);
   const { team, ready } = useTeams();
   const router = useRouter();
   const openPaywall = useCallback((next: PaywallSource, preview?: ProOpportunity) => {
@@ -34,12 +37,12 @@ export function PaywallProvider({ children }: { children: React.ReactNode }) {
     setPreviewTeamId(team?.id ?? null);
     setSource(next);
   }, [ready, team, router]);
-  const value = useMemo(() => ({ openPaywall }), [openPaywall]);
+  const value = useMemo(() => ({ openPaywall, closedAt }), [openPaywall, closedAt]);
 
   return (
     <PaywallContext.Provider value={value}>
       {children}
-      <ProPaywall visible={source !== null && previewTeamId === (team?.id ?? null)} source={source ?? 'settings'} team={team} opportunity={opportunity} onClose={() => setSource(null)} />
+      <ProPaywall visible={source !== null && previewTeamId === (team?.id ?? null)} source={source ?? 'settings'} team={team} opportunity={opportunity} onClose={() => { setSource(null); setClosedAt(Date.now()); }} />
     </PaywallContext.Provider>
   );
 }

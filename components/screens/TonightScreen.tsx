@@ -2,7 +2,8 @@
  * Tonight — home. Before lock: who plays, the moves to make, the best lineup. Once pucks drop:
  * the night's scoreboard, a timing-tower player list and live points on the lineup board.
  * Mornings until noon ET: last night's recap leads the screen. New users get a guided first night;
- * a game-night reminder is offered when it matters; "up next" closes the screen with one next step.
+ * a game-night reminder is offered when it matters, and a review ask after a good night;
+ * "up next" closes the screen with one next step.
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -58,6 +59,7 @@ import { RecapCard } from '../tonight/RecapCard';
 import { FirstNightGuide } from '../tonight/FirstNightGuide';
 import { NextUpCard } from '../tonight/NextUpCard';
 import { ReminderSheet } from '../tonight/ReminderSheet';
+import { ReviewAsk } from '../tonight/ReviewAsk';
 import { LeagueFormatPrompt } from '../tonight/LeagueFormatPrompt';
 import { recapShareContent, tonightShareContent } from '../tonight/shareContent';
 
@@ -130,7 +132,7 @@ export default function TonightScreen() {
     scroll.current?.scrollTo({ y: Math.max(0, playersY.current - PLAYERS_SCROLL_MARGIN), animated: true });
   }, []);
   const recapScore = recapOpen && hasRecap(recap.score) ? recap.score : null;
-  const guidance = useTonightGuidance({ team, view, night, playing, isPro: isPremium, recapShown: !!recapScore, showTomorrow, showPlayers });
+  const guidance = useTonightGuidance({ team, view, night, playing, isPro: isPremium, recap: recapScore, showTomorrow, showPlayers });
 
   const categories = isCategoryLeague(team) ? team?.categories ?? null : null;
   const tallies = useNightTallies(team, score, data?.liveLines, isPremium);
@@ -391,6 +393,7 @@ export default function TonightScreen() {
         onAccept={guidance.reminderPrompt.accept}
         onDismiss={guidance.reminderPrompt.dismiss}
       />
+      <ReviewAsk prompt={guidance.reviewPrompt} recap={recapScore} isPro={isPremium} />
       <ShareCardSheet visible={sharing === 'night'} content={nightShare} onClose={() => setSharing(null)} />
       <ShareCardSheet visible={sharing === 'recap'} content={recapShare} onClose={() => setSharing(null)} />
     </View>

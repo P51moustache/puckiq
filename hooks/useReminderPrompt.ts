@@ -7,8 +7,6 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState } from 'react-native';
-import { useIsFocused } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useReminders } from '../components/RemindersProvider';
 import {
@@ -20,6 +18,7 @@ import {
   type ReminderSkipReason,
 } from '../services/engagement/reminderPrompt';
 import { track } from '../services/analytics/track';
+import { useOnScreen, useSettled, useSkipLog } from './usePromptVisit';
 
 export const REMINDER_PROMPT_KEY = 'puckiq_reminder_prompt';
 /**
@@ -71,15 +70,7 @@ export function useReminderPrompt({ moment, callShown }: { moment: ReminderMomen
     now: new Date(),
   }) : null;
   const eligible = !!state && block === null;
-  const [settled, setSettled] = useState(false);
-  useEffect(() => {
-    if (!eligible || !onScreen) {
-      setSettled(false);
-      return;
-    }
-    const timer = setTimeout(() => setSettled(true), REMINDER_SHEET_DELAY_MS);
-    return () => clearTimeout(timer);
-  }, [eligible, onScreen]);
+  const settled = useSettled(eligible, onScreen, REMINDER_SHEET_DELAY_MS);
   const visible = eligible && onScreen && settled;
 
   useEffect(() => {
@@ -88,7 +79,7 @@ export function useReminderPrompt({ moment, callShown }: { moment: ReminderMomen
     track('reminder_prompt_view', { moment });
   }, [visible, moment]);
 
-  useSkipLog({ onScreen, ready: !!state, skip: block ?? (eligible && !settled ? 'left_early' : null), moment, visible });
+  useSkipLog({ event: 'reminder_prompt_skipped', onScreen, ready: !!state, skip: block ?? (eligible && !settled ? 'left_early' : null), moment, visible });
 
   const { enable } = reminders;
   const accept = useCallback(async () => {
@@ -105,60 +96,4 @@ export function useReminderPrompt({ moment, callShown }: { moment: ReminderMomen
   }, [state, moment]);
 
   return { visible, moment: eligible ? moment : null, minutesBefore: reminders.settings.minutesBefore, accept, dismiss };
-}
-
-/** Tonight is the focused tab and the app is in the foreground. */
-function useOnScreen(): boolean {
-  const focused = useIsFocused();
-  const [active, setActive] = useState(AppState.currentState === 'active');
-  useEffect(() => {
-    const listener = AppState.addEventListener('change', (next) => setActive(next === 'active'));
-    return () => listener.remove();
-  }, []);
-  return focused && active;
-}
-
-/**
- * One `reminder_prompt_skipped` per visit that ends (blur, background or unmount) without the
- * sheet, carrying the rule in force at that moment. Each reason is logged at most once a day,
- * so people who already have reminders on don't send it on every visit.
- */
-function useSkipLog({ onScreen, ready, skip, moment, visible }: {
-  onScreen: boolean;
-  ready: boolean;
-  skip: ReminderSkip | null;
-  moment: ReminderMoment | null;
-  visible: boolean;
-}): void {
-  const latest = useRef({ ready, skip, moment });
-  latest.current = { ready, skip, moment };
-  const logged = useRef(new Set<string>());
-  const visiting = useRef(false);
-  const shown = useRef(false);
-  if (visible) shown.current = true;
-
-  const endVisit = useCallback(() => {
-    if (!visiting.current) return;
-    visiting.current = false;
-    const { ready: loaded, skip: reason, moment: at } = latest.current;
-    const wasShown = shown.current;
-    shown.current = false;
-    if (!loaded || !reason || wasShown) return;
-    const key = `${new Date().toISOString().slice(0, 10)}:${reason}`;
-    if (logged.current.has(key)) return;
-    logged.current.add(key);
-    track('reminder_prompt_skipped', { reason, moment: at });
-  }, []);
-
-  useEffect(() => {
-    if (onScreen) {
-      visiting.current = true;
-      shown.current = visible;
-    } else {
-      endVisit();
-    }
-    // Only a change of screen starts or ends a visit; `visible` is read as it was at that moment.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onScreen, endVisit]);
-  useEffect(() => endVisit, [endVisit]);
 }

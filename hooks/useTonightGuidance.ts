@@ -1,6 +1,6 @@
 /**
- * Tonight's guidance: the first-night guide, the game-night reminder offer and "up next" —
- * when each shows and what each tap does. TonightScreen only renders them.
+ * Tonight's guidance: the first-night guide, the game-night reminder offer, the review ask and
+ * "up next" — when each shows and what each tap does. TonightScreen only renders them.
  */
 
 import { useCallback, useEffect, useRef } from 'react';
@@ -8,14 +8,18 @@ import { useRouter, type Href } from 'expo-router';
 import type { FantasyPlayer, FantasyTeam } from '../types/fantasy';
 import type { FirstNightStep } from '../services/engagement/firstNight';
 import type { NextUpItem } from '../services/fantasy/nextUp';
+import type { NightScore } from '../services/fantasy/nightScore';
+import { hasSamplePlayers } from '../constants/sampleTeam';
 import { track } from '../services/analytics/track';
 import { useReminders } from '../components/RemindersProvider';
 import { usePlayerSheet } from '../components/sheets/PlayerSheet';
 import type { NightView } from './useCoach';
 import { useFirstNight } from './useFirstNight';
 import { reminderMoment } from '../services/engagement/reminderPrompt';
+import { reviewMoment } from '../services/engagement/reviewPrompt';
 import { useNextUp } from './useNextUp';
 import { useReminderPrompt, type ReminderPrompt } from './useReminderPrompt';
+import { useReviewPrompt, type ReviewPrompt } from './useReviewPrompt';
 
 export interface TonightGuidanceArgs {
   team: FantasyTeam | null;
@@ -24,8 +28,8 @@ export interface TonightGuidanceArgs {
   /** My players with a game on the viewed night, as Tonight lists them. */
   playing: FantasyPlayer[];
   isPro: boolean;
-  /** Last night's recap card is on screen (Tonight, mornings). */
-  recapShown: boolean;
+  /** Last night's score while its recap card is on screen (Tonight, mornings), else null. */
+  recap: NightScore | null;
   /** Switch to the next night and back to the top. */
   showTomorrow: () => void;
   /** Scroll to "Your players tonight". */
@@ -44,10 +48,11 @@ export interface FirstNightView {
 export interface TonightGuidance {
   firstNight: FirstNightView;
   reminderPrompt: ReminderPrompt;
+  reviewPrompt: ReviewPrompt;
   nextUp: { item: NextUpItem | null; onPress: () => void };
 }
 
-export function useTonightGuidance({ team, view, night, playing, isPro, recapShown, showTomorrow, showPlayers }: TonightGuidanceArgs): TonightGuidance {
+export function useTonightGuidance({ team, view, night, playing, isPro, recap, showTomorrow, showPlayers }: TonightGuidanceArgs): TonightGuidance {
   const router = useRouter();
   const { openPlayer } = usePlayerSheet();
   const { settings, permission, enable } = useReminders();
@@ -55,10 +60,20 @@ export function useTonightGuidance({ team, view, night, playing, isPro, recapSho
   const isTonight = night === 'tonight';
   // Before lock, after it (most visits come during or after the games) or on the morning recap.
   const moment = isTonight
-    ? reminderMoment({ recapShown, playingTonight: playing.length > 0, beforePuck: (view.score?.phase ?? 'pre') === 'pre' })
+    ? reminderMoment({ recapShown: !!recap, playingTonight: playing.length > 0, beforePuck: (view.score?.phase ?? 'pre') === 'pre' })
     : null;
   // Asked after value: tonight's lineup call (view.day) or the recap has to be on screen first.
   const reminderPrompt = useReminderPrompt({ moment, callShown: moment === 'recap' || !!view.day });
+  const guideVisible = isTonight && guide.active && (team?.players.length ?? 0) > 0;
+  // Asked only after a good night shows in the recap, and never on top of the reminder offer.
+  const reviewPrompt = useReviewPrompt({
+    moment: isTonight ? reviewMoment(recap) : null,
+    sampleTeam: hasSamplePlayers(team),
+    onboarding: guideVisible,
+    otherPrompt: reminderPrompt.moment !== null,
+    otherPromptShown: reminderPrompt.visible,
+    live: isTonight && view.score?.phase === 'live',
+  });
   const item = useNextUp({ team, view, night, playing, isPro });
   useNextUpViewed(item, view.date);
 
@@ -101,13 +116,14 @@ export function useTonightGuidance({ team, view, night, playing, isPro, recapSho
 
   return {
     firstNight: {
-      visible: isTonight && guide.active && (team?.players.length ?? 0) > 0,
+      visible: guideVisible,
       done: guide.done,
       quietNight: !!view.night.data && playing.length === 0,
       onStep,
       onDismiss: guide.dismiss,
     },
     reminderPrompt,
+    reviewPrompt,
     nextUp: { item, onPress: onNextUp },
   };
 }

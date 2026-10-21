@@ -25,6 +25,7 @@ import { LEGACY_ROSTER_KEY } from '../services/teams';
 import { pruneNhlDiskCache } from '../services/nhl/client';
 import { colors } from '../components/coach/ui';
 import { useUsageJourney } from '../hooks/useUsageJourney';
+import { useActiveDayLog } from '../hooks/useActiveDayLog';
 import { TeamActivity } from '../components/analytics/TeamActivity';
 import { NotificationTaps } from '../hooks/useNotificationTaps';
 import { beginFirstNight } from '../services/engagement/firstNightStore';
@@ -48,6 +49,7 @@ function AppContent() {
   const pathname = usePathname();
 
   useUsageJourney(onboardingComplete === null ? null : onboardingComplete ? (pathname === '/' ? '/tonight' : pathname) : '/onboarding');
+  useActiveDayLog();
 
   useEffect(() => {
     AsyncStorage.multiGet([ONBOARDING_KEY, LEGACY_ROSTER_KEY, ...LEGACY_ACTIVITY_KEYS])
