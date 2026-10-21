@@ -92,6 +92,22 @@ describe('RosterStep', () => {
     expect(onDone).toHaveBeenCalledWith('continue', 1);
   });
 
+  it('says a partial roster is partial and shows how far along it is', () => {
+    mockTeam = { id: 't1', players: [1, 2].map((playerId) => ({ playerId, playerName: 'A B', teamAbbrev: 'EDM', position: 'C', rosterPosition: 'BN' })) };
+    const root = render(<RosterStep picks={mockPicks} bottomInset={0} onDone={jest.fn()} />);
+    expect(allText(root)).toContain('2 of ~16 players');
+    expect(allText(root)).toContain('Continue with 2 for now');
+    expect(allText(root)).toContain('Add the rest anytime.');
+  });
+
+  it('drops the progress line once the roster can fill a lineup', () => {
+    mockTeam = { id: 't1', players: Array.from({ length: 16 }, (_, index) => ({ playerId: index + 1, playerName: 'A B', teamAbbrev: 'EDM', position: 'C', rosterPosition: 'BN' })) };
+    const root = render(<RosterStep picks={mockPicks} bottomInset={0} onDone={jest.fn()} />);
+    expect(byTestId(root, 'onboarding-roster-progress')).toHaveLength(0);
+    expect(allText(root)).toContain('Continue with 16');
+    expect(allText(root)).not.toContain('for now');
+  });
+
   it('keeps search working when popular players fail to load', () => {
     mockPicks = { groups: null, loading: false, error: 'offline', retry: jest.fn() };
     const root = render(<RosterStep picks={mockPicks} bottomInset={0} onDone={jest.fn()} />);

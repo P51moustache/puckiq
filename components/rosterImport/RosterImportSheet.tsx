@@ -7,6 +7,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useRosterImport } from '../../hooks/useRosterImport';
+import { useImportGuide } from '../../hooks/useImportGuide';
+import { hostLinkFor } from '../../services/fantasy/hostLinks';
 import { addPlayers } from '../../services/teams';
 import { toFantasyPlayer } from '../../services/rosterImport/review';
 import { track } from '../../services/analytics/track';
@@ -14,6 +16,7 @@ import { useTeams } from '../TeamsProvider';
 import { Card, colors, DarkCard, display, GhostButton, IconButton, PrimaryButton } from '../coach/ui';
 import { ImportReviewList } from './ImportReviewList';
 import { RosterReconcileReview } from './RosterReconcileReview';
+import { ImportGuideFooter, ImportGuidePanel } from './ImportGuidePanel';
 import { rosterReviewKey, type RosterProposal } from '../../services/rosterImport/reconcileRoster';
 
 export type RosterImportSource = 'onboarding' | 'roster' | 'tonight' | 'sample';
@@ -38,12 +41,17 @@ const NO_ROSTER_IDS: ReadonlySet<number> = new Set();
 export function RosterImportSheet({ visible, source, mode = 'add', onClose, onAdded }: RosterImportSheetProps) {
   const { team, updateTeam } = useTeams();
   const rosterIds = useMemo(() => new Set((team?.players ?? []).map((player) => player.playerId)), [team]);
-  const flow = useRosterImport(visible, mode === 'reconcile' ? NO_ROSTER_IDS : rosterIds, source);
+  const host = useMemo(() => (team ? hostLinkFor(team) : null), [team]);
+  const guide = useImportGuide(visible, source, host);
+  const flow = useRosterImport(visible, mode === 'reconcile' ? NO_ROSTER_IDS : rosterIds, source, guide.pickCancelled);
+  // Adding a roster from scratch leads with the league app; updating one already has screenshots in mind.
+  const guided = mode === 'add' && flow.canScan && host !== null;
   const [proposal, setProposal] = useState<RosterProposal | null>(null);
   const [pasting, setPasting] = useState(false);
   const [text, setText] = useState('');
-  const closeState = useRef({ stage: 'choose', added: false });
+  const closeState = useRef({ stage: 'choose', added: false, guide: 'start' });
   closeState.current.stage = flow.stage.kind;
+  closeState.current.guide = guide.guide;
 
   useEffect(() => {
     if (!visible) return;
@@ -55,7 +63,7 @@ export function RosterImportSheet({ visible, source, mode = 'add', onClose, onAd
     setText('');
     setProposal(null);
     return () => track('roster_import_close', {
-      source, stage: visit.stage, added: visit.added,
+      source, stage: visit.stage, added: visit.added, guide: visit.guide,
       elapsed_ms: Math.max(0, Date.now() - startedAt),
     });
   }, [visible, source, mode]);
@@ -101,7 +109,9 @@ export function RosterImportSheet({ visible, source, mode = 'add', onClose, onAd
         </View>
 
         <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-          {stage.kind === 'choose' && !pasting ? (
+          {stage.kind === 'choose' && !pasting && guided && host ? (
+            <ImportGuidePanel guide={guide.guide} hostName={host.name} onOpenHost={() => void guide.openHost()} />
+          ) : stage.kind === 'choose' && !pasting ? (
             <>
               <DarkCard texture style={styles.hero}>
                 <Text style={styles.heroTitle}>{mode === 'reconcile' ? 'UPDATE FROM YOUR LEAGUE' : 'YOUR WHOLE ROSTER, IN SECONDS'}</Text>
@@ -179,7 +189,10 @@ export function RosterImportSheet({ visible, source, mode = 'add', onClose, onAd
         </ScrollView>
 
         <View style={styles.footer}>
-          {stage.kind === 'choose' && !pasting ? (
+          {stage.kind === 'choose' && !pasting && guided && host ? (
+            <ImportGuideFooter guide={guide.guide} hostName={host.name} onOpenHost={() => void guide.openHost()}
+              onScan={() => void flow.scan()} onPaste={() => setPasting(true)} />
+          ) : stage.kind === 'choose' && !pasting ? (
             <>
               {flow.canScan ? (
                 <PrimaryButton label="Choose screenshots" icon="images-outline" onPress={() => void flow.scan()} testID="roster-import-scan" />

@@ -6,13 +6,14 @@ import { useRosterImport, type RosterImport } from '../useRosterImport';
 const mockTrack = jest.fn();
 const mockFetch = jest.fn().mockResolvedValue([]);
 const mockScan = jest.fn();
+const mockCancelled = jest.fn();
 jest.mock('../../services/analytics/track', () => ({ track: (...args: unknown[]) => mockTrack(...args) }));
 jest.mock('../../services/nhl/rosters', () => ({ fetchAllRosters: () => mockFetch() }));
 jest.mock('../../services/native/rosterScanner', () => ({ scanRosterScreenshots: () => mockScan(), rosterScannerSupported: () => true }));
 let latest: RosterImport;
 let tree: any;
 const ids = new Set<number>();
-function Probe() { latest = useRosterImport(true, ids, 'onboarding'); return null; }
+function Probe() { latest = useRosterImport(true, ids, 'onboarding', mockCancelled); return null; }
 beforeEach(() => { jest.clearAllMocks(); mockFetch.mockResolvedValue([]); });
 afterEach(() => act(() => tree?.unmount()));
 async function show() { await act(async () => { tree = create(<Probe />); }); }
@@ -24,6 +25,7 @@ it('distinguishes cancelling the picker from an import failure', async () => {
   expect(latest.stage.kind).toBe('choose');
   expect(mockTrack).toHaveBeenCalledWith('roster_import_cancelled', expect.objectContaining({ source: 'onboarding', method: 'screenshot' }));
   expect(mockTrack.mock.calls.some(([event]) => event === 'roster_import_failure')).toBe(false);
+  expect(mockCancelled).toHaveBeenCalledTimes(1);
 });
 
 it('reports scanner failures by category without publishing screenshot or error content', async () => {

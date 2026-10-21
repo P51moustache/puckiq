@@ -38,7 +38,8 @@ export interface RosterImport {
 const ROSTERS_FAILED = 'Couldn’t load the NHL rosters. Check your connection and try again.';
 const SCAN_FAILED = 'Couldn’t read those screenshots. Try again, or paste the names instead.';
 
-export function useRosterImport(open: boolean, rosterIds: ReadonlySet<number>, source = 'unknown'): RosterImport {
+/** `onPickCancelled`: the picker closed with nothing chosen, usually because there's no screenshot yet. */
+export function useRosterImport(open: boolean, rosterIds: ReadonlySet<number>, source = 'unknown', onPickCancelled?: () => void): RosterImport {
   const [stage, setStage] = useState<ImportStage>({ kind: 'choose' });
   const index = useRef<Promise<PlayerIndex> | null>(null);
   const generation = useRef(0);
@@ -116,10 +117,11 @@ export function useRosterImport(open: boolean, rosterIds: ReadonlySet<number>, s
     if (!images) {
       track('roster_import_cancelled', { source, method: 'screenshot', import_attempt_id: attempt });
       setStage({ kind: 'choose' });
+      onPickCancelled?.();
       return;
     }
     await run(rowsFromOcr(images), 'screenshot', attempt, startedAt, request);
-  }, [run, source]);
+  }, [run, source, onPickCancelled]);
 
   const paste = useCallback(async (text: string) => {
     const request = ++generation.current;

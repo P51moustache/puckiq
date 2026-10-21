@@ -47,7 +47,9 @@ final class RosterScanner: NSObject, PHPickerViewControllerDelegate {
         return
       }
       var configuration = PHPickerConfiguration()
-      configuration.filter = .images
+      // Screenshots only: a roster comes from a screenshot of the league app, and the camera roll
+      // otherwise buries it under photos (users opened the picker and cancelled).
+      configuration.filter = .screenshots
       configuration.selectionLimit = max(1, maxImages)
       let picker = PHPickerViewController(configuration: configuration)
       picker.delegate = self

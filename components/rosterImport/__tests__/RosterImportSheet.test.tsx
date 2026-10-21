@@ -33,6 +33,8 @@ let mockTeam: any = null;
 jest.mock('../../TeamsProvider', () => ({ useTeams: () => ({ team: mockTeam, updateTeam: mockUpdateTeam }) }));
 let mockFlow: any = null;
 jest.mock('../../../hooks/useRosterImport', () => ({ useRosterImport: () => mockFlow }));
+let mockGuide: any = null;
+jest.mock('../../../hooks/useImportGuide', () => ({ useImportGuide: (_visible: boolean, _source: string, host: unknown) => ({ ...mockGuide, host }) }));
 
 // @ts-expect-error no types for react-test-renderer
 import { act, create } from 'react-test-renderer';
@@ -80,8 +82,10 @@ const press = (tree: any, id: string) => act(() => { byTestId(tree, id)[0].props
 describe('RosterImportSheet', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockTeam = createTeam({ name: 'Beauties', players: [] });
+    // No league app to open: the plain steps (the guided first screen is tested below).
+    mockTeam = createTeam({ name: 'Beauties', platform: 'other', players: [] });
     mockFlow = flow();
+    mockGuide = { guide: 'start', openHost: jest.fn(), pickCancelled: jest.fn() };
   });
 
   it('opens on the screenshot pitch and tracks where it came from', () => {
@@ -241,5 +245,49 @@ describe('reviewed roster reconciliation', () => {
     expect(allText(tree)).toContain('Roster names confirmed');
     act(() => tree.update(<RosterConfirmationCard team={{ ...checked, players: [toFantasyPlayer(LUKE)] }} onReview={onClose} />));
     expect(allText(tree)).toContain('Roster changed since your last check');
+  });
+});
+
+describe('RosterImportSheet guided by the league app', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockTeam = createTeam({ name: 'Beauties', platform: 'yahoo', players: [] });
+    mockFlow = flow();
+    mockGuide = { guide: 'start', openHost: jest.fn(), pickCancelled: jest.fn() };
+  });
+
+  it('leads with opening Yahoo, with screenshots and paste as the other ways in', () => {
+    const tree = render();
+    expect(allText(tree)).toContain('START IN YAHOO');
+    press(tree, 'roster-import-open-host');
+    expect(mockGuide.openHost).toHaveBeenCalled();
+    press(tree, 'roster-import-scan');
+    expect(mockFlow.scan).toHaveBeenCalled();
+    expect(byTestId(tree, 'roster-import-paste')).toHaveLength(1);
+  });
+
+  it('greets the user back from Yahoo with one button to choose screenshots', () => {
+    mockGuide.guide = 'returned';
+    const tree = render();
+    expect(allText(tree)).toContain('WELCOME BACK');
+    expect(byTestId(tree, 'roster-import-open-host')).toHaveLength(0);
+    press(tree, 'roster-import-scan');
+    expect(mockFlow.scan).toHaveBeenCalled();
+  });
+
+  it('explains a cancelled pick and offers Yahoo again', () => {
+    mockGuide.guide = 'no_screenshots';
+    const tree = render();
+    expect(allText(tree)).toContain('Nothing selected?');
+    press(tree, 'roster-import-open-host-again');
+    expect(mockGuide.openHost).toHaveBeenCalled();
+  });
+
+  it('keeps the plain steps when updating an existing roster', () => {
+    let tree: any;
+    act(() => { tree = create(<RosterImportSheet visible source="roster" mode="reconcile" onClose={jest.fn()} />); });
+    mounted.push(tree);
+    expect(allText(tree)).toContain('UPDATE FROM YOUR LEAGUE');
+    expect(byTestId(tree, 'roster-import-open-host')).toHaveLength(0);
   });
 });

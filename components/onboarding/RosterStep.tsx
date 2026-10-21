@@ -19,7 +19,8 @@ import type { QuickPicks } from '../../hooks/useQuickPicks';
 import { useTeams } from '../TeamsProvider';
 import { toFantasyPlayer } from '../sheets/PlayerSearchSheet';
 import { PlayerAvatar, PlayerName } from '../coach/PlayerAvatar';
-import { colors, PrimaryButton } from '../coach/ui';
+import { colors, GhostButton, PrimaryButton } from '../coach/ui';
+import { isPartialRoster, rosterContinueLabel, TYPICAL_ROSTER_SIZE } from '../../services/rosterImport/rosterProgress';
 import { RosterImportSheet } from '../rosterImport/RosterImportSheet';
 import { QuickPickGrid } from './QuickPickGrid';
 import { styles } from './styles';
@@ -47,6 +48,8 @@ export function RosterStep({ picks, bottomInset, onDone }: RosterStepProps) {
   const roster = useMemo(() => team?.players ?? [], [team]);
   const rosterIds = useMemo(() => new Set(roster.map((player) => player.playerId)), [roster]);
   const typing = query.trim().length >= 2;
+  // 1–4 players never came back (Oct 2026), so a partial roster says so and import stays the main move.
+  const partial = isPartialRoster(roster.length);
 
   useEffect(() => {
     const trimmed = query.trim();
@@ -96,7 +99,7 @@ export function RosterStep({ picks, bottomInset, onDone }: RosterStepProps) {
       <Text style={styles.stepLede}>
         Tap everyone on your roster, bench too.{roster.length > 0 ? ` ${roster.length} added.` : ''}
       </Text>
-      <Pressable onPress={() => setImporting(true)} style={({ pressed }) => [styles.importCard, pressed && styles.importPressed]} accessibilityRole="button" testID="onboarding-import">
+      <Pressable onPress={() => setImporting(true)} style={({ pressed }) => [styles.importCard, partial && styles.importCardStrong, pressed && styles.importPressed]} accessibilityRole="button" testID="onboarding-import">
         <View style={styles.importIcon}>
           <Ionicons name="scan-outline" size={20} color={colors.onAccent} />
         </View>
@@ -153,12 +156,25 @@ export function RosterStep({ picks, bottomInset, onDone }: RosterStepProps) {
           onToggle={(player) => toggle(player, 'quick_pick')}
         />
       )}
-      <PrimaryButton
-        label={roster.length > 0 ? `Continue with ${roster.length}` : 'Add a player to continue'}
-        onPress={() => onDone('continue', roster.length)}
-        disabled={roster.length === 0}
-        testID="onboarding-roster-continue"
-      />
+      {partial ? (
+        <>
+          <View style={styles.rosterProgress} testID="onboarding-roster-progress">
+            <Text style={styles.rosterProgressText}>{roster.length} of ~{TYPICAL_ROSTER_SIZE} players</Text>
+            <View style={styles.rosterProgressTrack}>
+              <View style={[styles.rosterProgressFill, { width: `${Math.min(100, (roster.length / TYPICAL_ROSTER_SIZE) * 100)}%` }]} />
+            </View>
+          </View>
+          <GhostButton label={rosterContinueLabel(roster.length)} tone="neutral" onPress={() => onDone('continue', roster.length)} testID="onboarding-roster-continue" />
+          <Text style={styles.rosterProgressNote}>Add the rest anytime.</Text>
+        </>
+      ) : (
+        <PrimaryButton
+          label={rosterContinueLabel(roster.length)}
+          onPress={() => onDone('continue', roster.length)}
+          disabled={roster.length === 0}
+          testID="onboarding-roster-continue"
+        />
+      )}
       {roster.length === 0 ? (
         <Pressable onPress={trySample} style={styles.skip} testID="onboarding-sample-team">
           <Text style={styles.sampleText}>Not sure yet? Try the sample team</Text>

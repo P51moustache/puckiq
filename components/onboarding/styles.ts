@@ -4,6 +4,12 @@ import { ART_ASPECT } from '../../constants/art';
 export const styles = StyleSheet.create({
   importCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 16, backgroundColor: colors.ink, marginBottom: 12 },
   importPressed: { opacity: 0.85 },
+  importCardStrong: { borderWidth: 1.5, borderColor: colors.accent },
+  rosterProgress: { gap: 8, marginBottom: 10 },
+  rosterProgressText: { fontSize: 14, fontWeight: '700', color: colors.sub },
+  rosterProgressTrack: { height: 6, borderRadius: 3, overflow: 'hidden', backgroundColor: colors.track },
+  rosterProgressFill: { height: 6, borderRadius: 3, backgroundColor: colors.accent },
+  rosterProgressNote: { textAlign: 'center', fontSize: 13, color: colors.muted, marginTop: 8 },
   importIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accent },
   importTitle: { fontSize: 16, fontWeight: '800', color: colors.onInk },
   importDetail: { fontSize: 13, lineHeight: 18, color: colors.onInkSub },
