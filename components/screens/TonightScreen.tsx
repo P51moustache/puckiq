@@ -20,6 +20,7 @@ import { useLineupActions } from '../../hooks/useLineupActions';
 import { useRosterBrief } from '../../hooks/useRosterBrief';
 import { RosterBriefCard } from '../tonight/RosterBriefCard';
 import { FreeLineupCallCard } from '../lineup/FreeLineupCallCard';
+import { nightCallReasons } from '../../hooks/lineupCallReasons';
 import { freeLineupCall } from '../../services/fantasy/freeLineupCall';
 import { startedPlayerIds } from '../../services/fantasy/loadNight';
 import { openFantasyHost } from '../../services/native/deviceLinks';
@@ -306,7 +307,7 @@ export default function TonightScreen() {
                 <Image source={ART.noGames} style={styles.quietArt} contentFit="contain" accessible={false} testID="tonight-no-games-art" />
               ) : null}
               {!isPremium && playing.length > 0 ? (
-                <FreeLineupCallCard call={freeCall} team={team} locked={lineupActions.locked} pending={!lineupActions.loaded} onSave={() => lineupActions.applyFreeCall(freeCall)} onOpenHost={openHost} />
+                <FreeLineupCallCard call={freeCall} team={team} locked={lineupActions.locked} pending={!lineupActions.loaded} onSave={() => lineupActions.applyFreeCall(freeCall)} onOpenHost={openHost} reasons={nightCallReasons(view, team, freeCall)} />
               ) : null}
               {playing.length > 0 && view.moves.length > 0 && !locked ? (
                 <CoachMovesSection

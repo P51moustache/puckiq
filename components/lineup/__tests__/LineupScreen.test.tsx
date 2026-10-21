@@ -62,6 +62,8 @@ jest.mock('../../../hooks/useCoach', () => ({
       day: buildPlannedDay(mockTeam, bestDay, values),
       lineupValues: values,
       night: { data: { games: [game(date, 'EDM', 'NJD')], playerGames: {} } },
+      forms: { data: null },
+      goalieOutlooks: new Map(),
       loading: false,
       error: null,
       refreshing: false,

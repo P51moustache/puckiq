@@ -15,6 +15,7 @@ import { lineupValue } from '../../services/fantasy/lineupPlan';
 import { freeLineupCall } from '../../services/fantasy/freeLineupCall';
 import { startedPlayerIds } from '../../services/fantasy/loadNight';
 import { FreeLineupCallCard } from '../lineup/FreeLineupCallCard';
+import { nightCallReasons } from '../../hooks/lineupCallReasons';
 import { hasSamplePlayers } from '../../constants/sampleTeam';
 import SampleTeamNotice from '../coach/SampleTeamNotice';
 import { formatValue } from '../../services/fantasy/scoring';
@@ -152,7 +153,7 @@ export default function LineupScreen() {
             ) : !isPremium ? (
               <>
               {freeCall ? (
-                <FreeLineupCallCard call={freeCall} team={team} locked={actions.locked} pending={!actions.loaded} onSave={() => actions.applyFreeCall(freeCall)} onOpenHost={openHost} />
+                <FreeLineupCallCard call={freeCall} team={team} locked={actions.locked} pending={!actions.loaded} onSave={() => actions.applyFreeCall(freeCall)} onOpenHost={openHost} reasons={nightCallReasons(view, team, freeCall)} />
               ) : (
                 <Card testID="free-lineup-none">
                   <Text style={styles.copy}>
