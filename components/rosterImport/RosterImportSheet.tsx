@@ -49,6 +49,8 @@ export function RosterImportSheet({ visible, source, mode = 'add', onClose, onAd
   const [proposal, setProposal] = useState<RosterProposal | null>(null);
   const [pasting, setPasting] = useState(false);
   const [text, setText] = useState('');
+  // The guided first screen keeps its buttons right under the art (concept B), so no pinned footer.
+  const guiding = guided && host !== null && flow.stage.kind === 'choose' && !pasting;
   const closeState = useRef({ stage: 'choose', added: false, guide: 'start' });
   closeState.current.stage = flow.stage.kind;
   closeState.current.guide = guide.guide;
@@ -109,8 +111,14 @@ export function RosterImportSheet({ visible, source, mode = 'add', onClose, onAd
         </View>
 
         <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-          {stage.kind === 'choose' && !pasting && guided && host ? (
-            <ImportGuidePanel guide={guide.guide} hostName={host.name} onOpenHost={() => void guide.openHost()} />
+          {guiding && host ? (
+            <>
+              <ImportGuidePanel guide={guide.guide} hostName={host.name} onOpenHost={() => void guide.openHost()} />
+              <View style={styles.guideButtons}>
+                <ImportGuideFooter guide={guide.guide} hostName={host.name} onOpenHost={() => void guide.openHost()}
+                  onScan={() => void flow.scan()} onPaste={() => setPasting(true)} />
+              </View>
+            </>
           ) : stage.kind === 'choose' && !pasting ? (
             <>
               <DarkCard texture style={styles.hero}>
@@ -188,11 +196,9 @@ export function RosterImportSheet({ visible, source, mode = 'add', onClose, onAd
           ) : null}
         </ScrollView>
 
+        {guiding ? null : (
         <View style={styles.footer}>
-          {stage.kind === 'choose' && !pasting && guided && host ? (
-            <ImportGuideFooter guide={guide.guide} hostName={host.name} onOpenHost={() => void guide.openHost()}
-              onScan={() => void flow.scan()} onPaste={() => setPasting(true)} />
-          ) : stage.kind === 'choose' && !pasting ? (
+          {stage.kind === 'choose' && !pasting ? (
             <>
               {flow.canScan ? (
                 <PrimaryButton label="Choose screenshots" icon="images-outline" onPress={() => void flow.scan()} testID="roster-import-scan" />
@@ -226,6 +232,7 @@ export function RosterImportSheet({ visible, source, mode = 'add', onClose, onAd
           ) : null}
           {stage.kind === 'error' ? <PrimaryButton label="Try again" onPress={startOver} testID="roster-import-retry" /> : null}
         </View>
+        )}
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -234,8 +241,9 @@ export function RosterImportSheet({ visible, source, mode = 'add', onClose, onAd
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingTop: 18, paddingBottom: 8 },
-  title: { ...display(26), textTransform: 'uppercase' },
+  title: { fontSize: 15, fontWeight: '800', letterSpacing: 1, color: colors.sub, textTransform: 'uppercase' },
   body: { paddingHorizontal: 18, paddingBottom: 24, gap: 12 },
+  guideButtons: { gap: 10, paddingBottom: 4 },
   hero: { gap: 10, padding: 18 },
   heroTitle: { ...display(30), color: colors.onInk, lineHeight: 34 },
   heroBody: { fontSize: 15, lineHeight: 21, color: colors.onInkSub },

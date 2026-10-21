@@ -22,6 +22,7 @@ import { PlayerAvatar, PlayerName } from '../coach/PlayerAvatar';
 import { colors, GhostButton, PrimaryButton } from '../coach/ui';
 import { isPartialRoster, rosterContinueLabel, TYPICAL_ROSTER_SIZE } from '../../services/rosterImport/rosterProgress';
 import { RosterImportSheet } from '../rosterImport/RosterImportSheet';
+import { hostLinkFor } from '../../services/fantasy/hostLinks';
 import { QuickPickGrid } from './QuickPickGrid';
 import { styles } from './styles';
 
@@ -50,6 +51,7 @@ export function RosterStep({ picks, bottomInset, onDone }: RosterStepProps) {
   const typing = query.trim().length >= 2;
   // 1–4 players never came back (Oct 2026), so a partial roster says so and import stays the main move.
   const partial = isPartialRoster(roster.length);
+  const hostName = useMemo(() => (team ? hostLinkFor(team)?.name : undefined), [team]);
 
   useEffect(() => {
     const trimmed = query.trim();
@@ -99,7 +101,21 @@ export function RosterStep({ picks, bottomInset, onDone }: RosterStepProps) {
       <Text style={styles.stepLede}>
         Tap everyone on your roster, bench too.{roster.length > 0 ? ` ${roster.length} added.` : ''}
       </Text>
-      <Pressable onPress={() => setImporting(true)} style={({ pressed }) => [styles.importCard, partial && styles.importCardStrong, pressed && styles.importPressed]} accessibilityRole="button" testID="onboarding-import">
+      {partial ? (
+        <View style={styles.wholeTeam} testID="onboarding-import-card">
+          <View style={styles.wholeTeamRow}>
+            <View style={styles.wholeTeamIcon}>
+              <Ionicons name="document-attach-outline" size={26} color={colors.accent} />
+            </View>
+            <View style={styles.flex}>
+              <Text style={styles.wholeTeamTitle}>Bring in your whole team</Text>
+              <Text style={styles.wholeTeamBody}>{`Screenshot your ${hostName ?? 'league'} roster to add everyone.`}</Text>
+            </View>
+          </View>
+          <PrimaryButton label="Import roster" onPress={() => setImporting(true)} testID="onboarding-import" />
+        </View>
+      ) : (
+      <Pressable onPress={() => setImporting(true)} style={({ pressed }) => [styles.importCard, pressed && styles.importPressed]} accessibilityRole="button" testID="onboarding-import">
         <View style={styles.importIcon}>
           <Ionicons name="scan-outline" size={20} color={colors.onAccent} />
         </View>
@@ -109,6 +125,7 @@ export function RosterStep({ picks, bottomInset, onDone }: RosterStepProps) {
         </View>
         <Ionicons name="chevron-forward" size={18} color={colors.onInkSub} />
       </Pressable>
+      )}
       <RosterImportSheet visible={importing} source="onboarding" onClose={() => setImporting(false)} />
       <View style={styles.searchBox}>
         <Ionicons name="search" size={16} color={colors.muted} />

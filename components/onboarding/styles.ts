@@ -4,7 +4,11 @@ import { ART_ASPECT } from '../../constants/art';
 export const styles = StyleSheet.create({
   importCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 16, backgroundColor: colors.ink, marginBottom: 12 },
   importPressed: { opacity: 0.85 },
-  importCardStrong: { borderWidth: 1.5, borderColor: colors.accent },
+  wholeTeam: { gap: 14, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(225, 235, 245, 0.12)', backgroundColor: colors.card, marginBottom: 12 },
+  wholeTeamRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  wholeTeamIcon: { width: 56, height: 56, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255, 37, 45, 0.16)' },
+  wholeTeamTitle: { fontSize: 18, fontWeight: '800', color: colors.text },
+  wholeTeamBody: { marginTop: 3, fontSize: 14, lineHeight: 19, color: colors.sub },
   rosterProgress: { gap: 8, marginBottom: 10 },
   rosterProgressText: { fontSize: 14, fontWeight: '700', color: colors.sub },
   rosterProgressTrack: { height: 6, borderRadius: 3, overflow: 'hidden', backgroundColor: colors.track },

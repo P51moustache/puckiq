@@ -9,8 +9,8 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { ImportGuide } from '../../services/rosterImport/importGuide';
-import { colors, DarkCard, display, GhostButton, PrimaryButton } from '../coach/ui';
-import { RosterSketch } from './RosterSketch';
+import { colors, display, GhostButton, PrimaryButton } from '../coach/ui';
+import { RosterPhones, RosterThumbs } from './RosterSketch';
 
 interface PanelProps {
   guide: ImportGuide;
@@ -21,15 +21,14 @@ interface PanelProps {
 
 export function ImportGuidePanel({ guide, hostName, onOpenHost }: PanelProps) {
   const back = guide === 'returned';
+  const picking = back || guide === 'no_screenshots';
   return (
     <>
-      <DarkCard texture style={styles.hero} testID={`roster-import-guide-${guide}`}>
-        <Text style={styles.heroTitle}>{back ? 'WELCOME BACK' : `START IN ${hostName.toUpperCase()}`}</Text>
-        <Text style={styles.heroBody}>
-          {back ? 'Pick the 2–3 screenshots you just took.' : 'Open your team and take 2–3 screenshots to capture your whole roster.'}
-        </Text>
-        {back ? null : <RosterSketch />}
-      </DarkCard>
+      <View style={styles.hero} testID={`roster-import-guide-${guide}`}>
+        <Text style={styles.heroTitle} numberOfLines={1} adjustsFontSizeToFit>{back ? 'WELCOME BACK' : `START IN ${hostName.toUpperCase()}`}</Text>
+        <Text style={styles.heroBody}>{heroBody(guide)}</Text>
+      </View>
+      {picking ? <RosterThumbs host={hostName} /> : <RosterPhones host={hostName} />}
       {guide === 'no_screenshots' ? (
         <View style={styles.nudge} testID="roster-import-no-screenshots">
           <View style={styles.nudgeRow}>
@@ -39,7 +38,7 @@ export function ImportGuidePanel({ guide, hostName, onOpenHost }: PanelProps) {
               <Text style={styles.nudgeBody}>Take your roster screenshots in {hostName}, then come back.</Text>
             </View>
           </View>
-          <GhostButton label={`Open ${hostName} again`} icon="open-outline" tone="neutral" onPress={onOpenHost} testID="roster-import-open-host-again" />
+          <GhostButton label={`Open ${hostName} again`} tone="neutral" onPress={onOpenHost} testID="roster-import-open-host-again" />
         </View>
       ) : null}
     </>
@@ -57,11 +56,11 @@ export function ImportGuideFooter({ guide, hostName, onOpenHost, onScan, onPaste
   return (
     <>
       {ready ? (
-        <PrimaryButton label="Choose screenshots" icon="images-outline" onPress={onScan} testID="roster-import-scan" />
+        <PrimaryButton label="Choose screenshots" onPress={onScan} testID="roster-import-scan" />
       ) : (
         <>
-          <PrimaryButton label={`Open ${hostName} to screenshot your roster`} icon="open-outline" onPress={onOpenHost} testID="roster-import-open-host" />
-          <GhostButton label="I already have screenshots" icon="images-outline" tone="neutral" onPress={onScan} testID="roster-import-scan" />
+          <PrimaryButton label={`Open ${hostName} to screenshot your roster`} onPress={onOpenHost} testID="roster-import-open-host" />
+          <GhostButton label="I already have screenshots" tone="neutral" onPress={onScan} testID="roster-import-scan" />
         </>
       )}
       <Pressable onPress={onPaste} style={styles.link} accessibilityRole="button" testID="roster-import-paste">
@@ -72,11 +71,17 @@ export function ImportGuideFooter({ guide, hostName, onOpenHost, onScan, onPaste
   );
 }
 
+function heroBody(guide: ImportGuide): string {
+  if (guide === 'returned') return 'Pick the 2–3 screenshots you just took.';
+  if (guide === 'no_screenshots') return 'Pick 2–3 screenshots of your roster screen, like these.';
+  return 'Open your team and take 2–3 screenshots to capture your whole roster.';
+}
+
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  hero: { gap: 10, padding: 18 },
-  heroTitle: { ...display(30), color: colors.onInk, lineHeight: 34 },
-  heroBody: { fontSize: 15, lineHeight: 21, color: colors.onInkSub },
+  hero: { gap: 8 },
+  heroTitle: { ...display(44), fontWeight: '900', letterSpacing: -1.2, lineHeight: 48 },
+  heroBody: { fontSize: 18, lineHeight: 24, color: colors.text },
   nudge: {
     gap: 12,
     padding: 14,
@@ -85,7 +90,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(241, 185, 82, 0.45)',
     backgroundColor: 'rgba(241, 185, 82, 0.06)',
   },
-  nudgeRow: { flexDirection: 'row', gap: 10 },
+  nudgeRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
   nudgeTitle: { fontSize: 16, fontWeight: '800', color: colors.warn },
   nudgeBody: { fontSize: 14, lineHeight: 20, color: colors.sub },
   link: { alignItems: 'center', paddingVertical: 4 },

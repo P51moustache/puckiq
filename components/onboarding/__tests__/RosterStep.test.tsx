@@ -93,8 +93,10 @@ describe('RosterStep', () => {
   });
 
   it('says a partial roster is partial and shows how far along it is', () => {
-    mockTeam = { id: 't1', players: [1, 2].map((playerId) => ({ playerId, playerName: 'A B', teamAbbrev: 'EDM', position: 'C', rosterPosition: 'BN' })) };
+    mockTeam = { id: 't1', platform: 'yahoo', players: [1, 2].map((playerId) => ({ playerId, playerName: 'A B', teamAbbrev: 'EDM', position: 'C', rosterPosition: 'BN' })) };
     const root = render(<RosterStep picks={mockPicks} bottomInset={0} onDone={jest.fn()} />);
+    expect(byTestId(root, 'onboarding-import-card')).toHaveLength(1);
+    expect(allText(root)).toContain('Screenshot your Yahoo roster to add everyone.');
     expect(allText(root)).toContain('2 of ~16 players');
     expect(allText(root)).toContain('Continue with 2 for now');
     expect(allText(root)).toContain('Add the rest anytime.');
@@ -104,6 +106,7 @@ describe('RosterStep', () => {
     mockTeam = { id: 't1', players: Array.from({ length: 16 }, (_, index) => ({ playerId: index + 1, playerName: 'A B', teamAbbrev: 'EDM', position: 'C', rosterPosition: 'BN' })) };
     const root = render(<RosterStep picks={mockPicks} bottomInset={0} onDone={jest.fn()} />);
     expect(byTestId(root, 'onboarding-roster-progress')).toHaveLength(0);
+    expect(byTestId(root, 'onboarding-import-card')).toHaveLength(0);
     expect(allText(root)).toContain('Continue with 16');
     expect(allText(root)).not.toContain('for now');
   });
