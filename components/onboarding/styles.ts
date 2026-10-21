@@ -2,8 +2,6 @@ import { StyleSheet } from 'react-native';
 import { colors, display, layout } from '../coach/theme';
 import { ART_ASPECT } from '../../constants/art';
 export const styles = StyleSheet.create({
-  importCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 16, backgroundColor: colors.ink, marginBottom: 12 },
-  importPressed: { opacity: 0.85 },
   wholeTeam: { gap: 14, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(225, 235, 245, 0.12)', backgroundColor: colors.card, marginBottom: 12 },
   wholeTeamRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   wholeTeamIcon: { width: 56, height: 56, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255, 37, 45, 0.16)' },
@@ -14,9 +12,6 @@ export const styles = StyleSheet.create({
   rosterProgressTrack: { height: 6, borderRadius: 3, overflow: 'hidden', backgroundColor: colors.track },
   rosterProgressFill: { height: 6, borderRadius: 3, backgroundColor: colors.accent },
   rosterProgressNote: { textAlign: 'center', fontSize: 13, color: colors.muted, marginTop: 8 },
-  importIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accent },
-  importTitle: { fontSize: 16, fontWeight: '800', color: colors.onInk },
-  importDetail: { fontSize: 13, lineHeight: 18, color: colors.onInkSub },
   container: {
     flex: 1,
     backgroundColor: colors.bg,

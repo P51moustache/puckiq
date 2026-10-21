@@ -54,6 +54,8 @@ describe('RosterStep', () => {
   it('leads with screenshot import, then the most-owned forwards as a grid', () => {
     const root = render(<RosterStep picks={mockPicks} bottomInset={0} onDone={jest.fn()} />);
     expect(byTestId(root, 'onboarding-import')).toHaveLength(1);
+    // The same card at every roster size, so tapping players never shifts the grid.
+    expect(byTestId(root, 'onboarding-import-card')).toHaveLength(1);
     expect(byTestId(root, 'quick-pick-8478402')).toHaveLength(1);
     expect(byTestId(root, 'quick-pick-8480069')).toHaveLength(0);
     press(root, 'quick-pick-group-D');
@@ -106,7 +108,7 @@ describe('RosterStep', () => {
     mockTeam = { id: 't1', players: Array.from({ length: 16 }, (_, index) => ({ playerId: index + 1, playerName: 'A B', teamAbbrev: 'EDM', position: 'C', rosterPosition: 'BN' })) };
     const root = render(<RosterStep picks={mockPicks} bottomInset={0} onDone={jest.fn()} />);
     expect(byTestId(root, 'onboarding-roster-progress')).toHaveLength(0);
-    expect(byTestId(root, 'onboarding-import-card')).toHaveLength(0);
+    expect(byTestId(root, 'onboarding-import-card')).toHaveLength(1);
     expect(allText(root)).toContain('Continue with 16');
     expect(allText(root)).not.toContain('for now');
   });

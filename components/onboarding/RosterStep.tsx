@@ -101,31 +101,19 @@ export function RosterStep({ picks, bottomInset, onDone }: RosterStepProps) {
       <Text style={styles.stepLede}>
         Tap everyone on your roster, bench too.{roster.length > 0 ? ` ${roster.length} added.` : ''}
       </Text>
-      {partial ? (
-        <View style={styles.wholeTeam} testID="onboarding-import-card">
-          <View style={styles.wholeTeamRow}>
-            <View style={styles.wholeTeamIcon}>
-              <Ionicons name="document-attach-outline" size={26} color={colors.accent} />
-            </View>
-            <View style={styles.flex}>
-              <Text style={styles.wholeTeamTitle}>Bring in your whole team</Text>
-              <Text style={styles.wholeTeamBody}>{`Screenshot your ${hostName ?? 'league'} roster to add everyone.`}</Text>
-            </View>
+      {/* Same card at every roster size, so the grid below never moves while players are tapped. */}
+      <View style={styles.wholeTeam} testID="onboarding-import-card">
+        <View style={styles.wholeTeamRow}>
+          <View style={styles.wholeTeamIcon}>
+            <Ionicons name="document-attach-outline" size={26} color={colors.accent} />
           </View>
-          <PrimaryButton label="Import roster" onPress={() => setImporting(true)} testID="onboarding-import" />
+          <View style={styles.flex}>
+            <Text style={styles.wholeTeamTitle}>Bring in your whole team</Text>
+            <Text style={styles.wholeTeamBody}>{`Screenshot your ${hostName ?? 'league'} roster to add everyone.`}</Text>
+          </View>
         </View>
-      ) : (
-      <Pressable onPress={() => setImporting(true)} style={({ pressed }) => [styles.importCard, pressed && styles.importPressed]} accessibilityRole="button" testID="onboarding-import">
-        <View style={styles.importIcon}>
-          <Ionicons name="scan-outline" size={20} color={colors.onAccent} />
-        </View>
-        <View style={styles.flex}>
-          <Text style={styles.importTitle}>Import from screenshots</Text>
-          <Text style={styles.importDetail}>Your whole Yahoo, ESPN or Fantrax roster at once</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={18} color={colors.onInkSub} />
-      </Pressable>
-      )}
+        <PrimaryButton label="Import roster" onPress={() => setImporting(true)} testID="onboarding-import" />
+      </View>
       <RosterImportSheet visible={importing} source="onboarding" onClose={() => setImporting(false)} />
       <View style={styles.searchBox}>
         <Ionicons name="search" size={16} color={colors.muted} />
