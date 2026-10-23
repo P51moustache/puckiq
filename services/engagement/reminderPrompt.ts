@@ -26,7 +26,8 @@ export type ReminderSkipReason =
   | 'asked_twice'
   | 'cooling_down'
   | 'no_game'
-  | 'call_loading';
+  | 'call_loading'
+  | 'other_prompt';
 
 export interface ReminderPromptState {
   dismissals: number;
@@ -44,6 +45,8 @@ export interface ReminderOfferInput {
   moment: ReminderMoment | null;
   /** Something useful (tonight's lineup call, or the recap) is on screen, so the ask follows it. */
   callShown: boolean;
+  /** Another Tonight ask (the "Pro is on" welcome) is up or due this visit. */
+  otherPrompt: boolean;
   now: Date;
 }
 
@@ -66,6 +69,7 @@ export function reminderOfferBlock(input: ReminderOfferInput): ReminderSkipReaso
     const last = Date.parse(input.state.lastDismissedAt);
     if (Number.isFinite(last) && input.now.getTime() - last < REMINDER_PROMPT_COOLDOWN_DAYS * DAY_MS) return 'cooling_down';
   }
+  if (input.otherPrompt) return 'other_prompt';
   if (!input.moment) return 'no_game';
   if (!input.callShown) return 'call_loading';
   return null;

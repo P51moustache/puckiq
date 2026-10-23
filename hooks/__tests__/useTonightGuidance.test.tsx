@@ -28,6 +28,14 @@ jest.mock('../useReviewPrompt', () => ({
     return { visible: false, moment: null };
   },
 }));
+let mockWelcomeArgs: any = null;
+let mockWelcomeHolding = false;
+jest.mock('../useTrialWelcome', () => ({
+  useTrialWelcome: (args: any) => {
+    mockWelcomeArgs = args;
+    return { visible: false, holding: mockWelcomeHolding, move: args.move };
+  },
+}));
 let mockItem: any = null;
 jest.mock('../useNextUp', () => ({ useNextUp: () => mockItem }));
 const mockTrack = jest.fn();
@@ -43,12 +51,12 @@ const showTomorrow = jest.fn();
 const showPlayers = jest.fn();
 const player = { playerId: 8478402, playerName: 'Connor McDavid', teamAbbrev: 'EDM', position: 'C', rosterPosition: 'BN' };
 
-function run(overrides: Partial<TonightGuidanceArgs> = {}): TonightGuidance {
+function run({ view = { date: '2026-10-13', night: { data: { playerGames: {} } } } as any, ...overrides }: Partial<TonightGuidanceArgs> = {}): TonightGuidance {
   let result: TonightGuidance | null = null;
   const Probe = () => {
     result = useTonightGuidance({
       team: { players: [player] } as any,
-      view: { date: '2026-10-13', night: { data: { playerGames: {} } } } as any,
+      view: { moves: [], ...(view as any) },
       night: 'tonight',
       playing: [player] as any,
       isPro: false,
@@ -70,13 +78,14 @@ describe('useTonightGuidance', () => {
     jest.clearAllMocks();
     mockGuideActive = true;
     mockItem = null;
+    mockWelcomeHolding = false;
   });
 
   it('shows the guide on Tonight only, and offers reminders once the lineup call has loaded', () => {
     expect(run().firstNight.visible).toBe(true);
-    expect(mockPromptArgs).toEqual({ moment: 'before_lock', callShown: false });
+    expect(mockPromptArgs).toEqual({ moment: 'before_lock', callShown: false, otherPrompt: false });
     run({ view: { date: '2026-10-13', night: { data: { playerGames: {} } }, day: { starters: [], bench: [], empty: [] } } as any });
-    expect(mockPromptArgs).toEqual({ moment: 'before_lock', callShown: true });
+    expect(mockPromptArgs).toEqual({ moment: 'before_lock', callShown: true, otherPrompt: false });
     expect(run({ night: 'tomorrow' }).firstNight.visible).toBe(false);
     expect(mockPromptArgs.moment).toBeNull();
     expect(run({ team: { players: [] } as any }).firstNight.visible).toBe(false);
@@ -93,7 +102,7 @@ describe('useTonightGuidance', () => {
 
   it('offers reminders from the morning recap on a quiet night, with the recap as the value shown', () => {
     run({ playing: [], recap: goodRecap });
-    expect(mockPromptArgs).toEqual({ moment: 'recap', callShown: true });
+    expect(mockPromptArgs).toEqual({ moment: 'recap', callShown: true, otherPrompt: false });
     run({ playing: [] });
     expect(mockPromptArgs.moment).toBeNull();
     run({ playing: [], recap: goodRecap, night: 'tomorrow' });
@@ -115,6 +124,24 @@ describe('useTonightGuidance', () => {
     mockGuideActive = true;
     run({ recap: goodRecap });
     expect(mockReviewArgs.onboarding).toBe(true);
+  });
+
+  it('greets a new subscriber with the first hidden move, ahead of the other asks', () => {
+    const moves = [
+      { id: 'sit-a', kind: 'overflow', severity: 2, title: 'a', detail: '', playerIds: [1] },
+      { id: 'sit-b', kind: 'overflow', severity: 2, title: 'b', detail: '', playerIds: [2] },
+    ];
+    run({ view: { date: '2026-10-13', night: { data: { playerGames: {} } }, moves } as any });
+    expect(mockWelcomeArgs).toEqual({ move: moves[1], ready: true });
+    run({ view: { date: '2026-10-13', night: { data: { playerGames: {} } }, moves, score: { phase: 'live', upcoming: 0 } } as any });
+    expect(mockWelcomeArgs.move).toBeNull();
+    run({ view: { date: '2026-10-13', night: {}, moves } as any });
+    expect(mockWelcomeArgs.ready).toBe(false);
+    mockWelcomeHolding = true;
+    mockGuideActive = false;
+    run({ playing: [], recap: goodRecap });
+    expect(mockPromptArgs.otherPrompt).toBe(true);
+    expect(mockReviewArgs.otherPrompt).toBe(true);
   });
 
   it('runs each first-night step and records it', async () => {

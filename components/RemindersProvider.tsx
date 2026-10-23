@@ -25,7 +25,7 @@ import { useTeams } from './TeamsProvider';
 import { track } from '../services/analytics/track';
 
 /** Which ask turned reminders on (analytics). */
-export type ReminderSource = 'onboarding' | 'tonight_prompt' | 'recap_prompt' | 'first_night' | 'settings';
+export type ReminderSource = 'onboarding' | 'tonight_prompt' | 'recap_prompt' | 'first_night' | 'trial_welcome' | 'settings';
 
 export interface EnableRemindersOptions {
   source: ReminderSource;

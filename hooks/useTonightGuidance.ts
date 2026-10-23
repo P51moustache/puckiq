@@ -1,6 +1,6 @@
 /**
- * Tonight's guidance: the first-night guide, the game-night reminder offer, the review ask and
- * "up next" — when each shows and what each tap does. TonightScreen only renders them.
+ * Tonight's guidance: the first-night guide, the "Pro is on" welcome, the game-night reminder offer,
+ * the review ask and "up next" — when each shows and what each tap does. TonightScreen only renders them.
  */
 
 import { useCallback, useEffect, useRef } from 'react';
@@ -17,9 +17,11 @@ import type { NightView } from './useCoach';
 import { useFirstNight } from './useFirstNight';
 import { reminderMoment } from '../services/engagement/reminderPrompt';
 import { reviewMoment } from '../services/engagement/reviewPrompt';
+import { firstProMove } from '../services/engagement/trialWelcome';
 import { useNextUp } from './useNextUp';
 import { useReminderPrompt, type ReminderPrompt } from './useReminderPrompt';
 import { useReviewPrompt, type ReviewPrompt } from './useReviewPrompt';
+import { useTrialWelcome, type TrialWelcome } from './useTrialWelcome';
 
 export interface TonightGuidanceArgs {
   team: FantasyTeam | null;
@@ -47,6 +49,7 @@ export interface FirstNightView {
 
 export interface TonightGuidance {
   firstNight: FirstNightView;
+  trialWelcome: TrialWelcome;
   reminderPrompt: ReminderPrompt;
   reviewPrompt: ReviewPrompt;
   nextUp: { item: NextUpItem | null; onPress: () => void };
@@ -62,15 +65,21 @@ export function useTonightGuidance({ team, view, night, playing, isPro, recap, s
   const moment = isTonight
     ? reminderMoment({ recapShown: !!recap, playingTonight: playing.length > 0, beforePuck: (view.score?.phase ?? 'pre') === 'pre' })
     : null;
+  // After a purchase: greets once the night has loaded, with a move only while tonight's lineup can change.
+  const locked = !!view.score && view.score.phase !== 'pre' && view.score.upcoming === 0;
+  const trialWelcome = useTrialWelcome({
+    move: isTonight && !locked ? firstProMove(view.moves) : null,
+    ready: (team?.players.length ?? 0) > 0 && (!!view.night.data || !!view.error),
+  });
   // Asked after value: tonight's lineup call (view.day) or the recap has to be on screen first.
-  const reminderPrompt = useReminderPrompt({ moment, callShown: moment === 'recap' || !!view.day });
+  const reminderPrompt = useReminderPrompt({ moment, callShown: moment === 'recap' || !!view.day, otherPrompt: trialWelcome.holding });
   const guideVisible = isTonight && guide.active && (team?.players.length ?? 0) > 0;
   // Asked only after a good night shows in the recap, and never on top of the reminder offer.
   const reviewPrompt = useReviewPrompt({
     moment: isTonight ? reviewMoment(recap) : null,
     sampleTeam: hasSamplePlayers(team),
     onboarding: guideVisible,
-    otherPrompt: reminderPrompt.moment !== null,
+    otherPrompt: reminderPrompt.moment !== null || trialWelcome.holding,
     otherPromptShown: reminderPrompt.visible,
     live: isTonight && view.score?.phase === 'live',
   });
@@ -122,6 +131,7 @@ export function useTonightGuidance({ team, view, night, playing, isPro, recap, s
       onStep,
       onDismiss: guide.dismiss,
     },
+    trialWelcome,
     reminderPrompt,
     reviewPrompt,
     nextUp: { item, onPress: onNextUp },

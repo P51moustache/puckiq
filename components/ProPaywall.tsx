@@ -35,6 +35,7 @@ import { BrandMark, colors, PrimaryButton } from './coach/ui';
 import type { FantasyTeam } from '../types/fantasy';
 import type { ProOpportunity } from '../services/fantasy/proOpportunity';
 import { ProOpportunityCard } from './coach/ProOpportunityCard';
+import { markTrialWelcome } from '../services/engagement/trialWelcomeStore';
 
 export { trialLabel } from '../services/paywallProducts';
 
@@ -140,6 +141,8 @@ export default function ProPaywall({ visible, onClose, source = 'settings', team
       const outcome = await purchasePackageWithDetails(selected);
       journey.record('paywall_purchase', { plan, ...product, ...outcome, checkout_ms: Math.max(0, Date.now() - startedAt) });
       if (outcome.result === 'purchased') {
+        // Tonight greets the new subscriber with "Pro is on" once the paywall has closed.
+        await markTrialWelcome(renewal);
         await refresh();
         journey.close('access_granted');
         onClose();

@@ -41,7 +41,7 @@ export interface ReminderPrompt {
   dismiss: () => void;
 }
 
-export function useReminderPrompt({ moment, callShown }: { moment: ReminderMoment | null; callShown: boolean }): ReminderPrompt {
+export function useReminderPrompt({ moment, callShown, otherPrompt }: { moment: ReminderMoment | null; callShown: boolean; otherPrompt: boolean }): ReminderPrompt {
   const reminders = useReminders();
   const [state, setState] = useState<ReminderPromptState | null>(null);
   const onScreen = useOnScreen();
@@ -67,6 +67,7 @@ export function useReminderPrompt({ moment, callShown }: { moment: ReminderMomen
     permission: reminders.permission,
     moment,
     callShown,
+    otherPrompt,
     now: new Date(),
   }) : null;
   const eligible = !!state && block === null;

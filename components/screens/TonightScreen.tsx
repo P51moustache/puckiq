@@ -60,6 +60,7 @@ import { FirstNightGuide } from '../tonight/FirstNightGuide';
 import { NextUpCard } from '../tonight/NextUpCard';
 import { ReminderSheet } from '../tonight/ReminderSheet';
 import { ReviewAsk } from '../tonight/ReviewAsk';
+import { TrialWelcomeSheet } from '../tonight/TrialWelcomeSheet';
 import { LeagueFormatPrompt } from '../tonight/LeagueFormatPrompt';
 import { recapShareContent, tonightShareContent } from '../tonight/shareContent';
 
@@ -392,6 +393,16 @@ export default function TonightScreen() {
         minutesBefore={guidance.reminderPrompt.minutesBefore}
         onAccept={guidance.reminderPrompt.accept}
         onDismiss={guidance.reminderPrompt.dismiss}
+      />
+      <TrialWelcomeSheet
+        visible={guidance.trialWelcome.visible}
+        move={guidance.trialWelcome.move}
+        byId={byId}
+        trialLine={guidance.trialWelcome.trialLine}
+        notificationsOn={guidance.trialWelcome.notificationsOn}
+        minutesBefore={guidance.reminderPrompt.minutesBefore}
+        onAccept={guidance.trialWelcome.accept}
+        onDismiss={guidance.trialWelcome.dismiss}
       />
       <ReviewAsk prompt={guidance.reviewPrompt} recap={recapScore} isPro={isPremium} />
       <ShareCardSheet visible={sharing === 'night'} content={nightShare} onClose={() => setSharing(null)} />

@@ -28,11 +28,11 @@ import { REMINDER_PROMPT_KEY, REMINDER_SHEET_DELAY_MS, useReminderPrompt, type R
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-interface Props { moment: ReminderMoment | null; callShown: boolean }
+interface Props { moment: ReminderMoment | null; callShown: boolean; otherPrompt?: boolean }
 
 let latest: ReminderPrompt | null = null;
 function Probe(props: Props) {
-  latest = useReminderPrompt(props);
+  latest = useReminderPrompt({ otherPrompt: false, ...props });
   return null;
 }
 

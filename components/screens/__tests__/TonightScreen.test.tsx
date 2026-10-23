@@ -50,6 +50,9 @@ jest.mock('../../tonight/ReminderSheet', () => ({
   },
 }));
 jest.mock('../../tonight/ReviewAsk', () => ({ ReviewAsk: () => null }));
+jest.mock('../../tonight/TrialWelcomeSheet', () => ({
+  TrialWelcomeSheet: ({ visible }: any) => (visible ? require('react').createElement('View', { testID: 'trial-welcome' }) : null),
+}));
 jest.mock('../../coach/TeamSwitcher', () => () => null);
 jest.mock('../../coach/PlayerAvatar', () => ({ PlayerAvatar: () => null, PlayerName: ({ name }: any) => { const React = require('react'); return React.createElement('Text', null, name); }, TeamChip: () => null }));
 jest.mock('../../sheets/PlayerSearchSheet', () => () => null);
@@ -182,6 +185,7 @@ describe('TonightScreen', () => {
     mockGoalieOutlooks = new Map();
     mockGuidance = {
       firstNight: { visible: false, done: [], quietNight: false, onStep: jest.fn(), onDismiss: jest.fn() },
+      trialWelcome: { visible: false, holding: false, move: null, trialLine: null, notificationsOn: false, accept: jest.fn(() => Promise.resolve()), dismiss: jest.fn() },
       reminderPrompt: { visible: false, minutesBefore: 60, accept: jest.fn(() => Promise.resolve(true)), dismiss: jest.fn() },
       reviewPrompt: { visible: false, moment: null, enjoy: jest.fn(), notReally: jest.fn(), dismiss: jest.fn(), feedbackOpen: false, closeFeedback: jest.fn() },
       nextUp: { item: null, onPress: jest.fn() },

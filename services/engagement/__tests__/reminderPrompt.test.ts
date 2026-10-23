@@ -22,6 +22,7 @@ const input = (overrides: Partial<ReminderOfferInput> = {}): ReminderOfferInput 
   permission: 'undetermined',
   moment: 'before_lock',
   callShown: true,
+  otherPrompt: false,
   now: NOW,
   ...overrides,
 });
@@ -50,6 +51,12 @@ describe('game-night reminder offer', () => {
     expect(block({ remindersOn: true, moment: null, callShown: false })).toBe('reminders_on');
     expect(block({ permission: 'denied', moment: null })).toBe('permission_denied');
     expect(block({ moment: null, callShown: false })).toBe('no_game');
+  });
+
+  it('holds off while another ask has the screen', () => {
+    expect(block({ otherPrompt: true })).toBe('other_prompt');
+    expect(block({ otherPrompt: true, moment: null })).toBe('other_prompt');
+    expect(block({ otherPrompt: true, remindersOn: true })).toBe('reminders_on');
   });
 
   it('waits a week after "Not now" and gives up after the last one', () => {
